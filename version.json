@@ -1,0 +1,11 @@
+{
+    "version": "2.8.9",
+    "lastUpdate": "2025-12-24 21:35",
+    "changelog": [
+        "🚀 2.8.9 – Kapsamlı Tarama (Extended Scan)",
+        "• 📈 Limit Artırımı: Anlık analizlerdeki yapay limitler genişletildi.",
+        "• 👤 Fenomen Limiti: 50 kişi (Eski: 15 kişi). Artık listenin sonundaki fenomenler de taranıyor.",
+        "• 📊 Tweet Limiti: 100 tweet (Eski: 30 tweet). Daha fazla veri toplanarak analiz kalitesi artırıldı.",
+        "• ⚠️ Not: Limit artışı nedeniyle analiz süresi uzayabilir (3-5 dk), ancak veri kaybı yaşanmaz."
+    ]
+}

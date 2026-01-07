@@ -1,0 +1,20 @@
+X'iDeAI Sürüm Notları
+
+v2.1.2 (Güncel)
+----------------------------------------
+[YENİ] TradingView Cookie Desteği: Reklamsız ve özelleştirilmiş grafikler için çerezlerinizi yükleyebilirsiniz. (Ayarlar sekmesi)
+[DÜZELTME] Manuel Analiz Tweet Gönderimi: Web üzerinden gönderim önceliği eklendi.
+[DÜZELTME] Karakter Sorunları: Emoji ve özel karakter içeren tweetlerin gönderim hatası (Base64 kodlaması ile) giderildi.
+[DÜZELTME] Yanlış Onaylama: Telegram üzerinden eski mesajların yanlışlıkla onay sayılması engellendi (Tarih kontrolü eklendi).
+[DÜZELTME] Log Oluşturma: Program açılışında log klasörünün otomatik oluşturulması sağlandı.
+
+v2.0.8
+----------------------------------------
+[DÜZELTME] Setup: Güncelleme sırasında eski dosyaların temizlenmesi iyileştirildi.
+[SİSTEM] Uygulama sürüm numarası arayüze eklendi.
+
+v2.0.0
+----------------------------------------
+[YENİ] Anka Sinyali entegrasyonu.
+[YENİ] Kripto ve Forex manuel analiz modları.
+[YENİ] Spam koruma sistemi.

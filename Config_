@@ -1,0 +1,61 @@
+using System;
+using System.Collections.Generic;
+
+namespace XiDeAI_Pro.Config
+{
+    public class FilterSettings
+    {
+        // Hangi taramalar aktif?
+        public bool EnableKing { get; set; } = true;
+        public bool EnableBomba { get; set; } = true;
+        public bool EnableTeFo { get; set; } = true;
+        public bool EnableDip { get; set; } = true;
+        public bool EnableZirve { get; set; } = true;
+        public bool EnableAnka { get; set; } = true;
+
+        // Hangi periyotlar aktif?
+        public bool Period15 { get; set; } = true;
+        public bool Period60 { get; set; } = true;
+        public bool Period240 { get; set; } = true;
+        public bool PeriodDaily { get; set; } = true;
+
+        // Eşik değerler (minimum skor)
+        public int ThresholdKingBomba { get; set; } = 24;
+        public int ThresholdDip { get; set; } = 12;
+        public int ThresholdZirve { get; set; } = 14;
+        public int ThresholdAnka { get; set; } = 27;
+
+        // Özel filtreler
+        public bool OnlyCommonSignals { get; set; } = false; // Birden fazla taramada ortak çıkanlar
+        public int MinCommonCount { get; set; } = 2; // En az kaç taramada ortak olmalı?
+    }
+
+    public class ScheduleSettings
+    {
+        // Tarama saatleri (robot tarama zamanlarıyla senkron)
+        public List<TimeSpan> ScanTimes { get; set; } = new List<TimeSpan>
+        {
+            new TimeSpan(10, 00, 00),
+            new TimeSpan(10, 30, 00),
+            new TimeSpan(11, 00, 00),
+            new TimeSpan(11, 30, 00),
+            new TimeSpan(12, 00, 00),
+            new TimeSpan(13, 00, 00),
+            new TimeSpan(13, 30, 00),
+            new TimeSpan(14, 00, 00),
+            new TimeSpan(14, 30, 00),
+            new TimeSpan(15, 00, 00),
+            new TimeSpan(15, 30, 00),
+            new TimeSpan(16, 00, 00),
+            new TimeSpan(16, 30, 00),
+            new TimeSpan(17, 00, 00),
+            new TimeSpan(17, 30, 00),
+            new TimeSpan(18, 00, 00),
+            new TimeSpan(18, 15, 00), // Kapanış taraması
+        };
+
+        public int TweetDelayMinutes { get; set; } = 2; // Taramadan sonra kaç dakika bekle
+        public bool RespectSchedule { get; set; } = true; // Saat bazlı kontrol aktif mi?
+    }
+}
+

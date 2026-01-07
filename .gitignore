@@ -1,0 +1,26 @@
+# .NET
+bin/
+obj/
+publish/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# App Specific
+Logs/
+screenshots/
+Config/*.json
+Config/IndicatorGuide.md.backup
+*.log
+Sinyal_Log_Database.txt
+Telegram_Debug.txt
+VIOP_Pozisyon_Debug.txt
+
+# OS
+.DS_Store
+Thumbs.db

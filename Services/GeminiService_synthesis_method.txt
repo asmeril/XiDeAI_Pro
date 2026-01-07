@@ -1,0 +1,57 @@
+        public async Task<string?> SynthesizeInfluencerAnalyses(string symbol, string marketType, string priceContext, string visualAnalysis, List<InfluencerPost> influencerPosts)
+        {
+            if (influencerPosts == null || influencerPosts.Count == 0)
+                return visualAnalysis;
+
+            var influencerContext = "";
+            for (int i = 0; i < influencerPosts.Count; i++)
+            {
+                var post = influencerPosts[i];
+                influencerContext += $"\n{i + 1}. @{post.Handle}: \"{CleanTweetContent(post.Content)}\"\n   (Etkilesim: {post.Engagement})\n";
+            }
+
+            string prompt = $@"Sen deneyimli bir teknik analistin. Asagida {symbol} hakkinda taninmis analistlerin goruslerini goruyorsun.
+
+INFLUENCER GORUSLERI:{influencerContext}
+
+GERCEK VERILER:
+{priceContext}
+
+GRAFIK ANALIZI:
+{visualAnalysis}
+
+GOREV:
+1. Bu gorusleri ozetle
+2. Ortak noktalari ve farkliliklari belirt
+3. Kendi ozgun sentezini olustur
+
+FORMAT:
+{symbol} Kollektif Analiz
+
+One Cikan Gorusler:
+- Yukselis: [hesaplar]
+- Dusus: [hesaplar]
+- Ortak: [pattern]
+
+AI Sentezi:
+[3-4 cumle]
+
+Kritik Seviyeler:
+- Direnc: [levels]
+- Destek: [levels]
+
+Kaynak: {string.Join(" ", influencerPosts.Select(p => "@" + p.Handle))}
+
+Yatirim tavsiyesi degildir.";
+
+            return await SendRequest(prompt);
+        }
+
+        private string CleanTweetContent(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"http[s]?://\S+", "");
+            raw = raw.Trim();
+            if (raw.Length > 200) raw = raw.Substring(0, 200) + "...";
+            return raw;
+        }

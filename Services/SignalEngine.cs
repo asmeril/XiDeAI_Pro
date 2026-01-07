@@ -1,0 +1,556 @@
+// SIGNAL_ENGINE_VERSION: 1.0
+// PURPOSE: Central orchestrator for signal lifecycle (Parsing -> AI Filtering -> Rich Generation -> Execution).
+// This decouples the business logic from MainForm.cs.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Text.Json;
+using XiDeAI_Pro.Config;
+
+using XiDeAI_Pro.Services.Core;
+
+namespace XiDeAI_Pro.Services
+{
+    public class SignalEngine : IModule
+    {
+        // IModule Implementation
+        public string ModuleName => "SIGNAL_ENGINE";
+        public bool IsActive { get; set; } = true;
+
+        private readonly SignalParser _parser;
+        private readonly GeminiService _gemini;
+        private readonly TwitterService _twitter;
+        private readonly SocialIntelService _socialIntel;
+        private readonly ScreenshotService _screenshot;
+        private readonly ThreadService _threadService;
+        private readonly PromptManager _promptManager;
+        private readonly PromptManager _prompts; // Alias for Deep Scan
+        private readonly PerformanceTracker _performance;
+        private readonly SpamProtection _spam;
+        private readonly TelegramService _telegram;
+        private readonly StatsEngine _stats;
+        private readonly XiDeAI_Pro.Services.AI.ModelManager? _modelManager; // Multi-Model AI (v3.1+)
+
+        // Batch State
+        private readonly object _batchLock = new object();
+        private List<SignalData> _pendingBatchSignals = new List<SignalData>();
+        private System.Threading.CancellationTokenSource? _batchCts;
+        private DateTime _lastBatchUpdate = DateTime.MinValue;
+        private DateTime _batchStartUtc = DateTime.MinValue;
+
+        // Batch Windows
+        private static readonly TimeSpan BatchQuietWindow = TimeSpan.FromSeconds(120);
+        private static readonly TimeSpan BatchMaxWindow = TimeSpan.FromSeconds(240);
+        private const int BatchMaxCount = 30;
+
+        // Memory for Global Deduplication (independent of SpamProtection settings)
+        private readonly Dictionary<string, DateTime> _globalSignalMemory = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, HashSet<string>> _signalMemory = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase); // For Common Signals logic
+        private readonly object _memoryLock = new object();
+        private static readonly TimeSpan GlobalCooldown = TimeSpan.FromHours(4);
+
+        // Events for UI Updates
+        public event Action<string, string>? OnLog;
+        public event Action<string>? OnStatusUpdate;
+        public event Action<SignalData>? OnSignalProcessed;
+
+        public SignalEngine(
+            SignalParser parser, 
+            GeminiService gemini, 
+            TwitterService twitter, 
+            SocialIntelService socialIntel,
+            ScreenshotService screenshot,
+            ThreadService threadService,
+            PromptManager promptManager,
+            PerformanceTracker performance,
+            SpamProtection spam,
+            TelegramService telegram,
+            StatsEngine stats,
+            XiDeAI_Pro.Services.AI.ModelManager? modelManager = null)
+        {
+            _parser = parser;
+            _gemini = gemini;
+            _twitter = twitter;
+            _socialIntel = socialIntel;
+            _screenshot = screenshot;
+            _threadService = threadService;
+            _promptManager = promptManager;
+            _prompts = promptManager; // Alias
+            _performance = performance;
+            _spam = spam;
+            _telegram = telegram;
+            _stats = stats;
+            _modelManager = modelManager;
+        }
+
+        public async Task InitializeAsync()
+        {
+            OnLog?.Invoke("🚀 SignalEngine (Core Module) Initialized.", "System");
+            await Task.CompletedTask;
+        }
+
+        public string GetStatus()
+        {
+            return $"Active: {IsActive}, Pending Batch: {_pendingBatchSignals.Count}";
+        }
+        
+        // IModule generic processing
+        public async Task ProcessSignalAsync(SignalData signal)
+        {
+             // Direct processing logic
+             await ProcessStructuredSignal(signal);
+        }
+
+        // --- Future Hooks for AI Formation Analysis ---
+        private Task<bool> AnalyzeFormationAsync(string symbol, string period)
+        {
+            // Placeholder for future multi-angle formation scan
+            return Task.FromResult(true);
+        }
+
+        /// <summary>
+        /// Entry point for a new signal log line
+        /// </summary>
+        public async Task ProcessRawSignal(string rawLine, string source)
+        {
+            try
+            {
+                // 1. Time Filter (Sync with Config - v3 Improved)
+                var scanHours = ConfigManager.Current.ScanHours;
+                if (scanHours != null && scanHours.Count > 0)
+                {
+                    bool isAllowed = false;
+                    DateTime now = DateTime.Now;
+                    foreach (var h in scanHours)
+                    {
+                        if (TimeSpan.TryParse(h, out TimeSpan ts))
+                        {
+                            // Eski projedeki gibi gün bazlı karşılaştırma (Midnight-Safe)
+                            var target = DateTime.Today.Add(ts);
+                            
+                            // +/- 60 dakika tolerans (Eski proje standardı)
+                            if (Math.Abs((now - target).TotalMinutes) <= 60)
+                            {
+                                isAllowed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isAllowed) 
+                    {
+                        OnLog?.Invoke($"🛡️ Zaman Filtresi: Sinyal saati ({now:HH:mm}) taranacak saatlerle ({string.Join(", ", scanHours)}) eşleşmiyor (+/- 60 dk).", "Engine");
+                        return;
+                    }
+                }
+
+                // 2. Parse
+                var signalsList = _parser.Parse(rawLine, source);
+                if (signalsList == null || !signalsList.Any()) return;
+
+                List<SignalData> validSignals = new List<SignalData>();
+
+                foreach (var sig in signalsList)
+                {
+                    // 3. Common Scan Logic
+                    if (ConfigManager.Current.OnlyCommonSignals)
+                    {
+                        var targetStrategies = ConfigManager.Current.CommonStrategies;
+
+                        if (targetStrategies.Any())
+                        {
+                            lock (_memoryLock)
+                            {
+                                if (!_signalMemory.ContainsKey(sig.Symbol))
+                                    _signalMemory[sig.Symbol] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                
+                                _signalMemory[sig.Symbol].Add(sig.Strategy.ToUpper());
+
+                                bool allFound = true;
+                                foreach (var required in targetStrategies)
+                                {
+                                    if (!_signalMemory[sig.Symbol].Any(found => found.Contains(required)))
+                                    {
+                                        allFound = false;
+                                        break;
+                                    }
+                                }
+
+                                if (!allFound)
+                                {
+                                    OnLog?.Invoke($"⏳ Bekleniyor (Ortak Tarama): {sig.Symbol} (Eksik onaylar var)", "Engine");
+                                    continue;
+                                }
+                                else
+                                {
+                                    OnLog?.Invoke($"✨ ORTAK TARAMA EŞLEŞTİ: {sig.Symbol}", "Engine");
+                                }
+                            }
+                        }
+                    }
+
+                    validSignals.Add(sig);
+                }
+
+                // 4. Batch vs Single Decision
+                // Kullanıcı thread (zincir) istiyor. Batch eşiğini yükseltiyoruz.
+                // Eskiden 2 idi, şimdi 4 yapıyoruz. Yani 2 veya 3 sinyal gelirse batch OLMASIN, thread olsun.
+                bool batchEnabled = !ConfigManager.Current.DisableSpamProtection; // Global koruma kapalıysa batch yapma (tek tek at)
+                if (batchEnabled && validSignals.Count >= 4)
+                {
+                    EnqueueForBatch(validSignals);
+                }
+                else
+                {
+                    foreach (var sig in validSignals)
+                    {
+                        // Küçük, yönetilebilir sayıda sinyal direk thread'e
+                        await ProcessStructuredSignal(sig);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"❌ SignalEngine Error (ProcessRaw): {ex.Message}", "System");
+            }
+        }
+
+        public void EnqueueForBatch(List<SignalData> signals)
+        {
+            lock (_batchLock)
+            {
+                _lastBatchUpdate = DateTime.UtcNow;
+                if (_pendingBatchSignals.Count == 0) _batchStartUtc = _lastBatchUpdate;
+
+                foreach (var s in signals)
+                {
+                    bool exists = _pendingBatchSignals.Any(x =>
+                        x.Symbol.Equals(s.Symbol, StringComparison.OrdinalIgnoreCase) &&
+                        x.Strategy.Equals(s.Strategy, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!exists) _pendingBatchSignals.Add(s);
+                }
+
+                if (_pendingBatchSignals.Count >= BatchMaxCount)
+                {
+                    _ = FinalizeBatch();
+                }
+                else
+                {
+                    _batchCts?.Cancel();
+                    _batchCts = new System.Threading.CancellationTokenSource();
+                    var token = _batchCts.Token;
+
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(BatchQuietWindow, token);
+                            if (!token.IsCancellationRequested) await FinalizeBatch();
+                        }
+                        catch (OperationCanceledException) { }
+                    }, token);
+                }
+            }
+        }
+
+        private async Task FinalizeBatch()
+        {
+            List<SignalData> batch;
+            lock (_batchLock)
+            {
+                if (_pendingBatchSignals.Count == 0) return;
+                batch = new List<SignalData>(_pendingBatchSignals);
+                _pendingBatchSignals.Clear();
+                _batchCts?.Cancel();
+                _batchCts = null;
+            }
+
+            OnLog?.Invoke($"📦 Toplu Paylaşım Hazırlanıyor ({batch.Count} sinyal)...", "Engine");
+            
+            try 
+            {
+                // Group by Symbol to avoid same symbol appearing multiple times
+                var grouped = batch
+                    .GroupBy(s => s.Symbol.ToUpperInvariant())
+                    .Select(g => new {
+                        Symbol = g.Key,
+                        Strategies = string.Join(", ", g.Select(x => x.Strategy).Distinct()),
+                        LastPrice = g.Last().Price
+                    })
+                    .ToList();
+
+                // Generate Batch Text
+                string batchText = "📊 TOPLU SİNYAL RAPORU\n\n";
+                foreach(var s in grouped.Take(12)) // Show up to 12 unique symbols
+                {
+                    batchText += $"• ${s.Symbol}: {s.Strategies} ({s.LastPrice:N2})\n";
+                }
+
+                if (grouped.Count > 12)
+                {
+                    batchText += $"...ve {grouped.Count - 12} diğer sembol.\n";
+                }
+
+                batchText += "\n🚀 Detaylar platformumuzda!";
+                
+                // Use centralized hashtag manager (ThreadService)
+                var batchHashtags = _threadService.GetType().GetMethod("ExtractUniqueHashtags", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.Invoke(_threadService, new object[] { ConfigManager.Current.DailyTrends, "BATCH", batchText }) as List<string>;
+                
+                if (batchHashtags != null)
+                {
+                    batchText += "\n" + string.Join(" ", batchHashtags);
+                }
+                else
+                {
+                    batchText += "\n#Borsa #AlgoritmikTrade #XideAI";
+                }
+
+                // Post
+                bool sent = await ExecutePost(batchText, "", new SignalData { Symbol = "BATCH" });
+                if (sent)
+                {
+                    OnLog?.Invoke($"✅ Toplu Sinyal Paylaşıldı ({batch.Count} adet)", "Twitter");
+                    foreach(var s in batch) _spam.RecordTweet(s.Symbol, "BATCH");
+                }
+            }
+            catch(Exception ex)
+            {
+                OnLog?.Invoke($"❌ Batch Finalize Hatası: {ex.Message}", "Engine");
+            }
+        }
+
+        public async Task ProcessStructuredSignal(SignalData sig)
+        {
+            try
+            {
+                _stats.RecordActivity("SignalEngine", $"Processing signal: {sig.Symbol}", true, sig.Strategy);
+                
+                // 1. GLOBAL DEDUPLICATION (Always on, 4h cooldown per Signal Type)
+                string signalKey = $"{sig.Symbol}|{sig.Strategy}|{sig.Period}";
+                lock (_memoryLock)
+                {
+                    if (_globalSignalMemory.TryGetValue(signalKey, out var lastTime))
+                    {
+                        if (DateTime.UtcNow - lastTime < GlobalCooldown)
+                        {
+                            OnLog?.Invoke($"⏭️ Mükerrer Sinyal Engellendi: {sig.Symbol} ({sig.Strategy}) - Son paylaşım {(DateTime.UtcNow - lastTime).TotalMinutes:0} dk önce.", "Engine");
+                            return;
+                        }
+                    }
+                    _globalSignalMemory[signalKey] = DateTime.UtcNow;
+                }
+
+                OnLog?.Invoke($"📡 Sinyal Alındı: {sig.Symbol} ({sig.Strategy})", "Engine");
+
+                // 2. AI Pre-Filter (Optional but recommended in Master Plan)
+                bool isWorthAnalyzing = await CheckSignalQualityWithAI(sig);
+                if (!isWorthAnalyzing)
+                {
+                    OnLog?.Invoke($"🛡️ AI Filtresi: {sig.Symbol} analize uygun görülmedi.", "Engine");
+                    return;
+                }
+
+                // 3. Spam/Cooldown Check
+                // Config: SpamProtectSignals (varsayılan false)
+                if (ConfigManager.Current.SpamProtectSignals)
+                {
+                    if (!_spam.CanTweet(sig.Symbol, sig.Strategy, out string reason))
+                    {
+                        OnLog?.Invoke($"🛡️ Spam/Cooldown: {sig.Symbol} pas geçildi ({reason})", "Engine");
+                        return;
+                    }
+                }
+
+                // 4. Analysis & Generation
+                OnStatusUpdate?.Invoke($"{sig.Symbol} analiz ediliyor...");
+                
+                // Screenshot (Parallel potential)
+                string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period);
+
+                // Phase 2: AI Formation Analysis
+                string aiContent = "";
+                if (!string.IsNullOrEmpty(screenshotPath))
+                {
+                    string priceContext = $"Fiyat: {sig.Price:0.00}, Strateji: {sig.Strategy}, Skor: {sig.Score}/{sig.MaxScore}";
+                    aiContent = await AnalyzeFormationAsync(sig.Symbol, sig.Period, priceContext, screenshotPath);
+                }
+                else
+                {
+                    aiContent = await _gemini.GenerateTweetContent(sig, "") ?? string.Empty;
+                }
+
+                // Influencer Posts (New: pass raw list to ThreadService)
+                var influencerPosts = await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market);
+                
+                // Generate TradingView Link
+                string exchange = sig.Market == "Kripto" ? "BINANCE" : "BIST";
+                string tvLink = $"https://www.tradingview.com/chart/?symbol={exchange}:{sig.Symbol}";
+
+                // 5. Execution (Using ThreadService to align with Manual Analysis)
+                OnLog?.Invoke($"🧵 {sig.Symbol} için profesyonel thread hazırlanıyor...", "Twitter");
+                
+                var (sent, errorMsg) = await _threadService.PostSignalThread(
+                    sig, 
+                    screenshotPath ?? "", 
+                    tvLink, 
+                    ConfigManager.Current.DailyTrends,
+                    customAnalysis: aiContent,
+                    influencerPosts: influencerPosts
+                );
+
+                if (sent)
+                {
+                    _spam.RecordTweet(sig.Symbol, sig.Strategy);
+                    _performance.RecordSignal(sig);
+                    OnSignalProcessed?.Invoke(sig);
+                    OnLog?.Invoke($"✅ Başarıyla Paylaşıldı: {sig.Symbol}", "Twitter");
+                }
+                else
+                {
+                    OnLog?.Invoke($"❌ Paylaşım Başarısız: {errorMsg}", "Twitter");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"❌ SignalEngine Error (Structured): {ex.Message}", "System");
+            }
+        }
+
+        private async Task<bool> CheckSignalQualityWithAI(SignalData sig)
+        {
+            var cfg = ConfigManager.Current;
+            int threshold = 3; // Varsayılan
+
+            // Stratejiye özel eşik kontrolü (Eski projeden geri getirildi)
+            if (sig.Source == "KING") threshold = cfg.MinScoreKing;
+            else if (sig.Source == "DIP") threshold = cfg.MinScoreDip;
+            else if (sig.Source == "ANKA") threshold = cfg.MinScoreAnka;
+
+            // Step 1: Basic Score Filter
+            bool ok = sig.Score >= threshold;
+            if (!ok) 
+            {
+                OnLog?.Invoke($"🛡️ Skor Filtresi: {sig.Symbol} ({sig.Strategy}) skoru {sig.Score} < {threshold} (Eşik) olduğu için elendi.", "Engine");
+                return false;
+            }
+            
+            OnLog?.Invoke($"✅ Skor Doğrulandı: {sig.Symbol} ({sig.Score} >= {threshold})", "Engine");
+
+            // Step 2: AI Deep Scan (Optional - Config controlled)
+            // Phase 4: Deep Scan to save API quota
+            if (cfg.EnableDeepScan)
+            {
+                try
+                {
+                    OnLog?.Invoke($"🔍 Deep Scan başlatılıyor: {sig.Symbol}", "Engine");
+                    string prompt = _prompts.GetDeepScanPrompt(sig);
+                    
+                    string? response = null;
+                    
+                    // Use ModelManager if available (v3.1+)
+                    if (_modelManager != null && cfg.EnableMultiModel)
+                    {
+                        response = await _modelManager.SendRequest(
+                            XiDeAI_Pro.Services.AI.TaskType.DeepScan,
+                            prompt,
+                            maxTokens: 100  // Simple yes/no, minimal tokens
+                        );
+                    }
+                    else
+                    {
+                        // Fallback to GeminiService
+                        response = await _gemini.SendRequest(prompt);
+                    }
+                    
+                    if (response != null && response.ToUpperInvariant().Contains("WORTHY"))
+                    {
+                        OnLog?.Invoke($"✅ Deep Scan: {sig.Symbol} analize değer bulundu.", "Engine");
+                        return true;
+                    }
+                    else
+                    {
+                        OnLog?.Invoke($"⏭️ Deep Scan: {sig.Symbol} zayıf/gürültülü olarak değerlendirildi, atlandı.", "Engine");
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"⚠️ Deep Scan hatası: {ex.Message}, varsayılan olarak devam ediliyor.", "Engine");
+                    return true; // Hata durumunda sinyali geçir (fail-safe)
+                }
+            }
+            
+            return true; 
+        }
+
+        /// <summary>
+        /// Phase 2: AI Formation Analysis
+        /// Asks Gemini to identify chart patterns from a screenshot
+        /// </summary>
+        private async Task<string> AnalyzeFormationAsync(string symbol, string period, string priceContext, string screenshotPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(screenshotPath)) return "Görsel analiz yapılamadı (Ekran görüntüsü yok).";
+
+                OnLog?.Invoke($"🔍 AI Formasyon Analizi Başlatıldı: {symbol} ({period}dk)", "Engine");
+                
+                string marketType = (symbol.Contains("BTC") || symbol.Contains("ETH") || symbol.Contains("USDT")) ? "Crypto" : "BIST";
+                string? analysis = await _gemini.GenerateMarketAnalysisWithChart(symbol, marketType, priceContext, screenshotPath);
+
+                if (!string.IsNullOrEmpty(analysis))
+                {
+                    OnLog?.Invoke($"✅ AI Formasyon Tespit Edildi: {symbol}", "Engine");
+                    return analysis;
+                }
+                
+                return "Belirgin bir formasyon tespit edilemedi.";
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"⚠️ Formasyon Analiz Hatası: {ex.Message}", "Engine");
+                return "Analiz sırasında hata oluştu.";
+            }
+        }
+
+
+
+        private async Task<bool> ExecutePost(string content, string mediaPath, SignalData sig)
+        {
+            // Safety Check: If content is JSON thread, use PostThreadAsync
+            if (content.TrimStart().StartsWith("{") && content.Contains("\"tweets\""))
+            {
+                try 
+                {
+                    var threadData = JsonSerializer.Deserialize<JsonElement>(content);
+                    if (threadData.TryGetProperty("tweets", out var tweetsArr))
+                    {
+                        var tweets = tweetsArr.EnumerateArray().Select(x => x.GetString() ?? "").ToList();
+                        var res = await _socialIntel.PostThreadAsync(tweets, mediaPath);
+                        return res.status == "success";
+                    }
+                }
+                catch { /* Rollback to single tweet if parse fails */ }
+            }
+
+            // Web automation first
+            var result = await _socialIntel.PostTweet(content, mediaPath);
+            if (result.status == "success")
+            {
+                _stats.RecordActivity("SignalEngine", $"Posted tweet via Web: {sig.Symbol}", true);
+                return true;
+            }
+
+            // API Fallback
+            bool apiSent = await _twitter.SendTweetAsync(content);
+            _stats.RecordActivity("SignalEngine", $"Posted tweet via API: {sig.Symbol}", apiSent, apiSent ? "" : _twitter.LastError);
+            return apiSent;
+        }
+    }
+}
+
+

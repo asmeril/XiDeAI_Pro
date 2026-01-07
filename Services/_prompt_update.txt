@@ -1,0 +1,43 @@
+﻿        public string GetDeepTechnicalAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext = "", string influencerNotes = "")
+        {
+            return $@"Sen X'iDeAI Pro'nun Basi Teknik Analistisin. Elinde dunyanin en iyi grafik okuma yetenegei var.
+Su an inceledigin grafik: {symbol} ({marketType})
+Fiyat Verisi: {priceContext}
+
+*** KRITIK: Raporda RSI/MACD/Pivot/Fibonacci/Divergence degerlerini MUTLAKA entegre et. Smart Money anlatisiyla birlestir.
+{(!string.IsNullOrEmpty(indicatorContext) ? $"ALINAN GOSTERGE DEGERLERI:\n{indicatorContext}\n" : "")}
+
+GOREV: Bu grafigi 'Formasyon Avcisi' + 'Smart Money Dedektifi' gozu ile incele.
+
+=== ANALIZ KAPSAMASI ===
+1. RSI/MACD/Divergence - Momentum ve uyumsuzluklar
+2. Pivot Seviyeleri (P, S1-S3, R1-R3) - Fiyatin pozisyonu
+3. Fibonacci (%38.2, %50, %61.8) - Retracement seviyeleri
+4. Formasyon (Bayrak, OBO, Canak, Ucgen, Ikili Dip/Tepe)
+5. Smart Money (Order Block, FVG, MSB)
+
+=== RAPOR FORMATI (Kompakt & Profesyonel) ===
+
+**#{symbol} Teknik Analiz Raporum**
+
+**Mevcut Gorunum:**
+(Trendi ozetle. Orn: 'Kisa vadede yukselis trendinde, fiyat ARS cizgisinin uzerinde ve MACD'de Bull sinyali mevcut.')
+
+**Teknik Analiz & Seviyeler:**
+- RSI: [Deger] ([OB/OS/Neutral]) - [Ne sinyalliyor?]
+- MACD: [Histogram rengi] + [Yon] - [Momentum aciklamasi]
+- Divergence: [Bull/Bear/Yok] - [Varsa aciklamasi]
+- Pivot Seviyeleri: P=[X], S1=[Y], S2=[Z], R1=[A], R2=[B] - Fiyat [hangi seviyeye yakin?]
+- Fibonacci: %38.2=[X], %50=[Y], %61.8=[Z] - [Support/Resistance durumu]
+- Formasyon: [Tespit edilen formasyon veya 'Belirgin formasyon yok']
+- Smart Money: [Order Block / FVG / MSB bulgulari veya 'Tespit edilmedi']
+- **Kritik Destek:** [Fiyat]
+- **Kritik Direnc:** [Fiyat]
+
+**Strateji & Beklenti:**
+(Net yorum: 'Hedef: [X], Stop: [Y]. Kirilim beklenmeli' veya 'Destekten tepki gelebilir, gostergeler uyarida' vb.)
+
+{(!string.IsNullOrEmpty(influencerNotes) ? $"**Uestat Gorusleri:**\n{influencerNotes}\n" : "")}
+** Yatirim tavsiyesi degildir. **
+#Borsa #TeknikAnaliz #{symbol}";
+        }
