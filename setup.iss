@@ -1,7 +1,7 @@
-; X'iDeAI Installer Script
+﻿; X'iDeAI Installer Script
 
 #define MyAppName "XiDeAI Pro"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "4.6.0"
 #define MyAppPublisher "iDeAI Labs"
 #define MyAppExeName "XiDeAI_Pro.exe"
 
@@ -67,7 +67,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; .NET projesi publish edildiğinde oluşan dosyaları alır
-Source: "Dist\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Dist\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Scripts\screenshots\*,Logs\*,*.log"
 ; Icon dosyası (Windows Uygulamalar listesinde görünmesi için)
 Source: "xideai_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -77,6 +77,55 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

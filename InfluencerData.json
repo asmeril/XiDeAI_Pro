@@ -568,5 +568,38 @@
       "AddedDate": "2025-12-15T11:01:40.3287232+03:00",
       "LastUpdated": "2025-12-15T11:01:40.3287232+03:00"
     }
-  ]
+  ],
+  "META_TEACHER": {
+    "TECH": [
+      { "Handle": "@hrrcnes", "Score": 90, "AddedDate": "2025-01-01T00:00:00" },
+      { "Handle": "@DataChaz", "Score": 85, "AddedDate": "2025-01-01T00:00:00" },
+      { "Handle": "@TansuYegen", "Score": 80, "AddedDate": "2025-01-01T00:00:00" },
+      { "Handle": "@AndrewYNg", "Score": 95, "AddedDate": "2025-01-01T00:00:00" },
+      { "Handle": "@karpathy", "Score": 95, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@sama", "Score": 90, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@YannLeCun", "Score": 90, "AddedDate": "2026-01-11T00:00:00" }
+    ],
+    "FINANCE": [
+      { "Handle": "@RayDalio", "Score": 95, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@MorganHousel", "Score": 90, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@BurryArchive", "Score": 85, "AddedDate": "2026-01-11T00:00:00" }
+    ],
+    "BUSINESS": [
+      { "Handle": "@naval", "Score": 100, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@paulg", "Score": 95, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@AlexHormozi", "Score": 85, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@levie", "Score": 80, "AddedDate": "2026-01-11T00:00:00" }
+    ],
+    "PERSONAL": [
+      { "Handle": "@HubermanLab", "Score": 95, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@TimFerriss", "Score": 90, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@JamesClear", "Score": 90, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@PeterAttiaMD", "Score": 90, "AddedDate": "2026-01-11T00:00:00" }
+    ],
+    "GLOBAL": [
+      { "Handle": "@IanBremmer", "Score": 90, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@Balaji", "Score": 85, "AddedDate": "2026-01-11T00:00:00" },
+      { "Handle": "@WaitButWhy", "Score": 85, "AddedDate": "2026-01-11T00:00:00" }
+    ]
+  }
 }

@@ -1,0 +1,69 @@
+# COMMODITIES (Emtia) Sembol Listesi
+# Format: SYMBOL|Turkish Name|Yahoo Symbol|TradingView Symbol|Category
+# Encoding: UTF-8
+
+# === KIYMETLİ METALLER (Precious Metals) ===
+GOLD|Altın|GC=F|TVC:GOLD|Kıymetli Metal
+XAUUSD|Altın/Dolar|GC=F|TVC:GOLD|Kıymetli Metal
+SILVER|Gümüş|SI=F|COMEX:SI1!|Kıymetli Metal
+XAGUSD|Gümüş/Dolar|SI=F|TVC:SILVER|Kıymetli Metal
+PLATINUM|Platin|PL=F|NYMEX:PL1!|Kıymetli Metal
+XPTUSD|Platin/Dolar|PL=F|TVC:PLATINUM|Kıymetli Metal
+PALLADIUM|Paladyum|PA=F|NYMEX:PA1!|Kıymetli Metal
+XPDUSD|Paladyum/Dolar|PA=F|TVC:PALLADIUM|Kıymetli Metal
+
+# === ENERJİ (Energy) ===
+WTI|WTI Petrol|CL=F|NYMEX:CL1!|Enerji
+USOIL|US Petrol|CL=F|NYMEX:CL1!|Enerji
+BRENT|Brent Petrol|BZ=F|NYMEX:BZ1!|Enerji
+UKOIL|UK Petrol|BZ=F|NYMEX:BZ1!|Enerji
+NATGAS|Doğalgaz|NG=F|NYMEX:NG1!|Enerji
+NGAS|Doğalgaz|NG=F|NYMEX:NG1!|Enerji
+HEATING|Fuel Oil|HO=F|NYMEX:HO1!|Enerji
+GASOLINE|Benzin|RB=F|NYMEX:RB1!|Enerji
+COAL|Kömür|MTF=F|NYMEX:MTF1!|Enerji
+
+# === ENDÜSTRİYEL METALLER (Industrial Metals) ===
+COPPER|Bakır|HG=F|COMEX:HG1!|Endüstriyel Metal
+ALUMINUM|Alüminyum|ALI=F|LME:ALI3M|Endüstriyel Metal
+ZINC|Çinko|ZS=F|LME:ZS3M|Endüstriyel Metal
+NICKEL|Nikel|NI=F|LME:NI3M|Endüstriyel Metal
+LEAD|Kurşun|LL=F|LME:LL3M|Endüstriyel Metal
+TIN|Kalay|SN=F|LME:SN3M|Endüstriyel Metal
+COBALT|Kobalt|CO=F|LME:CO3M|Endüstriyel Metal
+IRON|Demir Cevheri|SZZF=F|SGX:FEF1!|Endüstriyel Metal
+
+# === TARIMSAL - TAHILLAR (Agricultural - Grains) ===
+WHEAT|Buğday|ZW=F|CBOT:ZW1!|Tarımsal
+CORN|Mısır|ZC=F|CBOT:ZC1!|Tarımsal
+SOYBEAN|Soya Fasulyesi|ZS=F|CBOT:ZS1!|Tarımsal
+SOYMEAL|Soya Küspesi|ZM=F|CBOT:ZM1!|Tarımsal
+SOYOIL|Soya Yağı|ZL=F|CBOT:ZL1!|Tarımsal
+OAT|Yulaf|ZO=F|CBOT:ZO1!|Tarımsal
+RICE|Pirinç|ZR=F|CBOT:ZR1!|Tarımsal
+CANOLA|Kanola|RS=F|ICE:RS1!|Tarımsal
+
+# === TARIMSAL - YUMUŞAK EMTİALAR (Agricultural - Soft Commodities) ===
+SUGAR|Şeker|SB=F|ICE:SB1!|Tarımsal
+COFFEE|Kahve|KC=F|ICE:KC1!|Tarımsal
+COCOA|Kakao|CC=F|ICE:CC1!|Tarımsal
+COTTON|Pamuk|CT=F|ICE:CT1!|Tarımsal
+ORANGE|Portakal Suyu|OJ=F|ICE:OJ1!|Tarımsal
+
+# === HAYVANSAL ÜRÜNLER (Livestock) ===
+CATTLE|Sığır|LE=F|CME:LE1!|Hayvancılık
+FEEDER|Besili Sığır|GF=F|CME:GF1!|Hayvancılık
+HOG|Domuz|HE=F|CME:HE1!|Hayvancılık
+PORK|Domuz Eti|PRK=F|CME:PRK1!|Hayvancılık
+LUMBER|Kereste|LBS=F|CME:LBS1!|Hayvancılık
+
+# === DİĞER (Other) ===
+CARBON|Karbon Kredisi|KCA=F|ICE:KCA1!|Diğer
+URANIUM|Uranyum|UX=F|NYMEX:UX1!|Diğer
+LITHIUM|Lityum|LITH=F|LME:LITH3M|Diğer
+RUBBER|Kauçuk|RSS3=F|TOCOM:RSS31!|Diğer
+WOOL|Yün|WOL=F|ASX:WOL1!|Diğer
+
+# === TÜRK EMTİALARI (Turkish Commodities) ===
+ALTIN|Gram Altın|GLDGR=X|BIST:GLDGR|Türkiye
+GUMUS|Gram Gümüş|SLVGR=X|BIST:SLVGR|Türkiye

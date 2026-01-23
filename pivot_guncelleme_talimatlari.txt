@@ -1,0 +1,44 @@
+/////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  PİVOTLAR (GÜNCELLENMİŞ)  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/////////////////////////////////////////////////////////////////////////////////
+
+// Kodunuzdaki PİVOTLAR bölümünü (yaklaşık satır 900-1200 arası) bu kodla DEĞİŞTİRİN
+
+// *** YENİ EKLEMELER: ***
+// 1. INP_extendPivots - Çizgileri sağa uzatır
+// 2. INP_labelSize - Etiket boyutu ayarı  
+// 3. INP_labelBgColor - Etiket arka plan rengi
+// 4. f_getLabelSize() - Yeni helper fonksiyon
+// 5. Tüm label.new() çağrılarında: _x1 (sol), label_right, bgcolor, size parametreleri
+
+// ŞEKİL AYARLARI bölümüne EKLE:
+INP_extendPivots = input.bool(true, "Pivot Çizgilerini Sağa Uzat", group='ŞEKİL AYARLARI')
+INP_labelSize = input.string("normal", "Etiket Boyutu", options=["tiny", "small", "normal", "large"], group='ŞEKİL AYARLARI')
+INP_labelBgColor = input.color(color.new(color.black, 20), "Etiket Arka Plan Rengi", group='ŞEKİL AYARLARI')
+
+// f_getLineStyle() fonksiyonundan SONRA EKLE:
+f_getLabelSize(_inputSize) =>
+    _return = _inputSize == "tiny" ? size.tiny : _inputSize == "small" ? size.small : _inputSize == "large" ? size.large : size.normal
+    _return
+
+// f_renderPivotArray() fonksiyonunda DEĞİŞTİR:
+// 1. Fonksiyon başına ekle: _labelSizeValue = f_getLabelSize(INP_labelSize)
+// 2. Tüm line.new() çağrılarında: extend=INP_extendPivots ? extend.right : extend.none
+// 3. Tüm label.new() çağrılarında: 
+//    - _x2 yerine _x1
+//    - label_left yerine label_right
+//    - color=INP_labelBgColor ekle
+//    - size=_labelSizeValue ekle
+
+ÖRNEK (Support için):
+_line := if(show_pivot)
+    line.new(_x1, _activePrice, _x2, _activePrice, _xloc, 
+             extend=INP_extendPivots ? extend.right : extend.none, 
+             style=f_getLineStyle(INP_supportStyle), 
+             color=INP_supportColour_line, width=1)
+_labelLeft := if(show_pivot) 
+    label.new(_x1, _activePrice, 'S' + _level + '-' + _resolution + _priceString, 
+              _xloc, style=label.style_label_right, 
+              color=INP_labelBgColor, 
+              textcolor=INP_supportColour_label,
+              size=_labelSizeValue)

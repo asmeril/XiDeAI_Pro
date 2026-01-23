@@ -14,9 +14,13 @@ namespace XiDeAI_Pro.Services.AI
         
         /// <summary>
         /// News analysis and impact assessment
-        /// Preferred: Perplexity Sonar (real-time info, sources)
         /// </summary>
         NewsAnalysis,
+
+        /// <summary>
+        /// News thread or summary generation for X
+        /// </summary>
+        NewsThreadGeneration,
         
         /// <summary>
         /// Chart pattern and formation analysis with image
@@ -58,7 +62,34 @@ namespace XiDeAI_Pro.Services.AI
         /// General analysis without specific requirements
         /// Preferred: Gemini Pro (balanced quality/cost)
         /// </summary>
-        GeneralAnalysis
+        GeneralAnalysis,
+
+        /// <summary>
+        /// Meta-Teacher system development analysis
+        /// Preferred: Gemini Pro 1.5 -> Fallback: Perplexity
+        /// </summary>
+        MetaTeacherAnalysis,
+
+        /// <summary>
+        /// Analyze a potential influencer for quality
+        /// Preferred: Gemini Flash -> Fallback: Gemini Pro
+        /// </summary>
+        PotentialGuruAnalysis,
+
+        /// <summary>
+        /// v3.6.6: Analyze and react to Fenerbahce fan content
+        /// </summary>
+        FanZoneReaction,
+
+        /// <summary>
+        /// v3.6.6: Analyze research papers and repositories
+        /// </summary>
+        ArGeAnalysis,
+
+        /// <summary>
+        /// v4.3.0: Hybrid Signal Intelligence - Short Thread Generation
+        /// </summary>
+        ShortThreadGeneration
     }
 }
 

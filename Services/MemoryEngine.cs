@@ -242,6 +242,64 @@ namespace XiDeAI_Pro.Services
                    string.Join("\n---\n", contextParts);
         }
 
+        /// <summary>
+        /// Son 7 gündeki başarılı (hedef tutmuş) analizi getirir
+        /// Thread prompt'larında geçmiş başarı hatırlatması için kullanılır
+        /// </summary>
+        public string? GetLastSuccessfulAnalysis(string symbol, int maxDays = 7)
+        {
+            if (string.IsNullOrEmpty(symbol) || !_analysisMemory.ContainsKey(symbol))
+                return null;
+
+            var cutoffDate = DateTime.Now.AddDays(-maxDays);
+            var history = _analysisMemory[symbol]
+                .Where(h => h.Timestamp >= cutoffDate)
+                .OrderByDescending(h => h.Timestamp)
+                .ToList();
+
+            if (history.Count == 0) return null;
+
+            // Başarılı analiz anahtar kelimeleri
+            var successKeywords = new[] { "hedef", "Hedef", "tuttu", "beklenen", "başarı", "ulaştı", "gerçekleşti" };
+
+            foreach (var analysis in history)
+            {
+                if (successKeywords.Any(k => analysis.Content.Contains(k)))
+                {
+                    // Özet formatında döndür
+                    string summary = analysis.Content.Length > 200 
+                        ? analysis.Content.Substring(0, 200) + "..." 
+                        : analysis.Content;
+                    
+                    return $"[{analysis.Timestamp:dd.MM}] {summary}";
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Bu hafta içinde aynı sembol için kaç thread atıldığını döner
+        /// Haftalık spam kontrolü için kullanılır
+        /// </summary>
+        public int GetWeeklyThreadCount(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol) || !_analysisMemory.ContainsKey(symbol))
+                return 0;
+
+            var weekStart = DateTime.Now.AddDays(-7);
+            return _analysisMemory[symbol]
+                .Count(h => h.Timestamp >= weekStart && h.Strategy.Contains("THREAD", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Thread gönderildiğinde hafızaya kaydet (haftalık kontrol için)
+        /// </summary>
+        public void RecordThreadPosted(string symbol, string threadContent)
+        {
+            StoreAnalysis(symbol, "THREAD", threadContent);
+        }
+
         #endregion
 
         #region Persistence

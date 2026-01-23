@@ -6,6 +6,13 @@ Fetches OHLC data from yfinance for pivot calculation
 """
 import sys
 import os
+import io
+
+# Force UTF-8 for Windows console to prevent 'charmap' encoding errors
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -15,6 +22,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import json
 from datetime import datetime, timedelta
+import threading
 
 # Try to use webdriver-manager for automatic driver management
 try:
@@ -26,6 +34,7 @@ except ImportError:
 # Try to use yfinance for OHLC data
 try:
     import yfinance as yf
+    import pandas as pd
     USE_YFINANCE = True
 except ImportError:
     USE_YFINANCE = False
@@ -45,10 +54,11 @@ def wait_for_chart(driver, timeout=30):
         return False
 
 
-def get_ohlc_data(symbol, days_back=1):
+def get_ohlc_data(symbol, interval='1d'):
     """
     Get OHLC data from yfinance for pivot calculation
-    Returns: dict with High, Low, Close, Open from previous trading day
+    interval: '1d' for daily, '1wk' for weekly, '1mo' for monthly
+    Returns: dict with High, Low, Close, Open from previous closed trading session
     """
     if not USE_YFINANCE:
         print("Warning: yfinance not available, skipping OHLC fetch")
@@ -56,40 +66,94 @@ def get_ohlc_data(symbol, days_back=1):
     
     try:
         # Convert symbol format for yfinance
-        # Remove exchange prefix (BIST:, BINANCE:, etc.) if present
         ticker = symbol
         if ':' in ticker:
             ticker = ticker.split(':')[1]  # BIST:THYAO -> THYAO
         
-        # Convert to yfinance format
-        # Turkish stocks: THYAO -> THYAO.IS
-        # Crypto: Keep as-is (BTCUSDT)
-        # Forex: Keep as-is (EURUSD=X)
-        # Index: XU100 -> XU100.IS
+        # v3.9.3: Clear VIP- prefix which causes yfinance 404
+        ticker = ticker.replace("VIP-", "")
+        
         if not any(x in ticker for x in ['.', '^', '=', 'USDT']):
-            # Assume Turkish stock or index (BIST)
             ticker = f"{ticker}.IS"
         
-        # Fetch last 10 days to be sure we get the previous trading day
+        # Calculate start date based on interval to ensure enough data
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=10)
+        days_back = 15
+        if interval == '1wk': days_back = 60
+        if interval == '1mo': days_back = 365
         
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+        start_date = end_date - timedelta(days=days_back)
         
-        if data.empty or len(data) < 2:
+        print(f"[OHLC] Downloading {ticker} interval={interval} from {start_date.date()} to {end_date.date()}...")
+        data = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False, group_by='ticker')
+        
+        if data.empty:
             print(f"Warning: No OHLC data found for {ticker}")
             return None
+
+        # Handle multi-index columns if they exist (Robust check)
+        if isinstance(data.columns, pd.MultiIndex):
+             try:
+                 # Check if ticker is in the top level
+                 if ticker in data.columns.levels[0]:
+                    data = data[ticker]
+                 # Or maybe level 1? Just try to xs or simple access
+                 elif ticker in data.columns.levels[1]:
+                    data = data.xs(ticker, axis=1, level=1)
+                 else:
+                    # Fallback: Just drop the top level if it's Price
+                    data = data.droplevel(0, axis=1)
+             except Exception:
+                 # Last resort: if 1st level is Price/Adj Close, drop it
+                 if data.columns.nlevels > 1:
+                     data.columns = data.columns.droplevel(0)
+
+        # Normalize columns to Title Case (Open, High, Low, Close) to match expected keys
+        # This handles cases where yfinance returns 'open' or 'OPEN'
+        old_cols = list(data.columns)
+        new_cols = []
+        for c in old_cols:
+            if isinstance(c, str):
+                new_cols.append(c.capitalize()) # 'open' -> 'Open'
+            else:
+                new_cols.append(c)
+        data.columns = new_cols
+
+        # LOGIC FIX: Determine if the last bar is "Today" (incomplete) or "Previous session" (closed)
+        # On Sunday, the last bar in the 1d dataframe will likely be Friday's close.
+        # We check the date of the last row.
+        last_row_date = data.index[-1].date()
+        today = datetime.now().date()
         
-        # Get second-to-last row (previous trading day)
-        prev_day = data.iloc[-2]
+        # If today is Monday-Friday and the last row is today, today's bar is live/incomplete.
+        # We want the last CLOSED session.
+        if last_row_date == today:
+            target_idx = -2 # Use previous day/week/month
+            print(f"[OHLC] Today's bar ({last_row_date}) detected. Using previous bar for pivot calculation.")
+        else:
+            target_idx = -1 # The last bar is a fully closed session (e.g. Friday data on a Sunday)
+            print(f"[OHLC] Last bar date ({last_row_date}) is not today. Using last bar for pivot calculation.")
+
+        if len(data) < abs(target_idx):
+             print(f"Warning: Not enough history for {ticker} at {interval}")
+             return None
+
+        row = data.iloc[target_idx]
         
+        # Helper to extract scalar from series/dataframe safely
+        def get_val(series, col):
+            val = series[col]
+            if hasattr(val, 'iloc'): return float(val.iloc[0])
+            return float(val)
+
         ohlc_data = {
-            'date': str(data.index[-2].date()),
-            'open': float(prev_day['Open'].iloc[0]) if hasattr(prev_day['Open'], 'iloc') else float(prev_day['Open']),
-            'high': float(prev_day['High'].iloc[0]) if hasattr(prev_day['High'], 'iloc') else float(prev_day['High']),
-            'low': float(prev_day['Low'].iloc[0]) if hasattr(prev_day['Low'], 'iloc') else float(prev_day['Low']),
-            'close': float(prev_day['Close'].iloc[0]) if hasattr(prev_day['Close'], 'iloc') else float(prev_day['Close']),
+            'date': str(data.index[target_idx].date()),
+            'open': get_val(row, 'Open'),
+            'high': get_val(row, 'High'),
+            'low': get_val(row, 'Low'),
+            'close': get_val(row, 'Close'),
             'symbol': symbol,
+            'interval': interval,
             'source': 'yfinance'
         }
         
@@ -97,7 +161,9 @@ def get_ohlc_data(symbol, days_back=1):
         return ohlc_data
         
     except Exception as e:
+        import traceback
         print(f"Warning: Could not fetch OHLC data for {symbol} - {e}")
+        traceback.print_exc()
         return None
 
 
@@ -122,6 +188,11 @@ def calculate_pivots(ohlc_data):
         r2 = p + (h - l)
         r3 = h + 2 * (p - l)
         
+        interval = ohlc_data.get('interval', '1d')
+        interval_label = "GÜNLÜK"
+        if interval == '1wk': interval_label = "HAFTALIK"
+        if interval == '1mo': interval_label = "AYLIK"
+
         pivots = {
             'pivot': round(p, 2),
             's1': round(s1, 2),
@@ -130,6 +201,7 @@ def calculate_pivots(ohlc_data):
             'r1': round(r1, 2),
             'r2': round(r2, 2),
             'r3': round(r3, 2),
+            'interval_label': interval_label,
             'calculated_from_date': ohlc_data['date'],
             'valid_for_date': str((datetime.strptime(ohlc_data['date'], '%Y-%m-%d') + timedelta(days=1)).date())
         }
@@ -159,50 +231,40 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # STEP 1: Fetch OHLC data and calculate pivots
-    print(f"\n[OHLC] Fetching OHLC data for {symbol}...")
-    ohlc_data = get_ohlc_data(symbol)
-    pivots_data = None
-    
-    if ohlc_data:
-        pivots_data = calculate_pivots(ohlc_data)
-        print(f"[DEBUG] pivots_data type: {type(pivots_data)}, value: {pivots_data is not None}")
+    # STEP 1: Determine interval and start OHLC fetch in background
+    yf_interval = '1d' # Default daily
+    if period.upper() in ["H", "W", "WEEKLY"]: 
+        yf_interval = '1wk'
+    elif period.upper() in ["A", "M", "MONTHLY"]:
+        yf_interval = '1mo'
         
-        # Save pivots to JSON file for C# to read
-        if pivots_data:
-            pivots_filename = os.path.join(output_dir, f"{symbol}_pivots_{datetime.now().strftime('%Y%m%d')}.json")
-            print(f"[DEBUG] Attempting to save pivots to: {pivots_filename}")
-            try:
-                # Ensure directory exists
-                os.makedirs(output_dir, exist_ok=True)
-                
-                data_to_save = {
-                    'symbol': symbol,
-                    'timestamp': datetime.now().isoformat(),
-                    'ohlc': ohlc_data,
-                    'pivots': pivots_data
-                }
-                print(f"[DEBUG] Data prepared: {list(data_to_save.keys())}")
-                
-                with open(pivots_filename, 'w', encoding='utf-8') as f:
-                    json.dump(data_to_save, f, indent=2, ensure_ascii=False)
-                print(f"[PIVOTS] Saved to {pivots_filename}")
-            except Exception as e:
-                import traceback
-                print(f"Warning: Could not save pivots JSON to {pivots_filename}")
-                print(f"Exception: {e}")
-                traceback.print_exc()
+    ohlc_container = {"data": None}
+    def fetch_ohlc_bg():
+        print(f"\n[OHLC] Fetching {yf_interval} OHLC data for {symbol} in background...")
+        ohlc_container["data"] = get_ohlc_data(symbol, interval=yf_interval)
+    
+    ohlc_thread = threading.Thread(target=fetch_ohlc_bg)
+    ohlc_thread.start()
+    
+    # ... (Wait for pivots later) ...
 
-    # Chrome options
+    # Chrome options (QHD @ 4.0x - Optimized for readable pivot labels)
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--window-size=1920,1080") # Optimized for server RAM (1080p)
+    chrome_options.add_argument("--window-size=2560,1440") # QHD resolution
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--force-device-scale-factor=2.0") # Increased scaling for crystal clear text labels
+    chrome_options.add_argument("--force-device-scale-factor=4.0") # 4x scale for maximum label readability
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+
+    # ... (lines 214-290 omitted, standard logic) ... (Wait I cannot omit lines in replacement content unless I use multi replace or match exact block)
+    # Actually, I will replace the options block and the mouse interaction block separately or rewritten whole function if easier.
+    # Let's replace the whole TAKE_SCREENSHOT function body parts to be safe.
+    # Wait, replace_file_content requires exact match.
+    # I will replace the chrome_options block first.
+
 
     # Periyot mapping
     period_map = {
@@ -219,58 +281,61 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
     tv_period = period_map.get(period, "60")
     
     # Build URL based on symbol format
-    # Preserving '/' for relative charts (e.g. THYAO/XU100)
     tv_symbol = symbol.upper()
     
     if ":" in tv_symbol:
-        # User already provided a specific exchange/prefix (e.g., BINANCE:BTCUSDT)
         pass
     elif "USDT" in tv_symbol:
         tv_symbol = f"BINANCE:{tv_symbol}"
     elif any(fx in tv_symbol for fx in ["XAUUSD", "XAGUSD", "EURUSD", "GBPUSD", "USDJPY", "USDTRY"]):
         tv_symbol = f"FX:{tv_symbol}"
     elif tv_symbol.endswith("1!"):
-        # Futures (e.g. THYAO1!, XU0301!) are usually BIST unless specified
         tv_symbol = f"BIST:{tv_symbol}"
     elif len(tv_symbol) >= 3 and len(tv_symbol) <= 6 and tv_symbol.isalpha():
-        # Highly likely a BIST stock (SASA, THYAO, etc.). 
-        # Adding BIST: helps avoid ambiguity but we could also leave it blank.
-        # Let's keep BIST: for standard short stocks to stay safe on tr.tradingview.com
         tv_symbol = f"BIST:{tv_symbol}"
-    else:
-        # Fallback to NO PREFIX - This triggers the "All" (Tümü) search behavior on TV
-        # TV will automatically pick the most popular match for things like XU100, GOLD, etc.
-        pass
     
-    url = f"https://tr.tradingview.com/chart/{chart_id}/?symbol={tv_symbol}&interval={tv_period}"
+    # Build URL with toolbar hiding parameters
+    url = f"https://tr.tradingview.com/chart/{chart_id}/?symbol={tv_symbol}&interval={tv_period}&theme=dark"
 
     driver = None
     try:
         # Priority 1: Use provided chromedriver path
         if chromedriver_path and os.path.exists(chromedriver_path):
-            service = Service(chromedriver_path)
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        # Priority 2: Use webdriver-manager if available
-        elif USE_WDM:
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        else:
-            # Priority 3: Fallback to system ChromeDriver
+            print(f"DEBUG: Using custom chromedriver: {chromedriver_path}")
+            service = Service(executable_path=chromedriver_path)
+            try:
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                # Catch version mismatch (SessionNotCreatedException)
+                if "SessionNotCreated" in str(e) or "version" in str(e).lower():
+                    print(f"Warning: Custom driver version mismatch! Falling back to auto-manager. Error: {e}")
+                    chromedriver_path = None # Trigger fallback below
+                else:
+                    raise e # Re-raise other errors
+
+        # Priority 2: Use webdriver-manager (Auto Update)
+        if not driver:
+            if USE_WDM:
+                print("DEBUG: Using webdriver-manager (Auto Update)")
+                try:
+                    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+                except Exception as wdm_e:
+                     print(f"Warning: webdriver-manager failed - {wdm_e}")
+
+        # Priority 3: Fallback to system PATH
+        if not driver:
+            print("DEBUG: Using system PATH chromedriver")
             driver = webdriver.Chrome(options=chrome_options)
         
         driver.get(url)
         
-        # Load TradingView Cookies if available (to skip popups, see saved chart settings)
+        # Load Cookies
         try:
-             # Look for tradingview_cookies.json in the same directory as the script or User Data
-             # We assume MainForm copies it to local app data or scripts folder
-             
-             # Check potential locations
              cookie_locations = [
                  os.path.join(os.path.dirname(os.path.abspath(__file__)), "tradingview_cookies.json"),
-                 os.path.join(os.environ.get("LOCALAPPDATA", ""), "XiDeAI", "tradingview_cookies.json"), # Add explicit AppData path
+                 os.path.join(os.environ.get("LOCALAPPDATA", ""), "XiDeAI", "tradingview_cookies.json"), 
                  os.path.join(output_dir, "..", "..", "tradingview_cookies.json"), 
-                 "d:\\MEGA\\IdealSmartNotifier\\tradingview_cookies.json", # Hardcode dev path
+                 "d:\\MEGA\\IdealSmartNotifier\\tradingview_cookies.json", 
                  "tradingview_cookies.json"
              ]
              
@@ -279,147 +344,215 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
              if cookie_file:
                  with open(cookie_file, 'r', encoding='utf-8') as f:
                      cookies = json.load(f)
-                     
-                 # Determine domain from URL (usually .tradingview.com)
                  for cookie in cookies:
-                     # Selenium requires domain to match somewhat, or at least be valid
-                     # If cookie has no domain, or different domain, it might fail.
-                     # We try to set relevant fields.
                      cookie_dict = {
                          'name': cookie.get('name'),
                          'value': cookie.get('value'),
                          'domain': cookie.get('domain', '.tradingview.com'),
                          'path': cookie.get('path', '/')
                      }
-                     try:
-                         driver.add_cookie(cookie_dict)
-                     except:
-                         pass
-                 
-                 # Refresh to apply cookies
+                     try: driver.add_cookie(cookie_dict)
+                     except: pass
                  driver.refresh()
         except Exception as e:
             print(f"Warning: Cookie load failed - {e}")
 
-        # Sayfanın yüklenmesini bekle (Increased)
-        time.sleep(10) 
+        # Sayfanın yüklenmesini bekle
+        time.sleep(8) # Reduced from 12 to 8
         
-        # Cookie popup'ı kapat (varsa) - if cookies didn't work
+        # SAFE UI HIDING (CSS Only - No DOM Removal)
+        try:
+            hide_script = """
+            // CSS injection: Hide toolbars by collapsing them (not removing)
+            var css = `
+                /* Left toolbar - collapse to 0 width */
+                .layout__area--left {
+                    width: 0 !important;
+                    min-width: 0 !important;
+                    overflow: hidden !important;
+                    opacity: 0 !important;
+                }
+                
+                /* Top header - collapse height */
+                .layout__area--top,
+                [class*="header-chart"],
+                [class*="chart-header"],
+                .tv-header,
+                .chart-widget__header,
+                [data-role="header"] {
+                    height: 0 !important;
+                    min-height: 0 !important;
+                    overflow: hidden !important;
+                    opacity: 0 !important;
+                    visibility: hidden !important;
+                }
+                
+                /* Bottom bar - collapse */
+                .layout__area--bottom,
+                [class*="bottom-toolbar"],
+                .chart-controls-bar {
+                    height: 0 !important;
+                    min-height: 0 !important;
+                    overflow: hidden !important;
+                    opacity: 0 !important;
+                }
+                
+                /* Other floating elements and popups */
+                .tv-floating-toolbar,
+                .legend,
+                [class*="watermark"],
+                [class*="drawing-toolbar"],
+                .tv-main-panel__toolbar,
+                .chart-toolbar,
+                [class*="dialog"],
+                [class*="popup"],
+                [class*="overlap"],
+                [class*="toast"],
+                [class*="modal"],
+                [class*="onboarding"],
+                [class*="notification"],
+                [class*="promo"],
+                [class*="marketing"],
+                [class*="deal"],
+                .tv-dialog,
+                .tv-overlap,
+                #overlap-manager-root,
+                [data-role="toast-container"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    z-index: -1 !important;
+                    pointer-events: none !important;
+                }
+                
+                /* Aggressive fixed/absolute overlay nuke (v3.7.2) */
+                body > div:not(.layout-with-border-radius):not(.tv-main-panel):not(#overlap-manager-root) {
+                    /* Only apply if it looks like a modal (high z-index) */
+                }
+            `;
+            var style = document.createElement('style');
+            style.id = 'xideai-hide-ui';
+            style.textContent = css;
+            document.head.appendChild(style);
+            
+            // JAVASCRIPT MODAL KILLER (v3.7.2)
+            // Try to find and click close buttons on common TV popups
+            var closeSelectors = [
+                '[data-name="close"]', 
+                '[class*="close"]', 
+                '[class*="button"] svg', 
+                'button[aria-label*="close"]',
+                '.tv-dialog__close'
+            ];
+            
+            // Find all fixed elements with high z-index and hide them
+            var allElements = document.querySelectorAll('body > div');
+            allElements.forEach(function(el) {
+                var style = window.getComputedStyle(el);
+                if ((style.position === 'fixed' || style.position === 'absolute') && parseInt(style.zIndex) > 100) {
+                    // It's a modal or ad
+                    console.log('XiDeAI: Hiding high-z element:', el.className);
+                    el.style.display = 'none';
+                }
+            });
+            
+            console.log('XiDeAI: UI hidden via CSS & JS Cleanup');
+            """
+            driver.execute_script(hide_script)
+            time.sleep(2)
+            print("[CSS] UI elementleri CSS ile gizlendi")
+        except Exception as e:
+            print(f"Warning: CSS injection failed: {e}")
+
+        # Close cookies popup
         try:
             cookie_btn = driver.find_element(By.CSS_SELECTOR, "[data-role='accept-all']")
             cookie_btn.click()
             time.sleep(1)
-        except:
-            pass
+        except: pass
 
         chart_ready = wait_for_chart(driver, timeout=35)
 
-        # Fare imlecini SON BAR'a taşı (End tuşu ile)
-        # Bu sayede sol üstteki OHLC değerleri SON kapanışı gösterecek
-        try:
-            from selenium.webdriver.common.keys import Keys
-            from selenium.webdriver.common.action_chains import ActionChains
-            
-            # Chart alanını bul
-            chart_area = driver.find_element(By.CSS_SELECTOR, ".chart-gui-wrapper")
-            
-            # Chart'a tıkla ve End tuşuna bas (son bar'a git)
-            actions = ActionChains(driver)
-            actions.move_to_element(chart_area)
-            actions.click()
-            actions.send_keys(Keys.END)  # Son bar'a git
-            actions.perform()
-            
-            time.sleep(1)  # OHLC değerlerinin güncellenmesini bekle
-            
-            # Fare imlecini chart'ın sağ tarafına (son bar üzerine) taşı
-            chart_width = chart_area.size['width']
-            chart_height = chart_area.size['height']
-            # Sağdan %5 içeri, ortadan biraz yukarı
-            actions = ActionChains(driver)
-            actions.move_to_element_with_offset(chart_area, int(chart_width * 0.45), int(chart_height * 0.3))
-            actions.perform()
-            
-            time.sleep(0.5)  # OHLC güncellenmesi için bekle
-            print("[MOUSE] Fare imleci son bar üzerine taşındı")
-        except Exception as mouse_err:
-            print(f"Warning: Fare imleci taşınamadı - {mouse_err}")
-
-        # Ekran görüntüsü al
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        # SKIP MANUAL SYMBOL TYPING (URL param should work if toolbar is present initially)
         
-        # Windows-safe filename: Replace invalid chars with _
+        # SIMPLE SNAPSHOT MODE (Matching Pro_ script style)
+        # Replaced all complex Zoom/Pan/Reset logic with a simple wait
+        print("[MODE] Simple Snapshot (Zoom/Pan disabled)")
+        time.sleep(5) # Wait for chart to settle
+
+
+        # SCREENSHOT (UPDATED: Always Full Page)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
         safe_symbol = symbol.replace(":", "_").replace("/", "_").replace("\\", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
         filename = f"{safe_symbol}_{period}_{timestamp}.png"
         filepath = os.path.join(output_dir, filename)
         
-        if chart_ready:
-            try:
-                chart_elem = driver.find_element(By.CSS_SELECTOR, ".chart-gui-wrapper")
-                chart_elem.screenshot(filepath)
-            except Exception as e:
-                print(f"Warning: Chart element screenshot failed, falling back to full page - {e}")
-                driver.save_screenshot(filepath)
-        else:
-            driver.save_screenshot(filepath)
+        # Use full page screenshot to ensure axis readability
+        driver.save_screenshot(filepath)
+        print(f"Screenshot saved: {filepath}")
         
         if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-            # WATERMARK: Add symbol and period to the image using Pillow
+            # WATERMARK Logic
             if PILLOW_AVAILABLE:
                 try:
                     img = Image.open(filepath)
+                    width, height = img.size
                     draw = ImageDraw.Draw(img)
                     
-                    # Big bold text for 4K resolution
                     text = f"{tv_symbol} - {period_map.get(period, period)}"
+                    font_size = int(height * 0.025) 
+                    if font_size < 15: font_size = 15
                     
-                    # Try to use a common font, fallback to default
                     try:
-                        # Smaller font for 1080p
-                        font = ImageFont.truetype("arial.ttf", 40)
+                        font = ImageFont.truetype("arial.ttf", font_size)
                     except:
-                        font = ImageFont.load_default()
+                        try:
+                            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+                        except:
+                            font = ImageFont.load_default()
                     
-                    # Position: Top left with slight offset
-                    draw.text((50, 50), text, fill=(255, 215, 0), font=font) # Gold color
+                    text_margin = 20
+                    try:
+                        left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+                        text_w = right - left
+                        text_h = bottom - top
+                    except AttributeError:
+                        text_w, text_h = draw.textsize(text, font=font)
+
+                    pos_x = width - text_w - text_margin
+                    pos_y = height - text_h - text_margin
                     
+                    draw.text((pos_x, pos_y), text, fill=(180, 180, 180), font=font) 
                     img.save(filepath)
                     print(f"DEBUG: Watermark added to {filepath}")
                 except Exception as pil_err:
                     print(f"Warning: Could not add watermark - {pil_err}")
 
-            # 🎯 SAVE PIVOT DATA TO JSON FILE
-            try:
-                ohlc_data = get_ohlc_data(symbol)
-                if ohlc_data:
-                    pivots = calculate_pivots(ohlc_data)
-                    if pivots:
-                        # Create pivot JSON file with same naming convention
-                        # Use ORIGINAL symbol for filename (without TV formatting)
-                        original_symbol = sys.argv[1].upper() if len(sys.argv) > 1 else symbol
-                        today_str = datetime.now().strftime("%Y%m%d")
-                        pivot_filename = f"{original_symbol}_pivots_{today_str}.json"
-                        pivot_filepath = os.path.join(output_dir, pivot_filename)
-                        
-                        # Combine OHLC and pivots into single JSON
-                        pivot_json = {
-                            "symbol": original_symbol,
-                            "timestamp": datetime.now().isoformat(),
-                            "ohlc": ohlc_data,
-                            "pivots": pivots
+            # SAVE PIVOT DATA (Ensure background thread is done)
+            if ohlc_thread.is_alive():
+                print("[OHLC] Waiting for background fetch to complete...")
+                ohlc_thread.join(timeout=10) # Wait max 10 more seconds
+            
+            ohlc_data = ohlc_container["data"]
+            pivots_data = None
+            if ohlc_data:
+                pivots_data = calculate_pivots(ohlc_data)
+                
+                # Save pivots to JSON file for C# to read
+                if pivots_data:
+                    pivots_filename = os.path.join(output_dir, f"{symbol}_pivots_{datetime.now().strftime('%Y%m%d')}.json")
+                    try:
+                        data_to_save = {
+                            'symbol': symbol,
+                            'timestamp': datetime.now().isoformat(),
+                            'ohlc': ohlc_data,
+                            'pivots': pivots_data
                         }
-                        
-                        # Ensure output directory exists
-                        os.makedirs(output_dir, exist_ok=True)
-                        
-                        with open(pivot_filepath, 'w', encoding='utf-8') as pf:
-                            json.dump(pivot_json, pf, indent=2, ensure_ascii=False)
-                        
-                        print(f"✅ Pivot data saved: {pivot_filepath}")
-                        print(f"   Calculated from: {pivots['calculated_from_date']}")
-                        print(f"   Valid for: {pivots['valid_for_date']}")
-            except Exception as pivot_err:
-                print(f"Warning: Could not save pivot data - {pivot_err}")
+                        with open(pivots_filename, 'w', encoding='utf-8') as f:
+                            json.dump(data_to_save, f, indent=2, ensure_ascii=False)
+                        print(f"[PIVOTS] Saved to {pivots_filename}")
+                    except Exception as e:
+                        print(f"Warning: Could not save pivots JSON - {e}")
 
             print(f"SUCCESS:{filepath}")
             return filepath
@@ -450,5 +583,9 @@ if __name__ == "__main__":
     chart_id = sys.argv[4] if len(sys.argv) > 4 else "GDHgGCEv"
     chromedriver_path = sys.argv[5] if len(sys.argv) > 5 else None
     
-    take_screenshot(symbol, period, output_dir, chart_id, chromedriver_path)
+    # Robustness: If C# passes a path that doesn't exist, ignore it and let webdriver-manager handle it
+    if chromedriver_path and not os.path.exists(chromedriver_path):
+        print(f"Warning: Passed chromedriver path '{chromedriver_path}' does not exist. Switching to auto-manage mode.")
+        chromedriver_path = None
 
+    take_screenshot(symbol, period, output_dir, chart_id, chromedriver_path)

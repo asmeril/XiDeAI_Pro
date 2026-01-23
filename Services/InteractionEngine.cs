@@ -137,13 +137,15 @@ namespace XiDeAI_Pro.Services
                 }
                 
                 var post = filteredPosts[0];
-                OnStatusUpdate?.Invoke($"💡 AI yanıt üretiyor...");
-                var reply = await _gemini.GenerateReply(post.Content, post.Handle);
+                OnStatusUpdate?.Invoke($"💡 AI yanıt üretiyor (Two-Step)...");
+                
+                // v4.2.0: Two-Step Logic (Category Detection + Categorized Reply)
+                var (category, reply) = await _gemini.GenerateTwoStepReply(post.Content, post.Handle);
                     
                 if (!string.IsNullOrEmpty(reply))
                 {
                     // Send to Telegram for approval
-                    string approvalMsg = $"🤖 BOT YANIT ÖNERİSİ\n\n" +
+                    string approvalMsg = $"🤖 BOT YANIT ÖNERİSİ [{category}]\n\n" +
                                        $"👤 @{post.Handle} ({post.FollowerCount:N0} takipçi)\n" +
                                        $"💬 Orijinal: {post.Content.Substring(0, Math.Min(200, post.Content.Length))}...\n\n" +
                                        $"🤖 Önerilen Yanıt:\n{reply}\n\n" +
@@ -152,8 +154,8 @@ namespace XiDeAI_Pro.Services
                     
                     await _telegram.SendMessageAsync(approvalMsg);
                     _socialIntel.Memory.RecordInteraction(post.Url);
-                    _stats.RecordActivity("Interaction", $"Viral reply proposed: {post.Handle}", true, topic);
-                    OnLog?.Invoke($"✅ Yanıt önerisi Telegram'a gönderildi: @{post.Handle}", "Interaction");
+                    _stats.RecordActivity("Interaction", $"Viral reply proposed [{category}]: {post.Handle}", true, topic);
+                    OnLog?.Invoke($"✅ Yanıt önerisi Telegram'a gönderildi: @{post.Handle} [{category}]", "Interaction");
                 }
             }
             catch (Exception ex)

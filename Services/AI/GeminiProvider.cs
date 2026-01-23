@@ -123,7 +123,19 @@ namespace XiDeAI_Pro.Services.AI
                     
                     if (string.IsNullOrWhiteSpace(result))
                     {
-                        _logger("❌ Gemini 2. denemede de boş yanıt döndü");
+                        // Check for Safety Block or other feedback
+                        string failReason = "Gemini returned empty response (after retry).";
+                        try {
+                            if (root.TryGetProperty("promptFeedback", out var feedback)) {
+                                if (feedback.TryGetProperty("blockReason", out var reason)) {
+                                    failReason = $"Gemini BLOCKED: {reason.GetString()}";
+                                } else if (feedback.TryGetProperty("safetyRatings", out var ratings)) {
+                                    failReason = $"Gemini SAFETY FILTER triggered";
+                                }
+                            }
+                        } catch {}
+                        
+                        _logger($"❌ {failReason}");
                     }
                     else
                     {

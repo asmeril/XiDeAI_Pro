@@ -31,6 +31,9 @@ namespace XiDeAI_Pro.Services
         private readonly SpamProtection _spam;
         private readonly TelegramService _telegram;
         private readonly StatsEngine _stats;
+        private readonly SignalPersistenceService _persistence; // Persistent memory (v3.1.2)
+        private readonly MemoryEngine? _memory; // v3.8: Weekly thread control
+        public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; } // Public for OperationManager linkage
         private readonly XiDeAI_Pro.Services.AI.ModelManager? _modelManager; // Multi-Model AI (v3.1+)
 
         // Batch State
@@ -68,6 +71,8 @@ namespace XiDeAI_Pro.Services
             SpamProtection spam,
             TelegramService telegram,
             StatsEngine stats,
+            SignalPersistenceService persistence,
+            MemoryEngine? memory = null,
             XiDeAI_Pro.Services.AI.ModelManager? modelManager = null)
         {
             _parser = parser;
@@ -82,6 +87,8 @@ namespace XiDeAI_Pro.Services
             _spam = spam;
             _telegram = telegram;
             _stats = stats;
+            _persistence = persistence;
+            _memory = memory;
             _modelManager = modelManager;
         }
 
@@ -141,7 +148,9 @@ namespace XiDeAI_Pro.Services
 
                     if (!isAllowed) 
                     {
-                        OnLog?.Invoke($"🛡️ Zaman Filtresi: Sinyal saati ({now:HH:mm}) taranacak saatlerle ({string.Join(", ", scanHours)}) eşleşmiyor (+/- 60 dk).", "Engine");
+                        string msg = $"🛡️ Zaman Filtresi: Sinyal saati ({now:HH:mm}) taranacak saatlerle ({string.Join(", ", scanHours)}) eşleşmiyor (+/- 60 dk).";
+                        OnLog?.Invoke(msg, "Engine");
+                        Logger.Sys(msg); // Also to file
                         return;
                     }
                 }
@@ -327,96 +336,102 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
+                // v4.3.0: Hybrid Signal Intelligence Start
                 _stats.RecordActivity("SignalEngine", $"Processing signal: {sig.Symbol}", true, sig.Strategy);
+                OnLog?.Invoke($"📡 Hybrid Processing: {sig.Symbol} | Strategy: {sig.Strategy} | Tier: {sig.Tier} | Score: {sig.FinalScore}", "HybridEngine");
                 
-                // 1. GLOBAL DEDUPLICATION (Always on, 4h cooldown per Signal Type)
-                string signalKey = $"{sig.Symbol}|{sig.Strategy}|{sig.Period}";
-                lock (_memoryLock)
+                // 1. GLOBAL DEDUPLICATION
+                if (_persistence.IsProcessed(sig.Symbol, sig.Period))
                 {
-                    if (_globalSignalMemory.TryGetValue(signalKey, out var lastTime))
-                    {
-                        if (DateTime.UtcNow - lastTime < GlobalCooldown)
-                        {
-                            OnLog?.Invoke($"⏭️ Mükerrer Sinyal Engellendi: {sig.Symbol} ({sig.Strategy}) - Son paylaşım {(DateTime.UtcNow - lastTime).TotalMinutes:0} dk önce.", "Engine");
-                            return;
-                        }
-                    }
-                    _globalSignalMemory[signalKey] = DateTime.UtcNow;
-                }
-
-                OnLog?.Invoke($"📡 Sinyal Alındı: {sig.Symbol} ({sig.Strategy})", "Engine");
-
-                // 2. AI Pre-Filter (Optional but recommended in Master Plan)
-                bool isWorthAnalyzing = await CheckSignalQualityWithAI(sig);
-                if (!isWorthAnalyzing)
-                {
-                    OnLog?.Invoke($"🛡️ AI Filtresi: {sig.Symbol} analize uygun görülmedi.", "Engine");
+                    OnLog?.Invoke($"⏭️ Mükerrer Sinyal: {sig.Symbol} ({sig.Strategy})", "Engine");
                     return;
                 }
+                
+                _persistence.MarkAsProcessed(sig.Symbol, sig.Period);
+
+                // 2. AI Pre-Filter
+                bool isWorthAnalyzing = await CheckSignalQualityWithAI(sig);
+                if (!isWorthAnalyzing) return;
 
                 // 3. Spam/Cooldown Check
-                // Config: SpamProtectSignals (varsayılan false)
                 if (ConfigManager.Current.SpamProtectSignals)
                 {
                     if (!_spam.CanTweet(sig.Symbol, sig.Strategy, out string reason))
                     {
-                        OnLog?.Invoke($"🛡️ Spam/Cooldown: {sig.Symbol} pas geçildi ({reason})", "Engine");
+                        OnLog?.Invoke($"🛡️ Spam Filtresi: {reason}", "Engine");
                         return;
                     }
                 }
 
-                // 4. Analysis & Generation
-                OnStatusUpdate?.Invoke($"{sig.Symbol} analiz ediliyor...");
-                
-                // Screenshot (Parallel potential)
-                string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period);
+                // 3.5 WEEKLY LIMIT
+                if (_memory != null && _memory.GetWeeklyThreadCount(sig.Symbol) >= 1)
+                {
+                    OnLog?.Invoke($"🛡️ Haftalık Limit Dolu: {sig.Symbol}", "Engine");
+                    return;
+                }
 
-                // Phase 2: AI Formation Analysis
-                string aiContent = "";
+                _performance.RecordSignal(sig);
+                OnSignalProcessed?.Invoke(sig); 
+                OnStatusUpdate?.Invoke($"{sig.Symbol} (Tier: {sig.Tier}) analiz ediliyor...");
+                
+                // 4. Analysis & Generation
+                string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period); // Parallel candidate
+
+                // Context Preparation
+                string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Ham Skor: {sig.Score}/{sig.MaxScore}";
+                
+                // Visual Analysis (if shot exists)
                 if (!string.IsNullOrEmpty(screenshotPath))
                 {
-                    string priceContext = $"Fiyat: {sig.Price:0.00}, Strateji: {sig.Strategy}, Skor: {sig.Score}/{sig.MaxScore}";
-                    aiContent = await AnalyzeFormationAsync(sig.Symbol, sig.Period, priceContext, screenshotPath);
+                     string visualAnalysis = await AnalyzeFormationAsync(sig.Symbol, sig.Period, priceContext, screenshotPath);
+                     if (!string.IsNullOrEmpty(visualAnalysis) && !visualAnalysis.Contains("hata"))
+                     {
+                         priceContext += $"\n\nGRAFİK ANALİZİ:\n{visualAnalysis}";
+                     }
                 }
-                else
+
+                // Influencer Intelligence
+                string influencerCitations = "";
+                try 
                 {
-                    aiContent = await _gemini.GenerateTweetContent(sig, "") ?? string.Empty;
+                    var influencerPosts = await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market);
+                    if (influencerPosts != null && influencerPosts.Count > 0)
+                    {
+                        // Take top 3 relevant posts
+                        var topPosts = influencerPosts.Take(3).Select(p => $"@{p.Handle}: {p.Content}").ToList();
+                        influencerCitations = string.Join("\n", topPosts);
+                    }
+                }
+                catch { /* Ignore social intel failure */ }
+
+                // GENERATE HYBRID CONTENT
+                OnLog?.Invoke($"🧠 AI Analiz Üretiliyor (Tier: {sig.Tier})...", "HybridEngine");
+                string? aiContent = await _gemini.GenerateStrategySpecificAnalysis(sig, priceContext, influencerCitations);
+                
+                if (string.IsNullOrEmpty(aiContent))
+                {
+                    OnLog?.Invoke("❌ AI İçerik Üretemedi.", "Engine");
+                    return;
                 }
 
-                // Influencer Posts (New: pass raw list to ThreadService)
-                var influencerPosts = await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market);
+                // 5. Execution (New Raw Handler)
+                OnLog?.Invoke($"🧵 Paylaşılıyor: {sig.Symbol}", "Twitter");
                 
-                // Generate TradingView Link
-                string exchange = sig.Market == "Kripto" ? "BINANCE" : "BIST";
-                string tvLink = $"https://www.tradingview.com/chart/?symbol={exchange}:{sig.Symbol}";
-
-                // 5. Execution (Using ThreadService to align with Manual Analysis)
-                OnLog?.Invoke($"🧵 {sig.Symbol} için profesyonel thread hazırlanıyor...", "Twitter");
-                
-                var (sent, errorMsg) = await _threadService.PostSignalThread(
-                    sig, 
-                    screenshotPath ?? "", 
-                    tvLink, 
-                    ConfigManager.Current.DailyTrends,
-                    customAnalysis: aiContent,
-                    influencerPosts: influencerPosts
-                );
+                var (sent, errorMsg) = await _threadService.PostAIGeneratedThread(sig, aiContent, screenshotPath ?? "");
 
                 if (sent)
                 {
                     _spam.RecordTweet(sig.Symbol, sig.Strategy);
-                    _performance.RecordSignal(sig);
-                    OnSignalProcessed?.Invoke(sig);
-                    OnLog?.Invoke($"✅ Başarıyla Paylaşıldı: {sig.Symbol}", "Twitter");
+                    OnLog?.Invoke($"✅ Başarılı: {sig.Symbol} (Tier: {sig.Tier})", "Twitter");
                 }
                 else
                 {
-                    OnLog?.Invoke($"❌ Paylaşım Başarısız: {errorMsg}", "Twitter");
+                    OnLog?.Invoke($"❌ Paylaşım Hatası: {errorMsg}", "Twitter");
                 }
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke($"❌ SignalEngine Error (Structured): {ex.Message}", "System");
+                OnLog?.Invoke($"❌ SignalEngine Error: {ex.Message}", "System");
             }
         }
 
@@ -546,7 +561,8 @@ namespace XiDeAI_Pro.Services
             }
 
             // API Fallback
-            bool apiSent = await _twitter.SendTweetAsync(content);
+            var apiRes = await _twitter.SendTweetAsync(content);
+            bool apiSent = !string.IsNullOrEmpty(apiRes);
             _stats.RecordActivity("SignalEngine", $"Posted tweet via API: {sig.Symbol}", apiSent, apiSent ? "" : _twitter.LastError);
             return apiSent;
         }

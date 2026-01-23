@@ -1,0 +1,259 @@
+﻿# 🗺️ XiDeAI Pro - Project Code Index
+> **Version:** 3.9.4 (Live)
+> **Architecture:** Hybrid (C# WinForms + Python Selenium + WebView2 Bridge)
+> **Last Updated:** 2026-01-19
+
+Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
+
+---
+
+## 🏗️ Core Architecture (Hibrit Yapı)
+
+Proje 3 ana katmandan oluşur:
+1.  **Orchestrator (C#):** Tüm mantığı yöneten, servisleri başlatan ve kararları veren katman. (`OperationManager`)
+2.  **Interaction Layer (Hybrid):**
+    *   **WebView2:** Kullanıcı görünürlüğü gerektiren ve oturum stabilitesi isteyen işlemler (Tweet Atma, Thread, Yanıt).
+    *   **Python/Selenium:** Arka planda ağır veri çekme, tarama ve keşif işlemleri (`social_intel.py`).
+3.  **Intelligence Layer (AI):** Gemini, Perplexity ve GPT modellerinin entegrasyonu.
+
+---
+
+## 📂 Services Map (C#)
+
+Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` tarafından yönetilir.
+
+| Servis Dosyası | Temel Görevleri | Bağlı Olduğu Python Script |
+| :--- | :--- | :--- |
+| **`SocialIntelService.cs`** | **Ana X (Twitter) Köprüsü.** Hem Selenium'u çalıştırır hem WebView eventlerini yönetir. | `social_intel.py` |
+| **`SentinelService.cs`** | **Dinleme & Nöbet.** Tweetlere gelen yanıtları ve RT'leri takip eder. | `social_intel.py` (Reply/RT fetch) |
+| **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır (Start), durdurur (Stop) ve birbirine bağlar. | - |
+| `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. | - |
+| `ModelBenchmarkService.cs` | **v3.7.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. | - |
+| `OmniScoutService.cs` | Viral trendleri ve forumları (Reddit vb.) tarar. | `omni_scout.py` |
+| `OracleService.cs` | Gelecek tahminleri (Prediction Markets) ve genel analiz. | `oracle.py` |
+| `NewsEngine.cs` | Haber akışını işler (PubDate check & AI filter). **v3.8.3:** `OnNewsReceived` ile `NewsTracker`'a bağlandı. | `social_intel.py` |
+| `NewsTrackerService.cs` | RSS ve Twitter'dan haber tarar. **v3.8.3:** `OnNewsDetected` eventini tetikler. | `social_intel.py` |
+| `ThreadService.cs` | Zincir (Thread) oluşturma mantığını kurar. | - |
+| `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanını yönetir. | - |
+| `CortexService.cs` | **HIVE Orchestrator.** Tüm istihbarat raporlarını (Omni, Oracle, Sentinel) sentezler ve 'Grand Strategy' üretir. | - |
+| `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
+
+### 🔑 Key Classes & Methods
+
+#### `SocialIntelService.cs`
+- `FindInfluencerAnalyses(symbol, market)`: Fenomenlerin analizlerini arar. (Önce VIP timeline, sonra genel arama).
+- `PostTweet(text)` / `PostThreadAsync(tweets)`: Tweet atar. Önce dahili WebView2'yi dener, başarısız olursa Python'a düşer (Fallback).
+- `PerformMetaTeacherLoopAsync()`: "Konsey" (Meta-Teacher) döngüsünü çalıştırır. Belirlenen uzmanları derinlemesine tarar.
+- `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
+
+#### `SentinelService.cs`
+- `ProcessAllWatchedTweets()`: İzlenen tweetlerin (WatchList) yanıtlarını kontrol eder.
+- `AnalyzeReply(reply)`: Gelen yanıtı Gemini ile analiz eder (Destek/Soru/Talep).
+
+#### `CortexService.cs`
+- `ExecuteAnalysis(omni, oracle, sentinel)`: Tüm istihbarat raporlarını birleştirip strateji ve senaryo üretir.
+- `ExecuteAnalysis(omni, oracle, sentinel)`: Tüm istihbarat raporlarını birleştirip strateji ve senaryo üretir.
+- `GenerateGrandStrategyAsync()`: Otonom veri toplama ve analiz işlemini başlatır.
+
+#### `PerformanceTracker.cs`
+- `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
+#### `GeminiService.cs`
+- `AnalyzeChartImage(symbol, path)`: **(v3.9.0)** Grafik görsellerini teknik analize (RSI, Trend, Formasyon) dönüştürür.
+- `GenerateGuruHonoringThread(...)`: Görsel analiz ve fiyat verisini kullanarak guru threadi üretir.
+- `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
+
+---
+
+## 🐍 Python Scripts Map (Scripts/)
+
+Python scriptleri "Worker" (İşçi) olarak çalışır. C# tarafından komut satırı argümanları ile çağrılır ve JSON çıktısı üretirler.
+
+| Script Dosyası | Görev Tanımı | Kütüphaneler |
+| :--- | :--- | :--- |
+| **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriş yapar, arama yapar, veri çeker, etkileşim kurar. | `selenium`, `pickle` |
+| `omni_scout.py` | Reddit ve diğer kaynaklardan viral veri çeker. | `praw` (Reddit API) |
+| `oracle.py` | Tahmin piyasaları verisi (Polymarket vs.) | `requests` |
+| `screenshot.py` | BIST/Crypto grafiklerinin ekran görüntüsünü alır. | `selenium` |
+| **`lock_manager.py`** | **Atomic File Lock.** X (Twitter) oturumlarının çakışmasını önler. | `msvcrt`(Win) / `fcntl`(Linux) |
+
+### 🐍 `social_intel.py` Capabilities
+Bu script "Standalone" (Tek başına) çalışabilen güçlü bir bottur.
+- **Driver Pool:** `ChromeDriverPool` sınıfı ile tarayıcıları önbelleğe alır (Performans artışı).
+- **Smart Search:** `find_influencer_posts` fonksiyonu ile hem timeline hem de genel arama yapar.
+- **Robust Typing:** Tweet atarken metni karakter karakter değil, JS enjeksiyonu ve Clipboard kombinasyonu ile yazar (React uyumlu).
+- **Commands:** `search_influencer`, `post_tweet`, `fetch_replies`, `discover_influencers` vb.
+
+---
+
+## 🖥️ UI Map (Arayüz Haritası)
+
+### 🏠 MainForm (Ana Ekran)
+*   **Sidebar (Navigasyon):**
+    *   `Ana Ekran`, `Sinyal Merkezi`, `Manuel Analiz`, `Bot Etkileşim`, `Ayarlar`
+    *   `Geçmiş`, `Fenomenler`, `Haberler` (Restore Edildi), `Üstat Paneli`, `Fenerbahçe`
+    *   `HIVE Intel`, `Etkileşim Merkezi`
+*   **Dashboard (`pnlDashboard`):**
+    *   **Header:** API/Web Sayaçları, Ticker, Start/Stop Butonları.
+    *   **Tabs:** `Piyasa Analiz (Grafik)`, `Sosyal Medya Akışı (X)`.
+*   **Sinyal Merkezi (`pnlSignals`):**
+    *   **Filtreler:** Strateji (King, Bomba...), Periyot, Eşik Değerler.
+    *   **Grid:** `dgvSignals` (Canlı sinyaller).
+*   **Manuel Analiz (`pnlAnalysis`):**
+    *   **Kontroller:** Pazar, Periyot, Sembol seçimi.
+    *   **Aksiyon:** Analiz Et -> Sonuç (Text) + Grafik (Resim) -> Tweetle.
+*   **HIVE Intel (`pnlHive`):**
+    *   **Apex Ar-Ge:** Makaleler (Papers) ve GitHub Repoları.
+    *   **Meta-Teacher:** Konsey (Guru) içgörüleri tablosu.
+    *   **Wisdom:** Bilgelik kütüphanesi (`WisdomLibControl`).
+
+### ⚙️ Ayarlar Paneli Detayları (`pnlSettings`)
+> **Konum:** `MainForm.cs` satır ~908-1165
+
+**Yapı:** `SplitContainer` (Sol: Kategori ListBox, Sağ: İçerik Panel)
+
+| Kategori | Panel | Kontroller |
+|----------|-------|------------|
+| 🔑 API & Bağlantılar | `pnlSetApi` | `txtApiKey`, `txtApiSecret`, `txtAccessToken`, `txtTokenSecret` (Twitter) |
+|  |  | `txtGeminiKey`, `txtPerplexityKey`, `cmbGeminiModel` (AI) |
+|  |  | `btnTestApi` (🧪 Test), `btnListModels` (📋 Modeller) |
+|  |  | `dgvBenchmark` (Benchmark Grid), `btnRunBenchmark`, `btnAutoSelect` |
+|  |  | `txtTelToken`, `txtTelChatId` (Telegram) |
+|  |  | `txtTvSymbol`, `txtTvChartId` (TradingView) |
+| 🛡️ Spam & Güvenlik | `pnlSetSpam` | `chkSpamSignals`, `chkSpamBatches`, `chkSpamManual`, `chkSpamNews` |
+| 🎯 Hedef & Otomasyon | `pnlSetTarget` | `txtTargetAccounts`, `chkAuto` |
+
+**Key UI Elements:**
+- **Benchmark Panel:** `pnlBenchmark` (satır ~1040-1080)
+- **Kaydet Butonu:** `btnSave` (satır ~1155) → `BtnSave_Click`
+
+### 🤖 OperatorForm (İcra Paneli)
+*   **Intelligence:** Cortex Zeka Raporu (Sol Panel).
+*   **Execution:** Tweet Zinciri (Sağ Panel), Başlat Butonu.
+*   **Sentinel:** Canlı etkileşim akışı.
+
+---
+
+## 📍 Key Line References (Satır Haritası)
+
+> **Not:** Bu satırlar değişebilir. Ancak arama yapmadan önce burayı kontrol edin.
+
+### MainForm.cs - Panel Initialize Fonksiyonları
+| Fonksiyon | Satır | Açıklama |
+|-----------|-------|----------|
+| `InitializeComponent` | 197-1208 | **ANA UI KURULUMU** - Tüm paneller, kontroller |
+| `ShowPanel` | 1210-1238 | Panel görünürlük yönetimi |
+| `InitializeInfluencerPanel` | 1247-1397 | Fenomenler sekmesi |
+| `InitializeHistoryPanel` | 1468-1516 | Geçmiş sekmesi |
+| `InitializeNewsPanel` | 1518-1598 | Haberler sekmesi |
+| `InitializeChart` | 1806-1854 | TradingView grafik |
+| `InitializeTwitterWebView` | 1977-1991 | X (Twitter) WebView |
+| `InitializeServices` | 1993-2135 | Tüm servislerin başlatılması |
+| `InitializeEngagementHub` | 4838-4886 | Etkileşim Merkezi |
+| `InitializeManualAnalysisTab` | 5015-5227 | Manuel Analiz sekmesi |
+| `InitializeBotInteractionTab` | 5275-5364 | Bot Etkileşim sekmesi |
+| `InitializeGuruPanel` | 5487-5591 | Üstat Paneli |
+| `InitializeFenerbahcePanel` | 5699-5828 | Fenerbahçe sekmesi |
+| `InitializeHiveHub` | 5830-5883 | HIVE Intel hub |
+| `InitializeMetaTeacherInto` | 5885-5953 | Meta-Teacher içgörüleri |
+| `InitializeWisdomInto` | 5999-6015 | Wisdom kütüphanesi |
+| `InitializeOmniScoutInto` | ~6030 | Omni-Scout UI (Yeni) |
+| `InitializeOracleInto` | ~6080 | Oracle UI (Yeni) |
+
+### MainForm.cs - Core Fonksiyonlar
+| Fonksiyon | Satır | Açıklama |
+|-----------|-------|----------|
+| `LoadSettings` | 2138-2245 | Config'den UI'ya yükleme |
+| `BtnSave_Click` | 2247-2334 | UI'dan Config'e kaydetme |
+| `BtnStart_Click` | 2336-2361 | Watcherları başlatma |
+| `PerformManualAnalysis` | 4137-4215 | Manuel analiz işlemi |
+| `PostMorningMotivation` | 2558+ | **(v3.8.2)** Motivasyon tweeti ve zamanlaması |
+| `ProcessTelegramCommands` | 4414-4756 | Telegram komutları (/ONAY, /ANALIZ vb.) |
+| `ProcessSignal` | 3985-4126 | Sinyal işleme mantığı |
+| `ProcessNewsQueue` | 3705-3915 | Haber kuyruğu işleme |
+| `Log` / `LogAI` / `LogNews` | 4249-4312 | Loglama fonksiyonları |
+
+### MainForm.cs - WebView & X (Twitter) Fonksiyonları
+| Fonksiyon | Satır | Açıklama |
+|-----------|-------|----------|
+| `PerformInternalPostAsync` | 2708-2809 | Tweet atma (WebView2) |
+| `PerformInternalThreadAsync` | 2811-3199 | Thread atma (WebView2) |
+| `PerformInternalSearchAsync` | 3201-3532 | X arama (WebView2) |
+| `SaveTwitterCookiesAsync` | 1875-1925 | Cookie kaydetme |
+| `InjectTwitterCookiesAsync` | 1927-1975 | Cookie yükleme |
+
+### MainForm.cs - UI Bölgeleri (InitializeComponent içinde)
+| Bölge | Satır Aralığı | İçerik |
+|-------|---------------|--------|
+| Field Tanımları | 60-175 | Tüm UI kontrol tanımları |
+| Panel Tanımları | 260-285 | `pnlDashboard`, `pnlSettings`, `pnlHive` vb. |
+| Sidebar Navigation | 286-420 | `btnNav...` butonları |
+| Dashboard Header | 425-530 | Sayaçlar, Ticker, Start/Stop |
+| Settings Panel | 908-1165 | Tüm ayarlar UI |
+| AI & Model Yönetimi | 939-1080 | Gemini/Perplexity, Benchmark |
+
+### Services/ - Önemli Dosyalar
+| Dosya | Satır | İçerik |
+|-------|-------|--------|
+| `ModelBenchmarkService.cs` | 55-125 | `FetchAvailableModelsAsync()` |
+| `ModelBenchmarkService.cs` | 130-145 | `RunBenchmarkAsync()` |
+| `ModelManager.cs` | 42-150 | `InitializeTaskPreferences()` |
+| `ModelManager.cs` | 155-220 | `SendRequest()` + fallback |
+| `GeminiService.cs` | ~580-720 | `SendRequest()` ana mantık |
+| `SocialIntelService.cs` | ~200-400 | Python script çağrısı |
+| `SentinelService.cs` | ~80-150 | `ProcessTweetReplies()` |
+| `NewsEngine.cs` | ~100-200 | Haber işleme mantığı |
+| `OperationManager.cs` | 295-305 | `SyncGeminiProviders()` model isimleri |
+
+## 🔄 Workflow Examples (Akış Şemaları)
+
+### 1. Kullanıcıdan Gelen "Analiz Talebi" Akışı
+1.  **Algılama:** `SentinelService` -> `ProcessTweetReplies` çalışır.
+2.  **Veri Çekme:** `SocialIntelService.cs` -> `social_intel.py` (`fetch_replies`) çağrılır.
+3.  **Analiz:** Gelen yanıt `GeminiService` ile analiz edilir. "TALEP: THYAO" olduğu anlaşılır.
+4.  **Aksiyon:** `OperatorForm` üzerinde kullanıcıya "Analiz İsteği Geldi" uyarısı düşer.
+
+### 2. Meta-Teacher (Konsey) Döngüsü
+1.  **Tetikleme:** Zamanlayıcı (Timer) `SocialIntelService.PerformMetaTeacherLoopAsync` metodunu çağırır.
+2.  **Liste:** `InfluencerControlService` üzerinden "Konsey Üyeleri" listesi alınır.
+3.  **Tarama:** Her üye için `social_intel.py` (`search_influencer`) çalıştırılır. Tarih filtresiyle (Since Date) yeni tweetler aranır.
+4.  **Öğrenme:** Bulunan analizler `MemoryEngine` içine kaydedilir (`Learn`).
+5.  **İçgörü:** Önemli bir strateji bulunursa `OnMetaTeacherInsight` eventi tetiklenir ve kullanıcıya sunulur.
+
+### 3. Cortex Strateji Döngüsü (HIVE Phase 3)
+1.  **Veri Hazırlığı:** `OmniScout` (Viral) ve `Oracle` (Piyasa) servisleri arka planda veri çeker ve `LastReport` değişkenini günceller.
+2.  **Tetikleme:** Kullanıcı `OperatorForm` -> Sentez sekmesinden **"CORTEX ANALİZİ BAŞLAT"** butonuna basar.
+3.  **Sentez:** `CortexService` tüm raporları `Gemini`'ye gönderir.
+4.  **Sonuç:** AI, verileri çaprazlayarak (Cross-Reference) bir strateji üretir ve UI'da gösterir.
+
+---
+
+## ⚠️ Kritik Notlar & Kurallar
+
+1.  **JSON İletişimi:** C# ve Python arasındaki veri alışverişi **her zaman JSON** formatındadır. Python tarafında `---JSON_START---` ve `---JSON_END---` markerları kullanılır.
+2.  **Thread Safety:** `SentinelService` ve `OperationManager` asenkron çalışır. UI güncellemeleri için `Invoke` zorunludur.
+3.  **Dil Kuralı:** Kod içi (değişkenler, yorumlar) İngilizce, **UI ve Loglar Türkçe** olmalıdır.
+4.  **Hata Yönetimi:** Python scripti hata verirse JSON içinde `status: "error"` döner. C# tarafı bunu `Logger.Sys` ile loglamalıdır.
+
+---
+
+## 📂 Server Deployment Paths (Canlı Ortam)
+
+Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
+
+| İçerik | Sunucu Yolu |
+| :--- | :--- |
+| **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
+| **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
+
+
+
+
+
+
+
+
+
+
+
+

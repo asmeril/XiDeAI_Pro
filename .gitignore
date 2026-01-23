@@ -1,7 +1,8 @@
-# .NET
+# .NET Build Outputs
 bin/
 obj/
 publish/
+Dist/
 *.user
 *.userosscache
 *.sln.docstates
@@ -9,18 +10,44 @@ publish/
 # Python
 __pycache__/
 *.pyc
+*.pyo
 venv/
+.venv/
 
 # App Specific
-Logs/
 screenshots/
 Config/*.json
 Config/IndicatorGuide.md.backup
+
+# Logs & Output
+Logs/
+Output/
+TestOriginal/
+TestOutput*/
+
+# Setup & Distribution
+Setup_Output/
+*.exe
+
+# Temporary & Cache
+*.tmp
+*.cache
 *.log
-Sinyal_Log_Database.txt
-Telegram_Debug.txt
-VIOP_Pozisyon_Debug.txt
+build_log.txt
+
+# IDE & Tools
+.vs/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Sensitive Data
+*.key
+*.pem
+appsettings.*.json

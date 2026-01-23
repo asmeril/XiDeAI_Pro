@@ -39,15 +39,23 @@ namespace XiDeAI_Pro.Config
             "@BloombergHT", 
             "@hisse_analiz", 
             "@borsagundem", 
-            "@zeynepxcorp" 
+            "@zeynepxcorp",
+            "@hrrcnes", // v3.4.2: Meta-Teacher (The Operative)
+            "@DataChaz", // v3.4.2: Meta-Teacher (The Technician)
+            "@TansuYegen", // v3.4.2: Meta-Teacher (The Strategist)
+            "@AndrewYNg" // v3.4.2: Meta-Teacher (The Visionary)
         }; // Dönüşümlü etiketlenecek hesaplar
 
         // X Account Status
         public bool IsVerifiedAccount { get; set; } = true; // Premium/Blue tick user
         public bool IsDarkTheme { get; set; } = true; // Theme Preference
+        
+        // Quota Limits (User Configurable)
+        public int TwitterApiDailyLimit { get; set; } = 50; 
+        public int TwitterApiMonthlyLimit { get; set; } = 1500;
 
         // Filtre Ayarları
-        public int NewsCheckInterval { get; set; } = 5; // Minutes
+        public int NewsCheckInterval { get; set; } = 15; // v4.5.3: Was 5, increased to reduce API load
         public bool EnableKing { get; set; } = true;
         public bool EnableBomba { get; set; } = true;
         public bool EnableTeFo { get; set; } = true;
@@ -93,10 +101,35 @@ namespace XiDeAI_Pro.Config
         public int BotMinFollowers { get; set; } = 5000; // Min takipçi
         public int BotMinFavorites { get; set; } = 200; // Min beğeni
         public int BotMaxTweetAgeHours { get; set; } = 24; // Max tweet yaşı (saat)
+        
+        // v4.5.3: Kategori Bazlı Arama Kelimeleri (Round-Robin) - Updated with X Trend Research
+        public Dictionary<string, List<string>> CategorySearchKeywords { get; set; } = new()
+        {
+            // FINANS: Güncel borsa ve kripto trendleri
+            { "FINANS", new List<string> { "#Borsa", "#BIST100", "#Hisse", "#Altın", "#Dolar", "#USDTRY", "#Bitcoin", "#Kripto", "#HalkaArz", "#Ekonomi", "gram altın" } },
+            
+            // Eğlence/Kültür: Popüler dizi/film/sanat içerikleri (Eşref yerine güncel içerikler)
+            { "KULTUR_EGLENCE", new List<string> { "#NetflixTürkiye", "#DiziFragman", "#KültürSanat", "#TürkSineması", "#TiyatroGünü", "dizi izle", "film önerisi" } },
+            
+            // Milli/Toplumsal: Vatan, millet, önemli günler
+            { "MILLI_TOPLUM", new List<string> { "#Atatürk", "#Vatan", "#TürkBayrağı", "#ŞehitlerÖlmez", "#Teknofest", "#SavunmaSanayii", "#MilliTakım", "#19Mayıs", "#29Ekim" } },
+            
+            // Bilim/Teknoloji: Yapay zeka, uzay, arkeoloji
+            { "BILGE_KULTUR", new List<string> { "#YapayZeka", "#ChatGPT", "#SpaceX", "#NASA", "#Arkeoloji", "#Göbeklitepe", "#Bilim", "#Teknoloji", "#TarihteBugün" } },
+            
+            // Motivasyon/Kişisel Gelişim: İlham verici içerikler
+            { "INSAN_RUH", new List<string> { "#motivasyon", "#başarı", "#kişiselgelişim", "#olumlamaları", "#gününsözü", "#farkındalık", "#ilham", "güne güzel başla" } },
+            
+            // Günlük Mizah: Yüksek etkileşimli günlük paylaşımlar
+            { "GUNLUK_MIZAH", new List<string> { "#mizah", "#komik", "#karikatür", "#günaydın", "#Caps", "#espri", "bugün günlerden", "yine oldu" } }
+        };
 
         // HABER ANALİZ AYARLARI
         public int MinNewsImportance { get; set; } = 4; // v2.8: Varsayılan 4 (Sadece Kritik Haberler)
         public bool AutoPostBreakingNews { get; set; } = true; 
+        
+        // v3.8.2: Debugging & Test Mode
+        public bool NewsTestMode { get; set; } = false; // If true, logs why news is skipped but allows it through filters 
         
         // v2.8: Haber İzleme Listesi (Özel Filtre Altyapısı)
         public string NewsWatchlist { get; set; } = "Yapay Zeka, Enerji, Halka Arz"; 
@@ -104,12 +137,35 @@ namespace XiDeAI_Pro.Config
         // Phase 4: AI Deep Scan (Pre-Filter)
         public bool EnableDeepScan { get; set; } = false; // AI-powered signal pre-screening
         
+        // v4.5.4: Dynamic Trend Engagement
+        public bool TrendEngagementEnabled { get; set; } = true; // Dinamik trend paylaşımı
+        public int MaxTrendPostsPerDay { get; set; } = 9; // Günlük maksimum trend tweeti
+        
         // Multi-Model AI Support (v3.1+)
         public string PerplexityApiKey { get; set; } = ""; // Perplexity AI for real-time news analysis
         public string PerplexityModel { get; set; } = "sonar"; // "sonar" or "sonar-pro"
         public bool EnableMultiModel { get; set; } = true; // Enable intelligent model selection
         public bool EnableAutoFallback { get; set; } = true; // Auto-fallback to alternative models
         public bool IsGuruAutomationEnabled { get; set; } = false; // Phase 4.1: Guru Automation Toggle
+        public bool EnableMetaTeacher { get; set; } = false; // Phase 1 (Hive): Enables Meta-Teacher Analysis Logic
+
+        // FENERBAHÇE FAN ZONE
+        public bool FanZoneEnabled { get; set; } = true;
+        public List<string> FenerbahceAccounts { get; set; } = new List<string>
+        {
+            "@Fenerbahce", 
+            "@FBBasketbol",
+            "@yagosabuncuoglu", 
+            "@sercanhamzaoglu", 
+            "@ahmetkonanc",
+            "@12numaraorg", 
+            "@NexusSports", 
+            "@TekYolFener"
+        };
+        public List<string> FenerbahceKeywords { get; set; } = new List<string> { "#Fenerbahçe", "#FB", "#Sarılacivert", "Mourinho" };
+        
+        // v3.3 Athlete Tracking
+        public List<FenerbahceAthlete> FenerbahceAthletes { get; set; } = new List<FenerbahceAthlete>();
 
         public void CheckReset()
         {
@@ -126,6 +182,34 @@ namespace XiDeAI_Pro.Config
                 LastMonthlyReset = DateTime.Now;
             }
         }
+        
+        // v4.6.0: Advanced Safety Layer
+        public SafetySettings Safety { get; set; } = new SafetySettings();
+    }
+
+    public class SafetySettings
+    {
+        public SafetyLevel Level { get; set; } = SafetyLevel.High;
+        public int MinDelayBetweenTweetsSeconds { get; set; } = 300; // 5 mins default
+        public int DailyTweetHardLimit { get; set; } = 15;
+        public int DailySearchHardLimit { get; set; } = 50;
+        public DateTime LastTweetTime { get; set; } = DateTime.MinValue;
+        public DateTime LastSearchTime { get; set; } = DateTime.MinValue;
+    }
+
+    public enum SafetyLevel
+    {
+        Low,     // 2 min delay, Higher limits
+        Medium,  // 5 min delay, Moderate limits
+        High     // 10 min delay, Strict limits
+    }
+
+    public class FenerbahceAthlete
+    {
+        public string Name { get; set; }
+        public string Handle { get; set; } // @Dzeko, @EdiDzeko etc.
+        public string Sport { get; set; } // Futbol, Basketbol, Voleybol
+        public DateTime LastInteraction { get; set; }
     }
 
     public static class ConfigManager
@@ -176,6 +260,24 @@ namespace XiDeAI_Pro.Config
                     byte[] jsonData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
                     string json = Encoding.UTF8.GetString(jsonData);
                     Current = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    
+                    // v3.4.2: Auto-add Council Members if missing
+                    var council = new List<string> { "@hrrcnes", "@DataChaz", "@TansuYegen", "@AndrewYNg" };
+                    bool saveNeeded = false;
+                    foreach (var member in council)
+                    {
+                        if (!Current.Influencers.Contains(member))
+                        {
+                            Current.Influencers.Add(member);
+                            saveNeeded = true;
+                        }
+                    }
+
+                    if (saveNeeded)
+                    {
+                        Save();
+                    }
+
                     return;
                 }
                 catch 

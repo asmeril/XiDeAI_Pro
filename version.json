@@ -1,11 +1,17 @@
 {
-    "version": "2.8.9",
-    "lastUpdate": "2025-12-24 21:35",
+    "version": "4.3.0",
+    "build_number": 430,
+    "lastUpdate": "2026-01-20T19:15:00Z",
     "changelog": [
-        "🚀 2.8.9 – Kapsamlı Tarama (Extended Scan)",
-        "• 📈 Limit Artırımı: Anlık analizlerdeki yapay limitler genişletildi.",
-        "• 👤 Fenomen Limiti: 50 kişi (Eski: 15 kişi). Artık listenin sonundaki fenomenler de taranıyor.",
-        "• 📊 Tweet Limiti: 100 tweet (Eski: 30 tweet). Daha fazla veri toplanarak analiz kalitesi artırıldı.",
-        "• ⚠️ Not: Limit artışı nedeniyle analiz süresi uzayabilir (3-5 dk), ancak veri kaybı yaşanmaz."
+        "v4.3.0: HYBRID SIGNAL: Two-Step Sinyal Zekası (Puanlama + Strateji Personası + Tier Sistemi)",
+        "v4.2.2: NEWS: Two-Step Logic - 1-10 skorlama, 7 kategori, SON DAKIKA boost",
+        "v4.2.1: BOT: Round-Robin Category Search implementasyonu",
+        "v4.2.0: BOT: Two-Step Bot Interaction Logic (Kategori tespiti + özel yanıt)",
+        "v4.0.0: MAJOR: HIVE Protocol tamamen temizlendi (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex)",
+        "v4.0.0: NEW: Yerel AI Eğitim Sistemi (RAG) script'leri eklendi",
+        "v4.0.0: FIX: AI_Knowledge_Base derleme hatası çözüldü",
+        "v4.0.0: FIX: SendTweetAsync API uyumluluğu düzeltildi",
+        "v3.8.5: CRITICAL: Gemini model isimleri güncellendi (1.5 -> 2.5 serisi)",
+        "v3.8.5: NewsEngine rate limiting eklendi (TooManyRequests fix)"
     ]
 }

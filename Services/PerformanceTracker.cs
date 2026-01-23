@@ -60,15 +60,33 @@ namespace XiDeAI_Pro.Services
         /// </summary>
         public void UpdateClosingPrices(Dictionary<string, decimal> closingPrices)
         {
+            int updatedCount = 0;
             foreach (var sig in _signals.Where(s => s.EntryTime.Date == DateTime.Now.Date && s.ClosingPrice == 0))
             {
-                if (closingPrices.TryGetValue(sig.Symbol, out decimal closePrice))
+                // Try direct match OR symbol without .IS/.HE (BIST normalization)
+                string symbolKey = sig.Symbol;
+                if (!closingPrices.ContainsKey(symbolKey))
+                {
+                    // Fallback: Check if we have symbols like "THYAO.IS" in dictionary but "THYAO" in signal
+                    symbolKey = closingPrices.Keys.FirstOrDefault(k => k.StartsWith(sig.Symbol + "."));
+                }
+
+                if (symbolKey != null && closingPrices.TryGetValue(symbolKey, out decimal closePrice))
                 {
                     sig.ClosingPrice = closePrice;
                     sig.DailyPnL = ((closePrice - sig.EntryPrice) / sig.EntryPrice) * 100;
+                    updatedCount++;
+                }
+                else
+                {
+                    Logger.Sys($"⚠️ [Performance] {sig.Symbol} için kapanış fiyatı bulunamadı.");
                 }
             }
-            Save();
+            if (updatedCount > 0)
+            {
+                Logger.Sys($"✅ [Performance] {updatedCount} sinyal için kapanış fiyatı güncellendi.");
+                Save();
+            }
         }
 
         /// <summary>
@@ -88,44 +106,52 @@ namespace XiDeAI_Pro.Services
                     }
                 }
             }
-            
+
+            // CALCULATE STATS ON FULL DATASET (Honesty)
+            var fullSet = todaySignals.ToList();
+
+            // CURATED LIST FOR DISPLAY: Top 3 Best ONLY
+            // User Request: "Sadece en başarılı 3 analiz sonucunu paylaş"
+            var displayList = fullSet.OrderByDescending(s => s.DailyPnL).Take(3).ToList();
+
             var report = new DailyReport
             {
                 Date = date,
-                TotalSignals = todaySignals.Count,
-                Winners = todaySignals.Count(s => s.DailyPnL > 0),
-                Losers = todaySignals.Count(s => s.DailyPnL < 0),
-                BestPerformer = todaySignals.OrderByDescending(s => s.DailyPnL).FirstOrDefault(),
-                WorstPerformer = todaySignals.OrderBy(s => s.DailyPnL).FirstOrDefault(),
-                AvgReturn = todaySignals.Any() ? todaySignals.Average(s => s.DailyPnL) : 0,
+                TotalSignals = fullSet.Count,
+                TotalReturn = fullSet.Sum(s => s.DailyPnL),
+                Winners = fullSet.Count(s => s.DailyPnL > 0),
+                Losers = fullSet.Count(s => s.DailyPnL < 0),
+                BestPerformer = fullSet.OrderByDescending(s => s.DailyPnL).FirstOrDefault(),
+                WorstPerformer = fullSet.OrderBy(s => s.DailyPnL).FirstOrDefault(),
+                AvgReturn = fullSet.Any() ? fullSet.Average(s => s.DailyPnL) : 0,
                 MarketReturn = marketReturn,
-                Volatility = todaySignals.Any() ? (decimal)Math.Sqrt((double)todaySignals.Average(s => Math.Pow((double)(s.DailyPnL - (todaySignals.Average(x=>x.DailyPnL))), 2))) : 0,
-                Signals = todaySignals
+                Volatility = fullSet.Any() ? (decimal)Math.Sqrt((double)fullSet.Average(s => Math.Pow((double)(s.DailyPnL - (fullSet.Average(x=>x.DailyPnL))), 2))) : 0,
+                Signals = displayList
             };
 
-            // Calculate Profit Factor
-            decimal grossWin = todaySignals.Where(s => s.DailyPnL > 0).Sum(s => s.DailyPnL);
-            decimal grossLoss = Math.Abs(todaySignals.Where(s => s.DailyPnL < 0).Sum(s => s.DailyPnL));
+            // Calculate Profit Factor (Honest Stats)
+            decimal grossWin = fullSet.Where(s => s.DailyPnL > 0).Sum(s => s.DailyPnL);
+            decimal grossLoss = Math.Abs(fullSet.Where(s => s.DailyPnL < 0).Sum(s => s.DailyPnL));
             report.ProfitFactor = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 99 : 0);
 
             // Calculate Avg Hold Time (Closed signals only)
-            var closedSignals = todaySignals.Where(s => s.ExitTime != default).ToList();
+            var closedSignals = fullSet.Where(s => s.ExitTime != default).ToList();
             if (closedSignals.Any())
             {
                 report.AvgHoldTimeMinutes = closedSignals.Average(s => (s.ExitTime - s.EntryTime).TotalMinutes);
             }
 
             // Calculate Market Sync (Signals matching market direction)
-            if (todaySignals.Any())
+            if (fullSet.Any())
             {
-                int syncCount = todaySignals.Count(s => (marketReturn >= 0 && s.DailyPnL >= 0) || (marketReturn < 0 && s.DailyPnL < 0));
-                report.MarketSyncScore = (decimal)syncCount / todaySignals.Count * 100;
+                int syncCount = fullSet.Count(s => (marketReturn >= 0 && s.DailyPnL >= 0) || (marketReturn < 0 && s.DailyPnL < 0));
+                report.MarketSyncScore = (decimal)syncCount / fullSet.Count * 100;
             }
 
             report.AvgAlpha = report.AvgReturn - report.MarketReturn;
 
             // Strategy Karnesi
-            var groups = todaySignals.GroupBy(s => s.Strategy);
+            var groups = fullSet.GroupBy(s => s.Strategy);
             foreach (var g in groups)
             {
                 var total = g.Count();
@@ -243,6 +269,7 @@ namespace XiDeAI_Pro.Services
         public int Winners { get; set; }
         public int Losers { get; set; }
         public decimal WinRate => TotalSignals > 0 ? (decimal)Winners / TotalSignals * 100 : 0;
+        public decimal TotalReturn { get; set; } // Added for completeness
         public decimal AvgReturn { get; set; }
         public decimal MarketReturn { get; set; }
         public decimal AvgAlpha { get; set; }
@@ -280,6 +307,7 @@ namespace XiDeAI_Pro.Services
         public string Silver { get; set; } = "N/A";
         public List<MarketMover> TopGainers { get; set; } = new();
         public List<MarketMover> TopLosers { get; set; } = new();
+        public List<MarketMover> TopVolume { get; set; } = new();
     }
 
     public class MarketMover

@@ -83,6 +83,18 @@ namespace XiDeAI_Pro.Services
             }
         }
 
+        public List<NewsHistoryItem> GetRecentImportantNews(int count)
+        {
+            lock (_lock)
+            {
+                return _history
+                    .Where(x => x.ImportanceScore >= 4) // Score 4+ (Important)
+                    .OrderByDescending(x => x.ProcessedAt)
+                    .Take(count)
+                    .ToList();
+            }
+        }
+
         public bool IsDuplicate(string title, string source, out string reason)
         {
             reason = string.Empty;

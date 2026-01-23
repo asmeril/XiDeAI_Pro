@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
 using System.Text.Json;
+using System.Net.Http;
+using XiDeAI_Pro.Config;
 
 namespace XiDeAI_Pro.Services
 {
@@ -18,6 +21,7 @@ namespace XiDeAI_Pro.Services
         public decimal S1 { get; set; }
         public decimal S2 { get; set; }
         public decimal S3 { get; set; }
+        public string IntervalLabel { get; set; } = "GÜNLÜK";
         public string CalculatedFromDate { get; set; } = "";
         public string ValidForDate { get; set; } = "";
         
@@ -36,6 +40,10 @@ namespace XiDeAI_Pro.Services
         public PriceInfo? PriceInfo { get; set; }
         public List<InfluencerPost> InfluencerPosts { get; set; } = new List<InfluencerPost>();
         public PivotData? PivotData { get; set; }
+        /// <summary>
+        /// Short thread format (4 tweets) for X posting
+        /// </summary>
+        public string ShortThread { get; set; } = "";
     }
 
     public class ManualAnalysisService
@@ -46,11 +54,13 @@ namespace XiDeAI_Pro.Services
         private readonly SocialIntelService _socialIntel;
         private readonly InfluencerControlService _influencerControl;
         private readonly MemoryEngine _memory;
+        private readonly NewsEngine _newsEngine;
         private readonly Action<string>? _logger;
         
-        public ManualAnalysisService(GeminiService geminiService, ScreenshotService screenshotService, SocialIntelService socialIntel, InfluencerControlService influencerControl, MemoryEngine memory, Action<string>? logger = null)
+        public ManualAnalysisService(GeminiService geminiService, ScreenshotService screenshotService, SocialIntelService socialIntel, InfluencerControlService influencerControl, MemoryEngine memory, NewsEngine newsEngine, Action<string>? logger = null)
         {
             _geminiService = geminiService;
+            _newsEngine = newsEngine;
             _priceService = new PriceFetchService();
             _screenshotService = screenshotService;
             _socialIntel = socialIntel;
@@ -69,7 +79,7 @@ namespace XiDeAI_Pro.Services
             var result = new ManualAnalysisResult();
             try
             {
-                Log($"Analiz Başlatılıyor: {symbol} ({marketType}) [{timeFrame}]");
+                Log($"🚀 [ANALİZ BAŞLADI] Sembol: {symbol}, Periyot: {timeFrame}, Baz: {basis}");
 
                 // 0. Get Historical Context from Shared Memory
                 string historicalContext = _memory.GetSymbolContext(symbol);
@@ -79,30 +89,32 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 1. Get Price Info
+                Log("💰 Fiyat bilgisi çekiliyor...");
                 var priceInfo = await _priceService.GetPriceAsync(symbol, marketType);
                 if (priceInfo != null)
                 {
                     result.PriceInfo = priceInfo;
-                    Log($"Fiyat alındı: {priceInfo.Price}");
+                    Log($"✅ Fiyat alındı: {priceInfo.Price}");
+                }
+                else 
+                {
+                    Log("⚠️ Fiyat bilgisi alınamadı, devam ediliyor...");
                 }
 
                 // 2. Pre-Check: Validate TradingView Symbol Existence
                 string tvSymbol = ConvertToTradingViewSymbol(symbol, marketType, basis);
+                Log($"🔍 TV Sembol Dönüşümü: {tvSymbol}");
                 if (!await IsTradingViewSymbolValid(tvSymbol)) 
                 {
                      Log($"⚠️ UYARI: TradingView üzerinde '{tvSymbol}' bulunamadı! Grafik hatalı olabilir.");
-                     // We don't stop execution, but we log a strong warning.
-                     // Often 'FX_IDC' vs 'OANDA' confusion causes this.
                 }
 
                 // 3. Generate Screenshot & Link
-                // 3. Generate Screenshot & Link
-                // tvSymbol is already computed above
                 string linkInterval = (timeFrame == "G" || timeFrame == "Daily") ? "D" : timeFrame;
                 
                 string tvLink = string.IsNullOrEmpty(chartId)
-                    ? $"https://tr.tradingview.com/chart/?symbol={tvSymbol}&interval={linkInterval}"
-                    : $"https://tr.tradingview.com/chart/{chartId}/?symbol={tvSymbol}&interval={linkInterval}";
+                    ? $"https://tr.tradingview.com/chart/?symbol={tvSymbol}&interval={linkInterval}&theme=dark"
+                    : $"https://tr.tradingview.com/chart/{chartId}/?symbol={tvSymbol}&interval={linkInterval}&theme=dark";
                 
                 result.TvLink = tvLink;
                 
@@ -111,7 +123,7 @@ namespace XiDeAI_Pro.Services
                 {
                     if (_screenshotService != null)
                     {
-                        Log("📸 Ekran görüntüsü alınıyor...");
+                        Log("📸 Ekran görüntüsü süreci başlatıldı...");
                         string period = timeFrame;
                         if(timeFrame == "G" || timeFrame == "Daily") period = "D"; 
                         
@@ -119,137 +131,163 @@ namespace XiDeAI_Pro.Services
                         if (File.Exists(screenshotPath))
                         {
                             result.ScreenshotPath = screenshotPath;
-                            Log("✅ Ekran görüntüsü alındı.");
+                            Log($"✅ Ekran görüntüsü başarılı: {Path.GetFileName(screenshotPath)}");
                             
                             // Try to read pivot data from JSON file
                             var pivotData = LoadPivotDataFromJson(symbol, screenshotPath);
                             if (pivotData != null)
                             {
                                 result.PivotData = pivotData;
-                                Log($"✅ Pivot seviyeleri yüklendi: P={pivotData.Pivot}, R1={pivotData.R1}, S1={pivotData.S1}");
+                                Log($"📈 Pivot verileri yüklendi: P={pivotData.Pivot}");
                             }
+                        }
+                        else
+                        {
+                            Log("❌ Ekran görüntüsü dosyası oluşturulamadı.");
                         }
                     }
                 }
-                catch (Exception ex) { Log($"⚠️ Screenshot hatası: {ex.Message}"); }
+                catch (Exception ex) { Log($"❌ Screenshot hatası: {ex.Message}"); }
                 
                 string priceContext = priceInfo != null 
                     ? $"Fiyat: {priceInfo.Price}, Değişim: %{priceInfo.Change24h}" 
                     : "Fiyat verisi alınamadı.";
 
-                // PIVOT TARİH KONTEKSTI EKLE
-                // Tarama sonuçları kapanan günün verilerine göre oluşuluyor, 
-                // fakat sonraki iş günü için paylaşılıyor
+                // PIVOT TARİH KONTEKSTI
                 DateTime today = DateTime.Now;
                 DateTime pivotDate = GetPreviousTradingDay(today);
                 string pivotDateStr = pivotDate.ToString("dd.MM.yyyy");
                 string todayStr = today.ToString("dd.MM.yyyy");
                 
                 string dateContext = $"\n📅 TARAMA TARİHİ: {todayStr}\n" +
-                    $"📊 PIVOT VERİSİ TARİHİ: {pivotDateStr} (önceki iş günü kapanış verilerine göre hesaplanmıştır)\n" +
-                    $"⚠️ AÇIKLAMA: Günlük pivot seviyeleri ({pivotDateStr}) ve Fibonacci oranları, " +
-                    $"bu tarihte kapanan mumun (High, Low, Close) verilerine göre hesaplanmıştır. " +
-                    $"Haftalık/Aylık pivotlar ise ilgili dönemin son kapanış verilerine göre oluşturulmuştur.\n";
+                    $"📊 PIVOT VERİSİ TARİHİ: {pivotDateStr}\n";
                 
                 priceContext += dateContext;
                 
-                // 🎯 YFİNANCE VE VİSİON VERİLERİNİ SENTEZLE
                 if (result.PivotData != null)
                 {
                     var pd = result.PivotData;
-                    string pivotValues = $"\n📍 TEKNİK SEVİYE ANALİZİ ({pd.CalculatedFromDate} Kapanış Verileriyle):\n" +
-                        $"  • R3 Direnç: {pd.R3:N2}\n" +
-                        $"  • R2 Direnç: {pd.R2:N2}\n" +
-                        $"  • R1 Direnç: {pd.R1:N2}\n" +
-                        $"  • P (Pivot): {pd.Pivot:N2}\n" +
-                        $"  • S1 Destek: {pd.S1:N2}\n" +
-                        $"  • S2 Destek: {pd.S2:N2}\n" +
-                        $"  • S3 Destek: {pd.S3:N2}\n" +
-                        $"\n⚠️ NOT: Yukarıdaki rakamlar yfinance verilerine dayalı HESAPLANMIŞ kesin seviyelerdir. " +
-                        $"Aşağıdaki Vision API (Görsel Analiz) sonuçları ise bu seviyelerin grafikteki GÖRSEL doğrulamasıdır. " +
-                        $"Eğer Vision 'Yok' diyorsa bile yukarıdaki hesaplanmış seviyeleri baz al.\n";
+                    string pivotValues = $"\n📍 {pd.IntervalLabel} TEKNİK SEVİYE ANALİZİ ({pd.CalculatedFromDate}):\n" +
+                        $"  • P (Pivot): {pd.Pivot:N2} | R1: {pd.R1:N2} | S1: {pd.S1:N2}\n";
                     priceContext += pivotValues;
-                    Log($"📊 Kesin pivot değerleri ve Vision sentez notu AI prompt'una enjekte edildi");
-                }
-
-                // Inject History & Basis into PriceContext
-                if (!string.IsNullOrEmpty(basis) && basis != "TL")
-                {
-                    string basisNote = basis == "XU100" 
-                        ? "⚠️ BU BİR KOMPOZİT ANALİZDİR. Hisseyi endeks bazlı (relatif) yorumla." 
-                        : $"⚠️ BU BİR DÖVİZ BAZLI ANALİZDİR. Seviyeleri ve grafiği {basis} birimi üzerinden değerlendir.";
-                    
-                    priceContext = $"{basisNote}\n{priceContext}";
-                }
-
-                if (!string.IsNullOrEmpty(historicalContext))
-                {
-                    priceContext += "\nGEÇMİŞ ANALİZ:\n" + historicalContext;
                 }
 
                 // 3. Search for influencer posts
                 var influencerPosts = new List<InfluencerPost>();
                 try
                 {
-                    Log("Influencer yorumları taranıyor...");
+                    Log("🐦 Sosyal medya (X) fenomen yorumları taranıyor...");
                     if (_socialIntel != null)
                     {
                         var vipHandles = _influencerControl?.GetTopInfluencers(symbol, 20);
                         influencerPosts = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, vipHandles);
                         
-                        // Extra safety filter: Remove spam posts with private links (EXCEPT for Guru)
+                        string currentUser = ConfigManager.Current.XLoginUser?.Replace("@", "").Trim() ?? "";
+                        string symUpper = symbol.ToUpperInvariant();
+
                         var cleanedPosts = influencerPosts
                             .Where(p => p.Handle.Equals("EFELERiiNEFESi3", StringComparison.OrdinalIgnoreCase) || 
                                        !ContentQualityGuard.ContainsPrivateLinks(p.Content))
+                            .Where(p => {
+                                string h = p.Handle?.Replace("@", "").Trim() ?? "";
+                                if (!string.IsNullOrEmpty(currentUser) && h.Equals(currentUser, StringComparison.OrdinalIgnoreCase)) return false;
+
+                                string content = p.Content?.ToUpperInvariant() ?? "";
+                                
+                                // Anti-Noise: SMART vs Smart Money
+                                if (symUpper == "SMART")
+                                {
+                                    if (content.Contains("SMART MONEY") && !content.Contains("#SMART") && !content.Contains("$SMART"))
+                                        return false;
+                                }
+
+                                // Word boundary match to avoid partial matches
+                                return content.Contains($"#{symUpper}") || 
+                                       content.Contains($"${symUpper}") || 
+                                       System.Text.RegularExpressions.Regex.IsMatch(content, $@"\b{symUpper}\b");
+                            })
                             .ToList();
-                        if (cleanedPosts.Count < influencerPosts.Count)
-                        {
-                            Log($"🚫 {influencerPosts.Count - cleanedPosts.Count} spam post filtrelendi (telegram/discord linki)");
-                            influencerPosts = cleanedPosts;
-                        }
                         
-                        Log($"🔎 {influencerPosts.Count} influencer yorumu bulundu.");
-                        result.InfluencerPosts = influencerPosts;
+                        Log($"🔎 {cleanedPosts.Count} geçerli influencer yorumu bulundu.");
+                        result.InfluencerPosts = cleanedPosts;
+                        influencerPosts = cleanedPosts;
                     }
                 }
-                catch (Exception ex) { Log($"⚠️ Influencer tarama hatası: {ex.Message}"); }
+                catch (Exception ex) { Log($"⚠️ Sosyal medya tarama hatası: {ex.Message}"); }
 
-                // 4. EXTRACT INDICATORS FROM SCREENSHOT (Pre-populate Gemini context)
+                // 4. EXTRACT INDICATORS FROM SCREENSHOT
                 string indicatorContext = "";
                 if (screenshotPath != null && File.Exists(screenshotPath))
                 {
                     try
                     {
-                        Log("📊 Grafikteki göstergeler analiz ediliyor (RSI, MACD, Pivot, Fibo, Divergence)...");
+                        Log("👁️ Vision API: Görsel gösterge çıkarımı başlatıldı...");
                         var extractor = new IndicatorExtractor(_geminiService, Log);
                         var indicatorAnalysis = await extractor.ExtractIndicatorsFromScreenshot(screenshotPath);
                         
                         if (!string.IsNullOrEmpty(indicatorAnalysis.SummaryContext))
                         {
                             indicatorContext = indicatorAnalysis.SummaryContext;
-                            Log("✅ Göstergeler çıkartıldı, Gemini prompt'una injekte ediliyor...");
-                            
-                            // Inject into priceContext so Gemini sees the numbers
+                            Log("✅ Görsel göstergeler başarıyla analiz edildi.");
                             priceContext += "\n\n" + indicatorContext;
                         }
                     }
                     catch (Exception ex)
                     {
-                        Log($"⚠️ Gösterge çıkarma hatası (devam ediliyor): {ex.Message}");
+                        Log($"⚠️ Vision API hatası: {ex.Message}");
                     }
                 }
 
                 // 5. Generate AI Analysis
                 string? analysis = null;
                 
-                Log("🤖 Gemini AI analiz yazıyor...");
+                Log("🧠 [CORTEX NIRVANA] Viral zeka ve stratejik sentez devreye alınıyor...");
+                
+                // v4.3.0: Fetch News & Market Context
+                string newsContext = "";
+                string marketOverview = ConfigManager.Current.DailyTrends ?? "BIST100 Pozitif"; // Fallback
+                
+                if (_newsEngine != null)
+                {
+                    var importantNews = _newsEngine.GetRecentHighImpactNews(3);
+                    if (importantNews.Any())
+                    {
+                        newsContext = string.Join("\n", importantNews.Select(n => $"• [{n.ProcessedAt:HH:mm}] {n.Title}"));
+                        Log($"📰 Analize {importantNews.Count} adet kritik haber eklendi.");
+                    }
+                }
+
+                // v4.3.1: Dynamic Global Context (For Crypto/Forex)
+                if (!string.IsNullOrEmpty(marketType) && 
+                    !marketType.Contains("BIST") && 
+                    !marketType.Contains("VIOP") && 
+                    !marketType.Contains("HISSE"))
+                {
+                    try 
+                    {
+                        Log($"🌍 {marketType} için global piyasa özeti alınıyor...");
+                        string contextPrompt = $"Şu anki {marketType} piyasasının genel " +
+                            $"duygu durumu (sentiment) hakkında çok kısa, 1 cümlelik, net bir özet geç. " +
+                            $"(Örn: 'Bitcoin 65k üzerinde tutunuyor, hava pozitif' veya 'DXY güçleniyor, pariteler baskı altında'). " +
+                            $"Tarih verme, sadece anlık durumu özetle.";
+                        
+                        string? globalContext = await _geminiService.GenerateGenericContent(contextPrompt);
+                        if (!string.IsNullOrEmpty(globalContext))
+                        {
+                            marketOverview = globalContext.Trim();
+                            Log($"✅ Global Bağlam: {marketOverview}");
+                        }
+                    }
+                    catch { /* Fallback to default/empty */ }
+                }
+
+                Log("🤖 Gemini AI: Nihai pazar analizi oluşturuluyor...");
                 if (_geminiService == null) throw new Exception("Gemini servisi başlatılamadı.");
 
-                // Format influencer citations for passing to analysis
                 string influencerContext = "";
                 if (influencerPosts != null && influencerPosts.Count > 0)
                 {
-                    var citationList = new System.Collections.Generic.List<string>();
+                    var citationList = new List<string>();
                     foreach (var post in influencerPosts)
                     {
                         citationList.Add($"• @{post.Handle}: {post.Content}");
@@ -259,41 +297,76 @@ namespace XiDeAI_Pro.Services
 
                 if (screenshotPath != null && File.Exists(screenshotPath))
                 {
-                    analysis = await _geminiService.GenerateMarketAnalysisWithChart(symbol, marketType, priceContext, screenshotPath, influencerContext);
+                    // Pass news and market context
+                    analysis = await _geminiService.GenerateMarketAnalysisWithChart(symbol, marketType, priceContext, screenshotPath, influencerContext, newsContext, marketOverview);
                 }
                 else
                 {
-                    analysis = await _geminiService.GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerContext);
+                    // Pass news and market context
+                    analysis = await _geminiService.GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerContext, newsContext, marketOverview);
                 }
                 
                 if (string.IsNullOrEmpty(analysis))
                 {
+                    Log("❌ Gemini AI yanıt üretemedi.");
                     result.ReportText = $"AI analizi oluşturulamadı. (Hata: {_geminiService.LastError})";
                     return result;
                 }
 
-                // 4. Format output and SAVE TO MEMORY
+                Log("✅ AI analizi oluşturuldu.");
                 result.ReportText = analysis;
-                result.InfluencerPosts = influencerPosts;
 
-                // Save to Shared Memory with Sentiment Extraction
+                // === YENI: SHORT THREAD FORMAT (4 Tweet) ===
+                try
+                {
+                    Log("🐦 [SHORT THREAD] 4 tweet'lik kısa thread oluşturuluyor...");
+                    
+                    // Get last week's successful analysis for history callback
+                    string lastWeekAnalysis = _geminiService.GetLastWeekSuccessfulAnalysis(symbol);
+                    if (!string.IsNullOrEmpty(lastWeekAnalysis))
+                    {
+                        Log($"📜 Geçmiş başarılı analiz bulundu, thread'e entegre edilecek.");
+                    }
+
+                    string? shortThread = await _geminiService.GenerateShortThreadWithHistory(
+                        symbol,
+                        marketType,
+                        priceContext,
+                        indicatorContext,
+                        influencerContext,
+                        timeFrame,
+                        screenshotPath,
+                        lastWeekAnalysis
+                    );
+
+                    if (!string.IsNullOrEmpty(shortThread))
+                    {
+                        result.ShortThread = shortThread;
+                        Log("✅ Short thread başarıyla oluşturuldu (4 tweet).");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"⚠️ Short thread oluşturma hatası: {ex.Message}");
+                }
+
+                // Save to Shared Memory
                 string sentimentTag = "";
                 if (analysis.Contains("Açığa Satış") || analysis.Contains("Düşüş Yönlü")) sentimentTag = "\n[SENTİMENT: SHORT]";
                 else if (analysis.Contains("Uzun Pozisyon") || analysis.Contains("Yükseliş Yönlü")) sentimentTag = "\n[SENTİMENT: LONG]";
 
                 _memory.StoreAnalysis(symbol, "MANUAL", analysis + sentimentTag);
-                Log("💾 Analiz hafızaya kaydedildi.");
-
-                string debugOutput = analysis;
-                if (!string.IsNullOrEmpty(tvLink)) debugOutput += $"\n\n📊 Grafik: {tvLink}";
-                result.ReportText = debugOutput;
+                
+                // result.ReportText += $"\n\n📊 Grafik: {tvLink}"; // REMOVED: Duplicates with UI/Telegram footer
                 result.Success = true;
+                Log("💾 [ANALİZ TAMAMLANDI] Hafızaya kaydedildi.");
 
                 return result;
             }
             catch (Exception ex)
             {
-                result.ReportText = $"Analiz sırasında hata oluştu: {ex.Message}";
+                Log($"❌ PerformManualAnalysis Kritik Hata: {ex.Message}");
+                result.ReportText = $"Analiz sırasında kritik hata oluştu: {ex.Message}";
                 return result;
             }
         }
@@ -340,14 +413,14 @@ namespace XiDeAI_Pro.Services
             // Emtia - Turkish to English
             Add("PAMUK", "COTTON");
             Add("BUĞDAY", "WHEAT"); Add("BUGDAY", "WHEAT");
-            Add("MÍSIR", "CORN"); Add("MISIR", "CORN");
+            Add("MİSIR", "CORN"); Add("MISIR", "CORN");
             Add("KAHVE", "COFFEE");
             Add("ŞEKER", "SUGAR"); Add("SEKER", "SUGAR");
             Add("KAKAO", "COCOA");
-            Add("ALTÍN", "XAUUSD"); Add("ALTIN", "XAUUSD");
+            Add("ALTIN", "XAUUSD");
             Add("GÜMÜŞ", "XAGUSD"); Add("GUMUS", "XAGUSD");
             Add("PLATINUM", "PLATINUM"); Add("PLATIN", "PLATINUM");
-            Add("PALADIUM", "XPDUSD"); Add("PALADYUM", "XPDUSD");
+            Add("PALADYUM", "XPDUSD");
             Add("BAKIR", "COPPER");
             Add("ALÜMINYUM", "ALUMINUM"); Add("ALUMINYUM", "ALUMINUM");
             Add("ÇINKO", "ZINC"); Add("CINKO", "ZINC");
@@ -367,7 +440,7 @@ namespace XiDeAI_Pro.Services
             Add("STERLIN/DOLAR", "GBPUSD");
             Add("DOLAR/YEN", "USDJPY");
             Add("DOLAR/FRANK", "USDCHF");
-            Add("ALTIN/DOLAR", "XAUUSD"); Add("ALTÍN/DOLAR", "XAUUSD");
+            Add("ALTIN/DOLAR", "XAUUSD");
 
             // Endeksler - Turkish to English
             Add("S&P500", "SPX"); Add("SP500", "SPX");
@@ -376,6 +449,8 @@ namespace XiDeAI_Pro.Services
             Add("HONG KONG 50", "HANGSENG"); Add("HONGKONG50", "HANGSENG");
             Add("BREZILYA", "BOVESPA");
             Add("ARJANTIN", "MERVAL");
+            Add("VIX", "VIX"); Add("KORKU", "VIX");
+            Add("DXY", "DXY"); Add("DOLAR ENDEKSI", "DXY");
 
             string upperSym = symbol.ToUpperInvariant().Trim();
             if (map.TryGetValue(upperSym, out var mapped)) return mapped;
@@ -390,60 +465,39 @@ namespace XiDeAI_Pro.Services
             // 0. Power User Mode: If symbol contains ':', assume valid TV format (e.g. OANDA:XAUUSD)
             if (symbol.Contains(":")) return CheckBasis(symbol, basis);
 
-            // 0.5 Convert Turkish names to English
-            string englishSymbol = TurkishToEnglishSymbol(symbol);
+            // 1. Try to get from SymbolData first
+            string tvSymbol = SymbolData.GetTradingViewSymbol(marketType, symbol);
             
-            string upperSym = englishSymbol.ToUpperInvariant().Trim();
-            string baseSym = "";
-            
-            // VIP/Futures Special Handling
-            if (upperSym.StartsWith("VIP-"))
+            // 2. If SymbolData returned the original symbol (not found), use fallback logic
+            if (tvSymbol == symbol)
             {
-                string core = upperSym.Replace("VIP-", "");
-                if (core == "X030T") baseSym = "BIST:XU030D1"; 
-                else baseSym = $"BIST:{core}1!";
-                return CheckBasis(baseSym, basis);
+                // Fallback: Manual conversion for edge cases
+                string upperSym = symbol.ToUpperInvariant().Trim();
+                
+                // VIP/Futures Special Handling
+                if (upperSym.StartsWith("VIP-"))
+                {
+                    string core = upperSym.Replace("VIP-", "");
+                    if (core == "X030T") tvSymbol = "BIST:XU030D1"; 
+                    else tvSymbol = $"BIST:{core}1!";
+                }
+                else
+                {
+                    // Default fallback based on market type
+                    tvSymbol = marketType switch
+                    {
+                        "Kripto" => $"BINANCE:{(upperSym.EndsWith("USDT") ? upperSym : upperSym + "USDT")}",
+                        "BIST" => $"BIST:{upperSym}",
+                        "Forex" => $"FX_IDC:{upperSym}",
+                        "ABD" => $"NASDAQ:{upperSym}",
+                        "Emtia" => $"TVC:{upperSym}",
+                        "Endeks" => $"TVC:{upperSym}",
+                        _ => upperSym
+                    };
+                }
             }
 
-            switch (marketType)
-            {
-                case "Kripto":
-                    // Default to Binance, but fallback to others if needed? No, usually Binance is liquid enough.
-                    // Handle BTC/ETH without USDT suffix if user forgets
-                    if (!upperSym.EndsWith("USDT") && !upperSym.EndsWith("TRY") && !upperSym.EndsWith("BTC"))
-                        upperSym += "USDT";
-                    baseSym = $"BINANCE:{upperSym}";
-                    break;
-
-                case "BIST":
-                    baseSym = $"BIST:{upperSym}";
-                    break;
-
-                case "Forex":
-                    baseSym = $"FX:{upperSym}";
-                    // OANDA is often better for generic FX in TV
-                    if (!upperSym.Contains("TRY")) // Major pairs often OANDA or FX_IDC
-                        baseSym = $"FX_IDC:{upperSym}"; 
-                    break;
-
-                case "ABD":
-                    baseSym = $"NASDAQ:{upperSym}"; // Fallback logic could be added for NYSE
-                    break;
-
-                case "Emtia":
-                    baseSym = GetCommodityTicker(upperSym);
-                    break;
-
-                case "Endeks":
-                    baseSym = GetIndexTicker(upperSym);
-                    break;
-
-                default:
-                    baseSym = upperSym;
-                    break;
-            }
-
-            return CheckBasis(baseSym, basis);
+            return CheckBasis(tvSymbol, basis);
         }
 
         private string CheckBasis(string baseSym, string basis)
@@ -461,32 +515,30 @@ namespace XiDeAI_Pro.Services
             if (sym.Contains("PAMUK") || sym.Contains("Pamuk")) normalized = "COTTON";
             else if (sym.Contains("BUĞDAY") || sym.Contains("WHEAT") || sym.Contains("Buğday")) normalized = "WHEAT";
             else if (sym.Contains("MÍSIR") || sym.Contains("CORN") || sym.Contains("Mısır")) normalized = "CORN";
-            else if (sym.Contains("ALTÍN") || sym.Contains("ALTIN") || sym.Contains("Altın")) normalized = "XAUUSD";
+            else if (sym.Contains("ALTIN") || sym.Contains("Altın")) normalized = "XAUUSD";
             else if (sym.Contains("GÜMÜŞ") || sym.Contains("GUMUS") || sym.Contains("Gümüş")) normalized = "XAGUSD";
-            else if (sym.Contains("BAKIR") || sym.Contains("COPPER")) normalized = "COPPER";
-            else if (sym.Contains("PETROL") || sym.Contains("HAM")) normalized = "USOIL";
-            else if (sym.Contains("BRENT") || sym.Contains("UKOIL")) normalized = "BRENT";
             else if (sym.Contains("DOĞALGAZ") || sym.Contains("DOGALGAZ")) normalized = "NATGAS";
+            else if (sym.Contains("SIGIR") || sym.Contains("CATTLE")) normalized = "CATTLE";
             
             // Common Turkish and English aliases (Priority: SPOT/CFD)
-            if (normalized == "ALTIN" || normalized == "GOLD" || normalized == "XAUUSD" || normalized == "ONS") return "OANDA:XAUUSD"; // Spot Gold
-            if (normalized == "GUMUS" || normalized == "SILVER" || normalized == "XAGUSD") return "OANDA:XAGUSD"; // Spot Silver
+            if (normalized == "ALTIN" || normalized == "GOLD" || normalized == "XAUUSD" || normalized == "ONS") return "OANDA:XAUUSD"; 
+            if (normalized == "GUMUS" || normalized == "SILVER" || normalized == "XAGUSD") return "OANDA:XAGUSD"; 
             
-            // Copper Spot (CFD) instead of Futures
             if (normalized == "BAKIR" || normalized == "COPPER" || normalized == "HG") return "OANDA:XCUUSD"; 
             
-            // Oil Spot (CFD)
             if (normalized == "PETROL" || normalized == "BRENT" || normalized == "UKOIL") return "TVC:UKOIL";
             if (normalized == "WTI" || normalized == "USOIL" || normalized == "HAM") return "TVC:USOIL";
             
             if (normalized == "PLATIN" || normalized == "PLATINUM") return "TVC:PLATINUM";
             
-            // Natural Gas Spot (CFD) instead of Futures
             if (normalized == "GAZ" || normalized == "DOGALGAZ" || normalized == "NATGAS" || normalized == "NG") return "FX_IDC:XNGUSD";
             
-            if (normalized == "BUGDAY" || normalized == "WHEAT") return "CBOT:ZW1!"; // Some agros are best as Futures
+            if (normalized == "BUGDAY" || normalized == "WHEAT") return "CBOT:ZW1!"; 
             if (normalized == "MISIR" || normalized == "CORN") return "CBOT:ZC1!";
-            
+            if (normalized == "PAMUK" || normalized == "COTTON") return "ICEUS:CT1!";
+            if (normalized == "SIGIR" || normalized == "CATTLE") return "CME:LC1!";
+            if (normalized == "KERESTE" || normalized == "LUMBER") return "CME:LBS1!";
+
             // Default fallback
             return $"TVC:{normalized}"; 
         }
@@ -506,6 +558,9 @@ namespace XiDeAI_Pro.Services
             if (normalized == "DAX" || normalized == "GER30" || normalized == "DE30") return "XETRA:DAX";
             if (normalized == "VIX") return "TVC:VIX";
             if (normalized == "DXY" || normalized == "DX") return "TVC:DXY";
+            if (normalized == "FTSE" || normalized == "FTSE100") return "CURRENCYCOM:UK100";
+            if (normalized == "CAC" || normalized == "CAC40") return "TVC:PX1";
+            if (normalized == "HSI" || normalized == "HANGSENG") return "HSI:HSI";
             
             return $"TVC:{normalized}";
         }
@@ -583,6 +638,7 @@ namespace XiDeAI_Pro.Services
                             S1 = pivots.GetProperty("s1").GetDecimal(),
                             S2 = pivots.GetProperty("s2").GetDecimal(),
                             S3 = pivots.GetProperty("s3").GetDecimal(),
+                            IntervalLabel = pivots.TryGetProperty("interval_label", out JsonElement label) ? label.GetString() ?? "GÜNLÜK" : "GÜNLÜK",
                             CalculatedFromDate = pivots.GetProperty("calculated_from_date").GetString() ?? "",
                             ValidForDate = pivots.GetProperty("valid_for_date").GetString() ?? ""
                         };
@@ -592,7 +648,7 @@ namespace XiDeAI_Pro.Services
                 
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
                 return null;
             }

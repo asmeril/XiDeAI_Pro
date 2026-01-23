@@ -32,18 +32,24 @@ namespace XiDeAI_Pro.Services
         public async Task<PriceInfo?> GetPriceAsync(string symbol, string marketType)
         {
             // Remove try-catch to allow debugging errors in ManualAnalysisService
-            return marketType switch
+            // Wrap with Retry Logic
+            return await ExecuteWithRetry(async () => 
             {
-                "Kripto" => await GetCryptoPriceAsync(symbol),
-                "BIST" => await GetYahooFinancePriceAsync(symbol, ".IS", "TL"),
-                "Forex" => await GetForexOrCommodityPriceAsync(symbol),
-                "ABD" => await GetYahooFinancePriceAsync(symbol, "", "USD"),
-                "Almanya" => await GetYahooFinancePriceAsync(symbol, ".DE", "EUR"),
-                "İngiltere" => await GetYahooFinancePriceAsync(symbol, ".L", "GBP"),
-                "Japonya" => await GetYahooFinancePriceAsync(symbol, ".T", "JPY"),
-                "Çin" => await GetYahooFinancePriceAsync(symbol, ".SS", "CNY"),
-                _ => await GetYahooFinancePriceAsync(symbol, "", "USD") // Default to Yahoo
-            };
+                // Get Yahoo Finance symbol from SymbolData
+                string yahooSymbol = SymbolData.GetYahooSymbol(marketType, symbol);
+                
+                return marketType switch
+                {
+                    // v4.0.1 FIX: Kripto uses Binance API which needs original symbol (BTCUSDT), not Yahoo format (BTC-USD)
+                    "Kripto" => await GetCryptoPriceAsync(symbol),
+                    "BIST" => await GetYahooFinancePriceAsync(yahooSymbol.EndsWith(".IS") ? yahooSymbol : $"{yahooSymbol}.IS", "", "TL"),
+                    "Forex" or "Emtia" or "Endeks" => await GetGlobalPriceAsync(yahooSymbol),
+                    "ABD" => await GetYahooFinancePriceAsync(yahooSymbol, "", "USD"),
+                    "Almanya" => await GetYahooFinancePriceAsync(yahooSymbol, "", "EUR"),
+                    "İngiltere" => await GetYahooFinancePriceAsync(yahooSymbol, "", "GBP"),
+                    _ => await GetGlobalPriceAsync(yahooSymbol)
+                };
+            });
         }
 
         /// <summary>
@@ -54,6 +60,20 @@ namespace XiDeAI_Pro.Services
             // Normalize symbol format for Binance (e.g., BTC -> BTCUSDT, BTCUSD -> BTCUSDT)
             string binanceSymbol = symbol.ToUpper().Replace("/", "").Replace(" ", "");
             
+            // Map Turkish/Full names to tickers
+            binanceSymbol = binanceSymbol switch
+            {
+                "BITCOIN" => "BTC",
+                "ETHEREUM" => "ETH",
+                "AVAX" or "AVALANCHE" => "AVAX",
+                "SOLANA" => "SOL",
+                "DOGECOIN" or "DOGE" => "DOGE",
+                "RIPPLE" or "XRP" => "XRP",
+                "CARDANO" or "ADA" => "ADA",
+                "POLKADOT" or "DOT" => "DOT",
+                _ => binanceSymbol
+            };
+
             // Handle common suffixes
             if (binanceSymbol.EndsWith("USD") && !binanceSymbol.EndsWith("USDT"))
             {
@@ -88,10 +108,10 @@ namespace XiDeAI_Pro.Services
         }
 
         /// <summary>
-        /// Get Forex or Commodity price from Yahoo Finance
-        /// Supports: XAUUSD, EURUSD, USDTRY, etc.
+        /// Get Forex, Commodity or Index price from Yahoo Finance
+        /// Supports aliases: ALTIN, GUMUS, XU100, SPX, etc.
         /// </summary>
-        private async Task<PriceInfo?> GetForexOrCommodityPriceAsync(string symbol)
+        private async Task<PriceInfo?> GetGlobalPriceAsync(string symbol)
         {
             // Normalize Turkish chars and remove separators so "Euro/Dolar" -> "EURODOLAR", "Doğalgaz" -> "DOGALGAZ"
             string raw = symbol.ToUpperInvariant()
@@ -151,7 +171,28 @@ namespace XiDeAI_Pro.Services
                 "LITHIUM" or "LITYUM" => "LIT",
                 "CARBON" or "KARBON" => "KRBN",
 
-                _ => raw.Contains("=") ? raw : raw + "=X"  // Default Forex format
+                // Indices
+                "XU100" or "BIST100" => "^XU100",
+                "XU030" or "BIST30" => "XU030.IS", 
+                "XU050" or "BIST50" => "^XU050",
+                "XBANK" or "BANKA" => "^XBANK",
+                "SPX" or "SP500" => "^GSPC",
+                "NASDAQ" or "IXIC" => "^IXIC",
+                "DJI" or "DOW" => "^DJI",
+                "DAX" or "GDAXI" => "^GDAXI",
+                "FTSE" or "FTSE100" or "LONDRA" => "^FTSE",
+                "CAC" or "CAC40" or "FRANSA" => "^FCHI",
+                "NIKKEI" or "N225" or "JAPONYA" => "^N225",
+                "HANGSENG" or "HSI" or "HONGKONG" => "^HSI",
+                "VIX" or "KORKU" => "^VIX",
+                "DXY" or "DOLARENDEKS" => "DX=F",
+
+                // Livestock
+                "LIVECATTLE" or "SIGIR" or "CANLISIGIR" => "LE=F",
+                "FEEDERCATTLE" or "BESISIGIRI" => "GF=F",
+                "LEANHOGS" or "DOMUZ" or "ETLIDOMUZ" => "HE=F",
+
+                _ => raw.Contains("=") || raw.Contains("^") || raw.Contains(".") ? raw : raw + "=X"  // Default Forex format
             };
             
             return await GetYahooFinancePriceAsync(yahooSymbol, "", "USD", skipSuffix: true);
@@ -162,7 +203,15 @@ namespace XiDeAI_Pro.Services
         /// </summary>
         private async Task<PriceInfo?> GetYahooFinancePriceAsync(string symbol, string suffix, string currency, bool skipSuffix = false)
         {
-            string yahooSymbol = skipSuffix ? symbol : (symbol.ToUpper() + suffix);
+            // v3.6.5: Strip market prefixes (BIST:, BINANCE:, FOREX:, etc.)
+            string cleanSymbol = symbol.ToUpper();
+            if (cleanSymbol.Contains(":"))
+            {
+                var parts = cleanSymbol.Split(':');
+                cleanSymbol = parts[parts.Length - 1];
+            }
+
+            string yahooSymbol = skipSuffix ? cleanSymbol : (cleanSymbol + suffix);
             
             string url = $"https://query1.finance.yahoo.com/v8/finance/chart/{yahooSymbol}?interval=1d&range=5d";
             
@@ -257,6 +306,27 @@ namespace XiDeAI_Pro.Services
 
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Retry helper to handle transient network errors
+        /// </summary>
+        private async Task<PriceInfo?> ExecuteWithRetry(Func<Task<PriceInfo?>> action, int maxRetries = 3)
+        {
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    return await action();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Sys($"⚠️ PriceFetch Retry {i + 1}/{maxRetries} failed: {ex.Message}. Retrying...");
+                    if (i == maxRetries - 1) throw; // Throw on last attempt
+                    await Task.Delay(1000 * (i + 1)); // Exponential backoff-ish: 1s, 2s, 3s
+                }
+            }
+            return null;
         }
         
         private static decimal ParseDecimal(string? value)

@@ -58,57 +58,61 @@ namespace XiDeAI_Pro.Services
                 byte[] imageBytes = System.IO.File.ReadAllBytes(screenshotPath);
                 string imageBase64 = Convert.ToBase64String(imageBytes);
 
-                // Vision-based extraction prompt with Smart Money concepts
-                string prompt = @"Bu bir TradingView finansal grafik görüntüsüdür. Analizi sistematik yapmanı istiyorum. 
-Sırayla şu adımları izle ve değerleri çıkart:
+                // Vision-based extraction prompt with Smart Money concepts (Improved v3.1)
+                string prompt = @"Bu bir TradingView finansal grafik görüntüsüdür. Görüntü yüksek çözünürlüklüdür.
+Analizi en ufak detayları görecek şekilde, sistematik yapmanı istiyorum.
 
 ═══════════════════════════════════════════════════════
-🔍 ADIM 1: GÖSTERGE TABLOSU TARAMASI (Alt Orta Bölge)
+🔍 ADIM 1: SOL ÜST 'LEGEND' (KÜNYE) BÖLGESİ
 ═══════════════════════════════════════════════════════
-• TeFo RSI+MACD tablosuna odaklan. 
-• RSI satırındaki rakamı ve yanındaki OB/OS durumunu oku.
-• MACD satırındaki iki rakamı ve histogram yönünü (Bull/Bear) oku.
+• Sol üst köşedeki sembol isminin hemen altındaki metin grubuna bak.
+• OHLC değerlerini (A, Y, D, K) ve gösterge isimlerinin yanındaki değerleri buradan oku.
+• Buradaki rakamlar grafikteki mumlardan çok daha nettir, ÖNCELİĞİ buraya ver.
 
 ═══════════════════════════════════════════════════════
-🔍 ADIM 2: FİYAT EKSENİ VE ETİKET TARAMASI (Sağ Kenar)
+🔍 ADIM 2: 'TeFo RSI+MACD' TABLOSU (Genellikle Sağ Alt veya Orta Alt)
 ═══════════════════════════════════════════════════════
-• Sağ dikey eksendeki TÜM renkli sayı etiketlerine bak.
-• Kırmızı etiketleri (R1-D, R2-D vb.) ve Yeşil etiketleri (S1-D, S2-D vb.) tek tek oku.
-• Turuncu/Sarı haftalık (W) etiketleri varsa onları da oku.
-• Hiçbir etiketi atlama, her birinin yanındaki sayıyı tam yaz.
+• Grafik üzerine bindirilmiş (overlay) tabloyu bul.
+• RSI: Satırındaki sayısal değeri ve 'OB/OS/Normal' durumunu oku.
+• MACD: Histogramın rengine (Yeşil/Kırmızı) ve sayısal değerlerine bak.
+• DIVERGENCE: Eğer tabloda 'Bullish' veya 'Bearish' Divergence uyarısı varsa MUTLAKA oku.
 
 ═══════════════════════════════════════════════════════
-🔍 ADIM 3: GRAFİK ALANI İŞARETÇİLERİ (Orta Bölge)
+🔍 ADIM 3: SAĞ DİKEY EKSEN VE FİYAT ETİKETLERİ
 ═══════════════════════════════════════════════════════
-• Kutuları ve küçük etiketleri tara:
-  - Yeşil 'OB' metni içeren kutular (Bullish Order Block)
-  - Kırmızı/Pembe 'OB' metni içeren kutular (Bearish Order Block)
-  - 'FVG' yazan boşluk kutuları (Turkuaz veya Kahverengi)
-  - '↑ MSB' veya '↓ MSB' yazan yönlü oklar/etiketler.
+• Sağdaki fiyat ölçeği üzerindeki TÜM renkli sayı kutucuklarını tek tek oku.
+• Kırmızı (R1, R2, R3 - Direnç), Yeşil (S1, S2, S3 - Destek) ve Turuncu etiketleri kaçırma.
+• Fibonacci seviyelerini (%38.2, %50, %61.8 vb.) hem grafik üzerindeki çizgilerden hem de sağ eksendeki etiketlerden tespit et.
+• En sağdaki mevcut fiyat etiketini oku.
 
 ═══════════════════════════════════════════════════════
-🔍 ADIM 4: FİYAT VE TREND GÖZLEMİ
+🔍 ADIM 4: SMART MONEY & FORMASYONLAR (V2.0 Güncel)
 ═══════════════════════════════════════════════════════
-• Sol/Sağ üstteki güncel fiyatı ('K' değeri) oku.
-• Mumların genel eğilimini (Trend) belirle.
+• Grafik alanındaki kutu ve yazıları tara:
+  - '🟢 OB' veya '🔴 OB' (Order Block) - Teal/Turuncu kutular
+  - 'FVG↑' veya 'FVG↓' (Fair Value Gap) - Lime/Fuşya kutular
+  - '⬆ BOS' veya '⬇ BOS' (Break of Structure) - Yeşil/Mor çizgiler
+  - '⚡ CHOCH' (Change of Character) - Sarı etiket (TREND DEĞİŞİMİ!)
+  - '💧 LIQ' (Liquidity Pool) - Sarı noktalı kutular
+  - Gri renkte görünen OB'ler 'MITIGATED' (kullanılmış) demektir
+  - Fibonacci seviyelerinin grafik üzerindeki konumlarını ve fiyatlarını doğrula.
 
 ═══════════════════════════════════════════════════════
 ÇIKTI FORMATI (EKSİKSİZ DOLDUR):
 ═══════════════════════════════════════════════════════
 Güncel Fiyat: [değer]
-RSI: [değer], [Durum], [Yön]
-MACD: [değer], [Durum], [Yön]
-Pivot Daily: R1=[X], R2=[Y], S1=[Z], S2=[W]
-Pivot Weekly: R1-W=[X], S1-W=[Y]
-Order Block: [Varsa konum ve fiyat]
-FVG: [Varsa konum ve fiyat]
-MSB: [Varsa yön ve adet]
+RSI: [değer], [Durum], [Varsa Divergence]
+MACD: [değer], [Durum], [Varsa Divergence]
+Pivot Levels: R1=[X], R2=[Y], S1=[Z], S2=[W]
+Smart Money: [OB/FVG/BOS/CHOCH/LIQ/Mitigation ve FIB seviyeleri]
 Trend: [Yükseliş/Düşüş/Yatay]
 
-⚠️ ÖNEMLİ: 
-- 'Görünmüyor' demeden önce görüntüyü %200 yakınlaştırmış gibi dikkatli tara.
-- Değerleri okurken hata yapma, rakamları net gördüğünden emin ol.
-- Eğer bir değer gerçekten yoksa 'Yok' yaz, ama 'Görünebilir' her alanın üzerinden geç.";
+⚠️ ÖNEMLİ TALİMATLAR:
+- Grafik otomatik ölçeklendirilmiştir, tüm önemli seviyeler (özellikle sağ eksen) görünür durumdadır.
+- Görüntüdeki gri/siyah filigran (watermark) yazılarını görmezden gel, onlar analizin parçası değil.
+- 'Görünmuyor' demeden önce görüntüyü zihninde büyüterek tekrar bak. 
+- Legend (sol üst) kısmındaki rakamlar her zaman en doğru kaynaktır.
+- Rakamları okurken ondalık basamaklara dikkat et.";
 
                 string response = await _gemini.SendMultimodalRequest(prompt, imageBase64);
                 
@@ -187,13 +191,37 @@ Trend: [Yükseliş/Düşüş/Yatay]
                     else
                         result.SmartMoneySignals = fvgValue;
                 }
-                else if (line.Contains("MSB:"))
+                else if (line.Contains("MSB:") || line.Contains("BOS:"))
                 {
-                    string msbValue = ExtractValue(line, "MSB:");
+                    string msbValue = line.Contains("BOS:") ? ExtractValue(line, "BOS:") : ExtractValue(line, "MSB:");
                     if (!string.IsNullOrEmpty(result.SmartMoneySignals) && result.SmartMoneySignals != "None")
-                        result.SmartMoneySignals += " | " + msbValue;
+                        result.SmartMoneySignals += " | BOS: " + msbValue;
                     else
-                        result.SmartMoneySignals = msbValue;
+                        result.SmartMoneySignals = "BOS: " + msbValue;
+                }
+                else if (line.Contains("CHOCH:"))
+                {
+                    string chochValue = ExtractValue(line, "CHOCH:");
+                    if (!string.IsNullOrEmpty(result.SmartMoneySignals) && result.SmartMoneySignals != "None")
+                        result.SmartMoneySignals += " | ⚡CHOCH: " + chochValue;
+                    else
+                        result.SmartMoneySignals = "⚡CHOCH (Trend Değişimi): " + chochValue;
+                }
+                else if (line.Contains("Liquidity:") || line.Contains("LIQ:"))
+                {
+                    string liqValue = line.Contains("LIQ:") ? ExtractValue(line, "LIQ:") : ExtractValue(line, "Liquidity:");
+                    if (!string.IsNullOrEmpty(result.SmartMoneySignals) && result.SmartMoneySignals != "None")
+                        result.SmartMoneySignals += " | 💧LIQ: " + liqValue;
+                    else
+                        result.SmartMoneySignals = "💧Liquidity Pool: " + liqValue;
+                }
+                else if (line.Contains("Mitigation:") || line.Contains("Mitigated:"))
+                {
+                    string mitValue = line.Contains("Mitigated:") ? ExtractValue(line, "Mitigated:") : ExtractValue(line, "Mitigation:");
+                    if (!string.IsNullOrEmpty(result.SmartMoneySignals) && result.SmartMoneySignals != "None")
+                        result.SmartMoneySignals += " | Mitigated OB: " + mitValue;
+                    else
+                        result.SmartMoneySignals = "Mitigated OB: " + mitValue;
                 }
                 else if (line.Contains("Breakout:"))
                 {

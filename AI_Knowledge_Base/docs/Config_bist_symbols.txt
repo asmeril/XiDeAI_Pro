@@ -1,0 +1,127 @@
+# BIST Hisse Senetleri - Otomatik Tamamlama İçin
+# Format: SEMBOL|Şirket Adı
+
+# BIST 100
+AEFES|Anadolu Efes
+AKBNK|Akbank
+AKSEN|Aksa Enerji
+ALARK|Alarko Holding
+ARCLK|Arçelik
+ASELS|Aselsan
+BIMAS|BİM
+BRSAN|Borusan Mannesmann
+CCOLA|Coca-Cola İçecek
+DOHOL|Doğan Holding
+ECILC|Eczacıbaşı İlaç
+EGEEN|Ege Endüstri
+EKGYO|Emlak Konut GYO
+ENKAI|Enka İnşaat
+ENJSA|Enerjisa Enerji
+EREGL|Ereğli Demir Çelik
+FROTO|Ford Otosan
+GARAN|Garanti BBVA
+GUBRF|Gübre Fabrikaları
+HALKB|Halkbank
+HEKTS|Hektaş
+ISCTR|İş Bankası (C)
+KCHOL|Koç Holding
+KONTR|Kontrolmatik
+KOZAA|Koza Anadolu Metal
+KOZAL|Koza Altın
+KRDMD|Kardemir (D)
+MGROS|Migros
+ODAS|Odaş Elektrik
+OTKAR|Otokar
+PETKM|Petkim
+PGSUS|Pegasus
+SAHOL|Sabancı Holding
+SASA|Sasa Polyester
+SISE|Şişecam
+SOKM|Şok Marketler
+TAVHL|TAV Havalimanları
+TCELL|Turkcell
+THYAO|Türk Hava Yolları
+TOASO|Tofaş
+TTKOM|Türk Telekom
+TUPRS|Tüpraş
+ULKER|Ülker
+VAKBN|Vakıfbank
+VESTL|Vestel
+YKBNK|Yapı Kredi
+
+# GYO'lar (Gayrimenkul Yatırım Ortaklıkları)
+AGYO|Atakule GYO
+ALGYO|Alarko GYO
+AVGYO|Avrasya GYO
+DGGYO|Doğuş GYO
+EKGYO|Emlak Konut GYO
+ISGYO|İş GYO
+KLGYO|Kiler GYO
+MRGYO|Marti GYO
+OZKGY|Özak GYO
+RYGYO|Reysaş GYO
+TRGYO|Torunlar GYO
+VKGYO|Vakıf GYO
+YGYO|Yeşil GYO
+ZRGYO|Ziraat GYO
+
+# Bankalar
+AKBNK|Akbank
+ALBRK|Albaraka Türk
+GARAN|Garanti BBVA
+HALKB|Halkbank
+ICBCT|ICBC Turkey
+ISCTR|İş Bankası (C)
+QNBFB|QNB Finans
+QNBFL|QNB Finansleasing
+SKBNK|Şekerbank
+TSKB|TSKB
+VAKBN|Vakıfbank
+YKBNK|Yapı Kredi
+
+# Holding ve Konglomeralar
+AGHOL|Anadolu Grubu Holding
+DOHOL|Doğan Holding
+KCHOL|Koç Holding
+SAHOL|Sabancı Holding
+TATGD|TAT Gıda
+TMSN|Tümosan
+
+# Enerji
+AKSEN|Aksa Enerji
+AYEN|Ayen Enerji
+AYDEM|Aydın Elektrik
+ENJSA|Enerjisa
+GWIND|Galata Wind
+ODAS|Odaş
+ZOREN|Zorlu Enerji
+
+# Teknoloji
+ASELS|Aselsan
+LOGO|Logo Yazılım
+NETAS|Netaş
+TCELL|Turkcell
+
+# Perakende
+BIMAS|BİM
+CRFSA|Carrefoursa
+MGROS|Migros
+SOKM|Şok Marketler
+
+# Otomotiv
+FROTO|Ford Otosan
+OTKAR|Otokar
+TOASO|Tofaş
+TTRAK|Türk Traktör
+
+# Gıda ve İçecek
+AEFES|Anadolu Efes
+BANVT|Banvit
+CCOLA|Coca-Cola İçecek
+KENT|Kent Gıda
+KNFRT|Konfrut
+PENGD|Penguen Gıda
+PETUN|Pınar Et
+PNSUT|Pınar Süt
+TATGD|TAT Gıda
+ULKER|Ülker

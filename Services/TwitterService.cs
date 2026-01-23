@@ -30,8 +30,15 @@ namespace XiDeAI_Pro.Services
         /// Sends a tweet using Selenium (Cookies) primarily, to bypass API limits.
         /// Falls back to API if strictly necessary or configured.
         /// </summary>
-        public async Task<bool> SendTweetAsync(string text)
+        public async Task<string?> SendTweetAsync(string text)
         {
+            // 0. Safety Check
+            if (!CheckSafety("TWEET"))
+            {
+                // LastError is already set by CheckSafety
+                return null;
+            }
+
             // 1. Try Selenium (External Browser - Headless)
             try 
             {
@@ -43,8 +50,12 @@ namespace XiDeAI_Pro.Services
                     cfg.CheckReset();
                     cfg.DailyTotalTweetCount++;
                     cfg.MonthlyTotalTweetCount++;
+                    
+                    // Update Safety Timestamps
+                    cfg.Safety.LastTweetTime = DateTime.Now;
+                    
                     ConfigManager.Save();
-                    return true;
+                    return result.link; // Return the URL
                 }
                 
                 LastError = "Selenium Error: " + result?.ErrorMessage;
@@ -55,11 +66,14 @@ namespace XiDeAI_Pro.Services
             }
             
             // 2. Fallback to API
-            return SendTweet(text);
+            if (SendTweet(text)) return "API_POSTED"; // API doesn't return link easily in v3 code
+            return null;
         }
 
         public bool SendTweet(string text)
         {
+            if (!CheckSafety("TWEET")) return false;
+
             try
             {
                 var settings = ConfigManager.Current;
@@ -125,6 +139,10 @@ namespace XiDeAI_Pro.Services
                     ConfigManager.Current.DailyTotalTweetCount++; // Total includes API too
                     ConfigManager.Current.MonthlyTweetCount++;
                     ConfigManager.Current.MonthlyTotalTweetCount++; // Total includes API too
+                    
+                    // Update Safety Timestamp
+                    ConfigManager.Current.Safety.LastTweetTime = DateTime.Now;
+                    
                     ConfigManager.Save();
                     
                     return true;
@@ -259,3 +277,49 @@ namespace XiDeAI_Pro.Services
 }
 
 
+        }
+        
+        /// <summary>
+        /// Checks if the action is safe to perform based on ConfigManager rules.
+        /// </summary>
+        private bool CheckSafety(string actionType)
+        {
+            var cfg = ConfigManager.Current;
+            var safety = cfg.Safety;
+            
+            // 1. Check Hard Limits
+            if (actionType == "TWEET")
+            {
+                if (cfg.DailyTotalTweetCount >= safety.DailyTweetHardLimit)
+                {
+                    LastError = $"🛑 GÜVENLİK SINIRI: Günlük {safety.DailyTweetHardLimit} tweet limiti doldu.";
+                    LogSafetyEvent(LastError);
+                    return false;
+                }
+                
+                // 2. Check Time Delay (Rate Limiting)
+                TimeSpan timeSinceLast = DateTime.Now - safety.LastTweetTime;
+                if (timeSinceLast.TotalSeconds < safety.MinDelayBetweenTweetsSeconds)
+                {
+                    double remaining = safety.MinDelayBetweenTweetsSeconds - timeSinceLast.TotalSeconds;
+                    LastError = $"⏳ GÜVENLİK BEKLEMESİ: Hesabı korumak için {Math.Ceiling(remaining)} saniye daha beklenmeli.";
+                    // LogSafetyEvent($"Rate limit hit. Wait {remaining:F0}s"); // Optional: Don't spam logs for simple checks
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        private void LogSafetyEvent(string message)
+        {
+            try
+            {
+                string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs", $"Log_{DateTime.Now:yyyy-MM-dd}_Safety.txt");
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch { }
+        }
+    }
+}

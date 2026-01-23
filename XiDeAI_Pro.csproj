@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>xideai_icon.ico</ApplicationIcon>
     <AssemblyName>XiDeAI_Pro</AssemblyName>
-    <Version>3.0.0</Version>
-    <AssemblyVersion>3.0.0.0</AssemblyVersion>
-    <FileVersion>3.0.0.0</FileVersion>
+    <Version>4.6.0</Version>
+    <AssemblyVersion>4.6.0.0</AssemblyVersion>
+    <FileVersion>4.6.0.0</FileVersion>
     <Company>XiDeAI</Company>
     <Product>XiDeAI Pro</Product>
     <Description>XiDeAI Pro - AI-Powered Trading Assistant</Description>
@@ -23,6 +23,10 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
   </ItemGroup>
+  <!-- Exclude AI Knowledge Base from compilation (backup/export files only) -->
+  <ItemGroup>
+    <Compile Remove="AI_Knowledge_Base\**\*.cs" />
+  </ItemGroup>
   <ItemGroup>
     <None Update="Scripts\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -31,9 +35,48 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
   <!-- Post-Publish: Copy Python scripts and Config to publish folder -->
   <Target Name="PostPublish" AfterTargets="Publish">
     <Exec Command="powershell.exe -ExecutionPolicy Bypass -File copy-publish-assets.ps1 -PublishDir $(PublishDir)" />
   </Target>
 </Project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

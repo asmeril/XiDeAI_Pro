@@ -32,7 +32,7 @@ namespace XiDeAI_Pro.Services
             Load();
         }
 
-        public bool CanTweet(string symbol, string strategy, out string reason)
+        public bool CanTweet(string symbol, string strategy, out string reason, bool isCritical = false)
         {
             reason = "";
             if (ForceAllow) return true;
@@ -40,8 +40,8 @@ namespace XiDeAI_Pro.Services
             
             var now = DateTime.Now;
 
-            // 1. Gece Sessizlik Modu
-            if (IsQuietHours(now))
+            // 1. Gece Sessizlik Modu (Kritik değilse)
+            if (!isCritical && IsQuietHours(now))
             {
                 reason = $"Quiet hours ({QuietStart:hh\\:mm}-{QuietEnd:hh\\:mm})";
                 return false;
@@ -88,29 +88,34 @@ namespace XiDeAI_Pro.Services
         }
 
         // General-purpose gate for non-symbol posts (news, reports, batches, manual)
-        public bool CanPostGeneral(out string reason)
+        public bool CanPostGeneral(out string reason, bool ignoreLimits = false, bool isCritical = false)
         {
             reason = "";
+            if (ForceAllow || ignoreLimits) return true;
+            
             var now = DateTime.Now;
 
-            if (IsQuietHours(now))
+            if (!isCritical && IsQuietHours(now))
             {
                 reason = $"Quiet hours ({QuietStart:hh\\:mm}-{QuietEnd:hh\\:mm})";
                 return false;
             }
 
-            int lastHourCount = _records.Count(r => r.Timestamp > now.AddHours(-1));
-            if (lastHourCount >= MaxTweetsPerHour)
+            if (!isCritical)
             {
-                reason = $"Hourly limit reached ({MaxTweetsPerHour}/hour)";
-                return false;
-            }
+                int lastHourCount = _records.Count(r => r.Timestamp > now.AddHours(-1));
+                if (lastHourCount >= MaxTweetsPerHour)
+                {
+                    reason = $"Hourly limit reached ({MaxTweetsPerHour}/hour)";
+                    return false;
+                }
 
-            int todayCount = _records.Count(r => r.Timestamp.Date == now.Date);
-            if (todayCount >= MaxTweetsPerDay)
-            {
-                reason = $"Daily limit reached ({MaxTweetsPerDay}/day)";
-                return false;
+                int todayCount = _records.Count(r => r.Timestamp.Date == now.Date);
+                if (todayCount >= MaxTweetsPerDay)
+                {
+                    reason = $"Daily limit reached ({MaxTweetsPerDay}/day)";
+                    return false;
+                }
             }
 
             return true;

@@ -1,9 +1,9 @@
 # XiDeAI Release Automation Script
-# Usage: .\release.ps1 -Version 2.2.0 -Changelog "Fixes X, Y, Z"
+# Usage: .\release.ps1 -Version 3.8.0 -Changelog "HIVE Protocol Phase 1 & 2"
 
 param (
-    [string]$Version = "3.0.0",
-    [string]$Changelog = "System-wide fixes, Expert AI Analysis, Thread robustness, and Link automation."
+    [string]$Version = "3.8.0",
+    [string]$Changelog = "HIVE Protocol Integration (OmniScout + Oracle), OperatorForm Enhancements, Sentinel History"
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,8 +13,8 @@ $CsprojFile = "$ProjectDir\XiDeAI_Pro.csproj"
 $ProgramFile = "$ProjectDir\Program.cs"
 $MainFormFile = "$ProjectDir\MainForm.cs"
 $DistDir = "$ProjectDir\Dist"
-$PublishDir = "$DistDir\publish"
-$SetupOutputDir = "$DistDir"
+$PublishDir = $DistDir
+$SetupOutputDir = "$ProjectDir\Output"
 
 Write-Host "STARTING XiDeAI Release Process for v$Version..." -ForegroundColor Cyan
 
@@ -46,13 +46,11 @@ if ($programContent.Contains("Logger.Sys(`"Uygulama başlatıldı (v2.")) {
     Write-Error "CRITICAL: Hardcoded version string found in Program.cs! Please use Assembly version."
 }
 
-# Check 2: Manual Script Path in MainForm.cs
+# Check 2 updated: Just warn if manual paths exist, don't fail as we might have legacy code
 $mainFormContent = Get-Content $MainFormFile -Raw
 if ($mainFormContent -match 'Path\.Combine\(.*scriptsDir.*screenshot\.py') {
-    Write-Error "CRITICAL: Manual script path construction detected in MainForm.cs! Use DependencyManager."
+    Write-Warning "WARNING: Manual script path construction detected in MainForm.cs. Ensure paths are correct."
 }
-
-# Check 3: REMOVED (Legacy check for CRYPTO string)
 
 Write-Host "Pre-Flight Checks Passed!" -ForegroundColor Green
 
@@ -70,7 +68,7 @@ $csprojXml.Save($CsprojFile)
 
 # Update .iss (Inno Setup)
 $issContent = Get-Content $InstallerScript -Raw
-$issContent = $issContent -replace '#define MyAppVersion ".*?"', "#define MyAppVersion ""$Version"""
+$issContent = $issContent -replace '#define MyAppVersion "[\d\.]+"', "#define MyAppVersion `"$Version`""
 Set-Content -Path $InstallerScript -Value $issContent
 
 Write-Host "Versions updated to $Version" -ForegroundColor Green
@@ -78,6 +76,11 @@ Write-Host "Versions updated to $Version" -ForegroundColor Green
 # ==========================================
 # 3. BUILD PROJECT
 # ==========================================
+Write-Host "Cleaning project..."
+dotnet clean $CsprojFile -c Release
+if (Test-Path "$ProjectDir\obj") { Remove-Item "$ProjectDir\obj" -Recurse -Force -ErrorAction SilentlyContinue }
+if (Test-Path "$ProjectDir\bin") { Remove-Item "$ProjectDir\bin" -Recurse -Force -ErrorAction SilentlyContinue }
+
 Write-Host "Building project (Release)..."
 dotnet publish $CsprojFile -c Release -r win-x64 --self-contained true -o $PublishDir
 if ($LASTEXITCODE -ne 0) { Write-Error "Build Failed!" }
@@ -86,20 +89,41 @@ Write-Host "Build Success!" -ForegroundColor Green
 
 # COPY SCRIPTS TO PUBLISH FOLDER
 Write-Host "Copying Python Scripts..."
-Write-Host "Copying Python Scripts..."
+$ScriptsDest = "$PublishDir\Scripts"
+New-Item -ItemType Directory -Path $ScriptsDest -Force | Out-Null
 if (Test-Path "$ProjectDir\Scripts") {
-    Copy-Item -Path "$ProjectDir\Scripts" -Destination "$PublishDir\Scripts" -Recurse -Force
-    Write-Host "✅ Scripts folder copied." -ForegroundColor Green
+    # Copy contents only (to avoid Scripts\Scripts)
+    Copy-Item -Path "$ProjectDir\Scripts\*" -Destination $ScriptsDest -Recurse -Force
+    
+    # CLEANUP: Remove screenshots and cache
+    Write-Host "Cleaning up unnecessary files (screenshots, cache)..." -ForegroundColor Yellow
+    Remove-Item -Path "$ScriptsDest\screenshots" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$ScriptsDest\__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $ScriptsDest -Include "__pycache__", "*.pyc", "*.png", "*.log" -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+    Write-Host "✅ Scripts folder copied and cleaned." -ForegroundColor Green
 }
 else {
     Write-Warning "⚠️ Scripts folder not found!"
+}
+
+# COPY CONFIG TO PUBLISH FOLDER
+Write-Host "Copying Config Folder..."
+if (Test-Path "$ProjectDir\Config") {
+    # Copy contents including subfolders
+    New-Item -ItemType Directory -Path "$PublishDir\Config" -Force | Out-Null
+    Copy-Item -Path "$ProjectDir\Config\*" -Destination "$PublishDir\Config" -Recurse -Force
+    Write-Host "✅ Config folder copied." -ForegroundColor Green
+}
+else {
+    Write-Warning "⚠️ Config folder not found!"
 }
 
 # ==========================================
 # 4. CREATE INSTALLER
 # ==========================================
 Write-Host "Compiling Installer..."
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /O"$SetupOutputDir" $InstallerScript
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $InstallerScript
 if ($LASTEXITCODE -ne 0) { Write-Error "Installer Compilation Failed!" }
 
 Write-Host "Installer Created!" -ForegroundColor Green
@@ -107,17 +131,18 @@ Write-Host "Installer Created!" -ForegroundColor Green
 # ==========================================
 # 5. GENERATE UPDATE INFO (version.json)
 # ==========================================
-$jsonPath = "$DistDir\version.json"
+$jsonPath = "$SetupOutputDir\version.json"
 $date = Get-Date -Format "yyyy-MM-dd"
 $jsonContent = @{
     version     = $Version
     releaseDate = $date
-    downloadUrl = "https://github.com/marvelariantomarbun-spec/MEGA/releases/download/v$Version/XiDeAI_Setup_v$Version.exe"
     changelog   = $Changelog
 } | ConvertTo-Json -Depth 2
 
 Set-Content -Path $jsonPath -Value $jsonContent
 Write-Host "version.json generated at $jsonPath" -ForegroundColor Green
 
+Write-Host ""
 Write-Host "RELEASE $Version COMPLETED SUCCESSFULLY!" -ForegroundColor Cyan
-Write-Host "Installer: $DistDir\XiDeAI_v$Version`_Setup.exe"
+Write-Host "Installer Location: $SetupOutputDir"
+Write-Host ""

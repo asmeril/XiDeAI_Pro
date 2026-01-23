@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,16 +7,56 @@ using XiDeAI_Pro.Config;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
+using System.IO;
 
 namespace XiDeAI_Pro.Services
 {
     public class GeminiService
     {
         private static readonly HttpClient client = new HttpClient() { Timeout = TimeSpan.FromSeconds(120) };
+        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1); // v3.5.2: Sequential AI Traffic Control
         private readonly PromptManager _prompts = new PromptManager();
         private readonly MemoryEngine _memory;
         private readonly StatsEngine _stats;
         public string LastError { get; private set; } = "";
+        
+        // Multi-Model Fallback Support
+        public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
+        
+        // v4.0.0: AI Training Data Collection
+        private static readonly string TrainingDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "XiDeAI", "training_data.jsonl");
+        
+        /// <summary>
+        /// Logs prompt-response pairs for local AI fine-tuning
+        /// </summary>
+        private void LogTrainingData(string prompt, string response, string taskType = "general")
+        {
+            try
+            {
+                // Ensure directory exists
+                var dir = Path.GetDirectoryName(TrainingDataPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                
+                var entry = new
+                {
+                    timestamp = DateTime.UtcNow.ToString("o"),
+                    task = taskType,
+                    prompt = prompt,
+                    response = response
+                };
+                
+                string jsonLine = JsonSerializer.Serialize(entry);
+                File.AppendAllText(TrainingDataPath, jsonLine + Environment.NewLine);
+            }
+            catch (Exception ex)
+            {
+                Logger.Sys($"⚠️ Training data log failed: {ex.Message}");
+            }
+        }
 
         public GeminiService(MemoryEngine memory, StatsEngine stats)
         {
@@ -57,7 +97,8 @@ namespace XiDeAI_Pro.Services
                 sig.Strategy, 
                 scoreStr, 
                 sig.Price.ToString("N2"), 
-                indicatorContext, // Add indicator context
+                indicatorContext, 
+                sig.Period,
                 influencerCitations);
 
             if (!string.IsNullOrEmpty(context))
@@ -123,7 +164,7 @@ namespace XiDeAI_Pro.Services
         /// <summary>
         /// Generate market analysis WITH real-time price data from APIs
         /// </summary>
-        public async Task<string?> GenerateMarketAnalysisWithPrice(string symbol, string marketType, string priceContext, string influencerCitations = "")
+        public async Task<string?> GenerateMarketAnalysisWithPrice(string symbol, string marketType, string priceContext, string influencerCitations = "", string newsContext = "", string marketOverview = "")
         {
             // Load indicator guide if exists
             string indicatorContext = "";
@@ -143,40 +184,7 @@ namespace XiDeAI_Pro.Services
             }
             catch { /* Indicator guide optional */ }
 
-            string influencerSection = string.IsNullOrEmpty(influencerCitations) 
-                ? "" 
-                : $@"
-9. PİYASA GÖRÜŞÜ (Sosyal Medya Fenomen Analizi):
-{influencerCitations}
-   (Bu görüşleri kendi analizinle harmanla ve dengeli yaz)";
-
-            string prompt = $@"Sen deneyimli bir {marketType} analistsin.
-{symbol} için detaylı analiz yap.
-
-{priceContext}
-
-{indicatorContext}
-
-Analiz İçeriği:
-1. Güncel fiyat ve % değişim (YUKARIDAKİ VERİYİ KULLAN!)
-2. Teknik Göstergeler: RSI, MACD, ADX ve Hacim durumu
-3. Kritik Destek ve Direnç seviyeleri (Pivot seviyeleri varsa kullan)
-4. Fibonacci Oranları: 38.2%, 50%, 61.8% (varsa)
-5. Smart Money Sinyalleri: Order Block, FVG, MSB (varsa)
-6. Benchmark Karşılaştırma:
-   - BIST ise XU100 ile
-   - Kripto ise BTC ile
-   - Forex ise DXY ile kıyasla
-7. Kısa ve Orta Vadeli Beklenti
-8. Risk Faktörleri{influencerSection}
-
-Kurallar:
-- Türkçe ve profesyonel finans dili kullan
-- Maddeler halinde yaz
-- Emoji kullan (📈📉 seviyesinde vb.)
-- Maksimum 600 karakter
-- Sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle
-- FİYAT VERİSİNİ KENDİN UYDURMA, yukarıdaki gerçek veriyi kullan!";
+            string prompt = _prompts.GetDeepManualAnalysisPrompt(symbol, marketType, priceContext, indicatorContext, influencerCitations, newsContext, marketOverview);
 
             return await SendRequest(prompt);
         }
@@ -185,6 +193,12 @@ Kurallar:
         {
             // v3.0: Editor Mode (Confidence Scoring)
             string prompt = _prompts.GetNewsEditorPrompt(title, source);
+
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt);
+            }
+
             return await SendRequest(prompt);
         }
 
@@ -257,7 +271,7 @@ Eğer tablo/isim bulunamazsa TableName kısmına 'Teknik Tarama' yaz.";
             return (results, tableName);
         }
 
-        public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, PivotData? pivotData = null)
+        public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, string visualContext = "", string priceContext = "")
         {
             // 1) Geçmiş analiz hafızası (kendi önceki yorumların) – guru thread'ine referans için
             string pastContext = _memory.GetSymbolContext(symbol);
@@ -277,67 +291,18 @@ Eğer tablo/isim bulunamazsa TableName kısmına 'Teknik Tarama' yaz.";
             }
             catch { /* indicator rehberi isteğe bağlı */ }
 
-            // 2.5) Görselden otomatik gösterge çıkarımı (RSI/MACD/Pivot/Fibo/Divergence)
-            try
-            {
-                if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
-                {
-                    var extractor = new IndicatorExtractor(this, msg => Logger.AI(msg));
-                    var ind = await extractor.ExtractIndicatorsFromScreenshot(imagePath);
-                    if (!string.IsNullOrEmpty(ind.SummaryContext))
-                    {
-                        technicalContext += $"\n\nGÖSTERGE ÖZETİ (Otomatik):\n{ind.SummaryContext}";
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.AI($"⚠️ Guru analizinde gösterge çıkarma hatası: {ex.Message}");
-            }
-
-            // 3) Derin teknik analiz + guru onurlandırma + geçmiş analiz karşılaştırması
-            string prompt = $@"Sen X'iDeAI Pro'nun mavi tikli (verified) baş analisti ve sosyal medya yöneticisisin.
-Kıymetli hocamız {guruName} (@{guruHandle.TrimStart('@')}) '{tableName}' taramasında #{symbol} sembolünü vurgulayınca, grafikleri detaylı analiz ettim ve bulgularımı paylaşıyorum.
-
-TARAMA REFERANSI: {guruName} (@{guruHandle}) - {tableName}
-HİSSE: #{symbol} ({period})
-ORİJİNAL TWEET: {originalTweetUrl}
-
-TEKNİK VERİLER (Güncel + Otomatik Göstergeler - Tarama Günü):
-{technicalContext}
-(Boşsa uydurma rakam verme, sadece gözlemsel yorum yap. Pivot ve Fibo seviyeleri tarama günü itibariyledir.)
-
-KRİTİK SEVİYELER (yFinance'ten hesaplanan Pivot):
-{(pivotData != null ? $@"📍 PIVOT SEVİYELERİ ({pivotData.CalculatedFromDate} verilerine göre):
-  • Direnç Seviyeleri: R1={pivotData.R1:F2} → R2={pivotData.R2:F2} → R3={pivotData.R3:F2}
-  • Pivot: {pivotData.Pivot:F2}
-  • Destek Seviyeleri: S1={pivotData.S1:F2} → S2={pivotData.S2:F2} → S3={pivotData.S3:F2}" : "❌ Pivot seviyeleri kullanılamadı (tarama dosyası eksik)")}
-
-GEÇMİŞ TRENDLER (Son 30 gün analiz hafızası):
-{(string.IsNullOrEmpty(pastContext) ? "(İlk tarama, geçmiş analiz yok)" : pastContext)}
-
-GÖRSEL ANALİZ TALİMATI (DERİN, MANUEL ANALİZ FORMATINDA):
-• **GÖSTERGE ÖNCELİKLİ**: RSI/MACD/Divergence + Fibonacci (%38.2, %50, %61.8) — Bu değerleri vurgula ve yorumla!
-• Pivot Seviyeleri: P, S1-S3, R1-R3 (Tarama günü pivot'larını kullan ve tarihi belirt)
-• Formasyon: Bayrak/Flama, OBO/TOBO, Çanak/Fincan-Kulp, Üçgen/Takoz, İkili Dip/Tepe
-• Smart Money: Order Block, FVG, MSB (Market Structure Break), likidite boşlukları
-• Destek/Direnç: Grafikten doğrula ve seviyeleri ver
-• Piyasa görüşü bölümü yazma; sadece teknik ve strateji
-{(string.IsNullOrEmpty(indicatorContext) ? "" : "\nGÖSTERGE REHBERİ:\n" + indicatorContext)}
-
-RAPOR FORMAT PLANI (3 Tweet, '|||' ile ayır):
-1) GIRIŞ & TESPİT: #{symbol} ({period}) sembolü grafiklere baktığımda [Özel bulgu veya formasyon]. Detaylı analiz:
-2) TEKNIK ANALIZ: RSI, MACD, Divergence, **Fibonacci (%38.2/%50/%61.8)** [VURGULa!], Pivot (P/S1-S3/R1-R3), Formasyon, Smart Money (OB/FVG/MSB)
-3) STRATEJİ & HASHTAG: Destek/Direnç, hedef/stop önerisi, risk uyarısı. Sona hashtag bloğu ekle:
-   #BIST100 #Borsa #TeknikAnaliz #{symbol} @{guruHandle.TrimStart('@')}
-
-KURALLAR:
-• BENİM ANLAYIŞIMMIŞ GİBİ YAZ (AI markalanması yok, samimi ve kişisel)
-• Placeholder bırakma; bilmiyorsan o cümleyi yazma
-• Her tweette derin teknik detay (Pivot/Fibo/RSI/MACD değerleri)
-• Hocaya saygılı referans ama asıl analiz SENİN gözlemim
-• Verified hesap: net, profesyonel, güvenilir ton
-• 3. tweete HER ZAMAN hashtag bloğu ekle (yukarıdaki gibi)";
+            // 3) Prompt çağrısı (Visual + Price context eklendi)
+            string prompt = _prompts.GetGuruHonoringThreadPrompt(
+                symbol, 
+                tableName, // E.g., "EFE HMA"
+                "N/A",           
+                priceContext, 
+                technicalContext, 
+                guruName, 
+                guruHandle, // Yeni parametre
+                $"{guruName} (@{guruHandle}) - {tableName}",
+                visualContext
+            );
 
             if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
             {
@@ -349,11 +314,77 @@ KURALLAR:
             return await SendRequest(prompt);
         }
 
+        /// <summary>
+        /// Sadece grafiği analiz edip teknik verileri metin olarak döner.
+        /// </summary>
+        public async Task<string> AnalyzeChartImage(string symbol, string imagePath)
+        {
+            if (!File.Exists(imagePath)) return "Grafik bulunamadı.";
+
+            string prompt = $@"GÖREV: #{symbol} grafiğini bir teknik analist gözüyle incele.
+Aşağıdakileri maddeler halinde çıkar:
+1. Trend Yönü (Yükselen/Düşen/Yatay)
+2. Kritik Destek ve Dirençler (Fiyat etiketlerini oku)
+3. Formasyonlar (Varsa: Bayrak, Flama, OBO, TOBO, İkili Dip vb.)
+4. Mum Çubukları (Doji, Engulfing, Pinbar gibi belirgin yapılar)
+5. İndikatörler (RSI, MACD, Hareketli Ortalamalar - grafikte ne görüyorsan)
+
+ÇIKTI: Sadece teknik verileri, net ve kısa cümlelerle yaz. Yorum katma, sadece gördüğünü raporla.";
+
+            byte[] imageBytes = File.ReadAllBytes(imagePath);
+            string base64 = Convert.ToBase64String(imageBytes);
+            
+            var result = await SendMultimodalRequest(prompt, base64);
+            return result ?? "Görsel analiz yapılamadı.";
+        }
+
+
+        /// <summary>
+        /// Yeni bir fenomenin "Guru" (Hoca) olmaya uygun olup olmadığını analiz eder.
+        /// </summary>
+        public async Task<bool> AnalyzePotentialGuru(string content, string author)
+        {
+            try
+            {
+                var prompt = $@"
+Sen bir 'Hoca Kaşifi' yapay zekasın. 
+Aşağıdaki paylaşımın sahibi olan @{author} kullanıcısının paylaştığı içerik, bir finansal guru (Hoca) kalitesinde mi?
+
+İÇERİK: {content}
+
+KRİTERLER:
+- Paylaşım teknik analiz, piyasa stratejisi veya derin finansal bilgi içeriyor mu?
+- Kişisel anı veya alakasız yorumlardan uzak mı?
+- Başkalarına rehberlik edecek nitelikte mi?
+
+CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
+";
+                string? response = null;
+                if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+                {
+                    response = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.PotentialGuruAnalysis, prompt);
+                }
+                else
+                {
+                    response = await SendRequest(prompt, 0.3);
+                }
+
+                return (response ?? "").Trim().ToUpper().Contains("EVET");
+            }
+            catch { return false; }
+        }
+
 
 
         public async Task<string?> AnalyzeNewsForThread(string title, string source, string link = "")
         {
             string prompt = GeneratePremiumNewsAnalysisPrompt(title, source, link);
+
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt);
+            }
+
             return await SendRequest(prompt);
         }
 
@@ -386,49 +417,33 @@ KURALLAR:
                 ? $"🔗 {link}" 
                 : $"🔗 Kaynak: {source}";
             
-            return $@"Sen Deneyimli bir Baş Ekonomist ve Stratejist'sin. 
-Mavi tik'li premium hesap sahibinin haber analizidir - İKİ TWEET FORMATINDA.
+            return $@"KİMLİK: Sen uzman bir Baş Ekonomist ve Stratejistsin. Piyasa tecrübeni profesyonel ama samimi bir dille yansıt.
 
-Haber: {title}
+GÖREV: Aşağıdaki haberi 2 tweet halinde analiz et. 
+
+Piyasa Haberi: {title}
 Kaynak: {source}
-
-GÖREV: İKİ TWEET ÜRETİMI (aralarında '|||' separator ile)
-
-=== TWEET 1 (Başlık & Teaser) ===
-Formatı:
-🚨 [BAŞLIK - çarpıcı ve merak uyandırıcı]
-
-📰 [1 cümle özeti]
-
-{source} kaynaklı haberi analiz ettim. Önemi [YÜKSEK/ÇOK YÜKSEK]! 🔥
 {linkSection}
 
-#BIST100 #Haber #Borsa #SonDakika
-👇 Detaylar aşağıda...
+=== TWEET 1 (Haber & Giriş) ===
+🚨 [Haber Başlığı]
+{source} kaynaklı haberi analiz ettim. Durum [ÖNEMLİ/KRİTİK]!
+{linkSection}
 
-|||
+#BIST100 #Haber #Borsa
 
-=== TWEET 2 (DERİN ANALİZ - DETAYLI) ===
-Formatı:
-🧠 DERİN ANALİZ:
+=== TWEET 2 (Derin Analiz) ===
+🧠 ANALİZ:
+• [Haberin kısa ve net özeti]
+• [Piyasa üzerindeki doğrudan etkileri]
+• [Yatırımcıların dikkat etmesi gereken riskler]
 
-• [Doğrudan Etki - Haber ne anlama geliyor?]
-• [Piyasa Reaksiyonu - Hisse/Döviz/Altın nasıl hareket edecek?]
-• [Zincirleme Etki - Başka sektörler nasıl etkilenir?]
-• [Makroekonomik Perspektif - Genel ekonomiye etkisi?]
-• [Risk Analizi - Yukarı/aşağı senaryolar?]
-• [Yatırımcı Aksiyonu - Ne yapmalı/neleri izlemeli?]
-
-⚠️ Yatırım tavsiyesi değildir.
+⚠️ Y.T.D.
 
 KURALLAR:
-1. Eğer etki düşükse tüm response'u 'NO_IMPACT' yaz
-2. Hashtag'ler sadece TWEET 1'de yer almalı
-3. Her bullet detaylı ve anlamlı olmalı (50+ karakter, açıklayıcı)
-4. Zincirleme etkiyi açıkla: Örn: 'Petrol artarsa → Havayolları kârları düşer → Turizm etkilenir → XU100 düşer'
-5. ASLA placeholder/şablon ifadeler kullanma, sadece gerçek, spesifik analiz yaz
-6. DERİN ANALİZ'deki her bullet point birbirinden bağımsız ama bütünsel bir resim oluştur
-7. İkinci tweet'i doğrudan '🧠 DERİN ANALİZ:' ile başlat";
+1. Tweetleri ||| ile ayır.
+2. {linkSection} kısmını AYNEN TWEET 1'de kullan. KESİNLİKLE ""[Haber Linki Buraya Gelecek]"" gibi placeholder yazma.
+3. KESİNLİKLE kendini tanıtma (yaş, isim vb.). Doğrudan habere odaklan.";
         }
 
         private string GenerateStandardNewsAnalysisPrompt(string title, string source)
@@ -462,15 +477,32 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
 
         public async Task<string?> GenerateGenericContent(string prompt)
         {
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                // v3.6.6: Default to GeneralAnalysis if no specific task provided
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt);
+            }
             return await SendRequest(prompt);
         }
 
-        public async Task<string?> SendRequest(string prompt)
+        // New overload for specific task types
+        public async Task<string?> GenerateGenericContent(string prompt, XiDeAI_Pro.Services.AI.TaskType taskType)
         {
-            try
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                // _stats.RecordAiUsage(ConfigManager.Current.GeminiModel, prompt.Length / 4);
-                
+                return await ModelManager.SendRequest(taskType, prompt);
+            }
+            return await SendRequest(prompt);
+        }
+
+        public async Task<string?> SendRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048)
+        {
+            await _semaphore.WaitAsync(); // v3.5.2: Queue requests
+            try 
+            {
+                // Wait 500ms between requests to avoid burst rate limits
+                await Task.Delay(500).ConfigureAwait(false);
+
                 if (ConfigManager.Current == null)
                 {
                     LastError = "ConfigManager.Current is null";
@@ -490,6 +522,13 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                     contents = new[]
                     {
                         new { parts = new[] { new { text = prompt } } }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = temperature,
+                        topP = topP,
+                        topK = topK,
+                        maxOutputTokens = maxOutputTokens
                     }
                 };
 
@@ -498,48 +537,47 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
 
                 var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.0-flash-exp";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-                var response = await client.PostAsync(url, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
                 
-                // Parse JSON response
-                JsonDocument jsonDoc = JsonDocument.Parse(responseContent);
-                JsonElement root = jsonDoc.RootElement;
-                
-                string? result = null;
-                if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+                var response = await client.PostAsync(url, content).ConfigureAwait(false);
+                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    var firstCandidate = candidates[0];
-                    if (firstCandidate.TryGetProperty("content", out var contentElement)) // Renamed to avoid conflict with StringContent 'content'
+                    if ((int)response.StatusCode == 429) // Too Many Requests
                     {
-                        if (contentElement.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                        Logger.AI("⚠️ Gemini API 429 (Too Many Requests) hatası. 10 saniye bekleniyor...");
+                        await Task.Delay(10000).ConfigureAwait(false);
+                        
+                        // Retry with backoff
+                        response = await client.PostAsync(url, content).ConfigureAwait(false);
+                        responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        
+                        if (!response.IsSuccessStatusCode)
                         {
-                            var firstPart = parts[0];
-                            if (firstPart.TryGetProperty("text", out var text))
-                            {
-                                result = text.GetString();
-                            }
+                            LastError = $"Gemini 429 Retry Failed. Status: {response.StatusCode}";
+                            Logger.AI($"❌ {LastError}");
+                            return null;
                         }
+                    }
+                    else
+                    {
+                        LastError = $"Gemini API Error ({response.StatusCode}): {responseContent}";
+                        Logger.AI($"❌ {LastError}");
+                        return null;
                     }
                 }
                 
-                // OPTIMIZATION: Retry logic for empty responses (prevents API quota waste)
-                if (string.IsNullOrWhiteSpace(result) || result == "null")
+                // Parse JSON response
+                string? result = null;
+                using (JsonDocument jsonDoc = JsonDocument.Parse(responseContent))
                 {
-                    Logger.AI("⚠️ Gemini boş yanıt döndü, 2 saniye sonra tekrar deneniyor...");
-                    await Task.Delay(2000);
-                    
-                    // Retry once
-                    response = await client.PostAsync(url, content); // Use 'client' instead of '_httpClient'
-                    responseContent = await response.Content.ReadAsStringAsync();
-                    jsonDoc = JsonDocument.Parse(responseContent);
-                    root = jsonDoc.RootElement;
-                    
-                    if (root.TryGetProperty("candidates", out candidates) && candidates.GetArrayLength() > 0)
+                    JsonElement root = jsonDoc.RootElement;
+                    if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
                     {
                         var firstCandidate = candidates[0];
-                        if (firstCandidate.TryGetProperty("content", out var contentElement2)) // Renamed to avoid conflict
+                        if (firstCandidate.TryGetProperty("content", out var contentElement))
                         {
-                            if (contentElement2.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                            if (contentElement.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
                             {
                                 var firstPart = parts[0];
                                 if (firstPart.TryGetProperty("text", out var text))
@@ -549,15 +587,68 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                             }
                         }
                     }
+                }
+                
+                // OPTIMIZATION: Retry logic for empty responses (prevents API quota waste)
+                if (string.IsNullOrWhiteSpace(result) || result == "null")
+                {
+                    Logger.AI("⚠️ Gemini boş yanıt döndü, 3 saniye sonra tekrar deneniyor...");
+                    await Task.Delay(3000).ConfigureAwait(false);
+                    
+                    // Retry once
+                    response = await client.PostAsync(url, content).ConfigureAwait(false);
+                    responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        using (JsonDocument jsonDoc = JsonDocument.Parse(responseContent))
+                        {
+                            JsonElement root = jsonDoc.RootElement;
+                            if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+                            {
+                                var firstCandidate = candidates[0];
+                                if (firstCandidate.TryGetProperty("content", out var contentElement2))
+                                {
+                                    if (contentElement2.TryGetProperty("parts", out var partsRetry) && partsRetry.GetArrayLength() > 0)
+                                    {
+                                        var firstPart = partsRetry[0];
+                                        if (firstPart.TryGetProperty("text", out var text))
+                                        {
+                                            result = text.GetString();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     
                     if (string.IsNullOrWhiteSpace(result))
                     {
-                        Logger.AI("❌ Gemini 2. denemede de boş yanıt döndü");
+                        // Check for Safety Block or other feedback
+                        string failReason = "Gemini returned empty response.";
+                        try {
+                            using (JsonDocument checkDoc = JsonDocument.Parse(responseContent)) {
+                                if (checkDoc.RootElement.TryGetProperty("promptFeedback", out var feedback)) {
+                                    if (feedback.TryGetProperty("blockReason", out var reason)) {
+                                        failReason = $"Gemini BLOCKED: {reason.GetString()}";
+                                    }
+                                }
+                            }
+                        } catch {}
+
+                        LastError = failReason;
+                        Logger.AI($"❌ {LastError}");
                     }
                     else
                     {
                         Logger.AI("✅ Gemini 2. denemede başarılı yanıt aldı");
                     }
+                }
+                
+                // v4.0.0: Log successful prompt-response for AI training
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    LogTrainingData(prompt, result, "text_generation");
                 }
                 
                 return result;
@@ -566,6 +657,10 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
             {
                 LastError = ex.Message;
                 Logger.AI($"❌ Gemini Exception: {ex.Message}");
+            }
+            finally
+            {
+                _semaphore.Release();
             }
             return null;
         }
@@ -615,8 +710,12 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
         /// </summary>
         public async Task<string?> SendMultimodalRequest(string prompt, string imageBase64)
         {
+            await _semaphore.WaitAsync();
             try
             {
+                // Wait 500ms between requests to avoid burst rate limits
+                await Task.Delay(500).ConfigureAwait(false);
+
                 if (ConfigManager.Current == null)
                 {
                     LastError = "ConfigManager.Current is null";
@@ -653,9 +752,18 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
 
                 var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.0-flash-exp";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-                var response = await client.PostAsync(url, content);
-                var resultJson = await response.Content.ReadAsStringAsync();
                 
+                var response = await client.PostAsync(url, content).ConfigureAwait(false);
+                var resultJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                
+                if (!response.IsSuccessStatusCode && (int)response.StatusCode == 429)
+                {
+                    Logger.AI("⚠️ Gemini Multimodal 429 hatası. 10 saniye bekleniyor...");
+                    await Task.Delay(10000).ConfigureAwait(false);
+                    response = await client.PostAsync(url, content).ConfigureAwait(false);
+                    resultJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+
                 if (response.IsSuccessStatusCode)
                 {
                     using (JsonDocument doc = JsonDocument.Parse(resultJson))
@@ -667,7 +775,14 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                                       .GetProperty("content")
                                       .GetProperty("parts")[0]
                                       .GetProperty("text").GetString();
-                             return text;
+                            
+                            // v4.0.0: Log successful multimodal prompt-response for AI training
+                            if (!string.IsNullOrWhiteSpace(text))
+                            {
+                                LogTrainingData(prompt, text, "vision_analysis");
+                            }
+                            
+                            return text;
                         }
                     }
                 }
@@ -679,8 +794,11 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
             }
             catch (Exception ex)
             {
-                LastError = ex.Message;
                 Logger.AI($"❌ Gemini Multimodal Exception: {ex.Message}");
+            }
+            finally
+            {
+                _semaphore.Release();
             }
             return null;
         }
@@ -688,7 +806,7 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
         /// <summary>
         /// Generate market analysis WITH visual chart analysis
         /// </summary>
-        public async Task<string?> GenerateMarketAnalysisWithChart(string symbol, string marketType, string priceContext, string screenshotPath, string influencerCitations = "")
+        public async Task<string?> GenerateMarketAnalysisWithChart(string symbol, string marketType, string priceContext, string screenshotPath, string influencerCitations = "", string newsContext = "", string marketOverview = "")
         {
             try
             {
@@ -697,7 +815,7 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                 {
                     Console.WriteLine($"Screenshot not found: {screenshotPath}");
                     // Fallback to text-only analysis
-                    return await GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerCitations);
+                    return await GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerCitations, newsContext, marketOverview);
                 }
 
                 byte[] imageBytes = System.IO.File.ReadAllBytes(screenshotPath);
@@ -716,6 +834,7 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
 {indicatorContext}
 === GÖSTERGE REHBERİ SONU ===
 
+
 ";
                     }
                 }
@@ -731,8 +850,7 @@ PİYASA GÖRÜŞÜ (Sosyal Medya Fenomen Analizi):
 (Bu görüşleri kendi grafiksel analizinle harmanla ve dengeli yaz)";
 
                 // USE NEW CENTRALIZED PROMPT (Formations + Smart Money)
-                string prompt = _prompts.GetDeepTechnicalAnalysisPrompt(symbol, marketType, priceContext, indicatorContext);
-                prompt += influencerSection;
+                string prompt = _prompts.GetDeepTechnicalAnalysisPrompt(symbol, marketType, priceContext, indicatorContext, influencerCitations, newsContext, marketOverview);
 
                 return await SendMultimodalRequest(prompt, imageBase64);
             }
@@ -740,7 +858,7 @@ PİYASA GÖRÜŞÜ (Sosyal Medya Fenomen Analizi):
             {
                 Logger.AI($"⚠️ Error in GenerateMarketAnalysisWithChart: {ex.Message}");
                 // Fallback to text-only
-                return await GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerCitations);
+                return await GenerateMarketAnalysisWithPrice(symbol, marketType, priceContext, influencerCitations, newsContext, marketOverview);
             }
         }
 
@@ -879,60 +997,13 @@ PİYASA GÖRÜŞÜ (Sosyal Medya Fenomen Analizi):
                 }
             }
 
-            string prompt = $@"Sen piyasaya yıllarını vermiş usta bir tradersın.
-Aşağıdaki verileri (Grafik, Fiyat, Influencer Görüşleri ve Geçmiş Analizin) harmanlayarak KENDİ ANALİZİNİ oluştur.
-
---- INFLUENCER GÖRÜŞLERİ ---
-{influencerContext}
-----------------------------
---- TEKNİK VERİLER ---
-{priceContext}
-GRAFİK ANALİZİ:
-{visualAnalysis}{historyNote}
---------------------------------
-
-GÖREV:
-#{symbol} için kişisel, samimi ve profesyonel bir analiz yazısı hazırla.
-
-⚠️ KRİTİK KURALLAR (HATA YAPMA):
-1. **BAZ ANALİZ ÖNCELİĞİ:** Eğer `TEKNİK VERİLER` içinde ""KOMPOZİT ANALİZ"" veya ""DÖVİZ BAZLI ANALİZ"" uyarısı varsa, analizi tamamen bu baz üzerinden kurgula. XU100 bazında ise mutlaka ""Kompozit Analiz"" terminolojisini kullan.
-2. **İLGİSİZ TWEETLERİ YOK SAY:** Influencer listesinde eğer #{symbol} ile DOĞRUDAN ilgili olmayan (genel piyasa, siyaset veya başka hisse) tweetler varsa, onları SENTEZE DAHİL ETME.
-3. **TEKNİK VERİYİ KORU:** Görsel analizden gelen Teknik Seviyeleri (Destek, Direnç, Order Block, FVG, Fiyatlar) ASLA değiştirme, yuvarlama veya yumuşatma. Orijinal rapordaki rakam neyse onu kullan.
-3. **YÖN ve TERMİNOLOJİ:**
-    - Eğer düşüş bekliyorsan (Short) MUTLAKA ""AÇIĞA SATIŞ"" veya ""DÜŞÜŞ YÖNLÜ"" terimini kullan.
-    - Açığa Satış (Short) stratejisinde: HEDEF fiyat GÜNCEL fiyattan DÜŞÜK, STOP fiyatı GÜNCEL fiyattan YÜKSEK olmalıdır. (Mantık hatası yapma!)
-    - Yükseliş bekliyorsan (Long) ""UZUN POZİSYON"" veya ""YÜKSELİŞ YÖNLÜ"" de.
-4. **SAMİMİYET vs VERİ:** Üslubun samimi olsun (""'Baktığımda'"", ""'Görüyorum ki'"") AMMA teknik veriler (Rakamlar) robotik kesinlikte kalsın.
-
-Yazıyı İKİ BÖLÜME ayır ve aralarına '|||' işareti koy.
-
-BÖLÜM 1 (Genel Görünüm - Max 260 karakter):
-- Grafikte ne gördüğünü net anlat.
-- Influencer havasını (Korku/Coşku) süzgeçten geçir.
-- Geçmiş analizin varsa tutarlılığını yorumla.
-- ""Açığa Satış"" veya ""Uzun Pozisyon"" yönünü belirt.
-
-|||
-
-BÖLÜM 2 (Seviyeler ve Strateji - Max 260 karakter):
-- Kritik destek/dirençleri NET RAKAMLA ver.
-- Stratejini kur: ""Hedef: X, Stop: Y"" (Short ise Stop > Giriş > Hedef kuralına uy).
-- Risk uyarısı yap.
-- SON CÜMLE OLARAK: Takipçilere soru sor (CTA). Örn: ""Sizce yön neresi? Yorumlara yazın"" veya ""Sırada hangi hisseyi inceleyelim?""
-
-KURALLAR:
-- ASLA Kollektif Zeka, Rapor, Bot, Merhaba deme.
-- ""Yatırım tavsiyesi değildir"" EKLEME (Sistem ekliyor).
-- Emoji kullan ama abartma.
-
-ÖRNEK SHORT ÇIKTI:
-Genel Görünüm: THYAO'da 272.35 altındaki zayıf seyir ""Düşüş Yönlü"" (Açığa Satış) senaryomu teyit ediyor. Kurumsal satış baskısı (OB) net. Ayılar sahada, tepkiler cılız kalıyor.
-|||
-Açığa Satış Stratejim: Direnç 276.00 TL (Stop). Hedefim 260.00 TL ana kale. 265'teki likidite boşluğu dolmadan dönüş beklemiyorum. Oyun planım sabır. Sizce düşüş sürer mi? Yorumları alalım. 👇";
-
-
+            string prompt = _prompts.GetSignalSynthesisPrompt(symbol, priceContext, visualAnalysis, influencerContext, historyNote);
             return await SendRequest(prompt);
         }
+
+
+
+
 
         public async Task<string?> GenerateMotivationTweet()
         {
@@ -967,20 +1038,353 @@ KURALLAR:
             return await SendRequest(prompt);
         }
 
+        public async Task<string?> GenerateFanZoneReaction(string prompt)
+        {
+            // FanZone Specific High-Creativity Config
+            // Temp: 0.8, TopP: 0.95, TopK: 40, MaxTokens: 150
+            return await SendRequest(prompt, 0.8, 0.95, 40, 150);
+        }
+
+        // ===========================
+        // TWO-STEP BOT INTERACTION (v4.2.0)
+        // ===========================
+
+        /// <summary>
+        /// Step 1: Tweet kategorisini tespit eder
+        /// </summary>
+        public async Task<string> DetectTweetCategory(string tweetContent)
+        {
+            try
+            {
+                string prompt = _prompts.GetCategoryDetectionPrompt(tweetContent);
+                // Category detection uses low temperature for consistency
+                var result = await SendRequest(prompt, 0.2, 0.9, 20, 30);
+                
+                if (!string.IsNullOrEmpty(result))
+                {
+                    // Clean and normalize the category
+                    string category = result.Trim().ToUpper()
+                        .Replace("\"", "")
+                        .Replace(".", "")
+                        .Replace(":", "");
+                    
+                    // Validate against known categories
+                    string[] validCategories = { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" };
+                    if (validCategories.Contains(category))
+                    {
+                        Logger.AI($"📊 Kategori Tespiti: {category}");
+                        return category;
+                    }
+                }
+                
+                Logger.AI("⚠️ Kategori tespiti başarısız, GUNLUK_MIZAH fallback kullanılıyor.");
+                return "GUNLUK_MIZAH"; // Default fallback
+            }
+            catch (Exception ex)
+            {
+                Logger.AI($"❌ Kategori tespiti hatası: {ex.Message}");
+                return "GUNLUK_MIZAH";
+            }
+        }
+
+        /// <summary>
+        /// Step 2: Kategoriye özel yanıt üretir
+        /// </summary>
+        public async Task<string?> GenerateCategorizedReply(string category, string tweetContent, string authorHandle)
+        {
+            try
+            {
+                // Get category-specific prompt
+                string prompt = _prompts.GetCategorizedReplyPrompt(category, tweetContent, authorHandle);
+                
+                // Get category-specific AI config
+                var config = _prompts.GetCategoryConfig(category);
+                
+                Logger.AI($"🤖 Yanıt üretiliyor: Kategori={category}, Temp={config.Temp}");
+                
+                return await SendRequest(prompt, config.Temp, config.TopP, config.TopK, config.MaxTokens);
+            }
+            catch (Exception ex)
+            {
+                Logger.AI($"❌ Kategorize yanıt hatası: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Full Two-Step Reply Generation (Convenience Method)
+        /// </summary>
+        public async Task<(string Category, string? Reply)> GenerateTwoStepReply(string tweetContent, string authorHandle)
+        {
+            // Step 1: Detect Category
+            string category = await DetectTweetCategory(tweetContent);
+            
+            // Step 2: Generate Categorized Reply
+            string? reply = await GenerateCategorizedReply(category, tweetContent, authorHandle);
+            
+            return (category, reply);
+        }
+
+        // ===========================
+        // NEWS TWO-STEP LOGIC (v4.2.2)
+        // ===========================
+
+        /// <summary>
+        /// Step 1: Haber kategorisini tespit eder
+        /// </summary>
+        public async Task<string> DetectNewsCategory(string title, string source)
+        {
+            string prompt = _prompts.GetNewsCategoryDetectionPrompt(title, source);
+            
+            string? response = null;
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                response = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt);
+            }
+            else
+            {
+                response = await SendRequest(prompt, 0.2); // Düşük sıcaklık, tutarlı kategori
+            }
+            
+            // Parse kategori - sadece ilk kelimeyi al
+            if (!string.IsNullOrEmpty(response))
+            {
+                string cleaned = response.Trim().ToUpper()
+                    .Replace(".", "")
+                    .Replace(":", "")
+                    .Split('\n')[0]
+                    .Split(' ')[0];
+                
+                // Geçerli kategoriler
+                string[] validCategories = { "EKONOMI", "SIYASET", "TEKNOLOJI", "GLOBAL", "KRIPTO", "SPOR", "YASAM" };
+                if (validCategories.Contains(cleaned))
+                    return cleaned;
+            }
+            
+            return "EKONOMI"; // Fallback
+        }
+
+        /// <summary>
+        /// Full Two-Step News Analysis (1-10 Scale + Category)
+        /// Önce kategori tespit eder, sonra kategoriye göre puanlar
+        /// </summary>
+        public async Task<string?> AnalyzeNewsImpactTwoStep(string title, string source)
+        {
+            // Step 1: Kategori Tespiti
+            string category = await DetectNewsCategory(title, source);
+            Logger.AI($"📰 Haber Kategorisi: {category}");
+            
+            // Step 2: Kategoriye özel puanlama (1-10)
+            string prompt = _prompts.GetNewsEditorPromptV2(title, source, category);
+            
+            // Kategoriye göre config al
+            var config = _prompts.GetNewsCategoryConfig(category);
+            
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt);
+            }
+            
+            return await SendRequest(prompt, config.Temp, config.TopP, config.TopK, config.MaxTokens);
+        }
+
+        /// <summary>
+        /// Kategoriye özel haber analiz thread'i üretir
+        /// Sadece skor 9-10 olan haberler için kullanılır
+        /// </summary>
+        public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link)
+        {
+            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link);
+            
+            // Kategoriye göre config al
+            var config = _prompts.GetNewsCategoryConfig(category);
+            
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt);
+            }
+            
+            return await SendRequest(prompt, config.Temp, config.TopP, config.TopK, config.MaxTokens);
+        }
+
+        /// <summary>
+        /// v4.3.0: Hybrid Signal Intelligence - Tier Based Generation
+        /// </summary>
+        public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations)
+        {
+            try
+            {
+                Logger.AI($"🧠 Hybrid Analysis ({sig.Strategy}): Tier={sig.Tier}, Score={sig.FinalScore}");
+                
+                string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext, influencerCitations);
+                
+                // Tier bazlı token optimizasyonu
+                int maxTokens = sig.Tier switch
+                {
+                    ContentTier.Premium => 1500, // Detaylı
+                    ContentTier.Standard => 1000, // Standart
+                    ContentTier.Summary => 600,  // Özet
+                    _ => 300
+                };
+
+                // ModelManager varsa (v3.1+)
+                if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+                {
+                    // Premium threadler için daha güçlü model kullanılabilir
+                    var taskType = sig.Tier == ContentTier.Premium 
+                        ? XiDeAI_Pro.Services.AI.TaskType.DeepScan 
+                        : XiDeAI_Pro.Services.AI.TaskType.ShortThreadGeneration;
+                        
+                    return await ModelManager.SendRequest(taskType, prompt, maxTokens: maxTokens);
+                }
+                
+                // Standart Gemini isteği
+                return await SendRequest(prompt, maxOutputTokens: maxTokens);
+            }
+            catch (Exception ex)
+            {
+                Logger.Sys($"Hybrid Analysis Error: {ex.Message}");
+                return null;
+            }
+        }
+
+
         public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume)
         {
             string prompt = _prompts.GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume);
             return await SendRequest(prompt);
         }
 
-        private string CleanTweetContent(string raw)
+        /// <summary>
+        /// Enhanced tweet content cleaner (v3.8)
+        /// - Removes URLs
+        /// - Reduces excessive emojis
+        /// - Cleans multiple spaces/newlines
+        /// - Truncates to max length
+        /// </summary>
+        private string CleanTweetContent(string raw, int maxLength = 200)
         {
             if (string.IsNullOrEmpty(raw)) return "";
+            
+            // 1. Remove URLs
             raw = System.Text.RegularExpressions.Regex.Replace(raw, @"http[s]?://\S+", "");
+            
+            // 2. Reduce excessive emojis (max 3 consecutive emoji)
+            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"([\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]){4,}", "$1$1$1");
+            
+            // 3. Clean multiple spaces and newlines
+            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"\s{2,}", " ");
+            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"\n{2,}", "\n");
+            
+            // 4. Trim whitespace
             raw = raw.Trim();
-            if (raw.Length > 200) raw = raw.Substring(0, 200) + "...";
+            
+            // 5. Truncate if too long
+            if (raw.Length > maxLength) 
+                raw = raw.Substring(0, maxLength) + "...";
+            
             return raw;
         }
+
+        /// <summary>
+        /// Generate engaging 4-tweet thread with optional history callback
+        /// Uses visual analysis + influencer context + past successful analysis
+        /// </summary>
+        public async Task<string?> GenerateShortThreadWithHistory(
+            string symbol, 
+            string marketType, 
+            string priceContext, 
+            string visualAnalysis,
+            string influencerContext,
+            string periyot,
+            string? screenshotPath = null,
+            string lastWeekAnalysis = "")
+        {
+            try
+            {
+                Logger.AI($"📝 Generating Short Thread for #{symbol} ({periyot})...");
+
+                // Get the prompt from PromptManager
+                string prompt = _prompts.GetShortThreadPromptWithHistory(
+                    symbol, 
+                    marketType, 
+                    priceContext, 
+                    visualAnalysis, 
+                    influencerContext, 
+                    periyot,
+                    lastWeekAnalysis
+                );
+
+                string? response;
+
+                // If screenshot available, use multimodal
+                if (!string.IsNullOrEmpty(screenshotPath) && File.Exists(screenshotPath))
+                {
+                    Logger.AI($"🖼️ Using multimodal with screenshot: {screenshotPath}");
+                    byte[] imageBytes = File.ReadAllBytes(screenshotPath);
+                    string imageBase64 = Convert.ToBase64String(imageBytes);
+                    response = await SendMultimodalRequest(prompt, imageBase64);
+                }
+                else
+                {
+                    response = await SendRequest(prompt);
+                }
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    Logger.AI("⚠️ AI returned empty response for short thread");
+                    return null;
+                }
+
+                Logger.AI($"✅ Short thread generated: {response.Substring(0, Math.Min(100, response.Length))}...");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Logger.AI($"❌ Short thread generation error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get last week's successful analysis for a symbol from memory
+        /// Returns formatted string for history callback feature
+        /// </summary>
+        public string GetLastWeekSuccessfulAnalysis(string symbol)
+        {
+            try
+            {
+                if (_memory == null) return "";
+
+                // Get symbol context from memory (includes past analyses)
+                string context = _memory.GetSymbolContext(symbol);
+                
+                if (string.IsNullOrEmpty(context))
+                    return "";
+
+                // Look for keywords indicating successful predictions
+                if (context.Contains("hedef") || context.Contains("Hedef") || 
+                    context.Contains("başarı") || context.Contains("tuttu") ||
+                    context.Contains("beklenen"))
+                {
+                    // Extract the relevant part (first 200 chars)
+                    string summary = context.Length > 200 
+                        ? context.Substring(0, 200) + "..." 
+                        : context;
+                    
+                    Logger.AI($"📜 Found past analysis for {symbol}: {summary.Substring(0, Math.Min(50, summary.Length))}...");
+                    return summary;
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Logger.AI($"⚠️ Error fetching past analysis: {ex.Message}");
+                return "";
+            }
+        }
+
     }
 }
 

@@ -17,7 +17,8 @@ if (Test-Path $scriptsSource) {
     }
     Copy-Item "$scriptsSource\*.py" -Destination $scriptsDest -Force
     Write-Host "✅ Python scripts kopyalandı" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "❌ Scripts klasörü bulunamadı" -ForegroundColor Red
 }
 
@@ -31,8 +32,21 @@ if (Test-Path $configSource) {
     }
     Copy-Item "$configSource\*" -Destination $configDest -Force -Recurse
     Write-Host "✅ Config files kopyalandı" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "❌ Config klasörü bulunamadı" -ForegroundColor Red
+}
+
+# Copy Drivers (Optional but recommended)
+$driversSource = "drivers"
+$driversDest = "$PublishDir\drivers"
+
+if (Test-Path $driversSource) {
+    if (-not (Test-Path $driversDest)) {
+        New-Item -ItemType Directory -Path $driversDest -Force | Out-Null
+    }
+    Copy-Item "$driversSource\*" -Destination $driversDest -Force -Recurse
+    Write-Host "✅ Drivers kopyalandı" -ForegroundColor Green
 }
 
 Write-Host "✅ Post-publish tamamlandı" -ForegroundColor Green

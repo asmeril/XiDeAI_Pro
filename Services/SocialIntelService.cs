@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Net.Http;
 using XiDeAI_Pro.Config;
 
 namespace XiDeAI_Pro.Services
@@ -43,12 +44,16 @@ namespace XiDeAI_Pro.Services
     {
         public string Handle { get; set; } = "";
         public string Content { get; set; } = "";
+        public string Url { get; set; } = string.Empty;
+        public string? OriginalAuthor { get; set; }
+        public bool IsRetweet { get; set; }
         public int Engagement { get; set; } = 0;
         public int RelevanceScore { get; set; } = 0; // NEW: Track analysis quality
-        public string Url { get; set; } = "";
         public int FollowerCount { get; set; } = 0;
         public DateTime PostDate { get; set; } = DateTime.MinValue;
         public string? ImageUrl { get; set; } // Supporting guru tables
+        public string Market { get; set; } = ""; // EKLENDİ
+        public string Symbol { get; set; } = ""; // EKLENDİ
     }
 
     public class ProfileStats
@@ -96,6 +101,32 @@ namespace XiDeAI_Pro.Services
         public List<StockData> data { get; set; } = new List<StockData>();
     }
 
+    public class SocialIntelReply
+    {
+        public string handle { get; set; } = "";
+        public string text { get; set; } = "";
+        public string url { get; set; } = "";
+    }
+
+    public class SocialIntelReplyResult
+    {
+        public string status { get; set; } = "";
+        public List<SocialIntelReply> data { get; set; } = new List<SocialIntelReply>();
+        public string message { get; set; } = "";
+    }
+
+    public class SocialIntelRetweeter
+    {
+        public string handle { get; set; } = "";
+    }
+
+    public class SocialIntelRetweetersResult
+    {
+        public string status { get; set; } = "";
+        public List<SocialIntelRetweeter> data { get; set; } = new List<SocialIntelRetweeter>();
+        public string message { get; set; } = "";
+    }
+
     public class SocialIntelEngagementItem
     {
         public string text { get; set; } = "";
@@ -119,6 +150,7 @@ namespace XiDeAI_Pro.Services
 
     public class SocialIntelService
     {
+        // private bool _isFirstMetaRun = true; // Deep Scan Flag - Removed unused
         private DateTime _lastInteractionTime = DateTime.MinValue;
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _deepScanLock = new SemaphoreSlim(1, 1); // DeepScan için ayrı kilit
@@ -140,7 +172,139 @@ namespace XiDeAI_Pro.Services
         public bool IsVisibleMode { get; set; } = false; // User Request: Must be headless by default
         private static DateTime _lastPostUtc = DateTime.MinValue;
         private static readonly TimeSpan PostCooldown = TimeSpan.FromSeconds(20);
-        private static bool _authMethodLogged = false; // Optimization: Log auth method only once
+        private static bool _authMethodLogged = false;
+
+        // v4.4.1: Search Rate Limiting to prevent X account locks
+        private static DateTime _lastSearchCompletedUtc = DateTime.MinValue;
+        private static readonly TimeSpan SearchCooldown = TimeSpan.FromSeconds(20);
+
+        // v4.4.0: Daemon Architecture
+        private static readonly HttpClient _daemonClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        private static Process? _daemonProcess;
+        private static bool _daemonAvailable = false;
+        private const string DAEMON_URL = "http://127.0.0.1:5580";
+        public bool UseDaemon { get; set; } = true; // Enable daemon by default
+
+        /// <summary>Start the X daemon process if not running</summary>
+        public async Task StartDaemonAsync()
+        {
+            if (_daemonProcess != null && !_daemonProcess.HasExited)
+            {
+                _daemonAvailable = await CheckDaemonHealthAsync();
+                return;
+            }
+
+            try
+            {
+                string daemonScript = Path.Combine(Path.GetDirectoryName(_scriptPath) ?? "", "x_daemon.py");
+                if (!File.Exists(daemonScript))
+                {
+                    Logger.Sys($"[Daemon] Script not found: {daemonScript}");
+                    _daemonAvailable = false;
+                    return;
+                }
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{daemonScript}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                if (IsVisibleMode)
+                    psi.EnvironmentVariables["X_VISIBLE"] = "true";
+
+                _daemonProcess = Process.Start(psi);
+                Logger.Sys("[Daemon] Starting X daemon...");
+
+                // Wait for daemon to start
+                for (int i = 0; i < 10; i++)
+                {
+                    await Task.Delay(500);
+                    if (await CheckDaemonHealthAsync())
+                    {
+                        _daemonAvailable = true;
+                        Logger.Sys("[Daemon] X daemon is ready");
+                        return;
+                    }
+                }
+
+                Logger.Sys("[Daemon] Daemon startup timeout");
+                _daemonAvailable = false;
+            }
+            catch (Exception ex)
+            {
+                Logger.Sys($"[Daemon] Start error: {ex.Message}");
+                _daemonAvailable = false;
+            }
+        }
+
+        /// <summary>Stop the daemon process</summary>
+        public void StopDaemon()
+        {
+            try
+            {
+                // Send shutdown command
+                _ = _daemonClient.PostAsync($"{DAEMON_URL}/shutdown", null).Result;
+            }
+            catch { }
+
+            try
+            {
+                if (_daemonProcess != null && !_daemonProcess.HasExited)
+                {
+                    _daemonProcess.Kill(true);
+                    _daemonProcess = null;
+                }
+            }
+            catch { }
+
+            _daemonAvailable = false;
+            Logger.Sys("[Daemon] Stopped");
+        }
+
+        /// <summary>Check if daemon is healthy</summary>
+        private async Task<bool> CheckDaemonHealthAsync()
+        {
+            try
+            {
+                var response = await _daemonClient.GetAsync($"{DAEMON_URL}/health");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    return json.Contains("\"status\"") && json.Contains("ok");
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>Send request to daemon</summary>
+        private async Task<string> DaemonRequestAsync(string endpoint, object? payload = null)
+        {
+            try
+            {
+                var content = payload != null 
+                    ? new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+                    : null;
+
+                var response = await _daemonClient.PostAsync($"{DAEMON_URL}{endpoint}", content);
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex)
+            {
+                return $"{{\"status\": \"error\", \"message\": \"Daemon request failed: {ex.Message}\"}}";
+            }
+        } 
+
+        // v3.7.2: Common words that conflict with stock symbols
+        private static readonly HashSet<string> COMMON_STOCK_WORDS = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
+        { 
+            "LOGO", "INFO", "LINK", "DATA", "SAFE", "ARK", "NEAR", "BIST", "GOLD", "OIL", "GAS" 
+        };
 
         // NOTE: WebView2 Bridge events deprecated - Using Selenium/Python exclusively
         #pragma warning disable CS0067
@@ -150,7 +314,10 @@ namespace XiDeAI_Pro.Services
         public event Func<Task<ProfileStats?>>? OnGetStatsRequested;
         public event Func<Task<string[]>>? OnGetTrendsRequested;
         public event Func<string, string, Task<SocialIntelResult>>? OnReplyRequested;
+
         public event Func<string[], Task<SocialIntelInteractResult>>? OnInteractTargetsRequested;
+        // Phase 1 (Hive): Event for detecting content during deep scan (triggered for Meta-Teacher analysis)
+        public event Func<InfluencerPost, Task>? OnDeepScanPostDetected;
         #pragma warning restore CS0067
 
         private static string NormalizeMarketType(string? marketType)
@@ -262,7 +429,45 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        private async Task<string> RunPythonScript(string arguments, string? user = null, string? pass = null)
+        public async Task<SocialIntelReplyResult?> FetchReplies(string tweetUrl)
+        {
+            try
+            {
+                var cfg = ConfigManager.Current;
+                string args = $"\"{_scriptPath}\" fetch_replies --url \"{tweetUrl}\"";
+                
+                string json = await RunPythonScript(args, cfg.XLoginUser, cfg.XLoginPass);
+                if (string.IsNullOrEmpty(json) || json == "{}") return null;
+                
+                return JsonSerializer.Deserialize<SocialIntelReplyResult>(json);
+            }
+            catch (Exception ex)
+            {
+                Logger.Sys($"❌ FetchReplies HATA: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<SocialIntelRetweetersResult?> FetchRetweeters(string tweetUrl)
+        {
+            try
+            {
+                var cfg = ConfigManager.Current;
+                string args = $"\"{_scriptPath}\" fetch_retweeters --url \"{tweetUrl}\"";
+                
+                string json = await RunPythonScript(args, cfg.XLoginUser, cfg.XLoginPass);
+                if (string.IsNullOrEmpty(json) || json == "{}") return null;
+                
+                return JsonSerializer.Deserialize<SocialIntelRetweetersResult>(json);
+            }
+            catch (Exception ex)
+            {
+                Logger.Sys($"❌ FetchRetweeters HATA: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async Task<string> RunPythonScript(string arguments, string? user = null, string? pass = null, int timeoutSeconds = 90)
         {
             var startTime = DateTime.Now;
             var psi = new ProcessStartInfo
@@ -285,8 +490,8 @@ namespace XiDeAI_Pro.Services
             using var process = Process.Start(psi);
             if (process == null) return "{}";
 
-            // 90 second timeout for X automation tasks
-            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(90));
+            // Timeout for X automation tasks
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
             string output = "";
             string error = "";
@@ -305,9 +510,9 @@ namespace XiDeAI_Pro.Services
             }
             catch (OperationCanceledException)
             {
-                Logger.Twitter("⚠️ X otomasyon işlemi ZAMAN AŞIMINA uğradı (90s). Süreç sonlandırılıyor...");
+                Logger.Twitter($"⚠️ X otomasyon işlemi ZAMAN AŞIMINA uğradı ({timeoutSeconds}s). Süreç sonlandırılıyor...");
                 try { process.Kill(true); } catch { }
-                return "{\"status\": \"error\", \"message\": \"Process timeout (90s)\"}";
+                return "{\"status\": \"error\", \"message\": \"Process timeout (" + timeoutSeconds + "s)\"}";
             }
 
             // Log stderr as warnings if present
@@ -449,7 +654,26 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostTweet(string text, string? mediaPath = null)
         {
-            // Selenium/Python Direct Method (WebView2 bridge disabled)
+            // 1. Try Internal Bridge (WebView2) First - More reliable as it uses current session
+            if (OnPostTweetRequested != null)
+            {
+                try
+                {
+                    var res = await OnPostTweetRequested.Invoke(text, mediaPath);
+                    if (res != null && res.status == "success")
+                    {
+                        ConfigManager.AddWebUsage();
+                        _stats?.RecordTweet("SocialIntel", 1, "", text);
+                        return res;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Twitter($"⚠️ Dahili tweet gönderim hatası: {ex.Message}");
+                }
+            }
+
+            // 2. Fallback: Selenium/Python Direct Method (Headless/Background)
             string tempFile = "";
             try
             {
@@ -487,6 +711,21 @@ namespace XiDeAI_Pro.Services
                 {
                     try { File.Delete(tempFile); } catch { }
                 }
+            }
+        }
+
+        public async Task<SocialIntelResult> ReplyAsync(string tweetUrl, string text)
+        {
+            try
+            {
+                string args = $"\"{_scriptPath}\" reply_to_tweet --url \"{tweetUrl}\" --text \"{text}\"";
+                string json = await RunPythonScript(args);
+                var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
+                return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
+            }
+            catch (Exception ex)
+            {
+                return new SocialIntelResult { status = "error", message = ex.Message };
             }
         }
 
@@ -531,7 +770,42 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // 2. Fallback
+            // 1.5 v4.4.0: Try Daemon (between WebView2 and Python subprocess)
+            if (UseDaemon && _daemonAvailable)
+            {
+                try
+                {
+                    Logger.Twitter("🔄 [DAEMON] Thread posting başlatılıyor...");
+                    var payload = new { tweets = tweets, media = mediaPath };
+                    string daemonJson = await DaemonRequestAsync("/post_thread", payload);
+                    var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
+                    
+                    if (daemonResult?.status == "success")
+                    {
+                        Logger.Twitter("✅ [DAEMON] Thread gönderimi başarılı.");
+                        try
+                        {
+                            var cfg = ConfigManager.Current;
+                            cfg.CheckReset();
+                            cfg.DailyTotalTweetCount += tweets.Count;
+                            cfg.MonthlyTotalTweetCount += tweets.Count;
+                            ConfigManager.Save();
+                        }
+                        catch { }
+                        return daemonResult;
+                    }
+                    else
+                    {
+                        Logger.Twitter($"⚠️ [DAEMON] Thread hatası: {daemonResult?.ErrorMessage}. Python fallback...");
+                    }
+                }
+                catch (Exception dex)
+                {
+                    Logger.Twitter($"⚠️ [DAEMON] Thread exception: {dex.Message}. Python fallback...");
+                }
+            }
+
+            // 2. Python Subprocess Fallback
             string tempFile = "";
             try
             {
@@ -560,7 +834,7 @@ namespace XiDeAI_Pro.Services
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
                 string args = $"\"{_scriptPath}\" post_thread --file \"{tempFile}\"{visibilityFlag}";
                 
-                string json = await RunPythonScript(args);
+                string json = await RunPythonScript(args, null, null, 180); // Extended timeout for thread posting
                 
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 _lastPostUtc = DateTime.UtcNow;
@@ -597,6 +871,13 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> ReplyToTweetAsync(string url, string text)
         {
+            // SECURITY: Prevent standalone tweets on profile/main pages
+            if (string.IsNullOrEmpty(url) || !url.Contains("/status/"))
+            {
+                Logger.FanZone($"⚠️ [SocialIntel] Geçersiz cevap linki (Status içermiyor): {url}");
+                return new SocialIntelResult { status = "error", text = "Invalid tweet URL for reply." };
+            }
+
             // 1. Try Internal
             if (OnReplyRequested != null)
             {
@@ -620,6 +901,7 @@ namespace XiDeAI_Pro.Services
                 
                 string args = $"\"{_scriptPath}\" reply_tweet --url \"{url}\" --text \"{base64Text}\" --base64";
                 string json = await RunPythonScript(args);
+                Logger.FanZone($"[SocialIntel] Reply Raw Output: {json}");
                 
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 _lastPostUtc = DateTime.UtcNow;
@@ -627,6 +909,156 @@ namespace XiDeAI_Pro.Services
             }
             catch (Exception ex)
             {
+                return new SocialIntelResult { status = "error", text = ex.Message };
+            }
+            finally
+            {
+                try { _postLock.Release(); } catch { }
+            }
+        }
+        
+        public async Task<SocialIntelResult> LikeTweet(string url)
+        {
+            try
+            {
+                Logger.FanZone($"[SocialIntel] LikeTweet isteniyor: {url}");
+                await _postLock.WaitAsync();
+                var now = DateTime.UtcNow;
+                var delta = now - _lastPostUtc;
+                if (delta < PostCooldown)
+                {
+                    try { await Task.Delay(PostCooldown - delta); } catch { }
+                }
+
+                // v4.4.0: Try daemon first
+                if (UseDaemon && _daemonAvailable)
+                {
+                    try
+                    {
+                        string daemonJson = await DaemonRequestAsync("/like", new { url });
+                        var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
+                        if (daemonResult?.status == "success")
+                        {
+                            Logger.FanZone($"✅ [DAEMON] Like Başarılı: {url}");
+                            _lastPostUtc = DateTime.UtcNow;
+                            return daemonResult;
+                        }
+                    }
+                    catch { }
+                }
+
+                // Fallback to subprocess
+                string args = $"\"{_scriptPath}\" like_tweet --url \"{url}\"";
+                string json = await RunPythonScript(args);
+                
+                Logger.FanZone($"[SocialIntel] LikeTweet Raw Output: {json}");
+
+                var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
+                if (result != null && result.status == "success")
+                {
+                     // Update counters if needed
+                     Logger.FanZone($"✅ Like Başarılı: {url}");
+                }
+                else
+                {
+                     Logger.FanZone($"❌ Like Başarısız: {result?.ErrorMessage ?? "Unknown"}");
+                }
+
+                _lastPostUtc = DateTime.UtcNow;
+                return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
+            }
+            catch (Exception ex)
+            {
+                Logger.FanZone($"❌ Like Exception: {ex.Message}");
+                return new SocialIntelResult { status = "error", text = ex.Message };
+            }
+            finally
+            {
+                try { _postLock.Release(); } catch { }
+            }
+        }
+
+        public async Task<SocialIntelResult> Retweet(string url)
+        {
+            try
+            {
+                Logger.FanZone($"[SocialIntel] Retweet isteniyor: {url}");
+                await _postLock.WaitAsync();
+                var now = DateTime.UtcNow;
+                var delta = now - _lastPostUtc;
+                if (delta < PostCooldown)
+                {
+                    try { await Task.Delay(PostCooldown - delta); } catch { }
+                }
+
+                string args = $"\"{_scriptPath}\" retweet --url \"{url}\"";
+                string json = await RunPythonScript(args);
+                
+                Logger.FanZone($"[SocialIntel] Retweet Raw Output: {json}");
+
+                var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
+                 if (result != null && result.status == "success")
+                {
+                     Logger.FanZone($"✅ Retweet Başarılı: {url}");
+                }
+                else
+                {
+                     Logger.FanZone($"❌ Retweet Başarısız: {result?.ErrorMessage ?? "Unknown"}");
+                }
+                
+                _lastPostUtc = DateTime.UtcNow;
+                return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
+            }
+            catch (Exception ex)
+            {
+                Logger.FanZone($"❌ Retweet Exception: {ex.Message}");
+                return new SocialIntelResult { status = "error", text = ex.Message };
+            }
+            finally
+            {
+                try { _postLock.Release(); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// v4.5.3: Quote Retweet with custom text
+        /// </summary>
+        public async Task<SocialIntelResult> QuoteRetweet(string url, string quoteText)
+        {
+            try
+            {
+                Logger.FanZone($"[SocialIntel] Quote RT isteniyor: {url} - \"{quoteText}\"");
+                await _postLock.WaitAsync();
+                var now = DateTime.UtcNow;
+                var delta = now - _lastPostUtc;
+                if (delta < PostCooldown)
+                {
+                    try { await Task.Delay(PostCooldown - delta); } catch { }
+                }
+
+                // Escape quotes in text
+                string safeText = quoteText.Replace("\"", "\\\"");
+                string args = $"\"{_scriptPath}\" quote_retweet --url \"{url}\" --text \"{safeText}\"";
+                string json = await RunPythonScript(args);
+                
+                Logger.FanZone($"[SocialIntel] QuoteRT Raw Output: {json}");
+
+                var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
+                if (result != null && result.status == "success")
+                {
+                    Logger.FanZone($"✅ Quote RT Başarılı: {url}");
+                }
+                else
+                {
+                    Logger.FanZone($"❌ Quote RT Başarısız: {result?.ErrorMessage ?? "Unknown"}");
+                }
+                
+                _lastPostUtc = DateTime.UtcNow;
+                return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
+            }
+            catch (Exception ex)
+            {
+                Logger.FanZone($"❌ Quote RT Exception: {ex.Message}");
                 return new SocialIntelResult { status = "error", text = ex.Message };
             }
             finally
@@ -834,15 +1266,55 @@ namespace XiDeAI_Pro.Services
         /// Find top influencer analyses for a given symbol (Crypto/BIST/Forex)
         /// Returns 2-3 posts with highest engagement from known analysts
         /// </summary>
+        public async Task<string?> FindTwitterHandle(string name)
+        {
+            try
+            {
+                // v4.4.0: Try daemon first
+                if (UseDaemon && _daemonAvailable)
+                {
+                    string daemonJson = await DaemonRequestAsync("/find_handle", new { name });
+                    using var doc = JsonDocument.Parse(daemonJson);
+                    if (doc.RootElement.TryGetProperty("status", out var status) && status.GetString() == "success")
+                    {
+                        if (doc.RootElement.TryGetProperty("handle", out var handle))
+                        {
+                            return handle.GetString();
+                        }
+                    }
+                    // If daemon returned error, fall through to subprocess
+                }
+
+                // Fallback to subprocess
+                string args = $"\"{_scriptPath}\" find_handle --name \"{name}\"";
+                string json = await RunPythonScript(args);
+                
+                using var fallbackDoc = JsonDocument.Parse(json);
+                if (fallbackDoc.RootElement.TryGetProperty("status", out var st) && st.GetString() == "success")
+                {
+                    if (fallbackDoc.RootElement.TryGetProperty("handle", out var h))
+                    {
+                        return h.GetString();
+                    }
+                }
+                return null;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"[SocialIntel] Handle search error: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<List<string>> DiscoverInfluencers(string category)
         {
             try
             {
                 string args = $"\"{_scriptPath}\" discover_influencers --category {category}";
-                Console.WriteLine($"[Discovery] Running: python {args}");
+                // Console.WriteLine($"[Discovery] Running: python {args}"); 
                 string json = await RunPythonScript(args);
                 
-                Console.WriteLine($"[Discovery] Response: {json}");
+                // Console.WriteLine($"[Discovery] Response: {json}");
                 
                 // Expected: { "status": "success", "count": 10, "data": ["@handle1", "@handle2"] }
                 using var doc = JsonDocument.Parse(json);
@@ -856,9 +1328,16 @@ namespace XiDeAI_Pro.Services
                             var list = new List<string>();
                             foreach(var item in data.EnumerateArray())
                             {
-                                list.Add(item.GetString() ?? "");
+                                string handle = item.GetString() ?? "";
+                                if (!string.IsNullOrEmpty(handle))
+                                {
+                                    list.Add(handle);
+                                    // Auto-add to database
+                                    _influencerControl?.AddInfluencer(category, handle);
+                                }
                             }
-                            Console.WriteLine($"[Discovery] Success: {list.Count} influencers found in {category}");
+                            // SaveDatabase removed (now automatic)
+                            // Console.WriteLine($"[Discovery] Success: {list.Count} influencers found in {category}");
                             return list;
                         }
                     }
@@ -872,7 +1351,7 @@ namespace XiDeAI_Pro.Services
             }
             catch(Exception ex)
             {
-                Console.WriteLine($"[Discovery] Exception: {ex.Message}\nStackTrace: {ex.StackTrace}");
+                Console.WriteLine($"[Discovery] Exception: {ex.Message}");
                 return new List<string>();
             }
         }
@@ -1017,9 +1496,21 @@ namespace XiDeAI_Pro.Services
             }
             else
             {
-                terms.Add(symbol);
-                terms.Add($"${symbol.Replace("$", "").Replace("#", "")}");
-                terms.Add($"#{symbol.Replace("$", "").Replace("#", "")}");
+                string cleanSymbol = symbol.Replace("$", "").Replace("#", "").ToUpperInvariant();
+                bool isCommon = COMMON_STOCK_WORDS.Contains(cleanSymbol);
+
+                if (isCommon)
+                {
+                    // For common words, ONLY use # and $ prefixed versions to avoid noise
+                    terms.Add($"${cleanSymbol}");
+                    terms.Add($"#{cleanSymbol}");
+                }
+                else
+                {
+                    terms.Add(symbol);
+                    terms.Add($"${cleanSymbol}");
+                    terms.Add($"#{cleanSymbol}");
+                }
 
                 // For Crypto, also add base symbol (e.g. BTC for BTCUSDT)
                 if (marketType == "Kripto" && symbol.EndsWith("USDT"))
@@ -1098,14 +1589,14 @@ namespace XiDeAI_Pro.Services
         /// <summary>
         /// Influencer'ların bir sembol hakkındaki son analizlerini topla
         /// </summary>
-        public async Task<List<InfluencerPost>> FindInfluencerAnalyses(string symbol, string market, List<string>? vipHandles = null)
+        public async Task<List<InfluencerPost>> FindInfluencerAnalyses(string symbol, string market, List<string>? vipHandles = null, int limit = 10, string? sinceDate = null)
         {
             var posts = new List<InfluencerPost>();
             try
             {
-                // Dedup check (Avoid duplicate searches within 30s)
+                // Dedup check (Avoid duplicate searches within 30s) - SKIP FOR DEEP SCAN
                 string cacheKey = $"{symbol}|{market}";
-                if (_lastSearchTimes.TryGetValue(cacheKey, out DateTime lastTime) && (DateTime.Now - lastTime).TotalSeconds < 30)
+                if (string.IsNullOrEmpty(sinceDate) && _lastSearchTimes.TryGetValue(cacheKey, out DateTime lastTime) && (DateTime.Now - lastTime).TotalSeconds < 30)
                 {
                     Logger.Twitter($"🛡️ Arama deduplikasyonu: {symbol} için son arama üzerinden <30s geçti. Kısayol.");
                     return posts;
@@ -1121,7 +1612,7 @@ namespace XiDeAI_Pro.Services
                 {
                     foreach (var handle in vipHandles.Take(5))
                     {
-                         await FetchInfluencerPostsFromPython(symbol, market, handle, pythonResults);
+                         await FetchInfluencerPostsFromPython(symbol, market, handle, pythonResults, limit, sinceDate);
                          if (pythonResults.Count >= 3) break;
                     }
                 }
@@ -1129,7 +1620,7 @@ namespace XiDeAI_Pro.Services
                 // VIP'lerde yoksa genel arama yap
                 if (pythonResults.Count == 0)
                 {
-                    await FetchInfluencerPostsFromPython(symbol, market, null, pythonResults);
+                    await FetchInfluencerPostsFromPython(symbol, market, null, pythonResults, limit, sinceDate);
                 }
 
                 if (pythonResults.Count > 0)
@@ -1151,17 +1642,110 @@ namespace XiDeAI_Pro.Services
 
         private readonly List<InfluencerPost> _lastInfluencerPosts = new List<InfluencerPost>();
         private readonly ConcurrentDictionary<string, DateTime> _lastSearchTimes = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        private async Task FetchInfluencerPostsFromPython(string symbol, string market, string? handle, List<InfluencerPost> sink)
+        private async Task FetchInfluencerPostsFromPython(string symbol, string market, string? handle, List<InfluencerPost> sink, int limit = 10, string? sinceDate = null)
         {
             try
             {
+                // v4.4.1: Enforce search cooldown to prevent X rate limiting
+                var timeSinceLastSearch = DateTime.UtcNow - _lastSearchCompletedUtc;
+                if (timeSinceLastSearch < SearchCooldown)
+                {
+                    var waitTime = SearchCooldown - timeSinceLastSearch;
+                    Logger.Twitter($"⏳ Search cooldown: Waiting {waitTime.TotalSeconds:F1}s before next search...");
+                    await Task.Delay(waitTime);
+                }
+
                 // Clean @ symbol from handle for proper from: syntax
-        string cleanHandle = handle?.TrimStart('@') ?? "";
-        string query = string.IsNullOrWhiteSpace(cleanHandle) ? symbol : $"from:{cleanHandle} {symbol}";
+                string cleanHandle = handle?.TrimStart('@') ?? "";
+                
+                // v4.4.0: Try daemon first for normal searches (not deep scans)
+                if (UseDaemon && _daemonAvailable && string.IsNullOrEmpty(sinceDate))
+                {
+                    try
+                    {
+                        string endpoint = string.IsNullOrEmpty(cleanHandle) ? "/search" : "/timeline";
+                        var payload = string.IsNullOrEmpty(cleanHandle)
+                            ? new { query = symbol, market = market, limit = limit }
+                            : (object)new { handle = cleanHandle, limit = limit };
+                        
+                        string daemonJson = await DaemonRequestAsync(endpoint, payload);
+                        using var daemonDoc = JsonDocument.Parse(daemonJson);
+                        
+                        if (daemonDoc.RootElement.TryGetProperty("status", out var st) && st.GetString() == "success")
+                        {
+                            if (daemonDoc.RootElement.TryGetProperty("data", out var daemonData) && daemonData.ValueKind == JsonValueKind.Array)
+                            {
+                                int count = 0;
+                                foreach (var item in daemonData.EnumerateArray())
+                                {
+                                    try
+                                    {
+                                        string author = item.TryGetProperty("author", out var a) ? a.GetString() ?? "" : "";
+                                        string content = item.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "";
+                                        string url = item.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+                                        string postDateStr = item.TryGetProperty("postDate", out var pd) ? pd.GetString() ?? "" : "";
+                                        string imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : null;
+                                        int engagement = item.TryGetProperty("engagement", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetInt32() : 0;
+                                        
+                                        if (string.IsNullOrWhiteSpace(content) || content.Length < 10) continue;
+                                        
+                                        sink.Add(new InfluencerPost
+                                        {
+                                            Handle = author,
+                                            Content = content,
+                                            Url = url,
+                                            PostDate = DateTime.TryParse(postDateStr, out var dt) ? dt : DateTime.Now,
+                                            ImageUrl = imageUrl,
+                                            Engagement = engagement,
+                                            Market = market,
+                                            Symbol = symbol
+                                        });
+                                        count++;
+                                    }
+                                    catch { }
+                                }
+                                
+                                if (count > 0)
+                                {
+                                    Logger.Twitter($"📊 [DAEMON] Found {count} posts for {symbol}");
+                                    return; // Success via daemon
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception dex)
+                    {
+                        Logger.Twitter($"⚠️ Daemon search failed, falling back to subprocess: {dex.Message}");
+                    }
+                }
+
+                // Fallback to subprocess (or for deep scans)
+                // FIX: If symbol already contains "from:", it's a full query - don't duplicate
+                string query = symbol.Contains("from:") ? symbol : (string.IsNullOrWhiteSpace(cleanHandle) ? symbol : $"from:{cleanHandle} {symbol}");
                 string base64Query = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
-                string args = $"\"{_scriptPath}\" search_influencer --query \"{base64Query}\" --base64 --market \"{market}\"{visibilityFlag}";
-                string json = await RunPythonScript(args);
+                
+                string sinceArg = sinceDate != null ? $" --since {sinceDate}" : "";
+
+                // v3.5 SPART STOP: Sadece standart izleme modunda (sinceDate null iken) hafıza sınırını kullan.
+                // Eğer Derin Tarama (Meta-Teacher) yapılıyorsa, aradaki "boşlukları" doldurmak için sınırı DEVRE DIŞI BIRAK.
+                string untilArg = "";
+                if (string.IsNullOrEmpty(sinceDate) && Memory != null && !string.IsNullOrEmpty(cleanHandle))
+                {
+                    var knownTweets = Memory.GetKnowledgeBase().Where(t => t.Author.Equals("@" + cleanHandle, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (knownTweets.Any())
+                    {
+                        var newestDate = knownTweets.Max(t => t.PostDate);
+                        // 1 gün pay bırak (scroll kaçırmasın diye)
+                        untilArg = $" --until_date {newestDate.AddDays(-1):yyyy-MM-dd}";
+                    }
+                }
+
+                string args = $"\"{_scriptPath}\" search_influencer --query \"{base64Query}\" --base64 --market \"{market}\" --limit {limit}{sinceArg}{untilArg}{visibilityFlag}";
+                
+                // Deep scans (sinceDate != null) need more time
+                int timeout = string.IsNullOrEmpty(sinceDate) ? 90 : 1200; 
+                string json = await RunPythonScript(args, null, null, timeout);
 
                 using var doc = JsonDocument.Parse(json);
                 JsonElement data;
@@ -1180,61 +1764,102 @@ namespace XiDeAI_Pro.Services
 
                 if (data.ValueKind != JsonValueKind.Array) return;
 
+                int arrayLength = data.GetArrayLength();
+                Logger.Twitter($"📊 DATA ARRAY LENGTH: {arrayLength} for query: {symbol}");
+                
                 foreach (var item in data.EnumerateArray())
                 {
-                    string author = item.TryGetProperty("author", out var a) ? a.GetString() ?? (handle ?? "") : (handle ?? "");
-                    string content = item.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
-                    string url = item.TryGetProperty("url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
-                    int engagement = item.TryGetProperty("engagement", out var e) ? e.GetInt32() : 0;
-                    int followers = item.TryGetProperty("followerCount", out var fc) ? fc.GetInt32() : 0;
-                    DateTime postDate = DateTime.Now;
-                    if (item.TryGetProperty("postDate", out var pd) && DateTime.TryParse(pd.GetString(), out var parsed))
+                    try
                     {
-                        postDate = parsed;
+                        if (item.ValueKind != JsonValueKind.Object)
+                        {
+                            Logger.Twitter($"⚠️ Skipping non-object item in JSON: {item.ValueKind}");
+                            continue;
+                        }
+
+                        string author = item.TryGetProperty("author", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() ?? (handle ?? "") : (handle ?? "");
+                        string content = item.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() ?? string.Empty : string.Empty;
+                        string url = item.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() ?? string.Empty : string.Empty;
+                        
+                        // Robust integer parsing
+                        int engagement = 0;
+                        if (item.TryGetProperty("engagement", out var e))
+                        {
+                            try {
+                                if (e.ValueKind == JsonValueKind.Number) engagement = e.GetInt32();
+                                else if (e.ValueKind == JsonValueKind.String && int.TryParse(e.GetString(), out var ev)) engagement = ev;
+                            } catch { engagement = 0; }
+                        }
+
+                        int followers = 0;
+                        if (item.TryGetProperty("followerCount", out var fc))
+                        {
+                            if (fc.ValueKind == JsonValueKind.Number) followers = fc.GetInt32();
+                            else if (fc.ValueKind == JsonValueKind.String && int.TryParse(fc.GetString(), out var fcv)) followers = fcv;
+                        }
+
+                        DateTime postDate = DateTime.Now;
+                        if (item.TryGetProperty("postDate", out var pd) && pd.ValueKind == JsonValueKind.String && DateTime.TryParse(pd.GetString(), out var parsed))
+                        {
+                            postDate = parsed;
+                        }
+
+                        string imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : (item.TryGetProperty("image", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null);
+
+                        if ((string.IsNullOrWhiteSpace(content) || content.Length < 10) && string.IsNullOrEmpty(imageUrl)) 
+                        {
+                            continue;
+                        }
+
+                        // GURU DETECTION
+                        bool isGuru = author?.Equals("EFELERiiNEFESi3", StringComparison.OrdinalIgnoreCase) ?? false;
+                        if (!isGuru && author != null && author.Contains("EFELER", StringComparison.OrdinalIgnoreCase)) isGuru = true; 
+
+                        if (!isGuru && ContentQualityGuard.ContainsPrivateLinks(content))
+                        {
+                            continue;
+                        }
+                        
+                        bool isRetweet = item.TryGetProperty("is_retweet", out var ort) && (ort.ValueKind == JsonValueKind.True || ort.ValueKind == JsonValueKind.False) && ort.GetBoolean();
+                        string? origAuthor = item.TryGetProperty("original_author", out var oa) && oa.ValueKind == JsonValueKind.String ? oa.GetString() : null;
+
+                        string finalAuthor = string.IsNullOrWhiteSpace(author) ? (handle ?? "Unknown") : author;
+                        if (!finalAuthor.StartsWith("@")) finalAuthor = "@" + finalAuthor;
+
+                        sink.Add(new InfluencerPost
+                        {
+                            Handle = finalAuthor,
+                            OriginalAuthor = origAuthor,
+                            IsRetweet = isRetweet,
+                            Content = content.Length > 500 ? content.Substring(0, 497) + "..." : content,
+                            Url = url,
+                            PostDate = postDate,
+                            Engagement = engagement,
+                            FollowerCount = followers,
+                            Market = market,
+                            Symbol = symbol.Replace("from:", "").Split(' ')[0],
+                            ImageUrl = imageUrl
+                        });
+
+                        // LIMIT POLICY: 
+                        if (string.IsNullOrEmpty(sinceDate) && sink.Count >= 20) break;
                     }
-
-                    if (string.IsNullOrWhiteSpace(content) || content.Length < 20) 
+                    catch (Exception itemEx)
                     {
-                        Logger.Twitter($"⚠️ SKIPPED (Length<20): {content}");
-                        continue;
+                        Logger.Twitter($"⚠️ Skipping malformed result item: {itemEx.Message} | JSON: {item.GetRawText().Substring(0, Math.Min(500, item.GetRawText().Length))}...");
                     }
-
-                    // TELEGRAM/DISCORD LINK FILTER - BUT ALLOW FOR GURU (@EFELERiiNEFESi3)
-                    bool isGuru = author?.Equals("EFELERiiNEFESi3", StringComparison.OrdinalIgnoreCase) ?? false;
-                    if (!isGuru && ContentQualityGuard.ContainsPrivateLinks(content))
-                    {
-                        Logger.Twitter($"🚫 BLOCKED (Spam): @{author} - Contains Telegram/Discord/Private links");
-                        continue;
-                    }
-                    
-                    if (isGuru && ContentQualityGuard.ContainsPrivateLinks(content))
-                    {
-                        Logger.Twitter($"✅ GURU EXCEPTION: @{author} - Telegram/Discord links ALLOWED for Hoca");
-                    }
-
-                    Logger.Twitter($"✅ ADDING to Sink: {postDate} | Len:{content.Length}");
-
-                    sink.Add(new InfluencerPost
-                    {
-                        Handle = string.IsNullOrWhiteSpace(author) ? (handle ?? "") : author,
-                        Content = content.Length > 500 ? content.Substring(0, 497) + "..." : content,
-                        Url = url,
-                        Engagement = engagement,
-                        RelevanceScore = item.TryGetProperty("relevance_score", out var rs) ? rs.GetInt32() : 0,
-                        FollowerCount = followers,
-                        PostDate = postDate,
-                        ImageUrl = item.TryGetProperty("imageUrl", out var img) ? img.GetString() : (item.TryGetProperty("image", out var i) ? i.GetString() : null)
-                    });
-
-                    if (sink.Count >= 20) break;
                 }
             }
             catch (Exception ex)
             {
                 Logger.Twitter($"⚠️ Influencer search error: {ex.Message}");
             }
+            finally
+            {
+                // v4.4.1: Record search completion time for rate limiting
+                _lastSearchCompletedUtc = DateTime.UtcNow;
+            }
         }
-
         /// <summary>
         /// Get top 10 losers for the day
         /// </summary>
@@ -1274,6 +1899,7 @@ namespace XiDeAI_Pro.Services
                 {
                     return result.data ?? new List<StockData>();
                 }
+
                 return new List<StockData>();
             }
             catch (Exception ex)
@@ -1282,6 +1908,120 @@ namespace XiDeAI_Pro.Services
                 return new List<StockData>();
             }
         }
+
+
+        
+        // v3.4.3: Meta-Teacher Events
+        public event Action<string>? OnMetaTeacherLog;
+        public event Func<InfluencerPost, string, Task>? OnMetaTeacherInsight;
+
+        // public static readonly List<string> CouncilMembers = ... (Moved to JSON)
+
+        /// <summary>
+        /// Dedicated Loop for "Council of AI" (Meta-Teacher)
+        /// Runs independently, logs separately, triggers UI insights.
+        /// </summary>
+        public async Task PerformMetaTeacherLoopAsync()
+        {
+            // Lock to prevent parallel runs of the SAME module
+            if (!await _deepScanLock.WaitAsync(0))
+            {
+                OnMetaTeacherLog?.Invoke("⚠️ Kaynak meşgul (Deep Scan veya başka işlem sürüyor). Bekleniyor...");
+                return; 
+            }
+
+            try
+            {
+                OnMetaTeacherLog?.Invoke("🚀 Meta-Teacher (Wisdom) Döngüsü Başlatıldı...");
+                
+                // Phase 2: Get Dynamic List from JSON
+                var councilList = _influencerControl?.GetMetaTeacherInfluencers() ?? new List<Influencer>();
+                
+                if (councilList.Count == 0)
+                {
+                    OnMetaTeacherLog?.Invoke("⚠️ Konsey listesi boş! (InfluencerData.json kontrol ediniz)");
+                }
+
+                int processedCount = 0;
+
+                foreach (var influencer in councilList)
+                {
+                    string handle = influencer.Handle;
+                    OnMetaTeacherLog?.Invoke($"🔍 Analiz Ediliyor: {handle}...");
+                    
+                    // v3.5 REACH UNLIMITED: Check if we have data since Jan 1st for this handle (Gap Filling)
+                    bool needsDeepScan = true;
+                    if (Memory != null)
+                    {
+                        var h = handle.StartsWith("@") ? handle : "@" + handle;
+                        var handleData = Memory.GetKnowledgeBase().Where(p => p.Author.Equals(h, StringComparison.OrdinalIgnoreCase)).ToList();
+                        if (handleData.Any())
+                        {
+                            var oldest = handleData.Min(p => p.PostDate);
+                            // If we have data reaching back to Jan 1st (within 3 days buffer), we don't need deep scan
+                            if (oldest <= new DateTime(2025, 1, 4)) needsDeepScan = false;
+                        }
+                    }
+
+                    int limit = needsDeepScan ? 500 : 25; 
+                    string? sinceDate = needsDeepScan ? "2025-01-01" : null;
+
+                    if (needsDeepScan) OnMetaTeacherLog?.Invoke($"📜 Boşluk Doldurma Modu (Hedef: 2025-01-01, Limit: 500)...");
+
+                    string query = $"from:{handle.TrimStart('@')} include:nativeretweets";
+                    var posts = await FindInfluencerAnalyses(query, "CRYPTO", null, limit, sinceDate); // Pass sinceDate
+
+                    if (posts != null && posts.Count > 0)
+                    {
+                        // v3.6.6: Dynamic delay based on time of day
+                        var now = DateTime.Now;
+                        bool isBusinessHours = now.DayOfWeek != DayOfWeek.Saturday 
+                                            && now.DayOfWeek != DayOfWeek.Sunday
+                                            && now.Hour >= 9 && now.Hour < 20;
+
+                        foreach (var post in posts)
+                        {
+                            // 1. Memory Learn (Standard)
+                            bool learnt = _memoryEngine?.Learn(post) ?? false;
+                            
+                            // 2. META-TEACHER SPECIAL ANALYSIS
+                            if (OnMetaTeacherInsight != null)
+                            {
+                                await OnMetaTeacherInsight.Invoke(post, "MetaTeacherCycle"); 
+                                
+                                // v3.6.6: Extra delay between INSIGHTS to protect AI rate limits
+                                // During business hours, we wait 15-30s between AI analyses to keep the priority for Signals/News
+                                // At night, we wait 5s.
+                                int aiDelay = isBusinessHours ? 20000 : 5000;
+                                await Task.Delay(aiDelay);
+                            }
+                        }
+                        OnMetaTeacherLog?.Invoke($"✅ {handle}: {posts.Count} yeni veri incelendi.");
+                        processedCount++;
+                    }
+                    else
+                    {
+                        OnMetaTeacherLog?.Invoke($"ℹ️ {handle}: Yeni veri yok.");
+                    }
+
+                    // Respect rate limits hard between influencers
+                    await Task.Delay(5000); 
+                }
+                
+                // _isFirstMetaRun = false; // Removed
+                OnMetaTeacherLog?.Invoke("🏁 Döngü Tamamlandı. Dinlenmeye geçiliyor (10dk).");
+            }
+            catch (Exception ex)
+            {
+                OnMetaTeacherLog?.Invoke($"❌ HATA: {ex.Message}");
+            }
+            finally
+            {
+                _deepScanLock.Release();
+            }
+        }
+
+
 
         /// <summary>
         /// Background process to scan influencers and update Knowledge Base
@@ -1311,7 +2051,6 @@ namespace XiDeAI_Pro.Services
                     logger("ℹ️ Veritabanında fenomen bulunamadı. Tarama yapılamıyor.");
                     return;
                 }
-                
                 // Shuffle and pick 10 (randomized coverage)
                 var rng = new Random();
                 var targets = allInfluencers.OrderBy(x => rng.Next()).Take(10).ToList();
@@ -1367,6 +2106,13 @@ namespace XiDeAI_Pro.Services
                         foreach (var post in posts)
                         {
                             bool learnt = _memoryEngine.Learn(post);
+                            
+                            // Trigger Event for "Hive" Brain to process (e.g. Meta-Teacher)
+                            if (OnDeepScanPostDetected != null) 
+                            { 
+                                await OnDeepScanPostDetected.Invoke(post); 
+                            }
+
                             if (learnt) count++;
                         }
                         

@@ -13,6 +13,7 @@ namespace XiDeAI_Pro.Services
         private System.Threading.Timer? _closeTimer;
         private System.Threading.Timer? _infraTimer;
         private System.Threading.Timer? _guruCheckTimer;
+        private System.Threading.Timer? _apexTimer;
 
         public event Action<string, string>? OnLog;
         public event Func<Task>? OnDailyReportTime;      // 18:30
@@ -22,6 +23,7 @@ namespace XiDeAI_Pro.Services
         public event Func<Task>? OnInfrastructureCheck;  // 02:00 (Nightly)
         public event Action? OnMidnightReset;            // 00:00
         public event Func<Task>? OnGuruCheckTime;        // Recurring (e.g. Every 3h)
+        public event Func<Task>? OnApexArGeTime;         // 09:00 (Ar-Ge Research)
 
         public void Start()
         {
@@ -32,6 +34,7 @@ namespace XiDeAI_Pro.Services
             ScheduleMarketClose();
             ScheduleInfrastructureCheck();
             ScheduleGuruCheck();
+            ScheduleApexArGe();
         }
 
         private void ScheduleInfrastructureCheck(bool skipToday = false)
@@ -188,6 +191,35 @@ namespace XiDeAI_Pro.Services
             }, null, delay, Timeout.InfiniteTimeSpan);
         }
 
+        private void ScheduleApexArGe(bool skipToday = false)
+        {
+            var now = DateTime.Now;
+            var target = new DateTime(now.Year, now.Month, now.Day, 9, 0, 0);
+            
+            if (skipToday || now > target.AddMinutes(30)) target = target.AddDays(1);
+            else if (now > target) target = now.AddSeconds(1);
+
+            var delay = target - now;
+            OnLog?.Invoke($"⏰ Apex Ar-Ge scheduled for {target:HH:mm:ss} (In {delay.TotalHours:N1}h)", "System");
+
+            _apexTimer?.Dispose();
+            _apexTimer = new System.Threading.Timer(async _ =>
+            {
+                try
+                {
+                    if (OnApexArGeTime != null) await OnApexArGeTime.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"❌ Apex Ar-Ge Error: {ex.Message}", "System");
+                }
+                finally
+                {
+                    ScheduleApexArGe(true);
+                }
+            }, null, delay, Timeout.InfiniteTimeSpan);
+        }
+
         private void ScheduleGuruCheck()
         {
             var now = DateTime.Now;
@@ -251,6 +283,7 @@ namespace XiDeAI_Pro.Services
             _closeTimer?.Dispose();
             _infraTimer?.Dispose();
             _guruCheckTimer?.Dispose();
+            _apexTimer?.Dispose();
         }
     }
 }

@@ -152,6 +152,55 @@ namespace XiDeAI_Pro.Services
         /// <summary>
         /// 4 parçalı sinyal thread'i - Etkileşim optimizasyonlu
         /// </summary>
+        public async Task<(bool success, string error)> PostAIGeneratedThread(SignalData signal, string aiThreadContent, string chartImagePath)
+        {
+             string inflightKey = BuildSignalKey(signal);
+             if (!_inflightSignalPosts.TryAdd(inflightKey, DateTime.UtcNow))
+                 return (false, "Benzer thread şu an gönderiliyor.");
+
+             try
+             {
+                 var tweets = new List<string>();
+                 if (aiThreadContent.Contains("|||"))
+                 {
+                     var parts = aiThreadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
+                     foreach (var p in parts) tweets.Add(SanitizeXContent(p));
+                 }
+                 else
+                 {
+                     tweets.Add(SanitizeXContent(aiThreadContent));
+                 }
+                 
+                 // Fallback for single tweet if something went wrong
+                 if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
+
+                 var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
+                 
+                 if (result.status == "success")
+                 {
+                    var cfg = ConfigManager.Current;
+                    cfg.CheckReset();
+                    cfg.DailyTotalTweetCount++;
+                    cfg.MonthlyTotalTweetCount++;
+                    ConfigManager.Save();
+                    _stats?.RecordTweet("HybridEngine", tweets.Count, signal.Symbol, tweets[0]);
+                    return (true, "");
+                 }
+                 return (false, result.message ?? result.text);
+             }
+             catch (Exception ex)
+             {
+                 return (false, ex.Message);
+             }
+             finally
+             {
+                 _inflightSignalPosts.TryRemove(inflightKey, out _);
+             }
+        }
+
+        /// <summary>
+        /// 4 parçalı sinyal thread'i - Etkileşim optimizasyonlu
+        /// </summary>
         public async Task<(bool success, string error)> PostSignalThread(SignalData signal, string chartImagePath, string tvLink, string trends, string? customAnalysis = null, List<InfluencerPost>? influencerPosts = null)
         {
              // In-flight guard for single-signal thread
@@ -233,6 +282,12 @@ namespace XiDeAI_Pro.Services
                     foreach (var p in analysisParts) tweets.Add(p);
                 }
 
+                // v3.5.4: Sanitize all tweets before finalizing
+                for (int i = 0; i < tweets.Count; i++)
+                {
+                    tweets[i] = SanitizeXContent(tweets[i]);
+                }
+
                 // ============================================
                 // Tweet 4: HİBRİT ALINTILAR & ETİKETLER
                 // ============================================
@@ -261,12 +316,12 @@ namespace XiDeAI_Pro.Services
                 
                 if (result.status == "success")
                 {
-                    // Increment Counters (Sync with TwitterService logic)
+                    // Increment Counters (Web/Selenium only - NOT API counters)
                     var cfg = ConfigManager.Current;
                     cfg.CheckReset();
-                    cfg.DailyTweetCount++;
+                    // DailyTweetCount ve MonthlyTweetCount SADECE API için
+                    // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
                     cfg.DailyTotalTweetCount++;
-                    cfg.MonthlyTweetCount++;
                     cfg.MonthlyTotalTweetCount++;
                     ConfigManager.Save();
                     
@@ -332,6 +387,37 @@ namespace XiDeAI_Pro.Services
             }
             if (!string.IsNullOrEmpty(text)) parts.Add(text);
             return parts;
+        }
+
+        private string SanitizeXContent(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // 1. Remove Markdown Bold (Stars)
+            text = text.Replace("**", "");
+
+            // 2. Remove Robotic Headers (Case insensitive, various formats)
+            string[] patterns = { 
+                "TWEET 1", "TWEET 2", "TWEET 3", "TWEET 4", "TWEET 5",
+                "==== ", " ====", "::::", "----", "####" 
+            };
+            
+            foreach(var p in patterns)
+            {
+                // We use a simple replace but check for common bot-like markers
+                if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    // If it's a standalone marker line like "==== TWEET 1 ====", remove the whole line
+                    var lines = text.Split('\n');
+                    var cleanLines = lines.Where(l => !l.Contains("TWEET", StringComparison.OrdinalIgnoreCase) && !l.Contains("===")).ToList();
+                    text = string.Join("\n", cleanLines).Trim();
+                }
+            }
+
+            // Clean up multiple newlines
+            while (text.Contains("\n\n\n")) text = text.Replace("\n\n\n", "\n\n");
+
+            return text.Trim();
         }
 
         private List<string> ExtractUniqueHashtags(string trends, string symbol, string existingContent = "")
@@ -511,12 +597,12 @@ namespace XiDeAI_Pro.Services
                 
                 if (result.status == "success")
                 {
-                    // Increment Counters
+                    // Increment Counters (Web/Selenium only - NOT API counters)
                     var cfg = ConfigManager.Current;
                     cfg.CheckReset();
-                    cfg.DailyTweetCount++;
+                    // DailyTweetCount ve MonthlyTweetCount SADECE API için
+                    // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
                     cfg.DailyTotalTweetCount++;
-                    cfg.MonthlyTweetCount++;
                     cfg.MonthlyTotalTweetCount++;
                     ConfigManager.Save();
                 }
@@ -532,6 +618,48 @@ namespace XiDeAI_Pro.Services
             {
                 // Ensure in-flight key is released
                 _inflightBatchPosts.TryRemove(batchKey, out _);
+            }
+        }
+
+        /// <summary>
+        /// Posts a viral thread generated by Hive Intel (OmniScout)
+        /// </summary>
+        public async Task<bool> PostHiveInsightsThread(string threadContent)
+        {
+            try
+            {
+                var tweets = new List<string>();
+                if (threadContent.Contains("|||"))
+                {
+                     var parts = threadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
+                     foreach (var p in parts) tweets.Add(p.Trim());
+                }
+                else
+                {
+                    // Default generic split
+                    tweets = SplitText(threadContent, 280); 
+                }
+                
+                for(int i=0; i<tweets.Count; i++) tweets[i] = SanitizeXContent(tweets[i]);
+
+                var result = await _socialIntel.PostThreadAsync(tweets);
+                if (result.status == "success")
+                {
+                     var cfg = ConfigManager.Current;
+                     cfg.CheckReset();
+                     cfg.DailyTotalTweetCount += tweets.Count;
+                     cfg.MonthlyTotalTweetCount += tweets.Count;
+                     ConfigManager.Save();
+                     
+                     _stats?.RecordTweet("HiveIntel", tweets.Count, "", tweets.FirstOrDefault() ?? "");
+                     return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Logger.Twitter($"❌ Hive Tweet Error: {ex.Message}");
+                return false;
             }
         }
 
@@ -693,14 +821,28 @@ namespace XiDeAI_Pro.Services
 
             string symUpper = symbol.ToUpperInvariant();
             
-            // STRICT FILTER: Content MUST mention the symbol (#SEM, $SEM or SEM)
-            // This avoids general comments like "Borsa iyi gidiyor" without actual stock mention.
+            // STRICT FILTER with Anti-Noise Logic
+            string currentUser = ConfigManager.Current.XLoginUser?.Replace("@", "").Trim() ?? "";
             var relevantBySymbol = posts.Where(p => {
                 string content = p.Content?.ToUpperInvariant() ?? "";
+                string handle = p.Handle?.Replace("@", "").Trim() ?? "";
+                
+                // 1. Don't include self
+                if (!string.IsNullOrEmpty(currentUser) && handle.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                // 2. Anti-Noise: If symbol is SMART, but content is talking about "Smart Money" concept
+                if (symUpper == "SMART")
+                {
+                    // If it contains "SMART MONEY" but NOT "#SMART" or "$SMART", it's likely noise
+                    if (content.Contains("SMART MONEY") && !content.Contains("#SMART") && !content.Contains("$SMART"))
+                        return false;
+                }
+
+                // 3. Word Boundary & Tag Match
                 return content.Contains($"#{symUpper}") || 
                        content.Contains($"${symUpper}") || 
-                       content.Contains($" {symUpper}") || 
-                       content.Contains($"\n{symUpper}");
+                       System.Text.RegularExpressions.Regex.IsMatch(content, $@"\b{symUpper}\b");
             }).ToList();
 
             if (relevantBySymbol.Count == 0) return string.Empty;
@@ -838,24 +980,31 @@ namespace XiDeAI_Pro.Services
                 tweets.Add(tweet2);
 
                 // Tweet 3: Top Gainers (Top 10)
-                string topGainers = string.Join("\n", market.TopGainers.Take(10).Select(s => $"🚀 #{s.Symbol} %{s.ChangePercent:+0.00}"));
+                string topGainers = FormatMovers(market.TopGainers, "Kazananlar");
                 string tweet3 = $"🔥 GÜNÜN EN ÇOK YÜKSELENLERİ\n\n" +
                                $"{topGainers}\n\n" +
                                $"📌 Hacimli yükseliş gösteren semboller.";
                 tweets.Add(tweet3);
 
                 // Tweet 4: Top Losers (Top 10)
-                string topLosers = string.Join("\n", market.TopLosers.Take(10).Select(s => $"🔻 #{s.Symbol} %{s.ChangePercent:0.00}"));
+                string topLosers = FormatMovers(market.TopLosers, "Kaybedenler");
                 string tweet4 = $"📉 GÜNÜN EN ÇOK DÜŞENLERİ\n\n" +
                                $"{topLosers}\n\n" +
                                $"📌 Negatif ayrışan semboller.";
                 tweets.Add(tweet4);
 
-                // Tweet 5: Closing
-                string tweet5 = $"🏆 GÜNÜN ANALİZİ TAMAMLANDI\n\n" +
+                // Tweet 5: Top Volume (Top 10) - NEW
+                string topVolume = FormatMovers(market.TopVolume, "Hacim Liderleri");
+                string tweet5 = $"💎 GÜNÜN HACİM LİDERLERİ\n\n" +
+                               $"{topVolume}\n\n" +
+                               $"📌 Yatırımcıların en çok ilgi gösterdiği hisseler.";
+                tweets.Add(tweet5);
+
+                // Tweet 6: Closing
+                string tweet6 = $"🏆 GÜNÜN ANALİZİ TAMAMLANDI\n\n" +
                                $"Piyasa verileri anlık olarak takip edilmektedir.\n\n" +
                                $"{trends}" + DISCLAIMER;
-                tweets.Add(tweet5);
+                tweets.Add(tweet6);
 
                 var result = await _socialIntel.PostThreadAsync(tweets);
                 return result.status == "success";
@@ -1039,6 +1188,15 @@ namespace XiDeAI_Pro.Services
             }
 
             return string.Join(" ", selected);
+        }
+        private string FormatMovers(List<MarketMover> movers, string type)
+        {
+            if (movers == null || movers.Count == 0) return "⚠️ Veri bulunamadı.";
+            return string.Join("\n", movers.Take(10).Select(s => 
+            {
+               string icon = type == "Kazananlar" ? "🚀" : type == "Kaybedenler" ? "🔻" : "💎";
+               return $"{icon} #{s.Symbol} %{s.ChangePercent:+0.00}";
+            }));
         }
     }
 }

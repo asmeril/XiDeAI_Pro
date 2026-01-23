@@ -10,6 +10,7 @@ namespace XiDeAI_Pro.Services
         private readonly string _scriptPath;
         private readonly string _outputDir;
         private readonly Action<string> _logger;
+        private static readonly System.Threading.SemaphoreSlim _semaphore = new System.Threading.SemaphoreSlim(1, 1); // v3.7.1: Serialized Screenshots
 
         public ScreenshotService(string scriptPath, string outputDir, Action<string>? logger = null)
         {
@@ -19,6 +20,9 @@ namespace XiDeAI_Pro.Services
 
             if (!Directory.Exists(_outputDir))
                 Directory.CreateDirectory(_outputDir);
+            
+            // Auto-cleanup old screenshots on service start
+            CleanupOldScreenshots();
         }
 
         /// <summary>
@@ -26,6 +30,8 @@ namespace XiDeAI_Pro.Services
         /// </summary>
         public async Task<string?> CaptureChart(string symbol, string period = "60", string chartId = "GDHgGCEv")
         {
+            // v3.7.1: Concurrency Control
+            await _semaphore.WaitAsync();
             try
             {
                 if (string.IsNullOrEmpty(chartId)) chartId = "GDHgGCEv";
@@ -37,15 +43,46 @@ namespace XiDeAI_Pro.Services
                     return null;
                 }
 
-                // Get ChromeDriver path from DependencyManager's location
-                string chromedriverPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "XiDeAI", "drivers", "chromedriver.exe"
-                );
+                // Get ChromeDriver path (Check AppData and Local App Dir)
+                string appDir = AppDomain.CurrentDomain.BaseDirectory;
+                string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
+                
+                string[] possiblePaths = new[] 
+                {
+                    Path.Combine(localAppData, "drivers", "chromedriver.exe"), // Priority 1: User Data
+                    Path.Combine(appDir, "drivers", "chromedriver.exe"),       // Priority 2: Portable/Install Dir
+                    Path.Combine(appDir, "chromedriver.exe")                   // Priority 3: Root
+                };
+
+                string chromedriverPath = possiblePaths.FirstOrDefault(File.Exists);
+                
+                // Fallback: If not found in specific paths, check if it's in PATH or try to find it recursively in likely places
+                if (string.IsNullOrEmpty(chromedriverPath))
+                {
+                    _logger($"⚠️ ChromeDriver standart yollarda bulunamadı, alternatifler aranıyor...");
+                     // Check common installation paths
+                    string[] extraPaths = {
+                         @"C:\Program Files\Google\Chrome\Application\chromedriver.exe",
+                         @"C:\Program Files (x86)\Google\Chrome\Application\chromedriver.exe",
+                         Path.Combine(appDir, "..", "drivers", "chromedriver.exe"),
+                         @"C:\Users\asmeril\AppData\Local\XiDeAI\drivers\chromedriver.exe" // Server Specific Path
+                    };
+                    chromedriverPath = extraPaths.FirstOrDefault(File.Exists);
+                }
+
+                if (string.IsNullOrEmpty(chromedriverPath))
+                {
+                     chromedriverPath = possiblePaths[0]; // Default to appdata path to let script complain or try its own resolution
+                     _logger($"⚠️ KRİTİK: ChromeDriver hiçbir yerde bulunamadı! Varsayılan yol denenecek: {chromedriverPath}");
+                }
+                else
+                {
+                    _logger($"✅ ChromeDriver bulundu: {chromedriverPath}");
+                }
                 
                 if (!File.Exists(chromedriverPath))
                 {
-                    _logger($"⚠️ ChromeDriver bulunamadı: {chromedriverPath}");
+                    _logger($"⚠️ ChromeDriver bulunamadı! (Aranan: {string.Join(", ", possiblePaths)})");
                 }
                 
                 var psi = new ProcessStartInfo
@@ -127,6 +164,10 @@ namespace XiDeAI_Pro.Services
                 _logger($"❌ Screenshot exception: {ex.Message}");
                 return null;
             }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
         /// <summary>
@@ -147,4 +188,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

@@ -4,6 +4,15 @@ using System.Linq;
 
 namespace XiDeAI_Pro.Services
 {
+    // v4.3.0: Content Tier for Hybrid Signal Intelligence
+    public enum ContentTier
+    {
+        Premium,    // 85-100: 4-5 tweet, detaylı analiz
+        Standard,   // 70-84: 3 tweet, standart thread
+        Summary,    // 55-69: 1-2 tweet, özet
+        Notification // < 55: Sadece log/telegram bildirim
+    }
+
     public class SignalData
     {
         public string Symbol { get; set; } = "";
@@ -17,6 +26,9 @@ namespace XiDeAI_Pro.Services
         public bool IsRepeat { get; set; }
         public string Basis { get; set; } = "TL"; // TL, USD, EUR, XU100
         
+        // v4.3.0: Common Scan Flag
+        public bool IsCommonScan { get; set; } = false;
+        
         // Rich Report Data (V3)
         public decimal Open { get; set; }
         public decimal High { get; set; }
@@ -25,6 +37,75 @@ namespace XiDeAI_Pro.Services
         public decimal Volume { get; set; }
         public decimal IndexClose { get; set; } // XU100 Close
         public string? Analysis { get; set; } // Manual/AI Analysis Content
+
+        // v4.3.0: Hybrid Signal Intelligence Properties
+        
+        /// <summary>
+        /// Normalize edilmiş skor (0-100 arası)
+        /// </summary>
+        public int NormalizedScore => MaxScore > 0 ? (Score * 100 / MaxScore) : 0;
+        
+        /// <summary>
+        /// Strateji bazlı bonus (0-100)
+        /// </summary>
+        public int StrategyBonus
+        {
+            get
+            {
+                string strat = Strategy.ToUpperInvariant();
+                if (strat.Contains("KING") || strat == "K") return 100;
+                if (strat.Contains("BOMBA") || strat == "B") return 90;
+                if (strat.Contains("TEFO") || strat == "T") return 85;
+                if (strat.Contains("ANKA")) return 80;
+                if (strat.Contains("DIP")) return 75;
+                if (strat.Contains("ZIRVE")) return 70;
+                return 50; // Varsayılan
+            }
+        }
+        
+        /// <summary>
+        /// Periyot bazlı bonus (0-100)
+        /// </summary>
+        public int PeriodBonus
+        {
+            get
+            {
+                string p = Period.ToUpperInvariant().Trim();
+                if (p == "G" || p == "D" || p == "GÜNLÜK" || p == "1440") return 100;
+                if (p == "240" || p == "4H") return 80;
+                if (p == "60" || p == "1H") return 60;
+                if (p == "15" || p == "15M") return 40;
+                return 30; // Daha kısa periyotlar
+            }
+        }
+        
+        /// <summary>
+        /// Kompozit Final Skor (0-100)
+        /// Formula: (NormalizedScore × 0.5) + (PeriodBonus × 0.2) + (StrategyBonus × 0.2) + (CommonScanBonus × 0.1)
+        /// </summary>
+        public int FinalScore
+        {
+            get
+            {
+                int commonBonus = IsCommonScan ? 100 : 0;
+                double final = (NormalizedScore * 0.5) + (PeriodBonus * 0.2) + (StrategyBonus * 0.2) + (commonBonus * 0.1);
+                return (int)Math.Round(final);
+            }
+        }
+        
+        /// <summary>
+        /// FinalScore'a göre içerik seviyesi
+        /// </summary>
+        public ContentTier Tier
+        {
+            get
+            {
+                if (FinalScore >= 85) return ContentTier.Premium;
+                if (FinalScore >= 70) return ContentTier.Standard;
+                if (FinalScore >= 55) return ContentTier.Summary;
+                return ContentTier.Notification;
+            }
+        }
 
         public string Market
         {

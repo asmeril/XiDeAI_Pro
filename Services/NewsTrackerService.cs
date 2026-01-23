@@ -33,7 +33,8 @@ namespace XiDeAI_Pro.Services
         };
 
         private readonly HashSet<string> _seenLinks = new HashSet<string>();
-        private readonly HttpClient _client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        private readonly HashSet<string> _seenTitles = new HashSet<string>(); // v3.5.2: String similarity fallback
+        private readonly HttpClient _client;
 
         private readonly GeminiService _gemini = null!;
         private readonly SocialIntelService _socialIntel = null!;
@@ -72,6 +73,10 @@ namespace XiDeAI_Pro.Services
         {
             _gemini = gemini;
             _socialIntel = socialIntel;
+
+            _client = new HttpClient();
+            _client.Timeout = TimeSpan.FromSeconds(90); // v3.6.5: Increased for AA RSS latency
+            _client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             
             // Determine path for history file
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -127,7 +132,8 @@ namespace XiDeAI_Pro.Services
         {
             LogAction?.Invoke("🔍 Haberler taranıyor...", "News");
             var newsList = await FetchAllNews();
-            var threshold = DateTime.Now.AddHours(-24);
+            // v3.8.2: Extended to 48h to capture weekend flow
+            var threshold = DateTime.Now.AddHours(-48);
 
             // Sort by date (newest first)
             newsList = newsList.OrderByDescending(n => n.PubDate).ToList();
@@ -136,13 +142,19 @@ namespace XiDeAI_Pro.Services
             {
                 // v3.6.4: Skip legacy news (Recency Filter)
                 if (news.PubDate < threshold) continue;
-                if (!_seenLinks.Contains(news.Link))
+
+                string cleanTitle = news.Title.Trim().ToLower();
+                bool isNewLink = !_seenLinks.Contains(news.Link);
+                bool isNewTitle = !_seenTitles.Contains(cleanTitle);
+
+                if (isNewLink && isNewTitle)
                 {
                     _seenLinks.Add(news.Link);
+                    _seenTitles.Add(cleanTitle);
                     
                     // Keep cache size manageable
-                    if (_seenLinks.Count > 1000) 
-                        _seenLinks.Remove(_seenLinks.First());
+                    if (_seenLinks.Count > 1000) _seenLinks.Remove(_seenLinks.First());
+                    if (_seenTitles.Count > 1000) _seenTitles.Remove(_seenTitles.First());
                         
                     SaveHistory(); // Persist on change
 
@@ -173,9 +185,13 @@ namespace XiDeAI_Pro.Services
             // 2. Selenium X News (Blocking call, run in parallel or careful)
             try 
             {
+               LogAction?.Invoke("📡 X (Twitter) üzerinden son dakika haberleri çekiliyor...", "News");
                await FetchXNews(allNews); 
             }
-            catch {}
+            catch (Exception ex)
+            {
+                LogAction?.Invoke($"❌ X haber çekilirken kritik hata: {ex.Message}", "News");
+            }
 
             return allNews;
         }
@@ -208,12 +224,21 @@ namespace XiDeAI_Pro.Services
                 foreach (var item in result.data)
                 {
                     // Basic duplicate check is done later by Link/Content
+                    // v3.6.5: Use specific tweet URL for robust deduplication
+                    string tweetUrl = string.IsNullOrWhiteSpace(item.url) ? $"https://X.com/{item.source}" : item.url;
+                    
+                    DateTime pubDate = DateTime.Now;
+                    if (!string.IsNullOrEmpty(item.time) && DateTime.TryParse(item.time, out DateTime parsedDt))
+                    {
+                        pubDate = parsedDt;
+                    }
+
                     allNews.Add(new NewsItem
                     {
                         Title = item.text.Length > 100 ? item.text.Substring(0, 97) + "..." : item.text,
-                        Link = $"https://twitter.com/{item.source}", // Generic link as specific ID is hard to get reliably without more parsing
+                        Link = tweetUrl,
                         Source = $"X ({item.source})",
-                        PubDate = DateTime.Now // Real time is better but parsed time is okay too
+                        PubDate = pubDate 
                     });
                 }
             }
@@ -258,7 +283,10 @@ namespace XiDeAI_Pro.Services
                     }
                 }
             }
-            catch { /* Ignore individual feed errors */ }
+            catch (Exception ex)
+            {
+                LogAction?.Invoke($"⚠️ RSS Beslemesi Hatası ({url}): {ex.Message}", "News");
+            }
             return items;
         }
     }

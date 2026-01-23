@@ -18,6 +18,8 @@ import threading
 import atexit
 from pathlib import Path
 from datetime import datetime, timezone
+import requests
+from bs4 import BeautifulSoup
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -75,9 +77,208 @@ class ChromeDriverPool:
                 cls._driver = None
                 cls._creation_time = None
 
+# =========================================================
+# GLOBAL HELPERS FOR ROBUST INTERACTION
+# =========================================================
+
+def human_delay(min_s=2.0, max_s=5.0):
+    """Sleep for a random amount of time to mimic human behavior"""
+    sleep_time = random.uniform(min_s, max_s)
+    # print(f"DEBUG: Human delay {sleep_time:.2f}s", file=sys.stderr)
+    time.sleep(sleep_time)
+
+def atomic_clear(elem, driver=None):
+    """Aggressively clears a contenteditable element (React-safe)"""
+    try:
+        from selenium.webdriver.common.keys import Keys
+        elem.click()
+        if driver: driver.execute_script("arguments[0].focus();", elem)
+        time.sleep(0.2)
+        
+        # 1. Select All + Backspace (Standard)
+        elem.send_keys(Keys.CONTROL, 'a')
+        time.sleep(0.1)
+        elem.send_keys(Keys.BACKSPACE)
+        
+        # 2. Hard JS Clear (React Reset)
+        if driver:
+            driver.execute_script("""
+                var e = arguments[0];
+                e.value = '';
+                e.innerText = '';
+                e.textContent = '';
+                document.execCommand('delete');
+            """, elem)
+        time.sleep(0.5)
+        
+        # 3. Check emptiness
+        if len(elem.text.strip()) > 0:
+            print("Warning: Element not empty after clean. Forcing delete loop...", file=sys.stderr)
+            for _ in range(20): # Force delete loop
+                elem.send_keys(Keys.BACKSPACE)
+                if len(elem.text.strip()) == 0: break
+    except: pass
+
+
+def robust_type_and_verify(driver, element, text, tweet_index=0):
+    """ULTRA-ROBUST TYPING WITH BUTTON STATE CHECK - Ported from v3.4.1 Backup"""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    import json
+    
+    # LOG TEXT STATS
+    print(f"DEBUG: Tweet {tweet_index} text length: {len(text)} chars", file=sys.stderr)
+    
+    methods = ["clipboard", "sendkeys", "js_insert"]
+    
+    for attempt, method in enumerate(methods):
+        # ALWAYS CLEAN BEFORE TYPING
+        atomic_clear(element, driver)
+        human_delay(1.0, 2.5) # Safety Delay before typing
+        
+        print(f"Typing tweet {tweet_index} using {method}...", file=sys.stderr)
+        
+        print(f"Typing tweet {tweet_index} using {method}...", file=sys.stderr)
+        
+        if method == "clipboard":
+            try:
+                import pyperclip
+                pyperclip.copy(text)
+                element.send_keys(Keys.CONTROL, 'v')
+            except Exception as e:
+                print(f"Clipboard fail: {e}", file=sys.stderr)
+        
+        elif method == "sendkeys":
+            try:
+                 # Batch send
+                element.send_keys(text)
+            except: pass
+
+        elif method == "js_insert":
+            try:
+                js_text = json.dumps(text)
+                driver.execute_script(f"""
+                    var elem = arguments[0];
+                    elem.focus();
+                    document.execCommand('insertText', false, {js_text});
+                    elem.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    elem.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                """, element)
+                
+                # WAKE UP REACT: Send dummy key press to force state update
+                # This fixes the "Ghost Text" issue where placeholder remains visible
+                time.sleep(0.2)
+                try:
+                    element.send_keys(" ")
+                    time.sleep(0.1)
+                    element.send_keys(Keys.BACKSPACE)
+                except: pass
+            except: pass
+        
+        # VERIFICATION WAIT (Increased to 3s for React sync stability)
+        time.sleep(3.0) 
+        
+        # VISUAL VERIFICATION: Check length ratio
+        current_text = element.text.strip()
+        input_len = len(text.strip())
+        current_len = len(current_text)
+        
+        # If duplication occurred, length will be roughly 2x (or > 1.5x)
+        if input_len > 50 and current_len > input_len * 1.5:
+             print(f"DUPLICATION DETECTED! Input: {input_len}, Current: {current_len}. Retrying...", file=sys.stderr)
+             continue # Fail this method, try next (which triggers clean)
+        
+        # SUCCESS CHECK: Is button enabled?
+        try:
+            # Try multiple post button selectors
+            selectors = ["[data-testid='tweetButtonInline']", "[data-testid='tweetButton']", "div[role='button'][data-testid$='Button']"]
+            for sel in selectors:
+                btns = driver.find_elements(By.CSS_SELECTOR, sel)
+                for btn in btns:
+                    if btn.is_enabled() and btn.get_attribute("aria-disabled") != "true" and btn.is_displayed():
+                        print(f"Success! Tweet button enabled after {method}.", file=sys.stderr)
+                        return True
+        except: pass
+        
+        # Fallback text check
+        if input_len > 0 and current_len >= input_len * 0.9:
+            return True
+    
+    return False
+
+def _make_heuristic_hints(ua_string):
+    """Generate likely Client Hints from User-Agent string"""
+    import re
+    # Default to Windows 10 safe values
+    hints = {
+        "platform": "Windows",
+        "mobile": False,
+        "brands": [{"brand": "Not=A?Brand", "version": "99"}],
+        "fullVersion": "120.0.0.0",
+        "platformVersion": "10.0.0",
+        "architecture": "x86",
+        "model": "",
+        "bitness": "64",
+        "wow64": False
+    }
+    
+    if "Windows NT 10.0" in ua_string: 
+        hints["platform"] = "Windows"
+        hints["platformVersion"] = "10.0.0"
+    elif "Mac OS X" in ua_string: 
+        hints["platform"] = "macOS"
+        hints["platformVersion"] = "13.0.0" # Safe default
+    elif "Linux" in ua_string: 
+        hints["platform"] = "Linux"
+        hints["platformVersion"] = "5.4.0"
+    
+    ver = "120"
+    # Match Chrome/120 or Edg/120
+    match = re.search(r"(Chrome|Edg)/(\d+)", ua_string)
+    if match: 
+        ver = match.group(2)
+        hints["fullVersion"] = f"{ver}.0.0.0"
+    
+    brand = "Google Chrome"
+    if "Edg/" in ua_string: 
+        brand = "Microsoft Edge"
+        
+    hints["brands"] = [
+        {"brand": brand, "version": ver},
+        {"brand": "Chromium", "version": ver},
+        {"brand": "Not=A?Brand", "version": "99"}
+    ]
+    return hints
+
 def _create_driver_internal(headless=True, use_undetected=False):
     """Internal driver creation (moved from setup_driver)"""
     ensure_dirs()
+
+    # v4.4.7: Deep Identity Sync (Client Hints)
+    use_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    use_hints = None
+    
+    json_file = APPDATA_DIR / "twitter_cookies.json"
+    if json_file.exists():
+        try:
+            import json
+            data = json.loads(json_file.read_text())
+            for item in data:
+                if "meta_user_agent" in item:
+                    use_ua = item["meta_user_agent"]
+                if "meta_client_hints" in item:
+                    use_hints = item["meta_client_hints"]
+                    # Ensure mobile is boolean
+                    if "mobile" in use_hints and isinstance(use_hints["mobile"], str):
+                         use_hints["mobile"] = (use_hints["mobile"].lower() == "true")
+            
+            if use_hints:
+                print(f"✅ Deep Identity Synced: {use_ua[:30]}... + Metadata", file=sys.stderr)
+            elif use_ua:
+                # v4.4.8: Heuristic Generation if deep data missing
+                use_hints = _make_heuristic_hints(use_ua)
+                print(f"✅ Heuristic Identity Generated: {use_ua[:30]}...", file=sys.stderr)
+        except: pass
     
     if os.environ.get("X_VISIBLE") == "1":
         headless = False
@@ -139,7 +340,7 @@ def _create_driver_internal(headless=True, use_undetected=False):
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    options.add_argument(f"user-agent={use_ua}")
     
     # OPTIMIZATION: Fast page load (images enabled; blocking breaks X UI/media previews)
     options.page_load_strategy = 'eager'
@@ -151,9 +352,11 @@ def _create_driver_internal(headless=True, use_undetected=False):
         else:
             driver = webdriver.Chrome(options=options)
         
-        driver.execute_cdp_cmd('Network.setUserAgentOverride', {
-            "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        })
+        ua_override = {"userAgent": use_ua}
+        if use_hints:
+            ua_override["userAgentMetadata"] = use_hints
+            
+        driver.execute_cdp_cmd('Network.setUserAgentOverride', ua_override)
 
         try:
             driver.set_page_load_timeout(25)
@@ -180,15 +383,15 @@ atexit.register(_cleanup_driver_pool)
 # RELEVANCE FILTER / BLACKLIST
 BLACKLIST_KEYWORDS = [
     "rahmet", "taziye", "mekanı cennet", "nur içinde", "başsağlığı", "vefat", "kandiliniz", "bayramınız", 
-    "kutlu olsun", "mübarek olsun", "futbol", "gol", "maç sonucu", "penaltı", "fenerbahçe", "galatasaray", 
-    "beşiktaş", "şampiyonlık", "kombine", "istifa", "ayet", "sure", "bakara", "allah", "amin", "siyaset", 
+    "kutlu olsun", "mübarek olsun", "futbol", "gol", "maç sonucu", "penaltı", "şampiyonlık", "kombine", "istifa", "ayet", "sure", "bakara", "allah", "amin", "siyaset", 
     "bakan", "parti", "chp", "akp", "mhp", "belediye", "başkan", "ziyaret", "hayırlı", "düğün", "nişan", 
     "açılış", "teşkilat", "muhtar"
 ]
 
 TECHNICAL_KEYWORDS = [
     "grafik", "analiz", "teknik", "rsi", "macd", "direnç", "destek", "kırılım", "hedef", 
-    "mum", "formasyon", "fibo", "pivot", "borsa", "endeks", "hisse", "finans", "trade", "chart"
+    "mum", "formasyon", "fibo", "pivot", "borsa", "endeks", "hisse", "finans", "trade", "chart",
+    "hma", "ema", "sma", "ho", "ortalaması", "ortalama"
 ]
 
 # SPAM FILTER: Private link patterns (Telegram, Discord, etc.)
@@ -203,6 +406,9 @@ PRIVATE_LINK_PATTERNS = [
     r"(?:ses\s+kayd|audio).*telegram",                            # Audio/voice content on Telegram
 ]
 
+# v3.7.2: Common symbol words that cause noise (matched exactly or with $)
+COMMON_STOCK_WORDS = ["LOGO", "INFO", "LINK", "DATA", "SAFE", "ARK", "NEAR", "BIST", "GOLD", "OIL", "GAS"]
+
 def calculate_relevance_score(text, symbol_hint, has_image=False):
     """
     Calculate a relevance score for a tweet.
@@ -216,6 +422,14 @@ def calculate_relevance_score(text, symbol_hint, has_image=False):
     for pattern in PRIVATE_LINK_PATTERNS:
         if re.search(pattern, text, re.IGNORECASE):
             return -1000  # Spam/Commercial content
+
+    # 0.b Facebook Cross-Post / Irrelevant Check (Specific for "FB" token confusion)
+    # If looking for "FB" (Fenerbahçe) but text mentions "facebook", "fb.com", "instagram"
+    if "facebook" in text.lower() or "fb.com" in text.lower() or "instagram" in text.lower():
+        # Check if we are in a non-tech context for FB (i.e. Fan Zone)
+        # If symbol_hint implies Fenerbahce context
+        if symbol_hint and any(x in symbol_hint.upper() for x in ["FB", "FENER"]):
+             return -1000
     
     # 1. Blacklist check
     for kw in BLACKLIST_KEYWORDS:
@@ -226,11 +440,23 @@ def calculate_relevance_score(text, symbol_hint, has_image=False):
     has_symbol = False
     if symbol_hint:
         sym = symbol_hint.upper().replace("#", "").replace("$", "")
-        if (f"${sym}" in text_upper or 
-            f"#{sym}" in text_upper or 
-            (len(sym) >= 3 and f" {sym} " in f" {text_upper} ")):
-            score += 50
-            has_symbol = True
+        is_common = sym in COMMON_STOCK_WORDS
+        
+        # Stricter matching for common words (must have $ or # prefix)
+        if is_common:
+            if f"${sym}" in text_upper or f"#{sym}" in text_upper:
+                score += 80 # Higher reward for direct hit on common stock
+                has_symbol = True
+            elif f" {sym} " in f" {text_upper} ":
+                # Common word without marker: huge penalty unless it has tech keywords
+                score -= 400 
+        else:
+            # Normal matching for unique symbols
+            if (f"${sym}" in text_upper or 
+                f"#{sym}" in text_upper or 
+                (len(sym) >= 3 and f" {sym} " in f" {text_upper} ")):
+                score += 50
+                has_symbol = True
             
     # 3. Technical Keywords (+15 each)
     found_tech = 0
@@ -269,11 +495,14 @@ def ensure_dirs():
     APPDATA_DIR.mkdir(parents=True, exist_ok=True)
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 
-def setup_driver(headless=True, use_undetected=False):
+def setup_driver(headless=True, use_undetected=False, bypass_pool=False):
     """
     DEPRECATED: Use ChromeDriverPool.get() instead for better performance.
     Kept for backward compatibility with interactive login.
     """
+    if bypass_pool:
+        print(f"[SCRIPTS] Creating fresh BYPASS driver (headless={headless})...", file=sys.stderr)
+        return _create_driver_internal(headless, use_undetected)
     return ChromeDriverPool.get(headless, use_undetected)
 def save_cookies(driver):
     """Save cookies to pickle file"""
@@ -285,21 +514,61 @@ def save_cookies(driver):
         return False
 
 def load_cookies(driver):
-    """Load cookies from pickle file if exists"""
-    if not COOKIES_FILE.exists():
+    """Load cookies from pickle OR json file"""
+    json_file = APPDATA_DIR / "twitter_cookies.json"
+    
+    if not COOKIES_FILE.exists() and not json_file.exists():
         return False
+        
     try:
+        # v4.3.5: Set page load timeout to prevent indefinite hangs
+        driver.set_page_load_timeout(30)
+        # v4.5.2: Revert to x.com because user cookies are confirmed to be .x.com
         driver.get("https://x.com/home") # Must be on domain to set cookies
-        cookies = pickle.load(open(COOKIES_FILE, "rb"))
-        # Removed debug logs - only log errors
-        for idx, cookie in enumerate(cookies):
+        
+        # 1. Try JSON (Fresher, from WebView2)
+        if json_file.exists():
             try:
-                if 'sameSite' in cookie:
-                    if cookie['sameSite'] not in ["Strict", "Lax", "None"]:
+                import json
+                cookies = json.loads(json_file.read_text())
+                for cookie in cookies:
+                    if 'sameSite' in cookie and cookie['sameSite'] not in ["Strict", "Lax", "None"]:
                         del cookie['sameSite']
-                driver.add_cookie(cookie)
-            except Exception as ce:
-                print(f"[COOKIE-ERROR] {idx+1}/{len(cookies)}: {cookie.get('name','?')} eklenemedi: {ce}", file=sys.stderr)
+                    # Selenium add_cookie needs specific fields, remove unknown ones if any issues arise?
+                    # Generally dict is fine.
+                    try: driver.add_cookie(cookie)
+                    except: pass
+                print(f"✅ JSON Session Synced: {len(cookies)} cookies loaded from WebView2", file=sys.stderr)
+            except Exception as je:
+                print(f"JSON Cookie Error: {je}", file=sys.stderr)
+
+        # 2. Try Pickle (Backup / Selenium stored)
+        if COOKIES_FILE.exists():
+            try:
+                cookies = pickle.load(open(COOKIES_FILE, "rb"))
+                for idx, cookie in enumerate(cookies):
+                    try:
+                        if 'sameSite' in cookie:
+                            if cookie['sameSite'] not in ["Strict", "Lax", "None"]:
+                                del cookie['sameSite']
+                        driver.add_cookie(cookie)
+                    except: pass
+            except Exception as pe:
+                 # Only log if JSON also failed
+                 if not json_file.exists(): print(f"Pickle Cookie Error: {pe}", file=sys.stderr)
+        
+        # MAJOR FIX: Refresh to activate cookies
+        try:
+            driver.refresh()
+            time.sleep(3)
+            
+            # Simple check if we are still on login page
+            current = driver.current_url.lower()
+            if "login" in current or "signin" in current or "i/flow" in current:
+                print("❌ Cookie load FAILED: Redirected to Login Page. Cookies might be expired.", file=sys.stderr)
+                return False
+        except: pass
+
         return True
     except Exception as e:
         print(f"[COOKIE-ERROR] Genel hata: {e}", file=sys.stderr)
@@ -357,7 +626,7 @@ def parse_follower_text(text):
     except:
         return 0
 
-def find_influencer_posts(query, market):
+def find_influencer_posts(query, market, limit=10, since_date=None, until_date=None):
     """Search influencer posts either via VIP timelines or global search"""
     if not COOKIES_FILE.exists():
         return json.dumps({"status": "error", "message": "No cookies", "data": []})
@@ -388,21 +657,23 @@ def find_influencer_posts(query, market):
 
     try:
         if vip_handles:
-            posts = find_influencer_tweets_from_timeline(vip_handles, symbol_hint, market)
+            posts = find_influencer_tweets_from_timeline(vip_handles, symbol_hint, market, limit, since_date, until_date)
         else:
             posts = search_influencer_feed(search_q, symbol_hint)
             
         # Sort by relevance score
         if isinstance(posts, list):
-            posts = [p for p in posts if p.get("relevance_score", 0) > -500]
+            # BYPASS -500 filter for deep scan (since_date) or non-financial queries
+            if not since_date:
+                posts = [p for p in posts if p.get("relevance_score", 0) > -500]
             posts.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
             
-        return json.dumps({"status": "success", "data": posts})
+        return json.dumps({"status": "success", "data": posts[:limit] if not since_date else posts})
     except Exception as e:
         print(f"❌ find_influencer_posts error: {e}", file=sys.stderr)
         return json.dumps({"status": "error", "message": str(e), "data": []})
 
-def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market):
+def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limit=10, since_date=None, until_date=None):
     """Fetch tweets from VIP timelines when query includes from: handles"""
     if not COOKIES_FILE.exists():
         return []
@@ -410,6 +681,12 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market):
     driver = setup_driver(headless=True, use_undetected=True)
     if not driver:
         return []
+    
+    target_date_obj = None
+    if since_date:
+        try:
+           target_date_obj = datetime.strptime(since_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except: pass
 
     results = []
     try:
@@ -424,7 +701,8 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market):
                 handle_clean = handle.lstrip("@")
                 if not handle_clean:
                     continue
-                timeline_url = f"https://x.com/{handle_clean}"
+                # FORCE CHRONOLOGICAL: Use /with_replies to ensure we see the LATEST tweets, not "Top"
+                timeline_url = f"https://x.com/{handle_clean}/with_replies"
                 driver.get(timeline_url)
                 time.sleep(3) # Increase wait for profile load
 
@@ -444,85 +722,138 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market):
 
                 except: pass
 
-                # DEBUG LOGGING SETUP
-                debug_path = APPDATA_DIR / "debug_social_intel.txt"
+                # DEBUG LOGGING SETUP (Project Root)
+                debug_path = Path(r"d:\Projects\XiDeAI_Pro\debug_scan.log")
                 def log_debug(msg):
                     try:
                         with open(debug_path, "a", encoding="utf-8") as f:
                             f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
-                    except: pass
+                    except Exception as e:
+                        print(f"Log error: {e}")
                 
-                log_debug(f"--- START SCAN FOR {handle} ---")
+                log_debug(f"--- START SCAN FOR {handle} (URL: {timeline_url}) ---")
+                
+                oldest_tweet_date = datetime.now(timezone.utc)
 
                 # CRITICAL: Parse tweets BEFORE scrolling to capture newest ones at top
                 def parse_visible_tweets(round_idx):
+                    nonlocal oldest_tweet_date
                     parsed = []
                     tweets = driver.find_elements(By.TAG_NAME, "article")
                     log_debug(f"Round {round_idx}: Found {len(tweets)} article elements")
                     
                     for idx, tweet in enumerate(tweets):
                         try:
-                            # Log raw text for debugging
-                            raw_text = tweet.text.replace("\n", " ")[:100]
-                            
-                            text = tweet.text.replace("\n", " ")
-                            if len(text) < 10:
-                                log_debug(f"  Tweet {idx}: SKIPPED (Too short: {len(text)})")
-                                continue
-                            
-                            # Parse URL first
-                            url = ""
+                            # 1. Author and Names (CRITICAL)
                             try:
-                                link = tweet.find_element(By.CSS_SELECTOR, "a[href*='/status/']")
-                                url = link.get_attribute("href")
-                            except Exception:
-                                pass
-                            
-                            # Skip if already seen (by URL)
-                            if url and any(r.get("url") == url for r in results):
-                                log_debug(f"  Tweet {idx}: SKIPPED (Duplicate URL: {url})")
-                                continue
-                            
-                            # Parse time
-                            time_str = ""
+                                names_el = tweet.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
+                                names_text = names_el.text
+                                handle_match = re.search(r'@(\w+)', names_text)
+                                tweet_author = "@" + handle_match.group(1) if handle_match else f"@{handle_clean}"
+                            except:
+                                tweet_author = f"@{handle_clean}"
+
+                            # 2. Text Content (CRITICAL)
                             try:
-                                time_el = tweet.find_element(By.TAG_NAME, "time")
-                                time_str = time_el.get_attribute("datetime")
-                            except Exception:
-                                pass
-                            
-                            # Find images
+                                text_el = tweet.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
+                                text = text_el.text.replace("\n", " ")
+                            except:
+                                # Fallback to general text if d-t-t not found
+                                text = tweet.text.replace("\n", " ")
+
+                            # 2.5 Image (Moved up for short text check)
                             img_url = None
                             try:
-                                img_els = tweet.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                                # Try to find media specifically
+                                img_els = tweet.find_elements(By.CSS_SELECTOR, "[data-testid='tweetPhoto'] img")
+                                if not img_els:
+                                    img_els = tweet.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                                
                                 for img in img_els:
                                     src = img.get_attribute("src")
                                     if src and "profile_images" not in src:
                                         img_url = src
                                         break
                             except: pass
-
-                            # SCORING FILTER - PASS has_image flag
-                            score = calculate_relevance_score(text, symbol_query, has_image=(img_url is not None))
-                            log_debug(f"  Tweet {idx}: Score={score} | Img={img_url is not None} | Date={time_str} | Txt={raw_text}...")
                             
-                            if score < 10:
-                                log_debug(f"  Tweet {idx}: REJECTED (Score {score} < 10)")
+                            # RELAXED LENGTH CHECK (Fix for short signals like 'EFE HMA')
+                            if len(text) < 3 and not img_url:
+                                log_debug(f"  Tweet {idx}: SKIPPED (Too short: {len(text)})")
                                 continue
                             
-                            log_debug(f"  Tweet {idx}: ACCEPTED ✅ (URL: {url})")
+                            # 3. URL
+                            url = ""
+                            try:
+                                link = tweet.find_element(By.CSS_SELECTOR, "a[href*='/status/']")
+                                url = link.get_attribute("href")
+                            except Exception:
+                                # Some ads or blocked tweets don't have status links
+                                pass
+                            
+                            # Skip if already seen (by URL)
+                            if url and any(r.get("url") == url for r in results):
+                                continue
+                            
+                            # 4. Time
+                            time_str = ""
+                            try:
+                                time_el = tweet.find_element(By.TAG_NAME, "time")
+                                time_str = time_el.get_attribute("datetime")
+                                if time_str:
+                                     dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                                     if dt < oldest_tweet_date: oldest_tweet_date = dt
+                            except Exception:
+                                pass
+                            
+                            # 5. RT and Orig Author
+                            original_author = tweet_author
+                            is_retweet = False
+                            try:
+                                social_context = tweet.find_elements(By.CSS_SELECTOR, "[data-testid='socialContext']")
+                                if social_context:
+                                    is_retweet = True
+                                    body_links = tweet.find_elements(By.CSS_SELECTOR, "div[data-testid='User-Names'] a")
+                                    for bl in body_links:
+                                        href = bl.get_attribute("href")
+                                        if href and f"/{handle_clean}" not in href.lower() and "/status/" not in href:
+                                            original_author = "@" + href.split("/")[-1]
+                                            break
+                            except: pass
+
+
+                            # 7. Engagement
+                            engagement = 0
+                            try:
+                                like_el = tweet.find_element(By.CSS_SELECTOR, "[data-testid='like']")
+                                engagement = parse_follower_text(like_el.text)
+                            except: pass
+
+                            # 8. SCORING
+                            score = calculate_relevance_score(text, symbol_query, has_image=(img_url is not None))
+                            
+                            # FORCE VIP KEEP: If tweet is from the target handle, KEEP IT regardless of content/score
+                            if handle_clean and tweet_author.upper().endswith(handle_clean.upper()):
+                                score = 2000 # Super high score for direct tweets
+                                log_debug(f"  Tweet {idx}: VIP Author Override ({tweet_author}) -> Score 2000")
+                            
+                            # Bypass for Meta-Teacher/Guru
+                            is_financial_query = symbol_query and any(word in symbol_query.upper() for word in ["BTC", "$", "#", "ANALIZ", "GRAFIK", "CHART"])
+                            if not since_date and is_financial_query and score < 10:
+                                continue
+                            
                             parsed.append({
-                                "author": f"@{handle_clean}",
+                                "author": tweet_author,
+                                "original_author": original_author,
+                                "is_retweet": is_retweet,
                                 "content": text[:500],
                                 "url": url,
-                                "engagement": 0,
+                                "engagement": engagement,
                                 "relevance_score": score,
                                 "postDate": time_str or datetime.now(timezone.utc).isoformat(),
                                 "imageUrl": img_url
                             })
                         except Exception as tweet_err:
-                            print(f"Tweet parse error: {tweet_err}", file=sys.stderr)
-                            log_debug(f"  Tweet {idx}: ERROR {tweet_err}")
+                            log_debug(f"  Tweet {idx}: ERROR parsing individual tweet: {tweet_err}")
                     return parsed
                 
                 # STEP 1: Parse TOP tweets first (newest are at top)
@@ -530,25 +861,73 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market):
                 results.extend(parse_visible_tweets(0))
                 print(f"DEBUG: Found {len(results)} tweets before scroll", file=sys.stderr)
                 
-                # STEP 2: Scroll and get more if needed
-                for i in range(2):
-                    if len(results) >= 10:
+                # STEP 2: Scroll and get more if needed (Dynamic Scroll based on limit AND date)
+                # Max 100 scrolls for very deep scan (approx 600-800 tweets)
+                max_scrolls = 3 # v3.5: Reduced default for speed
+                if limit > 20: max_scrolls = 10
+                if limit > 50: max_scrolls = 20
+                if target_date_obj: max_scrolls = 100 # Keep deep for Meta-Teacher
+                
+                # Check for smart stop date (don't scan before this date if we already have it in DB)
+                until_date_obj = None
+                if until_date:
+                    try:
+                        until_date_obj = datetime.strptime(until_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    except: pass
+
+                for i in range(max_scrolls):
+                    # Stop if we have enough tweets AND NOT date mode
+                    if not target_date_obj and len(results) >= limit:
                         break
+                    
+                    # DATE CHECK: If oldest tweet seen is OLDER than target, we can probably stop?
+                    if target_date_obj and oldest_tweet_date < target_date_obj:
+                         log_debug(f"  Reached target date limit {oldest_tweet_date} < {target_date_obj}")
+                         break
+                         
+                    # SMART STOP: If we reached 'until_date' (newest date in our DB), we can stop scrolling
+                    if until_date_obj and oldest_tweet_date < until_date_obj:
+                         log_debug(f"  Smart Stop: Reached already known records date {oldest_tweet_date} < {until_date_obj}")
+                         break
+
                     driver.execute_script("window.scrollBy(0, window.innerHeight);")
-                    time.sleep(1.5)
-                    results.extend(parse_visible_tweets(i+1))
+                    time.sleep(1.3) # v3.5: Stable scroll
+                    log_debug(f"  Scrolling... ({i+1}/{max_scrolls}) total_results={len(results)}")
+                    
+                    # Parse current view
+                    results.extend(parse_visible_tweets(i + 1))
+                    
+                    # Deduplicate results by URL
+                    unique_results = []
+                    seen_urls = set()
+                    for r in results:
+                        if r['url'] not in seen_urls:
+                            unique_results.append(r)
+                            seen_urls.add(r['url'])
+                    results = unique_results
                 
                 log_debug(f"--- END SCAN FOR {handle} : Total {len(results)} collected ---")
 
-                # Sort by date (newest first) using postDate
-                results.sort(key=lambda x: x.get("postDate", ""), reverse=True)
+                # Sort by DATE (newest first)
+                # Parse ISO dates to objects for proper sorting, handling missing/invalid gracefully
+                def parse_date_safe(d_str):
+                     try: return datetime.fromisoformat(d_str.replace("Z", "+00:00"))
+                     except: return datetime.min.replace(tzinfo=timezone.utc)
                 
-                if len(results) >= 10:
+                results.sort(key=lambda x: parse_date_safe(x.get("postDate", "")), reverse=True)
+                
+                # CRITICAL Fix: Do NOT filter strictly by date for Guru feed updates.
+                # Just return the newest N items found.
+                # Only use date filter if specifically requested for historical analysis
+                # if target_date_obj:
+                #      results = [r for r in results if r.get("postDate") >= since_date] 
+                
+                if len(results) >= limit and not target_date_obj:
                     break
             except Exception as timeline_err:
                 print(f"Timeline load error for {handle}: {timeline_err}", file=sys.stderr)
         print(f"✅ Timeline method found {len(results)} posts", file=sys.stderr)
-        return results[:10]  # Return top 10 newest
+        return results[:limit] if not target_date_obj else results  # Return top N newest
     except Exception as e:
         print(f"❌ find_influencer_tweets_from_timeline error: {e}", file=sys.stderr)
         return results
@@ -662,8 +1041,7 @@ def search_influencer_feed(query, symbol_hint):
                 engagement = 0
                 try:
                     like_el = art.find_element(By.CSS_SELECTOR, "[data-testid='like']")
-                    digits = ''.join([c for c in like_el.text if c.isdigit()])
-                    engagement = int(digits) if digits else 0
+                    engagement = parse_follower_text(like_el.text)
                 except Exception:
                     engagement = 0
                 
@@ -738,33 +1116,45 @@ def post_tweet(text, media_path=None):
                     except Exception as media_err:
                         print(f"Media upload warning: {str(media_err)}", file=sys.stderr)
             
-            # Robust Text Entry
-            import json
-            js_text = json.dumps(text, ensure_ascii=True)
+            # Robust Text Entry v2.1 (Global Helper with Mandatory Clear)
+            success = robust_type_and_verify(driver, tweet_box, text)
+            if not success:
+                print("Warning: Verification failed in post_tweet, proceeding anyway.", file=sys.stderr)
             
-            driver.execute_script(f"""
-                const editor = document.querySelector("[data-testid='tweetTextarea_0']");
-                if (editor) {{
-                    editor.focus();
-                    const text = {js_text};
-                    document.execCommand('insertText', false, text);
-                }}
-            """)
+            # WAKE UP REACT: Send dummy key press to force state update
+            try:
+                tweet_box.send_keys(" ")
+                time.sleep(0.1)
+                tweet_box.send_keys(Keys.BACKSPACE)
+            except: pass
             time.sleep(1.5)
             
-            # Click Tweet button using State Verification
-            tweet_btn = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButton']"))
-            )
+            # 3. CLICK POST BUTTON (Robustly)
+            # 3. CLICK POST BUTTON (Robustly)
+            human_delay(2.0, 4.0) # Safety Delay before click
+            print("DEBUG: Clicking post button...", file=sys.stderr)
+            post_btn = None
+            for selector in ["[data-testid='tweetButton']", "div[role='button'][data-testid$='Button']", "//span[text()='Gönderi yayınla']/../../.."]:
+                try:
+                    if selector.startswith("//"):
+                        post_btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, selector)))
+                    else:
+                        post_btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                    if post_btn: break
+                except: continue
             
-            # Use JS Click for better reliability
-            driver.execute_script("arguments[0].scrollIntoView(true);", tweet_btn)
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", tweet_btn)
+            if post_btn:
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", post_btn)
+                time.sleep(0.5)
+                driver.execute_script("arguments[0].click();", post_btn)
+                print("DEBUG: Post button clicked via JS.", file=sys.stderr)
+            else:
+                print("DEBUG: Button not found, trying CTRL+ENTER fallback.", file=sys.stderr)
+                tweet_box.send_keys(Keys.CONTROL, Keys.ENTER)
             
             # Verify closure or confirmation
             time.sleep(5)
-            return {"status": "success", "message": "Tweet posted successfully!"}
+            return {"status": "success", "message": "Tweet posted successfully (Draft Cleared)!"}
             
         except Exception as e:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -783,49 +1173,382 @@ def reply_to_tweet(tweet_url, text):
     if not COOKIES_FILE.exists():
         return {"status": "error", "message": "No cookies."}
         
+    # SECURITY GUARD: Ensure we are replying to a TWEET, not a profile
+    if "/status/" not in tweet_url:
+        return {"status": "error", "message": "URL is not a tweet status. Standalone tweet prevention triggered."}
+
+    # CRITICAL FIX: Use bypass_pool=True for interactions to avoid collision with background scraper
+    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    if not driver: return {"status": "error", "message": "Driver fail"}
+    
+    try:
+        if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
+        
+        print(f"DEBUG: Navigating to {tweet_url}", file=sys.stderr)
+        driver.get(tweet_url)
+        time.sleep(5)  # Increased wait for page load and redirections
+        
+        # v3.7.3: CRITICAL URL VERIFICATION
+        # If redirected to home, process MUST stop to prevent "standalone tweet instead of reply" bug
+        current_url = driver.current_url.lower()
+        target_id = re.search(r'status/(\d+)', tweet_url)
+        target_id = target_id.group(1) if target_id else ""
+        
+        if "/status/" not in current_url:
+            print(f"ERROR: Navigation failed or redirected to {current_url}. Aborting reply.", file=sys.stderr)
+            return {"status": "error", "message": f"Navigation failed (at {current_url}). Reply aborted for safety."}
+        
+        if target_id and target_id not in current_url:
+            # Check if we are still at least on A tweet page. X sometimes normalizes URLs.
+            print(f"WARNING: Current URL {current_url} does not exactly match target ID {target_id}, but we are on a status page.", file=sys.stderr)
+        
+        # Calculate reply box selector
+        # Usually it's the main draft editor.
+        try:
+            # Click the "Reply" text area (placeholder usually says 'Post your reply')
+            print("DEBUG: Looking for reply box...", file=sys.stderr)
+            reply_area = WebDriverWait(driver, 20).until(  # Increased timeout
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0']"))
+            )
+
+            # v4.0.1 SAFETY FIX: Verify it is a REPLY box, not a NEW TWEET box
+            # New Tweet: "What is happening?!" / "Neler oluyor?"
+            # Reply: "Post your reply" / "Yanıtını gönder"
+            try:
+                area_label = reply_area.get_attribute("aria-label") or ""
+                placeholder = reply_area.get_attribute("placeholder") or ""
+                btn_text = reply_area.text or ""
+                
+                check_str = (area_label + " " + placeholder + " " + btn_text).lower()
+                
+                # Keywords that indicate a NEW TWEET box (Bad)
+                if "what is happening" in check_str or "neler oluyor" in check_str:
+                    print(f"CRITICAL SAFETY STOP: Detected NEW TWEET box instead of REPLY box. Label: {area_label}", file=sys.stderr)
+                    return {"status": "error", "message": "SAFETY STOP: Attempted to post standalone tweet instead of reply!"}
+                
+                # Optionally, verify keywords for REPLY box (Good) but X changes texts often, safer to blacklist the "New Tweet" text
+                print(f"DEBUG: Box verification passed (Label: {area_label})", file=sys.stderr)
+            except Exception as safety_err:
+                 print(f"WARNING: Safety check failed, verifying URL again...", file=sys.stderr)
+                 if "/status/" not in driver.current_url:
+                     return {"status": "error", "message": "Safety check failed and URL is wrong."}
+
+            print("DEBUG: Reply box found, clicking...", file=sys.stderr)
+            
+            # Use JavaScript click to avoid element interception
+            driver.execute_script("arguments[0].scrollIntoView(true);", reply_area)
+            time.sleep(0.5)
+            driver.execute_script("arguments[0].click();", reply_area)
+            time.sleep(1)
+            
+            # Robust Text Entry v2.1 (Global Helper with Mandatory Clear)
+            success = robust_type_and_verify(driver, reply_area, text)
+            if not success:
+                print("Warning: Verification failed in reply_to_tweet, proceeding anyway.", file=sys.stderr)
+            
+            time.sleep(1.5)  # Increased wait for text insertion
+            
+            # Click Reply button with Multiple Selector support
+            print("DEBUG: Looking for reply button...", file=sys.stderr)
+            reply_btn = None
+            for selector in ["[data-testid='tweetButtonInline']", "[data-testid='tweetButton']", "div[role='button'][data-testid$='Button']"]:
+                try:
+                    reply_btn = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                    )
+                    if reply_btn: break
+                except: continue
+
+            if reply_btn:
+                print(f"DEBUG: Reply button found, clicking...", file=sys.stderr)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", reply_btn)
+                time.sleep(1)
+                driver.execute_script("arguments[0].click();", reply_btn)
+            else:
+                print("DEBUG: Reply button not found via selectors, trying CTRL+ENTER shortcut...", file=sys.stderr)
+                # Fallback: Click the area again and send Ctrl+Enter
+                driver.execute_script("arguments[0].click();", reply_area)
+                time.sleep(0.5)
+                reply_area.send_keys(Keys.CONTROL + Keys.ENTER)
+            
+            print("DEBUG: Waiting for post confirmation...", file=sys.stderr)
+            time.sleep(5)  # Wait to ensure post is processed
+            return {"status": "success", "message": "Reply attempt completed!"}
+            
+        except Exception as e:
+             print(f"DEBUG: Reply interact error: {str(e)}", file=sys.stderr)
+             # Save screenshot for debugging
+             try:
+                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                 screenshot_path = APPDATA_DIR / f"reply_fail_{ts}.png"
+                 driver.save_screenshot(str(screenshot_path))
+                 print(f"DEBUG: Screenshot saved to {screenshot_path}", file=sys.stderr)
+             except: pass
+             return {"status": "error", "message": f"Reply interact fail: {str(e)}"}
+             
+    except Exception as e:
+        print(f"DEBUG: Outer exception: {str(e)}", file=sys.stderr)
+        return {"status": "error", "message": str(e)}
+    finally:
+        try:
+            if driver: 
+                print("DEBUG: Closing driver...", file=sys.stderr)
+                driver.quit()
+        except Exception as quit_ex:
+            print(f"DEBUG: Driver quit error (ignoring): {quit_ex}", file=sys.stderr)
+            pass  # Ignore quit errors
+
+def fetch_replies(tweet_url):
+    """Fetch replies for a specific tweet"""
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    if not COOKIES_FILE.exists():
+        return {"status": "error", "message": "No cookies."}
+
+    driver = setup_driver(headless=True) # Pool driver is fine for read-only
+    if not driver: return {"status": "error", "message": "Driver fail"}
+    
+    try:
+        if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
+        
+        print(f"DEBUG: Fetching replies from {tweet_url}", file=sys.stderr)
+        driver.get(tweet_url)
+        time.sleep(3)
+        
+        # Wait for any status content
+        try:
+             WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "article[data-testid='tweet']"))
+            )
+        except:
+             print("DEBUG: article[data-testid='tweet'] not found within 20s", file=sys.stderr)
+        
+        # Scroll bit to trigger load
+        driver.execute_script("window.scrollBy(0, 600);")
+        time.sleep(2)
+        
+        articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+        if not articles:
+            articles = driver.find_elements(By.TAG_NAME, "article")
+
+        replies = []
+        # Skip index 0 (the main tweet)
+        for i, art in enumerate(articles):
+            if i == 0: continue 
+            
+            try:
+                # Basic parse
+                text_el = art.find_elements(By.CSS_SELECTOR, "[data-testid='tweetText']")
+                text = text_el[0].text if text_el else ""
+                
+                handle_els = art.find_elements(By.CSS_SELECTOR, "[data-testid='User-Names'] span")
+                handle = ""
+                for h in handle_els:
+                    if h.text.startswith("@"):
+                        handle = h.text
+                        break
+                
+                # Link
+                link_els = art.find_elements(By.CSS_SELECTOR, "a[href*='/status/']")
+                link = link_els[0].get_attribute("href") if link_els else ""
+                
+                if text or handle:
+                    replies.append({
+                        "handle": handle,
+                        "text": text,
+                        "url": link
+                    })
+            except: continue
+        
+        return {"status": "success", "data": replies}
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def fetch_retweeters(tweet_url):
+    """Fetch users who retweeted a tweet"""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import re
+    
+    if not COOKIES_FILE.exists():
+        return {"status": "error", "message": "No cookies."}
+
+    # Extract ID
+    match = re.search(r'status/(\d+)', tweet_url)
+    if not match:
+        return {"status": "error", "message": "Invalid tweet URL"}
+    
+    tweet_id = match.group(1)
+    retweets_url = f"https://x.com/i/status/{tweet_id}/retweets"
+
     driver = setup_driver(headless=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
     
     try:
         if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
         
-        driver.get(tweet_url)
+        print(f"DEBUG: Fetching retweeters from {retweets_url}", file=sys.stderr)
+        driver.get(retweets_url)
+        time.sleep(3)
         
-        # Calculate reply box selector
-        # Usually it's the main draft editor.
+        # Wait for user cells
         try:
-            # Click the "Reply" text area (placeholder usually says 'Post your reply')
-            reply_area = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0']"))
+             WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='UserCell']"))
             )
-            reply_area.click()
+        except:
+             print("DEBUG: No retweeters found (timeout)", file=sys.stderr)
+             return {"status": "success", "data": []}
+        
+        # Scroll bit
+        driver.execute_script("window.scrollBy(0, 500);")
+        time.sleep(1)
+        
+        user_cells = driver.find_elements(By.CSS_SELECTOR, "[data-testid='UserCell']")
+        retweeters = []
+        
+        for cell in user_cells:
+            try:
+                # Get handle
+                handle_els = cell.find_elements(By.CSS_SELECTOR, "span")
+                handle = ""
+                for h in handle_els:
+                    if h.text.startswith("@"):
+                        handle = h.text
+                        break
+                
+                if handle:
+                    retweeters.append({
+                        "handle": handle
+                    })
+            except: continue
             
-            # Use JavaScript to set text (handles emoji/non-BMP characters)
-            # using json.dumps(ensure_ascii=True) guarantees ONLY ASCII chars are sent to driver
-            import json
-            js_text = json.dumps(text, ensure_ascii=True)
+        return {"status": "success", "data": retweeters}
+        
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def like_tweet(tweet_url):
+    """Like a specific tweet"""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    if not COOKIES_FILE.exists():
+        return {"status": "error", "message": "No cookies."}
+        
+    # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
+    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    if not driver: return {"status": "error", "message": "Driver fail"}
+    
+    try:
+        if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
+        
+        driver.get(tweet_url)
+        time.sleep(2)
+        
+        try:
+            # Check if already liked (unlike button exists)
+            try:
+                driver.find_element(By.CSS_SELECTOR, "[data-testid='unlike']")
+                return {"status": "success", "message": "Already liked"}
+            except: pass
             
-            driver.execute_script(f"""
-                const editor = document.querySelector("[data-testid='tweetTextarea_0']");
-                if (editor) {{
-                    editor.focus();
-                    const text = {js_text};
-                    document.execCommand('insertText', false, text);
-                }}
-            """)
-            time.sleep(0.5)
-            
-            # Click Reply button
-            reply_btn = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButton']"))
-            )
-            reply_btn.click()
-            
-            time.sleep(3)
-            return {"status": "success", "message": "Reply sent!"}
+            # Click Like
+            print("DEBUG: Looking for like button...", file=sys.stderr)
+            # Find all buttons with testid='like'
+            like_btn = None
+            selectors = ["[data-testid='like']", "div[role='button'][data-testid='like']", "//div[@data-testid='like']"]
+            for selector in selectors:
+                try:
+                    if selector.startswith("//"):
+                        like_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, selector)))
+                    else:
+                        like_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                    if like_btn: break
+                except: continue
+
+            if like_btn:
+                print("DEBUG: Like button found, clicking...", file=sys.stderr)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", like_btn)
+                time.sleep(1)
+                driver.execute_script("arguments[0].click();", like_btn)
+                time.sleep(2)
+                return {"status": "success", "message": "Liked successfully"}
+            else:
+                return {"status": "error", "message": "Like button not found"}
             
         except Exception as e:
-             return {"status": "error", "message": f"Reply interact fail: {str(e)}"}
+             return {"status": "error", "message": f"Like fail: {str(e)}"}
+             
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        if driver: driver.quit()
+
+def retweet(tweet_url):
+    """Retweet a specific tweet"""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    if not COOKIES_FILE.exists():
+        return {"status": "error", "message": "No cookies."}
+        
+    # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
+    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    if not driver: return {"status": "error", "message": "Driver fail"}
+    
+    try:
+        if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
+        
+        driver.get(tweet_url)
+        time.sleep(2)
+        
+        try:
+            # Check if already retweeted (unretweet button exists)
+            try:
+                driver.find_element(By.CSS_SELECTOR, "[data-testid='unretweet']")
+                return {"status": "success", "message": "Already retweeted"}
+            except: pass
+            
+            # Find Retweet button (Universal 2025 selectors)
+            print("DEBUG: Looking for retweet button...", file=sys.stderr)
+            retweet_btn = None
+            selectors = ["[data-testid='retweet']", "div[role='button'][data-testid='retweet']", "//div[@data-testid='retweet']"]
+            for selector in selectors:
+                try:
+                    if selector.startswith("//"):
+                        retweet_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, selector)))
+                    else:
+                        retweet_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                    if retweet_btn: break
+                except: continue
+
+            if retweet_btn:
+                print("DEBUG: Retweet button found, clicking...", file=sys.stderr)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", retweet_btn)
+                time.sleep(1)
+                driver.execute_script("arguments[0].click();", retweet_btn)
+                time.sleep(1)
+                
+                # Confirm Retweet (Popup)
+                print("DEBUG: Looking for retweet confirmation button...", file=sys.stderr)
+                confirm_btn = WebDriverWait(driver, 8).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='retweetConfirm']"))
+                )
+                driver.execute_script("arguments[0].click();", confirm_btn)
+                time.sleep(2)
+                return {"status": "success", "message": "Retweeted successfully"}
+            else:
+                return {"status": "error", "message": "Retweet button not found"}
+            
+        except Exception as e:
+             return {"status": "error", "message": f"Retweet fail: {str(e)}"}
              
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1041,69 +1764,43 @@ def get_dms():
         if driver: driver.quit()
 
 def get_financial_summary():
-    """Scrape BIST100, USD, EUR, Gold data"""
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    # Using Google Finance or a stable source for basic rates
-    driver = setup_driver(headless=True)
-    if not driver: return {"status": "error"}
-    
+    """Fetch BIST100, USD, EUR, Gold using yfinance for 100% stability"""
+    import yfinance as yf
     data = {}
+    
     try:
-        # BIST 100
-        driver.get("https://www.google.com/finance/quote/XU100:INDEXBIST?hl=tr")
-        time.sleep(2)
-        try:
-            val = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".YMlKec.fxKbKc, .YMlKec"))).text
-            data["BIST100"] = val
-        except: data["BIST100"] = "N/A"
-
-        # USD/TRY
-        driver.get("https://www.google.com/finance/quote/USD-TRY?hl=tr")
-        time.sleep(2)
-        try:
-            val = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".YMlKec.fxKbKc, .YMlKec"))).text
-            data["USD"] = val
-        except: data["USD"] = "N/A"
-
-        # EUR/TRY
-        driver.get("https://www.google.com/finance/quote/EUR-TRY?hl=tr")
-        time.sleep(2)
-        try:
-            val = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".YMlKec.fxKbKc, .YMlKec"))).text
-            data["EUR"] = val
-        except: data["EUR"] = "N/A"
+        # BIST100
+        bist = yf.Ticker("XU100.IS")
+        data["BIST100"] = f"{bist.history(period='1d')['Close'].iloc[-1]:.2f}".replace('.', ',')
         
-        # Gram Gold
-        try:
-             driver.get("https://www.google.com/search?q=gram+altın+fiyatı")
-             val = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.IsqQVc.NprOob, .SwHCTb"))).text
-             data["Gold"] = val
-        except: 
-             data["Gold"] = "N/A"
-
-        # Gümüş (Silver)
-        try:
-            driver.get("https://www.google.com/search?q=gümüş+gram+fiyatı")
-            val = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "span.IsqQVc.NprOob, .SwHCTb"))).text
-            data["Silver"] = val
-        except:
-            data["Silver"] = "N/A"
-
-        return {"status": "success", "data": data}
-
+        # USD/TRY
+        usd = yf.Ticker("USDTRY=X")
+        data["USD"] = f"{usd.history(period='1d')['Close'].iloc[-1]:.4f}".replace('.', ',')
+        
+        # EUR/TRY
+        eur = yf.Ticker("EURTRY=X")
+        data["EUR"] = f"{eur.history(period='1d')['Close'].iloc[-1]:.4f}".replace('.', ',')
+        
+        # GOLD (ONS)
+        gold = yf.Ticker("GC=F")
+        data["Gold"] = f"{gold.history(period='1d')['Close'].iloc[-1]:.2f}".replace('.', ',')
+        
+        # SILVER
+        silver = yf.Ticker("SI=F")
+        data["Silver"] = f"{silver.history(period='1d')['Close'].iloc[-1]:.2f}".replace('.', ',')
+        
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-    finally:
-        if driver: driver.quit()
+        print(f"yfinance error: {e}", file=sys.stderr)
+        # Fallback to N/A if all fails
+        for k in ["BIST100", "USD", "EUR", "Gold", "Silver"]:
+            if k not in data: data[k] = "N/A"
+
+    return {"status": "success", "data": data}
 
 def post_thread_chain(tweets, media_path=None):
     """Post a chain of tweets (thread) using compose modal's 'Add another post' button"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-
-    # Fresh driver for posting to avoid stale state from prior scrapes
-    ChromeDriverPool.close()
     
     if not tweets: return {"status": "error", "message": "No tweets provided"}
     
@@ -1140,11 +1837,7 @@ def post_thread_chain(tweets, media_path=None):
     if not COOKIES_FILE.exists():
         return {"status": "error", "message": "No cookies found."}
         
-    start_ts = time.time()
-    def elapsed():
-        return time.time() - start_ts
-
-    print(f"DEBUG: post_thread_chain start | tweets={len(tweets)} | media={media_path}", file=sys.stderr); sys.stderr.flush()
+    # Run visible to avoid detection
     driver = setup_driver(headless=False)
     if not driver: return {"status": "error", "message": "Failed to start driver"}
 
@@ -1152,196 +1845,77 @@ def post_thread_chain(tweets, media_path=None):
         if not load_cookies(driver):
              return {"status": "error", "message": "Failed to load cookies"}
 
-        print("DEBUG: Navigating to compose...", file=sys.stderr); sys.stderr.flush()
-        try:
-            driver.get("https://x.com/compose/tweet")
-        except Exception as nav_err:
-            print(f"Navigation timeout, stopping load: {nav_err}", file=sys.stderr)
-            try:
-                driver.execute_script("window.stop();")
-            except Exception:
-                pass
+        # Refresh to apply cookies and verify login
+        driver.refresh()
         time.sleep(2)
-
-        if elapsed() > 60:
-            return {"status": "error", "message": "Timeout before compose load"}
+        
+        # Check if we're logged in (not on login page)
+        current_url = driver.current_url.lower()
+        if "login" in current_url or "flow" in current_url:
+            return {"status": "error", "message": "Session expired. Please re-login in visible mode."}
+        
+        # Go to compose page
+        driver.get("https://x.com/compose/tweet")
+        time.sleep(3)
+        
+        # Check again if redirected to login
+        if "login" in driver.current_url.lower():
+            return {"status": "error", "message": "Not logged in. Cookies may have expired."}
         
         try:
             # Initial wait for first box
             # Huge wait for initial load (sometimes X is slow or shows spinner)
             print("Waiting for tweet box...", file=sys.stderr)
-            print("DEBUG: Waiting for first tweet box...", file=sys.stderr); sys.stderr.flush()
-            tweet_box = WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0'], [role='textbox'], [class*='public-DraftEditor-content']"))
-            )
-            print("DEBUG: First tweet box found", file=sys.stderr); sys.stderr.flush()
-            time.sleep(2) # Extra buffer
-
-            if elapsed() > 60:
-                return {"status": "error", "message": "Timeout before typing"}
             
-            # 0. Upload Media (if provided) to the FIRST tweet (graceful fallback)
-            if media_path:
+            # Try multiple selectors for the compose box
+            selectors = [
+                "[data-testid='tweetTextarea_0']",
+                "[role='textbox'][data-testid]",
+                "[class*='DraftEditor-root']",
+                "div[contenteditable='true']"
+            ]
+            
+            tweet_box = None
+            for selector in selectors:
                 try:
-                    if os.path.exists(media_path):
-                        abs_path = os.path.abspath(media_path)
-
-                        # Try multiple selectors (Twitter UI changes frequently)
-                        selectors = [
-                            "input[type='file']",
-                            "input[data-testid='fileInput']",
-                            "input[accept*='image']",
-                            "div[data-testid='toolBar'] input[type='file']"
-                        ]
-                        file_input = None
-                        for sel in selectors:
-                            try:
-                                file_input = WebDriverWait(driver, 20).until(
-                                    EC.presence_of_element_located((By.CSS_SELECTOR, sel))
-                                )
-                                if file_input:
-                                    break
-                            except Exception:
-                                continue
-                        if not file_input:
-                            raise Exception("File input not found")
-
-                        # Force visible before send_keys (hidden inputs can ignore send_keys)
-                        try:
-                            driver.execute_script("arguments[0].style.display='block'; arguments[0].removeAttribute('hidden');", file_input)
-                        except Exception:
-                            pass
-
-                        file_input.send_keys(abs_path)
-
-                        # Wait for media to load (look for attachments)
-                        print("DEBUG: Uploading media...", file=sys.stderr); sys.stderr.flush()
-                        WebDriverWait(driver, 40).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='attachments'], [data-testid='mediaAttachment']"))
-                        )
-                        print("DEBUG: Media uploaded", file=sys.stderr); sys.stderr.flush()
-                        time.sleep(2)
-                    else:
-                        print(f"Media path not found, posting without image: {media_path}", file=sys.stderr)
+                    tweet_box = WebDriverWait(driver, 15).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                    )
+                    if tweet_box:
+                        print(f"Found tweet box with selector: {selector}", file=sys.stderr)
+                        break
+                except:
+                    continue
+            
+            if not tweet_box:
+                # Last resort: check if we're on the wrong page
+                page_source = driver.page_source.lower()
+                if "sign up" in page_source or "log in" in page_source:
+                    return {"status": "error", "message": "Not logged in. Please open visible browser and login."}
+                return {"status": "error", "message": "Could not find tweet compose box. X UI may have changed."}
+            
+            time.sleep(2) # Extra buffer
+            
+            # 0. Upload Media (if provided) to the FIRST tweet
+            if media_path and os.path.exists(media_path):
+                try:
+                    file_input = driver.find_element(By.CSS_SELECTOR, "input[type='file']")
+                    file_input.send_keys(os.path.abspath(media_path))
+                    
+                    # Wait for media to load (look for attachments)
+                    WebDriverWait(driver, 30).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='attachments']"))
+                    )
+                    time.sleep(1)
                 except Exception as media_err:
-                    # Continue without media instead of failing the whole thread
-                    print(f"Media upload warning (skip image): {str(media_err)}", file=sys.stderr)
+                     return {"status": "error", "message": f"Media upload failed: {str(media_err)}"}
 
-            # ---------------------------------------------------------
-            # ULTRA-ROBUST TYPING WITH BUTTON STATE CHECK
-            # ---------------------------------------------------------
-            def robust_type_and_verify(element, text, tweet_index):
-                # LOG TEXT STATS
-                print(f"DEBUG: Tweet {tweet_index} text length: {len(text)} chars", file=sys.stderr)
-                
-                # ATOMIC CLEANUP FUNCTION
-                def atomic_clear(elem):
-                    try:
-                        elem.click()
-                        driver.execute_script("arguments[0].focus();", elem)
-                        time.sleep(0.2)
-                        
-                        # 1. Select All + Backspace (Standard)
-                        elem.send_keys(Keys.CONTROL, 'a')
-                        time.sleep(0.1)
-                        elem.send_keys(Keys.BACKSPACE)
-                        
-                        # 2. Hard JS Clear (React Reset)
-                        driver.execute_script("""
-                            var e = arguments[0];
-                            e.value = '';
-                            e.innerText = '';
-                            e.textContent = '';
-                            document.execCommand('delete');
-                        """, elem)
-                        time.sleep(0.5)
-                        
-                        # 3. Check emptiness
-                        if len(elem.text.strip()) > 0:
-                            print("Warning: Element not empty after clean. Forcing delete loop...", file=sys.stderr)
-                            for _ in range(20): # Force delete loop
-                                elem.send_keys(Keys.BACKSPACE)
-                                if len(elem.text.strip()) == 0: break
-                    except: pass
-
-                methods = ["clipboard", "sendkeys", "js_insert"]
-                
-                for attempt, method in enumerate(methods):
-                    # ALWAYS CLEAN BEFORE TYPING
-                    atomic_clear(element)
-                    
-                    print(f"Typing tweet {tweet_index} using {method}...", file=sys.stderr)
-                    
-                    if method == "clipboard":
-                        try:
-                            import pyperclip
-                            pyperclip.copy(text)
-                            element.send_keys(Keys.CONTROL, 'v')
-                        except: pass
-                    
-                    elif method == "sendkeys":
-                        try:
-                             # Batch send (faster than char-by-char)
-                            element.send_keys(text)
-                        except: pass
-
-                    elif method == "js_insert":
-                        try:
-                            import json
-                            js_text = json.dumps(text)
-                            driver.execute_script(f"""
-                                var elem = arguments[0];
-                                elem.focus();
-                                document.execCommand('insertText', false, {js_text});
-                                elem.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                elem.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                            """, element)
-                            
-                            # WAKE UP REACT: Send dummy key press to force state update
-                            # This fixes the "Ghost Text" issue where placeholder remains visible
-                            time.sleep(0.2)
-                            try:
-                                element.send_keys(" ")
-                                time.sleep(0.1)
-                                element.send_keys(Keys.BACKSPACE)
-                            except: pass
-                            
-                        except: pass
-                    
-                    # VERIFICATION WAIT
-                    time.sleep(3.0) 
-                    
-                    # VISUAL VERIFICATION: Check length ratio
-                    current_text = element.text.strip()
-                    input_len = len(text.strip())
-                    current_len = len(current_text)
-                    
-                    # If duplication occurred, length will be roughly 2x (or > 1.5x)
-                    if input_len > 50 and current_len > input_len * 1.5:
-                         print(f"DUPLICATION DETECTED! Input: {input_len}, Current: {current_len}. Retrying...", file=sys.stderr)
-                         continue # Fail this method, try next (which triggers clean)
-                    
-                    # SUCCESS CHECK: Is button enabled?
-                    try:
-                        btn = driver.find_element(By.CSS_SELECTOR, "[data-testid='tweetButton']")
-                        if btn.is_enabled() and btn.get_attribute("aria-disabled") != "true":
-                            print(f"Success! Tweet button enabled after {method}.", file=sys.stderr)
-                            return True
-                    except: pass
-                    
-                    # Fallback text check
-                    if current_len > 5: return True
-                
-                return False
 
             # Post Loop
             for i, tweet_text in enumerate(tweets):
                 # PACING: Slow down for human-like behavior
-                print(f"Processing tweet {i}...", file=sys.stderr); sys.stderr.flush()
+                print(f"Processing tweet {i}...", file=sys.stderr)
                 time.sleep(2.0)
-
-                if elapsed() > 80:
-                    return {"status": "error", "message": f"Timeout while typing tweet {i}"}
 
                 # 1. Add "Plus" button if 2nd+ tweet
                 if i > 0:
@@ -1368,11 +1942,16 @@ def post_thread_chain(tweets, media_path=None):
                                     break
                         except: pass
                         
-                        # 2. Try Exact Localized Labels (Expanded)
+                        # 2. Try Exact Localized Labels (Expanded for 2025+ X UI)
                         if not target_btn:
                             # Strict list of valid labels for the (+) button
-                            # Added English/Turkish variations
-                            valid_labels = ["Tweet ekle", "Add Tweet", "Add another Tweet", "Başka bir gönderi ekle", "Gönderi ekle", "Zincir ekle", "Add", "Ekle"]
+                            # Added English/Turkish variations + new X UI labels
+                            valid_labels = [
+                                "Tweet ekle", "Add Tweet", "Add another Tweet", 
+                                "Başka bir gönderi ekle", "Gönderi ekle", "Zincir ekle", 
+                                "Add", "Ekle", "Gönderi Ekle", "Post ekle", "Add post",
+                                "Yeni gönderi ekle", "New post"
+                            ]
                             
                             # Construct XPath for EXACT match or STARTS WITH to be safer
                             xpath_parts = [f"@aria-label='{label}'" for label in valid_labels]
@@ -1383,10 +1962,9 @@ def post_thread_chain(tweets, media_path=None):
                                 btns = driver.find_elements(By.XPATH, xpath)
                                 for btn in btns:
                                     if btn.is_displayed():
-                                        label = btn.get_attribute("aria-label").lower()
+                                        label = (btn.get_attribute("aria-label") or "").lower()
                                         
                                         # NUCLEAR EXCLUSION LIST: Ban all other toolbar icons
-                                        # "Medya", "Fotoğraf", "Video", "GIF", "Anket", "Emoji", "Planla", "Konum"
                                         forbidden_terms = [
                                             "medya", "media", 
                                             "fotoğraf", "photo", 
@@ -1407,6 +1985,51 @@ def post_thread_chain(tweets, media_path=None):
                                             
                                         target_btn = btn
                                         print(f"Found Add Button via label: {label}", file=sys.stderr)
+                                        break
+                            except: pass
+                        
+                        # 3. NEW 2025: Try finding via SVG Plus icon in toolbar
+                        if not target_btn:
+                            try:
+                                # Look for clickable elements containing a plus SVG near the tweet button
+                                plus_candidates = driver.find_elements(By.CSS_SELECTOR, 
+                                    "div[role='button']:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z']), " +
+                                    "button:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z'])"
+                                )
+                                for cand in plus_candidates:
+                                    if cand.is_displayed():
+                                        target_btn = cand
+                                        print("Found Add Button via SVG Plus icon", file=sys.stderr)
+                                        break
+                            except: pass
+                        
+                        # 4. NEW 2025: Fallback - Find by visible "+" text or small button near toolbar end
+                        if not target_btn:
+                            try:
+                                # Look for any small circular/square button with + symbol
+                                all_btns = driver.find_elements(By.CSS_SELECTOR, "div[role='button'], button")
+                                for btn in all_btns:
+                                    if not btn.is_displayed():
+                                        continue
+                                    text = btn.text.strip()
+                                    # Direct "+" match or very small icon button
+                                    if text == "+" or text == "➕":
+                                        target_btn = btn
+                                        print("Found Add Button via visible '+' text", file=sys.stderr)
+                                        break
+                            except: pass
+                        
+                        # 5. LAST RESORT: Scroll up and look for any unclicked add mechanism
+                        if not target_btn:
+                            try:
+                                driver.execute_script("window.scrollTo(0, 0);")
+                                time.sleep(0.5)
+                                # Re-check with original selector after scroll
+                                btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
+                                for btn in btns:
+                                    if btn.is_displayed():
+                                        target_btn = btn
+                                        print("Found Add Button after scroll-to-top", file=sys.stderr)
                                         break
                             except: pass
 
@@ -1473,8 +2096,8 @@ def post_thread_chain(tweets, media_path=None):
                         time.sleep(0.2)
                     except: pass
                     
-                    # TYPE AND VERIFY
-                    success = robust_type_and_verify(active_box, tweet_text, i)
+                    # TYPE AND VERIFY (Using Global Helper)
+                    success = robust_type_and_verify(driver, active_box, tweet_text, i)
                     
                     if not success:
                          print(f"Warning: Failed to verify entry for tweet {i}", file=sys.stderr)
@@ -1500,35 +2123,41 @@ def post_thread_chain(tweets, media_path=None):
                      except: pass
                 
                 driver.execute_script("arguments[0].click();", tweet_btn)
-                print("Final Post button clicked. Verifying modal closure...", file=sys.stderr)
                 
-                # Verify Success (Modal should disappear)
-                modal_closed = False
-                for _ in range(10):
-                    time.sleep(1)
-                    modals = driver.find_elements(By.CSS_SELECTOR, "[role='dialog']")
-                    if not modals:
-                        modal_closed = True
-                        break
-                    # Sometimes the modal stays but the button is gone (success)
-                    btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='tweetButton']")
-                    if not btns:
-                        modal_closed = True
-                        break
-                
-                if not modal_closed:
-                    print("Warning: Post modal still visible after 10s. Might have failed.", file=sys.stderr)
-                    # Don't return error yet, X might be slow
-            except:
+                # Verify Success (Wait for modal to close or toast)
+                time.sleep(5)
+            except Exception as loop_err:
+                 print(f"Error in post loop: {loop_err}", file=sys.stderr)
                  try:
-                    debug_path = os.path.join(APPDATA_DIR, "screenshots", "debug_post_error.png")
+                    debug_path = os.path.join(APPDATA_DIR, "screenshots", f"debug_post_error_{i}.png")
                     driver.save_screenshot(debug_path)
                  except: pass
-                 return {"status": "error", "message": "Post button not clickable."}
+                 return {"status": "error", "message": f"Post loop fail at {i}: {str(loop_err)}"}
             
+            # Verify Success and get URL
             time.sleep(5)
-            print("DEBUG: Thread post flow finished", file=sys.stderr); sys.stderr.flush()
-            return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!"}
+            posted_url = ""
+            try:
+                # Try to find the "View" link in the success toast
+                view_link = driver.find_elements(By.XPATH, "//span[contains(text(), 'View')]")
+                if not view_link:
+                    # Fallback: check current URL if it changed
+                    if "/status/" in driver.current_url:
+                        posted_url = driver.current_url
+                else:
+                    # Click or get href? Usually success toast is not a real link but we can try to find the actual status
+                    pass
+                
+                if not posted_url:
+                    # Last resort: Get the last tweet from profile
+                    driver.get("https://x.com/home") # home sometimes shows yours at the top or go to profile
+                    time.sleep(2)
+                    last_tweet = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet'] a[href*='/status/']")
+                    if last_tweet:
+                        posted_url = last_tweet[0].get_attribute("href")
+            except: pass
+
+            return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!", "url": posted_url}
             
         except Exception as e:
             try:
@@ -1558,8 +2187,8 @@ def fetch_search_news():
         if not load_cookies(driver): return {"status": "error", "message": "Cookie fail"}
         
         # Search for high-impact financial news (Turkey & World)
-        # Reduced threshold (min_faves:5) and URL-encoded to avoid query issues
-        query = "(borsa OR hisse OR bist100 OR ekonomi OR dolar OR altın OR fed OR tcmb OR \"son dakika\") (haber OR gelişme) min_faves:5 filter:media -filter:replies"
+        # Fix: Remove min_faves:5 and filter:media which hides fresh news on Live tab
+        query = "(borsa OR hisse OR bist100 OR ekonomi OR dolar OR altın OR fed OR tcmb OR \"son dakika\") (haber OR gelişme) -filter:replies"
         encoded = urllib.parse.quote(query)
         url = f"https://x.com/search?q={encoded}&src=typed_query&f=live"
         
@@ -1579,31 +2208,45 @@ def fetch_search_news():
 
         results = []
         tweets = driver.find_elements(By.TAG_NAME, "article")
+        print(f"DEBUG: Found {len(tweets)} elements in news feed", file=sys.stderr)
+        
         for tweet in tweets[:20]:
             try:
                 # 1. Clean Text
+                content = ""
                 try:
                     text_elem = tweet.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
                     content = text_elem.text
                 except:
                     content = tweet.text.replace("\n", " ")
                 
+                if not content or len(content.strip()) < 10:
+                    continue
+
                 # 2. Extract handle
-                handle = "Unknown"
+                handle = "X-Haber"
                 try:
-                    user_elem = tweet.find_element(By.CSS_SELECTOR, "[data-testid='User-Name']")
-                    if "@" in user_elem.text:
-                         handle = user_elem.text.split("@")[-1].split("\n")[0]
+                    user_el = tweet.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
+                    handle_text = user_el.text
+                    if "@" in handle_text:
+                        handle = handle_text.split("@")[1].split("\n")[0].split(" ")[0]
                 except:
-                    if "@" in content:
-                        parts = content.split("@")
-                        if len(parts) > 1:
-                            handle = parts[1].split(" ")[0]
+                    try:
+                        # Fallback: find any link to profile
+                        links = tweet.find_elements(By.CSS_SELECTOR, "a[role='link']")
+                        for l in links:
+                            href = l.get_attribute("href") or ""
+                            if "status" not in href and "x.com/" in href:
+                                handle = href.split("x.com/")[1].split("/")[0]
+                                break
+                    except: pass
                 
-                # 3. Real URL
-                url = driver.current_url
+                # 3. Real URL & Time
+                url = "https://x.com"
+                time_val = ""
                 try:
                     time_elem = tweet.find_element(By.TAG_NAME, "time")
+                    time_val = time_elem.get_attribute("datetime") # Extract ISO time
                     link_elem = time_elem.find_element(By.XPATH, "./..")
                     url = link_elem.get_attribute("href")
                 except: pass
@@ -1611,10 +2254,14 @@ def fetch_search_news():
                 results.append({
                     "text": content,
                     "source": handle,
-                    "url": url
+                    "url": url,
+                    "time": time_val
                 })
-            except: continue
+            except Exception as e:
+                print(f"Error parsing news tweet: {e}", file=sys.stderr)
+                continue
             
+        print(f"DEBUG: Scraped {len(results)} news items", file=sys.stderr)
         return {"status": "success", "data": results}
         
     except Exception as e:
@@ -1622,250 +2269,199 @@ def fetch_search_news():
     finally:
         if driver: driver.quit()
 
-def get_top_gainers():
-    """Scrape BIST100 top gainers (en çok yükselen hisseler) from Google Finance"""
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    
-    driver = setup_driver(headless=True)
-    if not driver: 
-        return {"status": "error", "data": []}
-    
-    gainers = []
+def scrape_bigpara_market_list(url, limit=10):
+    """Scrape BigPara market data using requests + bs4"""
+    results = []
     try:
-        # Go to BIST100 page
-        driver.get("https://www.google.com/finance/quote/XU100:INDEXBIST?hl=tr")
-        time.sleep(3)
-        
-        # Try to find gainers section - Google Finance shows top movers
-        try:
-            # Look for table rows with stock data
-            rows = driver.find_elements(By.CSS_SELECTOR, "div[data-symbol], tr[data-symbol]")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            return {"status": "error", "message": f"HTTP {resp.status_code}"}
             
-            for row in rows[:10]:  # Top 10
+        soup = BeautifulSoup(resp.content, "html.parser")
+        
+        # Find all stock links (avoid menus)
+        # Select links that contain '-detay' in href but NOT 'hisselerim-detay'
+        stock_links = soup.select("a[href*='-detay']")
+        valid_links = [l for l in stock_links if '/borsa/hisse-fiyatlari/' in l.get('href', '') and 'hisselerim-detay' not in l.get('href', '')]
+        
+        # Deduplicate by href/text
+        seen = set()
+        
+        for link in valid_links:
+            if len(results) >= limit: break
+            
+            try:
+                # Find parent row (usually ul)
+                row = link.find_parent("ul")
+                if not row: continue
+                
+                # Get fields
+                # Structure: Symbol | Price | Prev | % | ...
+                fields = [t.strip() for t in row.get_text(separator="|").split("|") if t.strip()]
+                
+                # Validate fields
+                # Index 0 is Symbol usually
+                if len(fields) < 4: continue
+                
+                symbol = fields[0]
+                if symbol in seen: continue
+                seen.add(symbol)
+                
+                # Parse Price (Index 1) and Change (Index 3)
+                # Note: Index might vary slightly if structure changes, but typically:
+                # 0: SYM, 1: Price, 2: Prev, 3: Percent
+                
+                price_str = fields[1].replace(".", "").replace(",", ".")
+                pct_str = fields[3].replace(",", ".")
+                
                 try:
-                    # Extract symbol
-                    symbol_elem = row.find_element(By.CSS_SELECTOR, "[data-symbol]")
-                    symbol = symbol_elem.get_attribute("data-symbol") or ""
+                    price = float(price_str)
+                    change = float(pct_str)
                     
-                    if not symbol:
-                        continue
-                    
-                    # Extract price
-                    price_text = ""
-                    try:
-                        price_elem = row.find_element(By.CSS_SELECTOR, ".YMlKec")
-                        price_text = price_elem.text
-                    except:
-                        pass
-                    
-                    # Extract change percentage
-                    change_text = ""
-                    try:
-                        change_elem = row.find_element(By.CSS_SELECTOR, ".nwtPWb")
-                        change_text = change_elem.text
-                    except:
-                        pass
-                    
-                    if price_text and change_text:
-                        try:
-                            price = float(price_text.replace(",", "."))
-                            change_pct = float(change_text.replace(",", ".").replace("%", "").strip())
-                            gainers.append({
-                                "Symbol": symbol,
-                                "Close": price,
-                                "ChangePercent": change_pct
-                            })
-                        except:
-                            pass
-                except Exception as e:
-                    print(f"Error parsing row: {e}", file=sys.stderr)
-                    continue
-        except Exception as e:
-            print(f"Error extracting gainers row: {e}", file=sys.stderr)
-            pass
-        
-        if not gainers:
-             return {"status": "error", "message": "Could not scrape gainers and no fallback allowed."}
-        
-        return {"status": "success", "data": gainers}
-    except Exception as e:
-        print(f"Gainers error: {e}", file=sys.stderr)
-        return {"status": "error", "message": str(e)}
-    finally:
-        if driver: driver.quit()
+                    results.append({
+                        "Symbol": symbol,
+                        "Close": price,
+                        "ChangePercent": change
+                    })
+                except: continue
 
-def get_stock_prices(symbols):
-    """Fetch current prices for a list of symbols from Google Finance"""
+            except: continue
+            
+        if not results:
+             return {"status": "error", "message": "No data parsed from BigPara"}
+
+        return {"status": "success", "data": results}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def get_top_gainers():
+    """Scrape BIST100 top gainers"""
+    return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-artan-hisseler/")
+
+def get_top_losers():
+    """Scrape BIST100 top losers"""
+    return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-azalanlar/")
+
+def get_top_volume():
+    """Scrape BIST100 most active (volume)"""
+    return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-islem-gorenler-tl/")
+
+def find_twitter_handle_via_google(name):
+    """Search Google for an Official Twitter handle"""
+    from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
+    import time
     
+    # Use headless for search
     driver = setup_driver(headless=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
     
-    prices = {}
+    handle = None
     try:
-        for sym in symbols:
-            try:
-                # Format symbol for Google Finance (e.g., SASA -> SASA:BIST)
-                # Heuristic: 3-5 chars uppercase usually BIST if not Crypto
-                gf_sym = sym
-                if ":" not in sym:
-                    if len(sym) <= 5: gf_sym = f"{sym}:IST"
-                
-                driver.get(f"https://www.google.com/finance/quote/{gf_sym}?hl=tr")
-                val = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".YMlKec.fxKbKc"))).text
-                prices[sym] = val
-            except:
-                prices[sym] = "0.00"
+        query = f"{name} official twitter"
+        print(f"DEBUG: Googling for {name}...", file=sys.stderr)
         
-        return {"status": "success", "data": prices}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-    finally:
-        if driver: driver.quit()
-
-def get_top_losers():
-    """Scrape BIST100 top losers (en çok düşen hisseler)"""
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    
-    driver = setup_driver(headless=True)
-    if not driver: 
-        return {"status": "error", "data": []}
-    
-    losers = []
-    try:
-        # Go to BIST100 page
-        driver.get("https://www.google.com/finance/quote/XU100:INDEXBIST?hl=tr")
-        time.sleep(3)
+        # Google Search
+        driver.get("https://www.google.com/search?q=" + urllib.parse.quote(query))
         
-        # Try to find losers section
+        # Parse results
         try:
-            rows = driver.find_elements(By.CSS_SELECTOR, "div[data-symbol], tr[data-symbol]")
+            # Wait for results
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "search")))
             
-            for row in rows[-10:]:  # Last 10 (losers typically at end)
-                try:
-                    symbol_elem = row.find_element(By.CSS_SELECTOR, "[data-symbol]")
-                    symbol = symbol_elem.get_attribute("data-symbol") or ""
-                    
-                    if not symbol:
-                        continue
-                    
-                    price_text = ""
-                    try:
-                        price_elem = row.find_element(By.CSS_SELECTOR, ".YMlKec")
-                        price_text = price_elem.text
-                    except:
-                        pass
-                    
-                    change_text = ""
-                    try:
-                        change_elem = row.find_element(By.CSS_SELECTOR, ".nwtPWb")
-                        change_text = change_elem.text
-                    except:
-                        pass
-                    
-                    if price_text and change_text:
-                        try:
-                            price = float(price_text.replace(",", "."))
-                            change_pct = float(change_text.replace(",", ".").replace("%", "").strip())
-                            losers.append({
-                                "Symbol": symbol,
-                                "Close": price,
-                                "ChangePercent": change_pct
-                            })
-                        except:
-                            pass
-                except Exception as e:
-                    print(f"Error parsing row: {e}", file=sys.stderr)
-                    continue
+            links = driver.find_elements(By.CSS_SELECTOR, "div#search a")
+            for link in links:
+                href = link.get_attribute("href")
+                if href and ("twitter.com/" in href or "x.com/" in href):
+                    # Clean up URL to get handle
+                    # e.g. https://twitter.com/edindzeko?lang=en -> @edindzeko
+                    parts = href.replace("https://", "").replace("http://", "").split("/")
+                    if len(parts) > 1:
+                        raw_handle = parts[1].split("?")[0] # Remove query params
+                        if raw_handle not in ["status", "hashtag", "search", "home", "login", "explore"]:
+                            handle = "@" + raw_handle
+                            print(f"DEBUG: Found handle {handle} for {name}", file=sys.stderr)
+                            break
         except Exception as e:
-            print(f"Error extracting losers table: {e}", file=sys.stderr)
-            pass
-        
-        if not losers:
-            return {"status": "error", "message": "Could not scrape losers and no fallback allowed."}
-        
-        return {"status": "success", "data": losers}
+            print(f"DEBUG: Google parse error: {e}", file=sys.stderr)
+            
+        if handle:
+            return {"status": "success", "handle": handle}
+        else:
+            return {"status": "error", "message": "No handle found"}
+            
     except Exception as e:
-        print(f"Losers error: {e}", file=sys.stderr)
         return {"status": "error", "message": str(e)}
     finally:
-        if driver: driver.quit()
-
-def get_top_volume():
-    """Scrape BIST100 top volume stocks (en yüksek hacimli hisseler)"""
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    
-    driver = setup_driver(headless=True)
-    if not driver: 
-        return {"status": "error", "data": []}
-    
-    volume_stocks = []
-    try:
-        # Go to BIST100 page
-        driver.get("https://www.google.com/finance/quote/XU100:INDEXBIST?hl=tr")
-        time.sleep(3)
-        
-        # Try to find volume data
         try:
-            rows = driver.find_elements(By.CSS_SELECTOR, "div[data-symbol], tr[data-symbol]")
-            
-            for row in rows[:10]:  # Top 10 by volume
-                try:
-                    symbol_elem = row.find_element(By.CSS_SELECTOR, "[data-symbol]")
-                    symbol = symbol_elem.get_attribute("data-symbol") or ""
-                    
-                    if not symbol:
-                        continue
-                    
-                    price_text = ""
-                    try:
-                        price_elem = row.find_element(By.CSS_SELECTOR, ".YMlKec")
-                        price_text = price_elem.text
-                    except:
-                        pass
-                    
-                    change_text = ""
-                    try:
-                        change_elem = row.find_element(By.CSS_SELECTOR, ".nwtPWb")
-                        change_text = change_elem.text
-                    except:
-                        pass
-                    
-                    if price_text and change_text:
-                        try:
-                            price = float(price_text.replace(",", "."))
-                            change_pct = float(change_text.replace(",", ".").replace("%", "").strip())
-                            volume_stocks.append({
-                                "Symbol": symbol,
-                                "Close": price,
-                                "ChangePercent": change_pct
-                            })
-                        except:
-                            pass
-                except Exception as e:
-                    print(f"Error parsing row: {e}", file=sys.stderr)
-                    continue
-        except Exception as e:
-            print(f"Error extracting volume table: {e}", file=sys.stderr)
-            pass
-        
-        if not volume_stocks:
-            return {"status": "error", "message": "Could not scrape volume stocks and no fallback allowed."}
-        
-        return {"status": "success", "data": volume_stocks}
-    except Exception as e:
-        print(f"Volume error: {e}", file=sys.stderr)
-        return {"status": "error", "message": str(e)}
-    finally:
-        if driver: driver.quit()
+             # Just in case this was running independent
+             pass
+        except: pass
 
-def interact_with_targets(targets_str):
+def quote_retweet(url, text):
+    """
+    Quotes a tweet with the given text.
+    """
+    driver = ChromeDriverPool.get()
+    try:
+        driver.get(url)
+        time.sleep(random.uniform(2.5, 4.0))
+        
+        # 1. Scroll to bring actions into view
+        driver.execute_script("window.scrollBy(0, 300);")
+        time.sleep(1)
+        
+        # 2. Click Retweet Button (group[id*='retweet'])
+        try:
+            rt_btn = driver.find_element(By.CSS_SELECTOR, "div[data-testid='retweet']")
+            rt_btn.click()
+            time.sleep(1)
+        except:
+             return {"status": "error", "message": "Retweet button not found"}
+             
+        # 3. Click 'Quote' option
+        try:
+            quote_item = driver.find_element(By.XPATH, "//span[contains(text(), 'Alıntı') or contains(text(), 'Quote')]")
+            quote_item.click()
+            time.sleep(1.5)
+        except:
+             return {"status": "error", "message": "Quote option not found"}
+             
+        # 4. Type text
+        try:
+            input_area = driver.find_element(By.CSS_SELECTOR, "div[data-testid='tweetTextarea_0']")
+            atomic_clear(input_area, driver)
+            
+            # Type safely
+            for char in text:
+                input_area.send_keys(char)
+                time.sleep(random.uniform(0.01, 0.05))
+            
+            time.sleep(1)
+        except:
+             return {"status": "error", "message": "Quote text area not found"}
+             
+        # 5. Click Post
+        try:
+            post_btn = driver.find_element(By.CSS_SELECTOR, "div[data-testid='tweetButton']")
+            post_btn.click()
+            time.sleep(3)
+        except:
+             return {"status": "error", "message": "Post button not found"}
+             
+        return {"status": "success", "text": text}
+        
+    except Exception as e:
+        return {"status": "error", "message": f"Quote RT error: {str(e)}"}
+
+def interact_with_targets(targets):
     """Like + RT the last tweet of target accounts
-    targets_str: comma-separated handles (e.g., "@handle1,@handle2" or "handle1,handle2")
+    targets_str: comma-separated handles (e.g., "@handle1,@handle2" or "handle1,2")
     """
     if not COOKIES_FILE.exists():
         return {"status": "error", "message": "No cookies found"}
@@ -2025,13 +2621,21 @@ def discover_influencers(category, custom_query=None):
     category = category.upper()
     hub_accounts = {
         "BIST": ["bigpara", "BloombergHT", "InvestingTR"],
-        "CRYPTO": ["BTCTurk", "Paribu", "bitcointr"],
-        "FOREX": ["InvestingTR", "gcmforex", "ForeksHaber"]
+        "CRYPTO": ["BTCTurk", "Paribu", "bitcointr", "CoinDesk"],
+        "FOREX": ["InvestingTR", "gcmforex", "ForeksHaber"],
+        "TECH": ["OpenAI", "TechCrunch", "WIRED", "TheVerge", "YCombinator"],
+        "BUSINESS": ["Forbes", "Entrepreneur", "BusinessInsider", "HBR", "Inc"],
+        "PERSONAL": ["TimFerriss", "JamesClear", "HubermanLab", "RyanHoliday"],
+        "GLOBAL": ["TheEconomist", "WorldBank", "wef", "IanBremmer"]
     }
     keywords = {
-        "BIST": ["yatırım", "finans", "borsa", "ekonomi", "hisse"],
-        "CRYPTO": ["kripto", "crypto", "bitcoin", "btc", "eth"],
-        "FOREX": ["forex", "döviz", "altın", "gold", "emtia"]
+        "BIST": ["yatırım", "finans", "borsa", "ekonomi", "hisse", "trader"],
+        "CRYPTO": ["kripto", "crypto", "bitcoin", "btc", "eth", "blockchain"],
+        "FOREX": ["forex", "döviz", "altın", "gold", "emtia", "fx"],
+        "TECH": ["ai", "machine learning", "tech", "software", "engineer", "founder", "cto", "developer"],
+        "BUSINESS": ["entrepreneur", "ceo", "business", "investor", "venture", "growth", "strategy"],
+        "PERSONAL": ["author", "health", "mindset", "productivity", "coach", "speaker", "biohacker"],
+        "GLOBAL": ["global", "economy", "policy", "geopolitics", "analyst", "researcher", "macro"]
     }
     target_hubs = hub_accounts.get(category)
     if not target_hubs:
@@ -2096,6 +2700,9 @@ if __name__ == "__main__":
     cmd_search = subparsers.add_parser("search_influencer", parents=[parent_parser])
     cmd_search.add_argument("--query", required=True)
     cmd_search.add_argument("--market", required=True)
+    cmd_search.add_argument("--limit", required=False, help="Number of tweets to fetch")
+    cmd_search.add_argument("--since", required=False, help="Fetch tweets since YYYY-MM-DD")
+    cmd_search.add_argument("--until_date", required=False, help="Fetch tweets until YYYY-MM-DD")
     # --base64 and --visible are now inherited from parent_parser
     
     # Import cookies command
@@ -2135,6 +2742,10 @@ if __name__ == "__main__":
     # Get Engagement
     cmd_engagement = subparsers.add_parser("get_engagement", parents=[parent_parser])
 
+    # Batch Get Prices
+    cmd_batch = subparsers.add_parser("batch_get_prices", parents=[parent_parser])
+    cmd_batch.add_argument("--symbols", required=True, help="Comma-separated symbols")
+
     # Interact Targets
     cmd_interact = subparsers.add_parser("interact_with_targets", parents=[parent_parser])
     cmd_interact.add_argument("--targets", required=True)
@@ -2154,10 +2765,21 @@ if __name__ == "__main__":
     # Fetch News command
     cmd_news = subparsers.add_parser("fetch_news", parents=[parent_parser])
     
-    # Discover Influencers command
     cmd_discover = subparsers.add_parser("discover_influencers", parents=[parent_parser])
     cmd_discover.add_argument("--category", required=True, help="BIST, CRYPTO, or FOREX")
     cmd_discover.add_argument("--query", required=False, help="Custom search query (optional)")
+
+    # Like Tweet command
+    cmd_like = subparsers.add_parser("like_tweet", parents=[parent_parser])
+    cmd_like.add_argument("--url", required=True)
+
+    # Retweet command
+    cmd_rt = subparsers.add_parser("retweet", parents=[parent_parser])
+    cmd_rt.add_argument("--url", required=True)
+
+    # Find Handle command
+    cmd_find = subparsers.add_parser("find_handle", parents=[parent_parser])
+    cmd_find.add_argument("--name", required=True)
 
     args = parser.parse_args()
     
@@ -2166,175 +2788,261 @@ if __name__ == "__main__":
         os.environ["X_VISIBLE"] = "1"
     
     # ---------------------------------------------------------
-    # HANDLERS
+    # HANDLERS WITH LOCK PROTECTION
     # ---------------------------------------------------------
+    
+    # User Request: Integrate lock_manager to prevent parallel execution
+    try:
+        from lock_manager import acquire_lock, release_lock
+    except ImportError:
+        # Fallback if lock_manager is not found (e.g. path issues)
+        def acquire_lock(**kwargs): pass
+        def release_lock(): pass
+        print("Warning: lock_manager not found, running without lock.", file=sys.stderr)
 
-    if args.command == "login_interactive":
-        print(json.dumps(login_interactive()))
+    exit_code = 0
+    try:
+        # Acquire lock before any navigation or driver start
+        # Timeout 180s, Stale 600s
+        acquire_lock(timeout_seconds=180, stale_seconds=600)
         
-    elif args.command == "search_influencer":
-        query = args.query
-        if args.base64 and query:
-            try:
-                query = base64.b64decode(query).decode('utf-8')
-            except Exception as decode_err:
-                print("---JSON_START---")
-                print(json.dumps([]))
-                print("---JSON_END---")
-                sys.exit(0)
-        print("---JSON_START---")
-        result_json = find_influencer_posts(query, args.market)
-        try:
-             with open(APPDATA_DIR / "debug_social_intel.txt", "a", encoding="utf-8") as f:
-                 f.write(f"\n[JSON_OUTPUT] Length: {len(result_json)}\n[JSON_CONTENT]: {result_json[:2000]}...\n")
-        except: pass
-        print(result_json)
-        print("---JSON_END---")
-        
-    elif args.command == "import_cookies":
-        print(json.dumps(import_cookies(args.file)))
-
-    elif args.command == "post_tweet":
-        text = ""
-        media = args.media
-        
-        # Priority: File -> CLI
-        if args.file and os.path.exists(args.file):
-            try:
-                with open(args.file, 'r', encoding='utf-8') as f:
-                    payload = json.load(f)
-                    text = payload.get("text", "")
-                    if "media" in payload and payload["media"]:
-                        media = payload["media"]
-            except Exception as e:
-                 print(json.dumps({"status": "error", "message": f"File read error: {str(e)}"}))
-                 sys.exit(1)
-        else:
-            text = args.text
-            if args.base64 and text:
-                try:
-                     text = base64.b64decode(text.strip()).decode('utf-8')
-                except: pass
-
-        print("---JSON_START---")
-        print(json.dumps(post_tweet(text, media_path=media)))
-        print("---JSON_END---")
-
-    elif args.command == "clear_session":
-        try:
-            if COOKIES_FILE.exists():
-                os.remove(COOKIES_FILE)
-            print(json.dumps({"status": "success", "message": "Session cleared."}))
-        except Exception as e:
-            print(json.dumps({"status": "error", "message": str(e)}))
+        if args.command == "login_interactive":
+            print(json.dumps(login_interactive()))
             
-    elif args.command == "get_stats":
-        print(json.dumps(get_profile_stats()))
+        elif args.command == "search_influencer":
+            query = args.query
+            if args.base64 and query:
+                try:
+                    query = base64.b64decode(query).decode('utf-8')
+                except Exception as decode_err:
+                    print("---JSON_START---")
+                    print(json.dumps([]))
+                    print("---JSON_END---")
+                    sys.exit(0)
+            
+            limit = int(args.limit) if hasattr(args, "limit") and args.limit else 10
+            since = args.since if hasattr(args, "since") and args.since else None
+            until = args.until_date if hasattr(args, "until_date") and args.until_date else None
 
-    elif args.command == "get_engagement":
-        print(json.dumps(get_recent_engagement()))
+            print("---JSON_START---")
+            result_json = find_influencer_posts(query, args.market, limit=limit, since_date=since, until_date=until)
+            print(result_json)
+            print("---JSON_END---")
+            
+        elif args.command == "import_cookies":
+            print(json.dumps(import_cookies(args.file)))
 
-    elif args.command == "get_trends":
-        print(json.dumps(get_breaking_news_topics()))
-
-    elif args.command == "get_dms":
-        print(json.dumps(get_dms()))
-
-    elif args.command == "get_financials":
-        print(json.dumps(get_financial_summary()))
-
-    elif args.command == "get_top_gainers":
-        print(json.dumps(get_top_gainers()))
-
-    elif args.command == "get_top_losers":
-        print(json.dumps(get_top_losers()))
-
-    elif args.command == "get_top_volume":
-        print(json.dumps(get_top_volume()))
-
-    elif args.command == "interact_with_targets":
-        targets = args.targets if hasattr(args, 'targets') and args.targets else ""
-        print(json.dumps(interact_with_targets(targets)))
-
-    elif args.command == "reply_tweet":
-        text_content = args.text
-        if args.base64:
-            try:
-                text_content = base64.b64decode(args.text).decode('utf-8')
-            except: pass
-        print(json.dumps(reply_to_tweet(args.url, text_content)))
-
-    elif args.command == "post_thread":
-        tweets = []
-        media = args.media
-
-        # Priority: File -> CLI
-        if args.file and os.path.exists(args.file):
-            try:
-                with open(args.file, 'r', encoding='utf-8') as f:
-                    payload = json.load(f)
-                    
-                    # Handle if payload is just a list (legacy compat) or dict
-                    if isinstance(payload, list):
-                        tweets = payload
-                    elif isinstance(payload, dict):
-                        tweets = payload.get("tweets", [])
+        elif args.command == "post_tweet":
+            text = ""
+            media = args.media
+            
+            # Priority: File -> CLI
+            if args.file and os.path.exists(args.file):
+                try:
+                    with open(args.file, 'r', encoding='utf-8') as f:
+                        payload = json.load(f)
+                        text = payload.get("text", "")
                         if "media" in payload and payload["media"]:
                             media = payload["media"]
-            except Exception as e:
-                 print(json.dumps({"status": "error", "message": f"File read error: {str(e)}"}))
-                 sys.exit(1)
-        else:
-            # Legacy CLI Args
-            tweets_str = args.tweets
-            if args.base64 and tweets_str:
-                try:
-                    tweets_str = base64.b64decode(tweets_str.strip()).decode('utf-8')
-                except: pass
-            
-            try:
-                tweets = json.loads(tweets_str)
-            except:
-                tweets = [tweets_str]
+                except Exception as e:
+                     print(json.dumps({"status": "error", "message": f"File read error: {str(e)}"}))
+                     sys.exit(1)
+            else:
+                text = args.text
+                if args.base64 and text:
+                    try:
+                         text = base64.b64decode(text.strip()).decode('utf-8')
+                    except: pass
 
-        print("---JSON_START---")
-        print(json.dumps(post_thread_chain(tweets, media)))
-        print("---JSON_END---")
-        
-    elif args.command == "fetch_news":
-        print("---JSON_START---")
-        print(json.dumps(fetch_search_news()))
-        print("---JSON_END---")
-    
-    elif args.command == "discover_influencers":
-        custom_q = args.query if hasattr(args, 'query') and args.query else None
-        print(json.dumps(discover_influencers(args.category, custom_query=custom_q)))
-    
-    elif args.command == "GetCookiesJson":
-        if COOKIES_FILE.exists():
-            try:
-                cookies = pickle.load(open(COOKIES_FILE, "rb"))
-                print(json.dumps(cookies))
-            except:
-                print("[]")
-        else:
-            print("[]")
+            print("---JSON_START---")
+            print(json.dumps(post_tweet(text, media_path=media)))
+            print("---JSON_END---")
 
-    elif args.command == "SetCookiesFromJson":
-        if args.file and os.path.exists(args.file):
+        elif args.command == "clear_session":
             try:
-                with open(args.file, 'r', encoding='utf-8') as f:
-                    cookies = json.load(f)
-                pickle.dump(cookies, open(COOKIES_FILE, "wb"))
-                print(json.dumps({"status": "success"}))
+                if COOKIES_FILE.exists():
+                    os.remove(COOKIES_FILE)
+                print(json.dumps({"status": "success", "message": "Session cleared."}))
             except Exception as e:
                 print(json.dumps({"status": "error", "message": str(e)}))
-    elif args.command == "batch_get_prices":
-        symbols = []
-        if args.symbols:
-            symbols = [s.strip() for s in args.symbols.split(",")]
-        print(json.dumps(get_stock_prices(symbols)))
-    
-    else:
-        # Default fallback for unknown commands
-        print(json.dumps({"status": "error", "message": f"Unknown command: {args.command}"}))
+                
+        elif args.command == "get_stats":
+            print(json.dumps(get_profile_stats()))
+
+        elif args.command == "get_engagement":
+            print(json.dumps(get_recent_engagement()))
+
+        elif args.command == "get_trends":
+            print(json.dumps(get_breaking_news_topics()))
+
+        elif args.command == "get_dms":
+            print(json.dumps(get_dms()))
+
+        elif args.command == "get_financials":
+            print(json.dumps(get_financial_summary()))
+
+        elif args.command == "get_top_gainers":
+            print(json.dumps(get_top_gainers()))
+
+        elif args.command == "get_top_losers":
+            print(json.dumps(get_top_losers()))
+
+        elif args.command == "get_top_volume":
+            print(json.dumps(get_top_volume()))
+
+        elif args.command == "interact_with_targets":
+            targets = args.targets if hasattr(args, 'targets') and args.targets else ""
+            print(json.dumps(interact_with_targets(targets)))
+
+        elif args.command == "reply_tweet":
+            text_content = args.text
+            if args.base64:
+                try:
+                    text_content = base64.b64decode(args.text).decode('utf-8')
+                except: pass
+            print("---JSON_START---")
+            print(json.dumps(reply_to_tweet(args.url, text_content)))
+            print("---JSON_END---")
+
+        elif args.command == "post_thread":
+            tweets = []
+            media = args.media
+
+            # Priority: File -> CLI
+            if args.file and os.path.exists(args.file):
+                try:
+                    with open(args.file, 'r', encoding='utf-8') as f:
+                        payload = json.load(f)
+                        
+                        # Handle if payload is just a list (legacy compat) or dict
+                        if isinstance(payload, list):
+                            tweets = payload
+                        elif isinstance(payload, dict):
+                            tweets = payload.get("tweets", [])
+                            if "media" in payload and payload["media"]:
+                                media = payload["media"]
+                except Exception as e:
+                     print(json.dumps({"status": "error", "message": f"File read error: {str(e)}"}))
+                     sys.exit(1)
+            else:
+                # Legacy CLI Args
+                tweets_str = args.tweets
+                if args.base64 and tweets_str:
+                    try:
+                        tweets_str = base64.b64decode(tweets_str.strip()).decode('utf-8')
+                    except: pass
+                
+                try:
+                    tweets = json.loads(tweets_str)
+                except:
+                    tweets = [tweets_str]
+
+            print("---JSON_START---")
+            print(json.dumps(post_thread_chain(tweets, media)))
+            print("---JSON_END---")
+            
+        elif args.command == "fetch_news":
+            print("---JSON_START---")
+            print(json.dumps(fetch_search_news()))
+            print("---JSON_END---")
+        
+        elif args.command == "discover_influencers":
+            custom_q = args.query if hasattr(args, 'query') and args.query else None
+            print(json.dumps(discover_influencers(args.category, custom_query=custom_q)))
+        
+        elif args.command == "find_handle":
+            print(json.dumps(find_twitter_handle_via_google(args.name)))
+        
+        elif args.command == "GetCookiesJson":
+            if COOKIES_FILE.exists():
+                try:
+                    cookies = pickle.load(open(COOKIES_FILE, "rb"))
+                    print(json.dumps(cookies))
+                except:
+                    print("[]")
+            else:
+                print("[]")
+
+        elif args.command == "SetCookiesFromJson":
+            if args.file and os.path.exists(args.file):
+                try:
+                    with open(args.file, 'r', encoding='utf-8') as f:
+                        cookies = json.load(f)
+                    pickle.dump(cookies, open(COOKIES_FILE, "wb"))
+                    print(json.dumps({"status": "success"}))
+                except Exception as e:
+                    print(json.dumps({"status": "error", "message": str(e)}))
+        elif args.command == "batch_get_prices":
+            symbols = []
+            if args.symbols:
+                symbols = [s.strip() for s in args.symbols.split(",")]
+            print(json.dumps(get_stock_prices(symbols)))
+        
+        elif args.command == "like_tweet":
+            url = args.url
+            if not url:
+                print(json.dumps({"status": "error", "message": "Missing --url"}))
+            else:
+                print("---JSON_START---")
+                print(json.dumps(like_tweet(url)))
+                print("---JSON_END---")
+                
+        elif args.command == "retweet":
+            url = args.url
+            if not url:
+                print(json.dumps({"status": "error", "message": "Missing --url"}))
+            else:
+                print(json.dumps(retweet(url)))
+                print("---JSON_END---")
+
+        elif args.command == "quote_retweet":
+            url = args.url
+            text = args.text
+            if not url or not text:
+                print(json.dumps({"status": "error", "message": "Missing --url or --text"}))
+            else:
+                if args.base64:
+                    try:
+                        text = base64.b64decode(text).decode('utf-8')
+                    except: pass
+                print("---JSON_START---")
+                print(json.dumps(quote_retweet(url, text)))
+                print("---JSON_END---")
+
+        elif args.command == "fetch_replies":
+            url = args.url
+            if not url:
+                print(json.dumps({"status": "error", "message": "Missing --url"}))
+            else:
+                print("---JSON_START---")
+                print(json.dumps(fetch_replies(url)))
+                print("---JSON_END---")
+
+        elif args.command == "fetch_retweeters":
+            url = args.url
+            if not url:
+                print(json.dumps({"status": "error", "message": "Missing --url"}))
+            else:
+                print("---JSON_START---")
+                print(json.dumps(fetch_retweeters(url)))
+                print("---JSON_END---")
+
+        else:
+            # Default fallback for unknown commands
+            print(json.dumps({"status": "error", "message": f"Unknown command: {args.command}"}))
+            exit_code = 1
+            
+    except Exception as e:
+        print(f"CRITICAL ERROR: {str(e)}", file=sys.stderr)
+        # Try to output generic error json if possible
+        try:
+            print(json.dumps({"status": "error", "message": f"Critical execution error: {str(e)}"}))
+        except: pass
+        exit_code = 1
+        
+    finally:
+        try:
+            release_lock()
+        except: pass
+        
+    sys.exit(exit_code)

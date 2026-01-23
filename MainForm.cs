@@ -32,6 +32,7 @@ namespace XiDeAI_Pro
         
         private System.Windows.Forms.Timer _deepScanTimer = null!; // Fixed: Deep Scan timer
         private System.Windows.Forms.Timer _telegramPollTimer = null!; // Telegram Polling Timer
+        private bool _isTelegramProcessing = false; // v3.0.9 Re-entrancy protection
         private System.Windows.Forms.Timer _scheduleTimer = null!; // Main Dashboard/Quota Timer
         private DateTime _lastStatsUpdate = DateTime.MinValue;
         private long _lastProcessedUpdateId = 0;
@@ -47,6 +48,10 @@ namespace XiDeAI_Pro
 
         private readonly ConcurrentDictionary<int, InteractionState> _pendingInteractionDict = new();
         private int _interactionIdCounter = 0;
+        private System.Windows.Forms.Timer _botTimer = null!;
+        private System.Windows.Forms.Timer _trendEngagementTimer = null!; // v4.5.4: Trend Engagement Timer
+        private TrendEngagementService? _trendEngagement; // v4.5.4: Dynamic Trend Service
+
 
         private HashSet<string> _knownDMs = new HashSet<string>();
 
@@ -105,6 +110,12 @@ namespace XiDeAI_Pro
         private bool _guruPanelInitialized = false;
         private List<InfluencerPost> _guruPosts = new List<InfluencerPost>();
         private DataGridView dgvGuru = null!;
+        private DataGridView dgvGuruApproval = null!; // Moved from Bot Tab
+        private DataGridView dgvBotApproval = null!;
+        private RichTextBox rtbGuruPreview = null!;
+        private RichTextBox rtbBotPreview = null!; // New for Bot Tab
+        private int _currentSearchCategoryIndex = 0; // v4.2.1: Round-Robin Category Rotation
+        private readonly string[] _searchCategories = { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" };
         private List<(NewsItem item, string? analysis, string status)> _newsBuffer = new List<(NewsItem item, string? analysis, string status)>();
 
         
@@ -140,6 +151,12 @@ namespace XiDeAI_Pro
         private CheckBox chkSpamNews = null!;
         private CheckBox chkSpamReports = null!;
         private CheckBox chkSpamMotivation = null!;
+        
+        // Fenerbahçe Fan Modu
+        private Panel pnlFenerbahce = null!;
+        private Button btnNavFenerbahce = null!;
+        private DataGridView dgvFenerbahce = null!;
+        private bool _fenerbahceInitialized = false;
 
         public MainForm()
         {
@@ -154,6 +171,7 @@ namespace XiDeAI_Pro
                 _opManager.SocialIntel.SetMemoryEngine(_opManager.Memory);
             }    
             InitializeDeepScanTimer();
+            InitializeTrendEngagement(); // v4.5.4: Dynamic Trend Engagement
             
             LoadSettings();
             
@@ -225,6 +243,7 @@ namespace XiDeAI_Pro
             pnlInfluencers = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(30,30,30) };
             pnlNews = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(30,30,30) };
             pnlGuruCenter = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(30,30,30) };
+            pnlFenerbahce = new Panel { Dock = DockStyle.Fill, Visible = false, BackColor = Color.FromArgb(30,30,30) };
             
             pnlContent.Controls.Add(pnlDashboard);
             pnlContent.Controls.Add(pnlSignals);
@@ -235,6 +254,7 @@ namespace XiDeAI_Pro
             pnlContent.Controls.Add(pnlInfluencers);
             pnlContent.Controls.Add(pnlNews);
             pnlContent.Controls.Add(pnlGuruCenter);
+            pnlContent.Controls.Add(pnlFenerbahce);
 
             // Create Buttons (Reverse order for Dock Top)
             // Order: Dashboard (Top), Signals, Analysis, Bot, Settings
@@ -300,6 +320,18 @@ namespace XiDeAI_Pro
             btnNavSignals.Click += (s,e) => ShowPanel(pnlSignals, btnNavSignals);
             pnlSidebar.Controls.Add(btnNavSignals);
 
+            // Fenerbahçe (Force Enabled for this version)
+            if (!ConfigManager.Current.FanZoneEnabled)
+            {
+                ConfigManager.Current.FanZoneEnabled = true;
+                ConfigManager.Save(); // Migrate old config
+            }
+
+            btnNavFenerbahce = CreateNavBtn("Fenerbahçe", "💙💛");
+            btnNavFenerbahce.ForeColor = Color.Yellow; // Special
+            btnNavFenerbahce.Click += (s,e) => { InitializeFenerbahcePanel(); ShowPanel(pnlFenerbahce, btnNavFenerbahce); };
+            pnlSidebar.Controls.Add(btnNavFenerbahce);
+
             // Dashboard
             btnNavDash = CreateNavBtn("Ana Ekran", "🏠");
             btnNavDash.Click += (s,e) => ShowPanel(pnlDashboard, btnNavDash);
@@ -321,8 +353,8 @@ namespace XiDeAI_Pro
                     string valStr = "0";
                     string subStr = ""; // e.g., "/16"
                     
-                    if (p.Tag?.ToString() == "api_day") { valStr = cfg.DailyTweetCount.ToString(); subStr = "/16"; }
-                    else if (p.Tag?.ToString() == "api_month") { valStr = cfg.MonthlyTweetCount.ToString(); subStr = "/500"; }
+                    if (p.Tag?.ToString() == "api_day") { valStr = cfg.DailyTweetCount.ToString(); subStr = "/" + cfg.TwitterApiDailyLimit; }
+                    else if (p.Tag?.ToString() == "api_month") { valStr = cfg.MonthlyTweetCount.ToString(); subStr = "/" + cfg.TwitterApiMonthlyLimit; }
                     else if (p.Tag?.ToString() == "web_day") { valStr = (cfg.DailyTotalTweetCount - cfg.DailyTweetCount).ToString(); }
                     else if (p.Tag?.ToString() == "web_month") { valStr = (cfg.MonthlyTotalTweetCount - cfg.MonthlyTweetCount).ToString(); }
 
@@ -1321,72 +1353,93 @@ namespace XiDeAI_Pro
             if (targetPanel.Controls.Count > 50) targetPanel.Controls.RemoveAt(targetPanel.Controls.Count - 1);
         }
 
-        private void LoadActivityHistory()
+        private async void LoadActivityHistory()
         {
+            // v3.0.2 FIX: Initialize panel FIRST to ensure controls exist before access
             InitializeHistoryPanel();
+
+            if (_historyLogView == null) return;
+
+            // Clear immediately to show feedback
+            _historyLogView.Clear();
+            _historyLogView.Text = "Loglar yükleniyor, lütfen bekleyin...";
+
+            // Capture filter value on UI Thread BEFORE running background task
+            string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "Tümü";
 
             try
             {
-                string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "Logs");
-                if (!Directory.Exists(logDir))
+                // Run I/O in background
+                var historyText = await Task.Run(() => 
                 {
-                    _historyLogView.Text = "Henüz log kaydı bulunamadı.";
-                    return;
-                }
+                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "Logs");
+                    if (!Directory.Exists(logDir)) return "Henüz log kaydı bulunamadı.";
 
-                string filter = _historyModuleFilter.SelectedItem?.ToString() ?? "Tümü";
-                var allLines = new List<(DateTime time, string module, string line)>();
+                    var allLines = new List<(DateTime time, string module, string line)>();
 
-                foreach (var file in Directory.GetFiles(logDir, "Log_*.txt"))
-                {
-                    string fileName = Path.GetFileNameWithoutExtension(file);
-                    // Format: Log_2024-12-19_System
-                    var parts = fileName.Split('_');
-                    if (parts.Length < 3) continue;
-                    string module = parts[2];
-
-                    if (filter != "Tümü" && !module.Equals(filter, StringComparison.OrdinalIgnoreCase)) continue;
-
-                    foreach (var line in File.ReadAllLines(file))
+                    foreach (var file in Directory.GetFiles(logDir, "Log_*.txt"))
                     {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        // Try to parse timestamp [HH:mm:ss]
-                        if (line.StartsWith("[") && line.Length > 10)
+                        string fileName = Path.GetFileNameWithoutExtension(file);
+                        var parts = fileName.Split('_');
+                        if (parts.Length < 3) continue;
+
+                        string moduleName = parts[parts.Length - 1]; // e.g. "System" from "Log_2024-01-01_System"
+                        
+                        // Apply filter
+                        if (filter != "Tümü" && !string.Equals(moduleName, filter, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        try
                         {
-                            string timePart = line.Substring(1, 8);
-                            if (DateTime.TryParse(parts[1] + " " + timePart, out var dt))
+                            // Use FileStream for non-locking read
+                            using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                            using (var sr = new StreamReader(fs, Encoding.UTF8))
                             {
-                                allLines.Add((dt, module, $"[{module}] {line}"));
-                            }
-                            else
-                            {
-                                allLines.Add((DateTime.MinValue, module, $"[{module}] {line}"));
+                                string? logLine;
+                                while ((logLine = sr.ReadLine()) != null)
+                                {
+                                    if (string.IsNullOrWhiteSpace(logLine)) continue;
+                                    
+                                    // Parse timestamp: [09.01 14:30:15]
+                                    var timePart = logLine.Split(']', 2);
+                                    if (timePart.Length > 1)
+                                    {
+                                        string tsStr = timePart[0].TrimStart('[');
+                                        // Attempt to parse, but fallback to file date if fail
+                                        if (DateTime.TryParseExact(tsStr, "dd.MM HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out var dt))
+                                        {
+                                            allLines.Add((dt, moduleName, logLine));
+                                        }
+                                    }
+                                }
                             }
                         }
-                        else
-                        {
-                            allLines.Add((DateTime.MinValue, module, $"[{module}] {line}"));
-                        }
+                        catch { /* Skip corrupted files */ }
                     }
-                }
 
-                // Sort by time descending (newest first)
-                allLines.Sort((a, b) => b.time.CompareTo(a.time));
+                    if (allLines.Count == 0) return "Seçili modül için log kaydı bulunamadı.";
 
-                _historyLogView.Clear();
-                foreach (var item in allLines.Take(500)) // Limit to 500 lines
+                    // Sort: Newest first
+                    var sb = new StringBuilder();
+                    foreach (var log in allLines.OrderByDescending(x => x.time).Take(1000))
+                    {
+                        sb.AppendLine(log.line);
+                    }
+
+                    return sb.ToString();
+                });
+
+                // Update UI
+                if (_historyLogView != null && !this.IsDisposed)
                 {
-                    _historyLogView.AppendText(item.line + "\n");
-                }
-
-                if (allLines.Count == 0)
-                {
-                    _historyLogView.Text = "Seçili modül için log kaydı bulunamadı.";
+                    _historyLogView.Clear();
+                    _historyLogView.Text = historyText;
                 }
             }
             catch (Exception ex)
             {
-                _historyLogView.Text = "Hata: " + ex.Message;
+                if (_historyLogView != null && !this.IsDisposed)
+                    _historyLogView.Text = "Hata: " + ex.Message;
             }
         }
 
@@ -1450,7 +1503,12 @@ namespace XiDeAI_Pro
         {
             try
             {
-                await _webViewChart.EnsureCoreWebView2Async();
+                // FIX: Use persistent UserDataFolder to save cookies/session
+                // v4.4.5: Use distinct folder to avoid locking conflict with Twitter WebView
+                string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "WebView2_Chart");
+                Directory.CreateDirectory(userDataFolder);
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await _webViewChart.EnsureCoreWebView2Async(env);
 
                 // TradingView Çerez Enjeksiyonu
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
@@ -1592,9 +1650,10 @@ namespace XiDeAI_Pro
                     string json = await process.StandardOutput.ReadToEndAsync();
                     var cookies = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(json);
 
-                    if (cookies != null)
+                    if (cookies != null && cookies.Count > 0)
                     {
                         var manager = cookieManager.CookieManager;
+                        int addedCount = 0;
                         foreach (var c in cookies)
                         {
                             string name = c.TryGetValue("name", out var n) ? n?.ToString() ?? "" : "";
@@ -1604,10 +1663,31 @@ namespace XiDeAI_Pro
 
                             if (!string.IsNullOrEmpty(name))
                             {
+                                // 1. Add as-is
                                 var cookie = manager.CreateCookie(name, value, domain, path);
                                 manager.AddOrUpdateCookie(cookie);
+                                addedCount++;
+
+                                // 2. Force X.COM migration for critical session cookies
+                                if (domain.Contains("twitter.com"))
+                                {
+                                    var xCookie = manager.CreateCookie(name, value, ".x.com", path);
+                                    manager.AddOrUpdateCookie(xCookie);
+                                }
+                                
+                                // 3. Ensure Auth Token is present for .x.com (Critical)
+                                if (name == "auth_token" && !domain.Contains(".x.com"))
+                                {
+                                    var authCookie = manager.CreateCookie(name, value, ".x.com", path);
+                                    manager.AddOrUpdateCookie(authCookie);
+                                }
                             }
                         }
+                        Log($"🍪 {addedCount} çerez enjekte edildi (Twitter -> X Migration Active).", "System");
+                    }
+                    else
+                    {
+                        Log("⚠️ Çerez dosyası okundu ama içi boş veya geçersiz.", "Warning");
                     }
                 }
             }
@@ -1621,15 +1701,138 @@ namespace XiDeAI_Pro
         {
             try
             {
-                await _webViewTwitter.EnsureCoreWebView2Async();
+                // FIX: Use persistent UserDataFolder to save cookies/session
+                // v4.4.5: Use distinct folder to avoid locking conflict with Chart WebView
+                string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "WebView2_Twitter");
+                Directory.CreateDirectory(userDataFolder);
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await _webViewTwitter.EnsureCoreWebView2Async(env);
+                
                 await InjectTwitterCookiesAsync(_webViewTwitter.CoreWebView2);
                 
-                Log("✅ X (Twitter) oturum çerezleri enjekte edildi", "System");
+                // SYNC: Export cookies to JSON for Python scripts whenever navigation completes (e.g. login)
+                _webViewTwitter.NavigationCompleted += async (s, e) => {
+                    if (e.IsSuccess) await ExportCookiesToJson(_webViewTwitter.CoreWebView2);
+                };
+                
+                // v4.4.4 ROBUSTNESS: Add periodic sync timer (Every 30s) to ensure cookies are captured 
+                // even if NavigationCompleted doesn't fire (SPA behavior)
+                var syncTimer = new System.Windows.Forms.Timer();
+                syncTimer.Interval = 30000; // 30 sec
+                syncTimer.Tick += async (s, e) => {
+                     try {
+                        if (_webViewTwitter != null && _webViewTwitter.CoreWebView2 != null) 
+                            await ExportCookiesToJson(_webViewTwitter.CoreWebView2);
+                     } catch {}
+                };
+                syncTimer.Start();
+                
+                Log("✅ X (Twitter) oturum ve otomatik senkronizasyon (30sn) başlatıldı", "System");
                 _webViewTwitter.Source = new Uri("https://x.com/home");
             }
             catch (Exception ex)
             {
+                Log("❌ Twitter WebView Init Failed (CRITICAL): " + ex.Message, "Error");
                 Debug.WriteLine("Twitter WebView Init Failed: " + ex.Message);
+            }
+        }
+
+        private async Task ExportCookiesToJson(Microsoft.Web.WebView2.Core.CoreWebView2 coreWebView2)
+        {
+            try
+            {
+                var cookieManager = coreWebView2.CookieManager;
+                var cookies = await cookieManager.GetCookiesAsync("https://x.com");
+                
+                var list = new List<Dictionary<string, object>>();
+                foreach(var c in cookies)
+                {
+                    var dict = new Dictionary<string, object>();
+                    dict["name"] = c.Name;
+                    dict["value"] = c.Value;
+                    dict["domain"] = c.Domain;
+                    dict["path"] = c.Path;
+                    dict["secure"] = c.IsSecure;
+                    dict["httpOnly"] = c.IsHttpOnly;
+                    // c.Expires is DateTime. Convert to Unix Timestamp (seconds) for Selenium/Python compatibility.
+                    if (c.Expires > DateTime.MinValue)
+                    {
+                        dict["expiry"] = new DateTimeOffset(c.Expires).ToUnixTimeSeconds();
+                    }                    
+                    list.Add(dict);
+                }
+
+                // v4.4.7: Export Deep Identity (Client Hints) to match Fingerprint for Selenium
+                try 
+                {
+                    string jsCode = @"
+(async function() {
+    if (navigator.userAgentData) {
+        const uaData = await navigator.userAgentData.getHighEntropyValues([
+            'architecture', 'model', 'platform', 'platformVersion', 'uaFullVersion', 'fullVersionList'
+        ]);
+        return {
+            hasHints: true,
+            userAgent: navigator.userAgent,
+            meta_client_hints: {
+                brands: uaData.brands,
+                fullVersion: uaData.uaFullVersion,
+                platform: uaData.platform,
+                platformVersion: uaData.platformVersion,
+                architecture: uaData.architecture,
+                model: uaData.model,
+                mobile: uaData.mobile
+            }
+        };
+    } else {
+        return { hasHints: false, userAgent: navigator.userAgent };
+    }
+})();
+";
+                    string resultJson = await coreWebView2.ExecuteScriptAsync(jsCode);
+                    
+                    // WebView2 returns the result as a JSON string (which might contain our JSON object)
+                    // We can retain it as a raw object in the list for simplicity, or parse it.
+                    // Since specific serialization is tricky, let's extract the known fields manually if possible or use dynamic.
+                    
+                    // Simple parsing using System.Text.Json
+                    using (var doc = System.Text.Json.JsonDocument.Parse(resultJson))
+                    {
+                        // WebView2 might wrap result in quotes if it's a string, or returns object directly if it's an object?
+                        // ExecuteScriptAsync returns JSON encoded string of the result.
+                        // So if function returns object, resultJson is "{...}"
+                        
+                        var root = doc.RootElement;
+                        // Inspect what we got.
+                        if (root.TryGetProperty("userAgent", out var uaProp))
+                        {
+                            list.Add(new Dictionary<string, object> { { "meta_user_agent", uaProp.GetString() } });
+                        }
+                        
+                        if (root.TryGetProperty("meta_client_hints", out var hintsProp))
+                        {
+                            // We need to serialize the hints back to a string or object to store them
+                            // Simplest is to store the raw object or a serialized string version
+                            var hintsDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(hintsProp.GetRawText());
+                            list.Add(new Dictionary<string, object> { { "meta_client_hints", hintsDict } });
+                        }
+                    }
+                } 
+                catch (Exception ex) { Debug.WriteLine("Deep Identity Export Failed: " + ex.Message); }
+                
+                string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
+                string jsonPath = Path.Combine(appDataDir, "twitter_cookies.json");
+                
+                // Use Newtonsoft or System.Text.Json. Assuming System.Text.Json is available or use simple manual serialization if needed.
+                // Using System.Text.Json (Built-in for .NET Core/5+)
+                var json = System.Text.Json.JsonSerializer.Serialize(list);
+                await File.WriteAllTextAsync(jsonPath, json);
+                // Log only if significant change or debug? Too spammy for main log.
+                // Log("🍪 Cookies synced to JSON for Python", "System"); 
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Cookie Export Failed: " + ex.Message);
             }
         }
 
@@ -1651,24 +1854,57 @@ namespace XiDeAI_Pro
                 _opManager.SignalEng.OnStatusUpdate += (status) => UpdateBotStatus(status);
                 _opManager.SignalEng.OnSignalProcessed += (sig) => this.Invoke((MethodInvoker)(() => AddSignalToGrid(sig)));
 
-                _opManager.NewsEng.OnNewsProcessed += (news, summary, importance) => {
-                    UpdateBotStatus($"📰 Haber Yayınlandı: {news.Title}");
+                _opManager.NewsEng.OnNewsProcessed += (news, summary, importance, category) => {
+                    UpdateBotStatus($"📰 [{category}] Haber Yayınlandı: {news.Title}");
                     if (_newsInitialized) AddNewsCard(news, summary, "PUBLISHED");
                 };
 
-                _opManager.NewsEng.OnNewsPendingApproval += (news, summary, score, reasoning) => {
+                _opManager.NewsEng.OnNewsPendingApproval += (news, summary, score, category, reasoning, includesAnalysis) => {
                     int id = Interlocked.Increment(ref _newsIdCounter);
                     _pendingNewsDict[id] = (news, summary);
-                    UpdateBotStatus($"⚠️ Onay Bekliyor [ID: {id}]: {news.Title}");
+                    string analysisText = includesAnalysis ? "+ Analiz" : "Sadece Haber";
+                    UpdateBotStatus($"⚠️ [{category}] Onay Bekliyor [ID: {id}] ({analysisText}): {news.Title}");
                     if (_newsInitialized) AddNewsCard(news, summary, "PENDING");
                     
-                    string msg = $"⚠️ *ONAY BEKLİYOR [ID: {id}] ({score}/5)*\n\n" +
+                    string msg = $"⚠️ *ONAY BEKLİYOR [ID: {id}] ({score}/10)*\n\n" +
+                                 $"📂 *Kategori:* {category}\n" +
                                  $"📰 *{news.Title}*\n" +
+                                 $"📝 *İçerik:* {analysisText}\n" +
                                  $"🔎 *Analiz:* {reasoning}\n" +
                                  $"📝 *Özet:* {summary}\n\n" +
                                  $"✅ Onay: `/ONAYHABER {id}`\n" +
                                  $"❌ Red: `/REDHABER {id}`";
                     _ = _opManager.Telegram.SendMessageAsync(msg);
+                };
+
+                _opManager.NewsTracker.OnNewsDetected += (news) => {
+                    if (_newsInitialized) AddNewsCard(news, null, "LIVE"); 
+                };
+                
+                // v4.0.1 CRITICAL FIX: Connect NewsTracker to NewsEngine for processing
+                _opManager.NewsTracker.OnNewsDetected += OnNewsReceived;
+
+                // v3.0.7 FB FanZone UI Binding (v4.5.3: Updated to 6 columns, added Etkileşim)
+                _opManager.FanZone.OnNewFanContent += (fanTweet) => {
+                    this.Invoke((MethodInvoker)(() => {
+                        if (dgvFenerbahce != null && !this.IsDisposed)
+                        {
+                            // v4.5.3: 6 columns: Time, Source, Interaction, Tweet, Reaction, Status
+                            string status = "✅ Tamam";
+                            if (string.IsNullOrEmpty(fanTweet.AIReaction)) status = "⚠️ Atlandı";
+
+                            dgvFenerbahce.Rows.Insert(0, 
+                                fanTweet.DetectedAt.ToString("HH:mm"), 
+                                fanTweet.Handle + (fanTweet.Source == "Gündem" ? " (Gündem)" : ""), 
+                                fanTweet.InteractionIcons,  // New column
+                                fanTweet.Text, 
+                                fanTweet.AIReaction,
+                                status
+                            );
+                            
+                            if (dgvFenerbahce.Rows.Count > 100) dgvFenerbahce.Rows.RemoveAt(100);
+                        }
+                    }));
                 };
 
                 // Initialize UI Watchers
@@ -1685,7 +1921,36 @@ namespace XiDeAI_Pro
                 _telegramPollTimer = new System.Windows.Forms.Timer();
                 _telegramPollTimer.Interval = 3000; // 3 sec polling
                 _telegramPollTimer.Tick += async (s, e) => await ProcessTelegramCommands();
-                _telegramPollTimer.Start();
+                
+                // v3.1 FIX: Better startup offset handling. Instead of skipping all, fetch 20 and process them if they are new.
+                Task.Run(async () => {
+                    try
+                    {
+                        var lastUpdates = await _opManager.Telegram.GetUpdatesAsync(0); // Fetch pending
+                        if (lastUpdates != null && lastUpdates.Count > 0)
+                        {
+                            // We don't want to process old commands from hours ago on every restart, 
+                            // so we still set the offset to the latest, but we log the catch-up.
+                            _lastProcessedUpdateId = lastUpdates.Max(u => u.UpdateId);
+                            Logger.Telegram($"📡 Telegram polling başlatılıyor. Bekleyen {lastUpdates.Count} mesaj sisteme tanıtıldı. Son ID: {_lastProcessedUpdateId}");
+                        }
+                        else
+                        {
+                            Logger.Telegram("📡 Telegram polling başlatılıyor (Bekleyen mesaj yok).");
+                        }
+                    }
+                    catch (Exception tex)
+                    {
+                        Logger.Telegram($"⚠️ Telegram başlangıç offset alma hatası: {tex.Message}");
+                    }
+                    finally
+                    {
+                        this.Invoke((MethodInvoker)(() => {
+                            _telegramPollTimer.Start();
+                            Logger.Telegram("✅ Telegram polling timer aktif (UI Thread).");
+                        }));
+                    }
+                });
 
                 // Init Main Schedule Timer (Dashboard Stats)
                 _scheduleTimer = new System.Windows.Forms.Timer();
@@ -1693,8 +1958,21 @@ namespace XiDeAI_Pro
                 _scheduleTimer.Tick += (s, e) => CheckSchedule();
                 _scheduleTimer.Start();
 
+                // v4.0.1: Initialize daily auto-benchmark timer (runs at 03:00)
+                _opManager.InitializeDailyBenchmarkTimer();
+                
+                // v4.5.3: Run benchmark on startup for optimal model selection
+                _ = _opManager.RunAutoModelBenchmarkAsync();
+
                 // Initial Profile Stats Catch-up
                 _ = UpdateProfileStats();
+
+                // Setup Bot Interaction Timer (Fix: Missing Timer)
+                _botTimer = new System.Windows.Forms.Timer();
+                _botTimer.Interval = 1000 * 60 * 15; // 15 Minutes (Adjustable)
+                _botTimer.Tick += async (s, e) => {
+                     try { await CheckForInteractions(); } catch (Exception ex) { Log($"Bot Hatası: {ex.Message}", "System"); }
+                };
 
                 Log("🚀 XiDeAI Pro: Tüm sistemler nominal. (OperationManager Active)", "System");
             }
@@ -1704,102 +1982,6 @@ namespace XiDeAI_Pro
             }
         }
 
-        private async Task PostDailyReport()
-        {
-            try
-            {
-                Log("📊 Mega-Thread: Günlük Birleşik Rapor Hazırlanıyor...", "System");
-                
-                // 1. Piyasa Özetini Çek (FX, Altın, Gümüş, BIST100)
-                var financials = await _opManager.SocialIntel.GetFinancialSummaryAsync();
-                var market = new MarketSnapshot();
-                if (financials != null)
-                {
-                    market.Bist100 = financials.GetValueOrDefault("BIST100", "N/A");
-                    market.UsdTry = financials.GetValueOrDefault("USD", "N/A");
-                    market.EurTry = financials.GetValueOrDefault("EUR", "N/A");
-                    market.Gold = financials.GetValueOrDefault("Gold", "N/A");
-                    market.Silver = financials.GetValueOrDefault("Silver", "N/A");
-                }
-
-                // 2. En Çok Yükselenler/Düşenler
-                var gainers = await _opManager.SocialIntel.GetTopGainersAsync();
-                if (gainers != null && gainers.Any())
-                {
-                    market.TopGainers = gainers.Select(d => new MarketMover { Symbol = d.Symbol, Price = d.Close, ChangePercent = d.ChangePercent }).ToList();
-                }
-
-                var losers = await _opManager.SocialIntel.GetTopLosersAsync();
-                if (losers != null && losers.Any())
-                {
-                    market.TopLosers = losers.Select(d => new MarketMover { Symbol = d.Symbol, Price = d.Close, ChangePercent = d.ChangePercent }).ToList();
-                }
-
-                // 3. Sinyal Fiyatlarını Güncelle
-                var todaySignals = _opManager.Performance.GetDailyReport(DateTime.Now).Signals;
-                if (todaySignals.Count > 0)
-                {
-                    var symbols = todaySignals.Select(s => s.Symbol).Distinct();
-                    Log($"🔍 {symbols.Count()} hisse için güncel fiyatlar sorgulanıyor...", "System");
-                    var signalPrices = await _opManager.SocialIntel.GetStockPricesAsync(symbols);
-                    if (signalPrices.Count > 0)
-                    {
-                        _opManager.Performance.UpdateClosingPrices(signalPrices);
-                        Log($"✅ {signalPrices.Count} hisse fiyatı güncellendi.", "System");
-                    }
-                }
-
-                // 4. Raporu Sentezle
-                decimal marketReturn = 0;
-                var report = _opManager.Performance.GetDailyReport(DateTime.Now, marketReturn);
-                
-                if (report.TotalSignals == 0 && market.Bist100 == "N/A")
-                {
-                    Log("ℹ️ Rapor için yeterli veri yok, atlanıyor.", "System");
-                    return;
-                }
-
-                // 5. AI Sentezi
-                Log("🤖 AI Performans Analizi Hazırlanıyor...", "System");
-                string aiSummary = await _opManager.Gemini.GeneratePerformanceSynthesis(report) ?? "Günün özeti hazırlandı.";
-
-                // 6. Yayınla
-                if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason))
-                {
-                    Log($"🛡️ Spam koruması aktif: {reason}");
-                    return;
-                }
-
-                Log("📊 Mega-Thread paylaşılıyor...");
-                var ok = await _opManager.ThreadSvc.PostUnifiedDailyReportAsync(report, market, aiSummary, ConfigManager.Current.DailyTrends);
-
-                if (ok)
-                {
-                    _opManager.Spam.RecordTweet("REPORT", "DAILY_UNIFIED");
-                    Log("✅ Birleşik Günlük Rapor başarıyla yayınlandı.", "System");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"❌ Raporlama Hatası: {ex.Message}", "System");
-            }
-        }
-        
-        private async Task PostWeeklyReport()
-        {
-            var report = _opManager.Performance.GetWeeklyReport();
-            if (report.TotalSignals > 0)
-            {
-                if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason))
-                {
-                    Log($"🛡️ Spam protection (Rapor/Haftalık): {reason}");
-                    return;
-                }
-                Log("📅 Posting weekly report...");
-                var ok = await _opManager.ThreadSvc.PostWeeklyReportThread(report, ConfigManager.Current.DailyTrends);
-                if (ok) _opManager.Spam.RecordTweet("REPORT", "WEEKLY");
-            }
-        }
 
         private void LoadSettings()
         {
@@ -1825,11 +2007,15 @@ namespace XiDeAI_Pro
             }
             
             // Load Perplexity Key (v3.1+)
-            string perplexityKey = cfg.PerplexityApiKey ?? "";
-            txtPerplexityKey.Text = perplexityKey;
-            if (!string.IsNullOrEmpty(perplexityKey))
+            txtGeminiKey.Text = cfg.GeminiApiKey;
+            txtPerplexityKey.Text = cfg.PerplexityApiKey;
+            
+            // v3.1.1: Force Update Telegram Token in Service after loading
+            _opManager.Telegram.UpdateConfig();
+            Logger.Telegram("🔄 Telegram Ayarları Senkronize Edildi.");
+            if (!string.IsNullOrEmpty(cfg.PerplexityApiKey))
             {
-                Log($"✅ Perplexity API Key yüklendi (uzunluk: {perplexityKey.Length} karakter)", "System");
+                Log($"✅ Perplexity API Key yüklendi (uzunluk: {cfg.PerplexityApiKey.Length} karakter)", "System");
             }
             
             // Load Gemini Model
@@ -2002,6 +2188,15 @@ namespace XiDeAI_Pro
 
             Log("🚀 Watcher Service Started...");
             Log($"📁 Watching: {cfg.WatchFolderKing}, {cfg.WatchFolderDip}, {cfg.WatchFolderAnka}, {cfg.WatchFolderMiner}");
+            
+            // v4.0 Bot Interaction Activation
+            if (_botTimer != null) {
+                _botTimer.Start();
+                Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
+                // Run immediate check
+                Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
+            }
+
             btnStart.Enabled = false;
             btnStart.Text = "⏳ Running...";
             btnStart.BackColor = Color.Gray;
@@ -2017,6 +2212,12 @@ namespace XiDeAI_Pro
             _watcher.Stop();
             // _scheduleTimer (removed).Stop();
             // // _deepScanTimer (removed).Stop(); // MOVED TO INFLUENCER PANEL
+            
+            if (_botTimer != null) {
+                _botTimer.Stop();
+                Log("🤖 Bot Interaction Timer Stopped.", "System");
+            }
+
             Log("⏹️ Watcher Service Stopped.");
             btnStart.Enabled = true;
             btnStart.Text = "▶ Start";
@@ -2073,8 +2274,8 @@ namespace XiDeAI_Pro
             }
             else
             {
-                bool sent = await _opManager.Twitter.SendTweetAsync(tweet);
-                if (sent) 
+                string? sentUrl = await _opManager.Twitter.SendTweetAsync(tweet);
+                if (!string.IsNullOrEmpty(sentUrl)) 
                 { 
                     Log("✅ Motivation tweet sent (API)!", "Twitter"); 
                     _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION"); 
@@ -2146,8 +2347,8 @@ namespace XiDeAI_Pro
                     }
                     else
                     {
-                        bool sent = await _opManager.Twitter.SendTweetAsync(cleanedTweet);
-                        if (sent)
+                        string? sentUrl = await _opManager.Twitter.SendTweetAsync(cleanedTweet);
+                        if (!string.IsNullOrEmpty(sentUrl))
                         {
                             Log($"✅ Market Close Tweet {tweetCount} sent (API)!", "Twitter");
                             _opManager.Spam.RecordTweet("REPORT", "CLOSE"); 
@@ -2229,6 +2430,24 @@ namespace XiDeAI_Pro
                 lock(_memoryLock) { _signalMemory.Clear(); }
                 lock(_newsLock) { _postedNewsToday.Clear(); }
                 Log("🔄 Daily tweet/news log cleared.");
+            }
+            
+            // v4.0.1 FIX: Morning Motivation Tweet (09:30)
+            if (now.Hour == 9 && now.Minute >= 30 && now.Minute < 35 && !_tweetedToday.Contains("MORNING_MOTIVATION"))
+            {
+                _tweetedToday.Add("MORNING_MOTIVATION");
+                Log("☀️ Sabah motivasyon tweeti zamanı...", "System");
+                _ = PostMorningMotivation();
+            }
+            
+            // v4.0.1 FIX: Market Close Summary (18:15-18:20) - Only on weekdays
+            if (now.Hour == 18 && now.Minute >= 15 && now.Minute < 20 && 
+                now.DayOfWeek != DayOfWeek.Saturday && now.DayOfWeek != DayOfWeek.Sunday &&
+                !_tweetedToday.Contains("CLOSE_REPORT"))
+            {
+                _tweetedToday.Add("CLOSE_REPORT");
+                Log("📊 Gün sonu raporu zamanı...", "System");
+                _ = PostMarketCloseSummary();
             }
         }
 
@@ -2410,7 +2629,7 @@ namespace XiDeAI_Pro
                             await wait(500);
                             return {{ status: 'success' }};
                         }}
-                        return {{ status: 'error', message: 'Textarea not found' }};
+                        return {{ status: 'error', message: 'Tweet button not found' }};
                     }})();
                 ";
 
@@ -3251,7 +3470,7 @@ namespace XiDeAI_Pro
                             if (btn) btn.click();
                             return {{ status: 'success' }};
                         }}
-                        return {{ status: 'error', message = 'Reply box not found' }};
+                        return {{ status: 'error', message: 'Reply box not found' }};
                     }})();
                 ";
                 var resTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitterBg.ExecuteScriptAsync(js)));
@@ -3740,7 +3959,7 @@ namespace XiDeAI_Pro
                 else
                 {
                     LogSignal($"⚠️ Web tweet failed ({webResult.ErrorMessage}), trying API fallback...");
-                    sent = await _opManager.Twitter.SendTweetAsync(finalTweet);
+                    sent = !string.IsNullOrEmpty(await _opManager.Twitter.SendTweetAsync(finalTweet));
                 }
                 
                 if (sent)
@@ -3966,7 +4185,7 @@ namespace XiDeAI_Pro
             if (this.InvokeRequired) this.Invoke(new Action(() => Log(msg, category)));
             else 
             {
-                txtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
+                txtLog.AppendText($"[{DateTime.Now:dd.MM HH:mm:ss}] {msg}\r\n");
                 
                 // Route to appropriate logger
                 switch (category)
@@ -3976,6 +4195,7 @@ namespace XiDeAI_Pro
                     case "Twitter": Logger.Twitter(msg); break;
                     case "Signal": Logger.Log("Signal", msg); break; // Custom category
                     case "Social": Logger.Log("Social", msg); break; // Custom category
+                    case "FanZone": Logger.FanZone(msg); break;
                     case "System": default: Logger.Sys(msg); break;
                 }
 
@@ -4054,33 +4274,34 @@ namespace XiDeAI_Pro
 
             try
             {
-                UpdateBotStatus("🔍 Trend arıyor...");
+                // v4.2.1: Round-Robin Category Rotation
+                string currentCategory = _searchCategories[_currentSearchCategoryIndex];
+                _currentSearchCategoryIndex = (_currentSearchCategoryIndex + 1) % _searchCategories.Length;
                 
-                // 1. Find relevant topics from Config
-                var trends = await _opManager.SocialIntel.GetTrendsAsync();
-                var relevantKeywords = cfg.BotTopicKeywords.Split(',').Select(k => k.Trim().ToLowerInvariant()).Where(k => !string.IsNullOrEmpty(k)).ToArray();
+                UpdateBotStatus($"🔍 [{currentCategory}] Taranıyor...");
+                LogSocial($"🎯 Round-Robin Tarama: {currentCategory} (Sıra: {_currentSearchCategoryIndex + 1}/{_searchCategories.Length})");
                 
-                if (relevantKeywords.Length == 0)
+                // Get category-specific keywords
+                List<string> categoryKeywords;
+                if (cfg.CategorySearchKeywords.TryGetValue(currentCategory, out var keywords) && keywords.Count > 0)
                 {
-                    LogSocial("⚠️ Bot konuları tanımlanmamış.");
-                    UpdateBotStatus("⚠️ Konu yok");
-                    return;
+                    categoryKeywords = keywords;
+                }
+                else
+                {
+                    LogSocial($"⚠️ {currentCategory} için anahtar kelime tanımlı değil, GUNLUK_MIZAH fallback.");
+                    categoryKeywords = cfg.CategorySearchKeywords.GetValueOrDefault("GUNLUK_MIZAH", new List<string> { "gündem" });
                 }
                 
-                string? topic = trends.FirstOrDefault(t => relevantKeywords.Any(k => t.ToLowerInvariant().Contains(k)));
+                // Select a random keyword from current category for this scan
+                var random = new Random();
+                string searchTopic = categoryKeywords[random.Next(categoryKeywords.Count)];
                 
-                if (string.IsNullOrEmpty(topic))
-                {
-                    LogSocial("⚠️ İlgili trend bulunamadı.");
-                    UpdateBotStatus("⚠️ Trend yok");
-                    return;
-                }
+                LogSocial($"📌 Arama Kelimesi: {searchTopic}");
+                UpdateBotStatus($"🔍 [{currentCategory}] {searchTopic}");
                 
-                UpdateBotStatus($"🔍 Trend bulundu: {topic}");
-                LogSocial($"📌 Trend: {topic}");
-                
-                // 2. Find viral tweet with filters
-                var posts = await _opManager.SocialIntel.FindInfluencerAnalyses(topic + $" min_faves:{cfg.BotMinFavorites}", SocialIntelService.DetectMarket(topic));
+                // 2. Find viral tweet with filters (Web scraping - not API)
+                var posts = await _opManager.SocialIntel.FindInfluencerAnalyses(searchTopic + $" min_faves:{cfg.BotMinFavorites}", SocialIntelService.DetectMarket(searchTopic));
                 
                 // 3. Apply filters from Config
                 var now = DateTime.Now;
@@ -4099,22 +4320,41 @@ namespace XiDeAI_Pro
                 }
                 
                 var post = filteredPosts[0];
-                UpdateBotStatus($"💡 AI yanıt üretiyor...");
-                var reply = await _opManager.Gemini.GenerateReply(post.Content, post.Handle);
+                UpdateBotStatus($"💡 AI yanıt üretiyor (Two-Step)...");
+                
+                // v4.2.0: Two-Step Logic (Category Detection + Categorized Reply)
+                var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, post.Handle);
                     
                     if (!string.IsNullOrEmpty(reply))
                     {
                         int id = Interlocked.Increment(ref _interactionIdCounter);
                         _pendingInteractionDict[id] = new InteractionState { Url = post.Url, Text = reply, Time = DateTime.Now };
                         _tweetedToday.Add(post.Url); // Mark as proposed
-                        UpdateBotStatus($"⏳ Telegram onayı bekleniyor [ID: {id}] (@{post.Handle})");
+                        UpdateBotStatus($"⏳ Telegram/UI onayı bekleniyor [ID: {id}] ({category}: @{post.Handle})");
                         
                         string safeContent = post.Content.Replace("\"", "'");
                         string displayContent = safeContent.Length > 200 ? safeContent.Substring(0, 197) + "..." : safeContent;
 
+                        // 1. Send Telegram Msg
                         string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {post.Handle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
                         await _opManager.Telegram.SendMessageAsync(msg);
-                        LogSocial($"🤖 @{post.Handle} için öneri gönderildi");
+                        LogSocial($"🤖 @{post.Handle} için öneri gönderildi (Telegram & UI)");
+
+                        // 2. Add to UI Grid (Bot Approval Panel)
+                        if (dgvBotApproval != null && !dgvBotApproval.IsDisposed)
+                        {
+                            this.Invoke((MethodInvoker)(() => {
+                                // Columns: Time, User, Reply, Status, Url
+                                dgvBotApproval.Rows.Insert(0, 
+                                    DateTime.Now.ToString("HH:mm"), 
+                                    $"@{post.Handle}", 
+                                    $"{reply.Substring(0, Math.Min(reply.Length, 50))}...", 
+                                    "Bekliyor", 
+                                    post.Url, // Url column
+                                    reply     // FullReply column
+                                );
+                            }));
+                        }
 
                      }
                      else
@@ -4122,230 +4362,298 @@ namespace XiDeAI_Pro
                          UpdateBotStatus("⚠️ AI yanıt üretelemedi");
                      }
                  }
-                 catch (Exception) {}
+                 catch (Exception ex) { LogSocial($"Bot Loop Hata: {ex.Message}"); }
         }
 
         private async Task ProcessTelegramCommands()
         {
+            if (_isTelegramProcessing) return; // v3.0.9: Don't overlap requests
+            _isTelegramProcessing = true;
+
             try
             {
-                var update = await _opManager.Telegram.GetLastUpdateAsync();
-                if (update == null) return;
-                
-                // Avoid reprocessing same message or old messages on startup
-                if (update.UpdateId <= _lastProcessedUpdateId) return;
-                
-                // Mark processed
-                _lastProcessedUpdateId = update.UpdateId;
-
-                // Process Command
-                string msgText = update.Text.Trim();
-                if (string.IsNullOrEmpty(msgText) || !msgText.StartsWith("/")) return;
-
-                string[] parts = msgText.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                string command = parts[0].ToUpper();
-                string args = parts.Length > 1 ? parts[1] : "";
-
-                switch (command)
+                // v3.1.1: Check if token is available
+                if (string.IsNullOrEmpty(ConfigManager.Current.TelegramBotToken))
                 {
-                    case "/ANALIZ":
-                        if (string.IsNullOrEmpty(args))
-                        {
-                             await _opManager.Telegram.SendMessageAsync("⚠️ Kullanım: `/analiz [SEMBOL] [PERİYOT (Opsiyonel)]`\nÖrn: `/analiz THYAO` veya `/analiz XAUUSD 60`");
-                             return;
-                        }
-                        
-                        string symbol = args.Split(' ')[0];
-                        string period = args.Contains(" ") ? args.Split(' ')[1] : "240"; // Default 4H
-                        if (period == "G") period = "Daily";
+                    Logger.Telegram("⚠️ Telegram Token eksik, polling atlanıyor.");
+                    _isTelegramProcessing = false;
+                    return;
+                }
 
-                        await _opManager.Telegram.SendMessageAsync($"🔍 *{symbol.ToUpper()}* analizi başlatılıyor ({period}dk)...");
-                        
-                        // Run Analysis
-                        _lastAnalysisSymbol = symbol.ToUpper();
-                        _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, "BIST", period, "", "TL");
-                        
-                        if (_lastAnalysisResult.Success)
-                        {
-                            string report = $"📊 *ANALİZ RAPORU: {symbol.ToUpper()}*\n\n{_lastAnalysisResult.ReportText}\n\n🔗 Grafik: {_lastAnalysisResult.TvLink}\n\n🐦 Thread olarak paylaşmak için: */TWEETLE*";
-                            await _opManager.Telegram.SendMessageAsync(report);
-                        }
-                        else
-                        {
-                             await _opManager.Telegram.SendMessageAsync($"❌ Analiz başarısız: {_lastAnalysisResult.ReportText}");
-                        }
-                        break;
+                // Force check: If offset is 0, maybe we missed initialization
+                if (_lastProcessedUpdateId == 0)
+                {
+                    // Initialization Logic moved here to be safe
+                    // But we don't want to skip everything if it's the first run ever.
+                    // Let's just trust GetUpdatesAsync handles strict order.
+                }
 
-                    case "/TWEETLE":
-                    case "/PAYLAS":
-                    case "/THREAD":
-                        if (_lastAnalysisResult == null || !_lastAnalysisResult.Success || string.IsNullOrEmpty(_lastAnalysisSymbol))
-                        {
-                             await _opManager.Telegram.SendMessageAsync("⚠️ Önce geçerli bir analiz yapmalısınız! (`/analiz [SEMBOL]`)");
-                             return;
-                        }
+                // Process ALL pending updates using offset (Long Polling if supported, but here just fetch)
+                var updates = await _opManager.Telegram.GetUpdatesAsync(_lastProcessedUpdateId + 1);
+                
+                if (updates == null || updates.Count == 0) return;
 
-                        await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* için Thread hazırlanıyor ve X'te paylaşılıyor...");
-                        
-                        // Construct Signal for ThreadService
-                        var sig = new SignalData 
-                        { 
-                            Symbol = _lastAnalysisSymbol, 
-                            Price = _lastAnalysisResult.PriceInfo?.Price ?? 0,
-                            Score = 30, // Default High Score for Manual
-                            Analysis = _lastAnalysisResult.ReportText,
-                            Source = "MANUEL",
-                            Strategy = "Teknik Analiz",
-                            Period = "240", // Default
-                            Basis = "TL"
-                        };
-                        
-                        // Enrich with Sentiment from Result
-                        _opManager.ManualAnalysis.EnrichSignalWithResult(sig, _lastAnalysisResult, sig.Basis);
-                        
-                        // Post Thread
-                        var (sent, errorMsg) = await _opManager.ThreadSvc.PostSignalThread(
-                            sig, 
-                            _lastAnalysisResult.ScreenshotPath ?? "", 
-                            _lastAnalysisResult.TvLink ?? "", 
-                            ConfigManager.Current.DailyTrends, 
-                            customAnalysis: _lastAnalysisResult.ReportText, 
-                            influencerPosts: _lastAnalysisResult.InfluencerPosts
-                        );
-                        
-                        if (sent)
-                        {
-                             await _opManager.Telegram.SendMessageAsync($"✅ *BAŞARILI!* Thread paylaşıldı.\n\n🔗 [X Hesabını Kontrol Et](https://twitter.com/{ConfigManager.Current.XLoginUser})");
-                             _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                        }
-                        else
-                        {
-                             await _opManager.Telegram.SendMessageAsync($"❌ Paylaşım Hatası: {errorMsg}");
-                        }
-                        break;
+                foreach (var update in updates)
+                {
+                    // Double check to avoid repeat processing
+                    if (update.UpdateId <= _lastProcessedUpdateId) continue;
+                    
+                    _lastProcessedUpdateId = update.UpdateId;
 
-                    case "/DURUM":
-                    case "/STATUS":
-                        var statusMsg = $"🤖 *SİSTEM DURUMU*\n\n" +
-                                        $"✅ Sunucu Aktif (Uptime: {(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm")})\n" +
-                                        $"📅 Bugün Atılan Tweet: {_tweetedToday.Count}\n" +
-                                        $"🧠 Bellek: {System.GC.GetTotalMemory(false) / 1024 / 1024} MB\n" +
-                                        $"🕒 Son Kontrol: {DateTime.Now:HH:mm:ss}";
-                        await _opManager.Telegram.SendMessageAsync(statusMsg);
-                        break;
+                    // Log to dedicated Telegram Log
+                    Logger.Telegram($"📥 Mesaj Alındı (ID: {update.UpdateId}): {update.Text}");
+                    
+                    // v3.1: Heartbeat to System log every command to ensure it's alive
+                    Log($"📥 Telegram: {update.Text}", "System");
 
-                    case "/ONAY_HABER":
-                    case "/ONAYHABER":
+                    string msgText = update.Text.Trim();
+                    if (string.IsNullOrEmpty(msgText)) continue;
+                    
+                    if (!msgText.StartsWith("/")) 
+                    {
+                         // Non-command message, maybe log it but ignore
+                         continue;
+                    }
+
+                    string[] parts = msgText.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    string command = parts[0].ToUpper();
+                    string args = parts.Length > 1 ? parts[1] : "";
+
+                    Logger.Telegram($"⌨️ Komut Çalıştırılıyor: {command} {args}");
+
+                    try 
+                    {
+                        switch (command)
                         {
-                            int id = -1;
-                            var cmdParts = msgText.Split(' ');
-                            if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
-
-                            if (id > 0)
+                        case "/ANALIZ":
+                            if (string.IsNullOrEmpty(args))
                             {
-                                if (_pendingNewsDict.TryRemove(id, out var pending))
-                                {
-                                    await _opManager.Telegram.SendMessageAsync($"✅ {id} numaralı haber onaylandı: *{pending.item.Title}*. Paylaşılıyor...");
-                                    await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
-                                }
-                                else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} bulunamadı veya süresi doldu.");
+                                 await _opManager.Telegram.SendMessageAsync("⚠️ Kullanım: `/analiz [SEMBOL]`\nÖrn: `/analiz THYAO`");
+                                 return;
                             }
-                            else if (_pendingNewsDict.Count == 1)
+                            
+                            string symbol = args.Split(' ')[0];
+                            string period = args.Contains(" ") ? args.Split(' ')[1] : "240";
+                            if (period == "G") period = "Daily";
+
+                            string market = SymbolData.DetectMarket(symbol);
+                            Logger.Telegram($"🔍 {symbol} analizi isteniyor... (Pazar: {market})");
+                            await _opManager.Telegram.SendMessageAsync($"🔍 *{symbol.ToUpper()}* analizi başlatılıyor [{market} - {period}dk]...");
+                            
+                            _lastAnalysisSymbol = symbol.ToUpper();
+                            _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, market, period, "", "TL");
+                            
+                            if (_lastAnalysisResult.Success)
                             {
-                                var first = _pendingNewsDict.ElementAt(0);
-                                if (_pendingNewsDict.TryRemove(first.Key, out var pending))
-                                {
-                                    await _opManager.Telegram.SendMessageAsync($"✅ Haber onaylandı: *{pending.item.Title}*. Paylaşılıyor...");
-                                    await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
-                                }
-                            }
-                            else if (_pendingNewsDict.Count > 1)
-                            {
-                                string list = string.Join("\n", _pendingNewsDict.Select(k => $"• [{k.Key}] {k.Value.item.Title}"));
-                                await _opManager.Telegram.SendMessageAsync($"⚠️ Birden fazla haber bekliyor. Lütfen ID seçin:\n\n{list}");
+                                Logger.Telegram($"✅ {symbol} analizi tamamlandı.");
+                                string report = $"📊 *ANALİZ RAPORU: {symbol.ToUpper()}*\n\n{_lastAnalysisResult.ReportText}\n\n🔗 Grafik: {_lastAnalysisResult.TvLink}\n\n🐦 Paylaşmak için: */TWEETLE*";
+                                await _opManager.Telegram.SendMessageAsync(report);
                             }
                             else
                             {
-                                await _opManager.Telegram.SendMessageAsync("⚠️ Onay bekleyen haber yok.");
+                                Logger.Telegram($"❌ {symbol} analizi başarısız: {_lastAnalysisResult.ReportText}");
+                                 await _opManager.Telegram.SendMessageAsync($"❌ Analiz hatası: {_lastAnalysisResult.ReportText}");
                             }
-                        }
-                        break;
+                            break;
 
-                    case "/RED_HABER":
-                    case "/REDHABER":
-                        {
-                            int id = -1;
-                            var cmdParts = msgText.Split(' ');
-                            if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                        case "/TWEETLE":
+                        case "/PAYLAS":
+                        case "/THREAD":
+                            // CRITICAL: Log BEFORE try block to ensure we see execution
+                            Logger.Telegram($"🎯 /TWEETLE Komutu Alındı (Update ID: {update.UpdateId})");
+                            Logger.Sys($"🎯 /TWEETLE Komutu Başlatılıyor...");
+                            
+                            try {
+                                Logger.Sys($"🚀 /TWEETLE Try Bloğu İçinde. LastAnalysisSuccess: {_lastAnalysisResult?.Success ?? false}");
+                                
+                                if (_lastAnalysisResult == null || !_lastAnalysisResult.Success)
+                                {
+                                     Logger.Sys("⚠️ /TWEETLE: Geçerli analiz yok.");
+                                     await _opManager.Telegram.SendMessageAsync("⚠️ Önce geçerli bir analiz yapmalısınız!");
+                                     break; // ✅ FIX: 'return' yerine 'break' kullan
+                                }
 
-                            if (id > 0)
-                            {
-                                if (_pendingNewsDict.TryRemove(id, out var pending))
-                                    await _opManager.Telegram.SendMessageAsync($"❌ {id} numaralı haber reddedildi: *{pending.item.Title}*");
+                                Logger.Sys($"🧵 /TWEETLE: {_lastAnalysisSymbol} için Thread hazırlanıyor...");
+                                await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* paylaşılıyor...");
+                                
+                                var sig = new SignalData 
+                                { 
+                                    Symbol = _lastAnalysisSymbol, 
+                                    Price = _lastAnalysisResult.PriceInfo?.Price ?? 0,
+                                    Score = 30,
+                                    Analysis = _lastAnalysisResult.ReportText,
+                                    Source = "MANUEL",
+                                    Strategy = "Telegram",
+                                    Period = "240",
+                                    Basis = "TL"
+                                };
+                                
+                                // Enrich
+                                 _opManager.ManualAnalysis.EnrichSignalWithResult(sig, _lastAnalysisResult, "TL");
+                                
+                                Logger.Sys("🧵 /TWEETLE: PostSignalThread çağrılıyor...");
+                                var (sent, errorMsg) = await _opManager.ThreadSvc.PostSignalThread(
+                                    sig, 
+                                    _lastAnalysisResult.ScreenshotPath ?? "", 
+                                    _lastAnalysisResult.TvLink ?? "", 
+                                    ConfigManager.Current.DailyTrends, 
+                                    customAnalysis: _lastAnalysisResult.ReportText, 
+                                    influencerPosts: _lastAnalysisResult.InfluencerPosts
+                                );
+                                
+                                Logger.Sys($"🧵 /TWEETLE: PostSignalThread Sonucu - Sent: {sent}, Error: {errorMsg ?? "YOK"}");
+                                
+                                if (sent)
+                                {
+                                     Logger.Sys("✅ /TWEETLE: Başarıyla gönderildi.");
+                                     await _opManager.Telegram.SendMessageAsync($"✅ *PAYLAŞILDI!*");
+                                     _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
+                                }
                                 else
-                                    await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} bulunamadı.");
-                            }
-                            else _pendingNewsDict.Clear(); // No ID? Clear all
-                        }
-                        break;
-
-                    case "/ONAY":
-                        {
-                            int id = -1;
-                            var cmdParts = msgText.Split(' ');
-                            if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
-
-                            if (id > 0)
-                            {
-                                if (_pendingInteractionDict.TryRemove(id, out var pending))
                                 {
-                                    await _opManager.Telegram.SendMessageAsync($"✅ {id} ID'li etkileşim onaylandı. Yanıt gönderiliyor...");
-                                    await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
-                                    UpdateBotStatus("✅ Yanıt gönderildi!");
-                                    _opManager.Spam.RecordTweet("INTERACTION", "REPLY");
-                                }
-                                else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} bulunamadı.");
-                            }
-                            else if (_pendingInteractionDict.Count == 1)
-                            {
-                                var first = _pendingInteractionDict.ElementAt(0);
-                                if (_pendingInteractionDict.TryRemove(first.Key, out var pending))
-                                {
-                                    await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
-                                    await _opManager.Telegram.SendMessageAsync("✅ Etkileşim onaylandı.");
+                                     Logger.Sys($"❌ /TWEETLE: Gönderim hatası: {errorMsg}");
+                                     await _opManager.Telegram.SendMessageAsync($"❌ Hata: {errorMsg}");
+                                     Logger.Telegram($"❌ Paylaşım Hatası: {errorMsg}");
                                 }
                             }
-                            else await _opManager.Telegram.SendMessageAsync("⚠️ Lütfen ID belirtin (/ONAY [ID])");
-                        }
-                        break;
-
-                    case "/RED":
-                    case "/IPTAL":
-                        {
-                            int id = -1;
-                            var cmdParts = msgText.Split(' ');
-                            if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
-
-                            if (id > 0)
+                            catch (Exception tEx)
                             {
-                                if (_pendingInteractionDict.TryRemove(id, out var pending))
-                                {
-                                    await _opManager.Telegram.SendMessageAsync($"❌ {id} numaralı etkileşim reddedildi.");
-                                    LogSocial($"❌ Telegram üzerinden reddedildi: {id}");
-                                    UpdateBotStatus("❌ İptal edildi");
-                                    _tweetedToday.Remove(pending.Url);
-                                }
-                                else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} bulunamadı.");
+                                Logger.Sys($"❌ /TWEETLE KRİTİK HATA: {tEx}");
+                                await _opManager.Telegram.SendMessageAsync($"❌ KRİTİK HATA: {tEx.Message}");
                             }
-                            else _pendingInteractionDict.Clear();
-                        }
-                        break;
+                            break;
 
-                }
+                        case "/DURUM":
+                        case "/STATUS":
+                            var statusMsg = $"🤖 *SİSTEM DURUMU*\n\n" +
+                                            $"🕒 Uptime: {(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm")}\n" +
+                                            $"📅 Tweetler: {_tweetedToday.Count}\n" +
+                                            $"📥 Son Update ID: {_lastProcessedUpdateId}";
+                            await _opManager.Telegram.SendMessageAsync(statusMsg);
+                            break;
+
+                        case "/ONAY_HABER":
+                        case "/ONAYHABER":
+                            {
+                                int id = -1;
+                                var cmdParts = msgText.Split(' ');
+                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+
+                                if (id > 0)
+                                {
+                                    if (_pendingNewsDict.TryRemove(id, out var pending))
+                                    {
+                                        await _opManager.Telegram.SendMessageAsync($"⏳ {id} onaylandı. Yayınlanıyor...");
+                                        try
+                                        {
+                                            var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
+                                            if (success)
+                                            {
+                                                await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI! {pending.item.Title}");
+                                                Logger.News($"✅ Haber başarıyla yayınlandı: {pending.item.Title}");
+                                            }
+                                            else
+                                            {
+                                                await _opManager.Telegram.SendMessageAsync($"❌ HATA: {message}");
+                                                Logger.News($"❌ Haber yayınlama hatası: {message}");
+                                            }
+                                        }
+                                        catch (Exception pEx)
+                                        {
+                                            Logger.News($"❌ ForcePostNews Hatası: {pEx.Message}");
+                                            await _opManager.Telegram.SendMessageAsync($"❌ Kritik Hata: {pEx.Message}");
+                                        }
+                                    }
+                                    else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} geçersiz.");
+                                }
+                                else if (_pendingNewsDict.Count == 1)
+                                {
+                                    var first = _pendingNewsDict.ElementAt(0);
+                                    if (_pendingNewsDict.TryRemove(first.Key, out var pending))
+                                    {
+                                        await _opManager.Telegram.SendMessageAsync($"⏳ Onaylandı: {pending.item.Title}");
+                                        try
+                                        {
+                                            var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
+                                            if (success)
+                                            {
+                                                await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI!");
+                                            }
+                                            else
+                                            {
+                                                await _opManager.Telegram.SendMessageAsync($"❌ HATA: {message}");
+                                            }
+                                        }
+                                        catch (Exception pEx)
+                                        {
+                                            Logger.News($"❌ ForcePostNews Hatası: {pEx.Message}");
+                                            await _opManager.Telegram.SendMessageAsync($"❌ Kritik Hata: {pEx.Message}");
+                                        }
+                                    }
+                                }
+                                else await _opManager.Telegram.SendMessageAsync("⚠️ ID belirtin.");
+                            }
+                            break;
+
+                        case "/RED_HABER":
+                        case "/REDHABER":
+                            {
+                                int id = -1;
+                                var cmdParts = msgText.Split(' ');
+                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                if (id > 0 && _pendingNewsDict.TryRemove(id, out _))
+                                    await _opManager.Telegram.SendMessageAsync($"❌ {id} reddedildi.");
+                                else if (id <=0) _pendingNewsDict.Clear();
+                            }
+                            break;
+                            
+                        case "/ONAY":
+                             {
+                                int id = -1;
+                                var cmdParts = msgText.Split(' ');
+                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+
+                                if (id > 0)
+                                {
+                                    if (_pendingInteractionDict.TryRemove(id, out var pending))
+                                    {
+                                        await _opManager.Telegram.SendMessageAsync($"✅ {id} onaylandı. Yanıtlanıyor...");
+                                        await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
+                                    }
+                                    else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} yok.");
+                                }
+                             }
+                             break;
+                             
+                        case "/RED":
+                        case "/IPTAL":
+                             {
+                                int id = -1;
+                                var cmdParts = msgText.Split(' ');
+                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                if (id > 0 && _pendingInteractionDict.TryRemove(id, out var p))
+                                {
+                                     await _opManager.Telegram.SendMessageAsync($"❌ {id} iptal.");
+                                     _tweetedToday.Remove(p.Url);
+                                }
+                             }
+                             break;
+                        }
+                    }
+                    catch (Exception commandEx)
+                    {
+                        Logger.Telegram($"❌ Komut Hatası ({command}): {commandEx.Message}");
+                        await _opManager.Telegram.SendMessageAsync($"❌ Komut işlenirken hata oluştu: {commandEx.Message}");
+                    }
+                } 
             }
             catch (Exception ex)
             {
-               Log($"Telegram Command Error: {ex.Message}", "System");
+                Logger.Telegram($"❌ ProcessTelegramCommands Hatası: {ex.Message}");
+            }
+            finally
+            {
+                _isTelegramProcessing = false;
             }
         }
 
@@ -4427,6 +4735,41 @@ namespace XiDeAI_Pro
                }
             };
             _deepScanTimer.Start();
+        }
+
+        /// <summary>
+        /// v4.5.4: Initialize Trend Engagement Timer (runs every 5 minutes, checks for prime time)
+        /// </summary>
+        private void InitializeTrendEngagement()
+        {
+            // Create service
+            _trendEngagement = new TrendEngagementService(
+                _opManager.SocialIntel!,
+                _opManager.Gemini!,
+                _opManager.Telegram!,
+                _opManager.Stats!
+            );
+
+            // Wire events
+            _trendEngagement.OnLog += (msg, cat) => Log(msg, cat);
+            _trendEngagement.OnStatusUpdate += (msg) => UpdateStatus(msg);
+
+            // Timer: Check every 5 minutes if we should engage
+            _trendEngagementTimer = new System.Windows.Forms.Timer();
+            _trendEngagementTimer.Interval = 1000 * 60 * 5; // 5 dakika
+            _trendEngagementTimer.Tick += async (s, e) =>
+            {
+                try
+                {
+                    await _trendEngagement.TryEngageAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log($"❌ TrendEngagement Timer Error: {ex.Message}", "System");
+                }
+            };
+            _trendEngagementTimer.Start();
+            Log("🔥 Dinamik Trend Engagement başlatıldı (5dk kontrol döngüsü)", "System");
         }
 
         private void ShowAboutDialog()
@@ -4652,8 +4995,8 @@ namespace XiDeAI_Pro
                                  Log($"⚠️ Web başarısız: {res.ErrorMessage}. API fallback deneniyor...", "Twitter");
                                  // Fallback to API
                                  btnTweetAnalysis.Text = "⚠️ API ile deneniyor...";
-                                 bool sent = await _opManager.Twitter.SendTweetAsync(rtbAnalysisResult.Text);
-                                 if(sent)
+                                 string? sentUrl = await _opManager.Twitter.SendTweetAsync(rtbAnalysisResult.Text);
+                                 if(!string.IsNullOrEmpty(sentUrl))
                                  {
                                      Log("✅ Tweet gönderildi (API Fallback)!", "Twitter");
                                      _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
@@ -4736,77 +5079,82 @@ namespace XiDeAI_Pro
             }
             catch { /* Silent fail */ }
         }
-
-        private DataGridView dgvGuruApproval = null!;
-        
         private void InitializeBotInteractionTab(Control tab)
         {
-            var tabControl = new TabControl { Dock = DockStyle.Fill, Appearance = TabAppearance.Buttons, ItemSize = new Size(150, 40) };
+            tab.Controls.Clear();
             
-            // Tab 1: Ayarlar & Log (Existing Content)
-            var tpSettings = new TabPage("⚙️ Ayarlar & Log") { BackColor = Color.FromArgb(30, 30, 30) };
-            var scrollPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20) };
-            tpSettings.Controls.Add(scrollPanel);
+            // Layout: Split (Top: Settings/Log, Bottom: Approvals)
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 450, BackColor = Color.FromArgb(45,45,50) };
             
+            // --- TOP: Settings & Log ---
+            var pnlSettings = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(15) };
             int y = 10;
 
-            // Bot Aktif/Pasif Toggle
-            chkBotEnabled = new CheckBox { Text = "🤖 Bot Etkileşimi Aktif", Location = new Point(10, y), Width = 300, Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = Color.White };
+            // Header
+            pnlSettings.Controls.Add(new Label { Text = "🤖 BOT ETKİLEŞİM MERKEZİ", Location = new Point(10, y), AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = Color.Gold });
+            y += 35;
+
+            // CheckBox
+            chkBotEnabled = new CheckBox { Text = "✅ Bot Etkileşimi Aktif (Durdurmak için tiki kaldırın)", Location = new Point(10, y), Width = 400, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Checked = ConfigManager.Current.BotInteractionEnabled };
             chkBotEnabled.CheckedChanged += (s, e) => { ConfigManager.Current.BotInteractionEnabled = chkBotEnabled.Checked; ConfigManager.Save(); };
-            scrollPanel.Controls.Add(chkBotEnabled);
-            y += 40;
-
-            // Konular (Anahtar Kelimeler)
-            scrollPanel.Controls.Add(new Label { Text = "📌 Konular (virgülle ayrılmış):", Location = new Point(10, y), Width = 300, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Cyan });
-            y += 25;
-            txtBotKeywords = new TextBox { Location = new Point(10, y), Width = 700, Height = 120, Multiline = true, ScrollBars = ScrollBars.Vertical, Font = new Font("Consolas", 9), BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            txtBotKeywords.TextChanged += (s, e) => { ConfigManager.Current.BotTopicKeywords = txtBotKeywords.Text; ConfigManager.Save(); };
-            scrollPanel.Controls.Add(txtBotKeywords);
-            y += 130;
-
-            // Filtreler
-            scrollPanel.Controls.Add(new Label { Text = "⚙️ Filtreler:", Location = new Point(10, y), Width = 300, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Cyan });
+            pnlSettings.Controls.Add(chkBotEnabled);
             y += 30;
 
-            scrollPanel.Controls.Add(new Label { Text = "Min Takipçi Sayısı:", Location = new Point(10, y), Width = 150, ForeColor = Color.Silver });
-            txtBotMinFollowers = new TextBox { Location = new Point(170, y), Width = 100, Text = "5000", BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            txtBotMinFollowers.TextChanged += (s, e) => { if (int.TryParse(txtBotMinFollowers.Text, out int val)) { ConfigManager.Current.BotMinFollowers = val; ConfigManager.Save(); } };
-            scrollPanel.Controls.Add(txtBotMinFollowers);
-            y += 35;
+            // Keywords
+            pnlSettings.Controls.Add(new Label { Text = "📌 Konular (Virgülle ayırın):", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Cyan });
+            y += 20;
+            txtBotKeywords = new TextBox { Location = new Point(10, y), Width = 600, Height = 60, Multiline = true, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotTopicKeywords };
+            txtBotKeywords.TextChanged += (s, e) => { ConfigManager.Current.BotTopicKeywords = txtBotKeywords.Text; ConfigManager.Save(); };
+            pnlSettings.Controls.Add(txtBotKeywords);
+            y += 70;
 
-            scrollPanel.Controls.Add(new Label { Text = "Min Beğeni Sayısı:", Location = new Point(10, y), Width = 150, ForeColor = Color.Silver });
-            txtBotMinFavorites = new TextBox { Location = new Point(170, y), Width = 100, Text = "200", BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            txtBotMinFavorites.TextChanged += (s, e) => { if (int.TryParse(txtBotMinFavorites.Text, out int val)) { ConfigManager.Current.BotMinFavorites = val; ConfigManager.Save(); } };
-            scrollPanel.Controls.Add(txtBotMinFavorites);
-            y += 35;
+            // v4.3.2 Fix: Initialize missing Bot Controls
+            // Min Followers
+            pnlSettings.Controls.Add(new Label { Text = "Min Takipçi:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
+            txtBotMinFollowers = new TextBox { Location = new Point(120, y-3), Width = 80, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotMinFollowers.ToString() };
+            txtBotMinFollowers.TextChanged += (s, e) => { if (int.TryParse(txtBotMinFollowers.Text, out int v)) { ConfigManager.Current.BotMinFollowers = v; ConfigManager.Save(); } };
+            pnlSettings.Controls.Add(txtBotMinFollowers);
+            
+            // Min Favorites
+            pnlSettings.Controls.Add(new Label { Text = "Min Fav:", Location = new Point(220, y), AutoSize = true, ForeColor = Color.Silver });
+            txtBotMinFavorites = new TextBox { Location = new Point(300, y-3), Width = 80, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotMinFavorites.ToString() };
+            txtBotMinFavorites.TextChanged += (s, e) => { if (int.TryParse(txtBotMinFavorites.Text, out int v)) { ConfigManager.Current.BotMinFavorites = v; ConfigManager.Save(); } };
+            pnlSettings.Controls.Add(txtBotMinFavorites);
 
-            scrollPanel.Controls.Add(new Label { Text = "Max Tweet Yaşı (saat):", Location = new Point(10, y), Width = 150, ForeColor = Color.Silver });
-            txtBotMaxAge = new TextBox { Location = new Point(170, y), Width = 100, Text = "24", BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            txtBotMaxAge.TextChanged += (s, e) => { if (int.TryParse(txtBotMaxAge.Text, out int val)) { ConfigManager.Current.BotMaxTweetAgeHours = val; ConfigManager.Save(); } };
-            scrollPanel.Controls.Add(txtBotMaxAge);
-            y += 45;
-
-            // Durum Göstergesi
-            lblBotStatus = new Label { Text = "⏳ Beklemede", Location = new Point(10, y), Width = 700, Font = new Font("Segoe UI", 11, FontStyle.Bold), ForeColor = Color.Gray };
-            scrollPanel.Controls.Add(lblBotStatus);
+            // Max Age
+            pnlSettings.Controls.Add(new Label { Text = "Max Saat:", Location = new Point(400, y), AutoSize = true, ForeColor = Color.Silver });
+            txtBotMaxAge = new TextBox { Location = new Point(480, y-3), Width = 80, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotMaxTweetAgeHours.ToString() };
+            txtBotMaxAge.TextChanged += (s, e) => { if (int.TryParse(txtBotMaxAge.Text, out int v)) { ConfigManager.Current.BotMaxTweetAgeHours = v; ConfigManager.Save(); } };
+            pnlSettings.Controls.Add(txtBotMaxAge);
+            
             y += 35;
+            
+            // Status
+            lblBotStatus = new Label { Text = "⏳ Bekleniyor...", Location = new Point(10, y), Width = 600, ForeColor = Color.Gray, Font = new Font("Segoe UI", 9, FontStyle.Italic) };
+            pnlSettings.Controls.Add(lblBotStatus);
+            y += 25;
 
             // Log
-            scrollPanel.Controls.Add(new Label { Text = "📜 Etkileşim Logu:", Location = new Point(10, y), Width = 300, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Cyan });
-            y += 25;
-            rtbBotLog = new RichTextBox { Location = new Point(10, y), Width = 900, Height = 300, ReadOnly = true, Font = new Font("Consolas", 9), BackColor = Color.Black, ForeColor = Color.LimeGreen, BorderStyle = BorderStyle.None };
-            scrollPanel.Controls.Add(rtbBotLog);
+            pnlSettings.Controls.Add(new Label { Text = "📜 İşlem Logu:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
+            y += 20;
+            rtbBotLog = new RichTextBox { Location = new Point(10, y), Width = 800, Height = 250, BackColor = Color.Black, ForeColor = Color.Lime, ReadOnly = true, Font = new Font("Consolas", 9) };
+            pnlSettings.Controls.Add(rtbBotLog);
 
-            // Tab 2: Onay Bekleyenler (NEW)
-            var tpApproval = new TabPage("⏳ Onay Bekleyenler") { BackColor = Color.FromArgb(30,30,30) };
+            split.Panel1.Controls.Add(pnlSettings);
+
+            // --- BOTTOM: Bot Approvals ---
+            var pnlApprovals = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
             
-            // Layout for Approval Tab
-            var splitApproval = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 400, BackColor = Color.FromArgb(45,45,50) };
-            
-            // Grid
-            dgvGuruApproval = new DataGridView { 
+            var pnlAppHeader = new Panel { Dock = DockStyle.Top, Height = 30 };
+            pnlAppHeader.Controls.Add(new Label { Text = "⏳ Onay Bekleyen Bot Yanıtları", Dock = DockStyle.Left, ForeColor = Color.Orange, Font = new Font("Segoe UI", 10, FontStyle.Bold), AutoSize = true });
+            pnlAppHeader.Controls.Add(new Label { Text = "✏️ Yanıtı düzenlemek için seçin ve aşağıya yazın:", Dock = DockStyle.Right, ForeColor = Color.LightGray, AutoSize = true });
+            pnlApprovals.Controls.Add(pnlAppHeader);
+
+            var subSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 200, BackColor = Color.FromArgb(40,40,40) };
+
+            dgvBotApproval = new DataGridView { 
                 Dock = DockStyle.Fill, 
-                BackgroundColor = Color.FromArgb(35, 35, 40), 
+                BackgroundColor = Color.FromArgb(30, 30, 35),
                 ForeColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 ReadOnly = true,
@@ -4814,86 +5162,99 @@ namespace XiDeAI_Pro
                 RowHeadersVisible = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                EnableHeadersVisualStyles = false,
-                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
-                GridColor = Color.FromArgb(60, 60, 60),
-                RowTemplate = { Height = 40 }
+                EnableHeadersVisualStyles = false
             };
             
             // Style
-            dgvGuruApproval.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(20, 20, 20);
-            dgvGuruApproval.ColumnHeadersDefaultCellStyle.ForeColor = Color.Cyan;
-            dgvGuruApproval.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            dgvGuruApproval.DefaultCellStyle.BackColor = Color.FromArgb(35, 35, 40);
-            dgvGuruApproval.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
-            dgvGuruApproval.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            DataGridViewCellStyle hStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(20,20,20), ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+            dgvBotApproval.ColumnHeadersDefaultCellStyle = hStyle;
+            dgvBotApproval.DefaultCellStyle.BackColor = Color.FromArgb(40,40,45);
+            dgvBotApproval.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
+            dgvBotApproval.DefaultCellStyle.SelectionBackColor = Color.Teal;
 
-            // Columns including Image Path (hidden)
-            dgvGuruApproval.Columns.Add("Date", "Tarih");
-            dgvGuruApproval.Columns.Add("Symbol", "Sembol");
-            dgvGuruApproval.Columns.Add("Snippet", "İçerik Özeti");
-            dgvGuruApproval.Columns.Add("Status", "Durum");
-            dgvGuruApproval.Columns.Add("Content", "FullContent"); // Hidden
-            dgvGuruApproval.Columns.Add("ImagePath", "ImagePath");   // Hidden
+            dgvBotApproval.Columns.Add("Time", "Zaman");
+            dgvBotApproval.Columns.Add("User", "Kullanıcı");
+            dgvBotApproval.Columns.Add("Reply", "Önerilen Yanıt");
+            dgvBotApproval.Columns.Add("Status", "Durum");
+            dgvBotApproval.Columns.Add("Url", "Url"); 
+            dgvBotApproval.Columns.Add("FullReply", "FullReply");
+            dgvBotApproval.Columns["Url"].Visible = false;
+            dgvBotApproval.Columns["FullReply"].Visible = false;
             
-            dgvGuruApproval.Columns["Date"].Width = 120;
-            dgvGuruApproval.Columns["Symbol"].Width = 80;
-            dgvGuruApproval.Columns["Status"].Width = 100;
-            dgvGuruApproval.Columns["Content"].Visible = false;
-            dgvGuruApproval.Columns["ImagePath"].Visible = false;
+            dgvBotApproval.Columns["Time"].Width = 60;
+            dgvBotApproval.Columns["User"].Width = 120;
+            dgvBotApproval.Columns["Status"].Width = 80;
 
-            splitApproval.Panel1.Controls.Add(dgvGuruApproval);
+            subSplit.Panel1.Controls.Add(dgvBotApproval);
 
-            // Action Panel (Bottom of split panel 1 or top of panel 2?) - Let's use Panel 2 for Preview & Actions
-            var pnlAction = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
+            // Editor
+            var pnlEditor = new Panel { Dock = DockStyle.Fill };
+            rtbBotPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(25,25,25), ForeColor = Color.White, BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10) };
+            var btnApprove = new Button { Text = "✅ DÜZENLENMİŞ YANITI GÖNDER", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+            btnApprove.Click += async (s,e) => await ApproveBotInteraction();
             
-            var btnApprove = new Button { Text = "✅ SEÇİLİ THREAD'İ YAYINLA", Dock = DockStyle.Top, Height = 50, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 11, FontStyle.Bold), Cursor = Cursors.Hand };
-            btnApprove.Click += async (s, e) => await ApproveSelectedThread();
+            pnlEditor.Controls.Add(rtbBotPreview);
+            pnlEditor.Controls.Add(btnApprove);
             
-            var btnReject = new Button { Text = "❌ REDDET / SİL", Dock = DockStyle.Top, Height = 40, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0,10,0,0) };
-            btnReject.Click += (s, e) => RejectSelectedThread();
-
-            var lblPreview = new Label { Text = "📝 İçerik Önizleme & Grafik:", Dock = DockStyle.Top, Height = 30, ForeColor = Color.Cyan, Font = new Font("Segoe UI", 10, FontStyle.Bold), Padding = new Padding(0,10,0,0) };
+            subSplit.Panel2.Controls.Add(pnlEditor);
+            pnlApprovals.Controls.Add(subSplit);
             
-            var rtbPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20,20,20), ForeColor = Color.White, BorderStyle = BorderStyle.None, ReadOnly = true, Font = new Font("Consolas", 10) };
+            split.Panel2.Controls.Add(pnlApprovals);
+            
+            tab.Controls.Add(split);
 
-            var picPreview = new PictureBox { Dock = DockStyle.Right, Width = 400, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
-
-            pnlAction.Controls.Add(rtbPreview); // Fill
-            pnlAction.Controls.Add(picPreview); // Right
-            pnlAction.Controls.Add(lblPreview); // Top
-            pnlAction.Controls.Add(btnReject);  // Top
-            pnlAction.Controls.Add(btnApprove); // Top
-
-            // Selection Logic to update preview
-            dgvGuruApproval.SelectionChanged += (s, e) => {
-                if (dgvGuruApproval.SelectedRows.Count > 0)
-                {
-                    var row = dgvGuruApproval.SelectedRows[0];
-                    rtbPreview.Text = row.Cells["Content"].Value?.ToString() ?? "";
-                    string imgPath = row.Cells["ImagePath"].Value?.ToString() ?? "";
-                    
-                    if (!string.IsNullOrEmpty(imgPath) && File.Exists(imgPath))
-                    {
-                        try {
-                            // Load copy to avoid lock
-                            using (var fs = new FileStream(imgPath, FileMode.Open, FileAccess.Read))
-                            {
-                                picPreview.Image = Image.FromStream(fs);
-                            }
-                        } catch { picPreview.Image = null; }
-                    }
-                    else picPreview.Image = null;
+            // Wire up selection to editor
+            dgvBotApproval.SelectionChanged += (s, e) => {
+                if (dgvBotApproval.SelectedRows.Count > 0) {
+                     var row = dgvBotApproval.SelectedRows[0];
+                     rtbBotPreview.Text = row.Cells["FullReply"].Value?.ToString() ?? "";
                 }
             };
+        }
 
-            splitApproval.Panel2.Controls.Add(pnlAction);
-            tpApproval.Controls.Add(splitApproval);
-
-            tabControl.TabPages.Add(tpSettings);
-            tabControl.TabPages.Add(tpApproval);
+        private async Task ApproveBotInteraction()
+        {
+            if (dgvBotApproval.SelectedRows.Count == 0) return;
+            var row = dgvBotApproval.SelectedRows[0];
+            string url = row.Cells["Url"].Value?.ToString() ?? "";
             
-            tab.Controls.Add(tabControl);
+            // USE EDITED TEXT
+            string replyText = (rtbBotPreview != null && !string.IsNullOrWhiteSpace(rtbBotPreview.Text)) 
+                               ? rtbBotPreview.Text 
+                               : (row.Cells["FullReply"].Value?.ToString() ?? "");
+
+            if (string.IsNullOrEmpty(replyText))
+            {
+                // Fallback to dictionary if grid empty (legacy check)
+                var kvp = _pendingInteractionDict.FirstOrDefault(x => x.Value.Url == url);
+                if (kvp.Value != null) replyText = kvp.Value.Text;
+            }
+
+            if (string.IsNullOrEmpty(replyText))
+            {
+                 MessageBox.Show("Yanıt verisi bulunamadı.");
+                 return;
+            }
+
+            // Post Reply
+            Log("🤖 Bot yanıtı gönderiliyor...", "Bot");
+            var res = await _opManager.SocialIntel.ReplyToTweetAsync(url, replyText);
+            
+            if (res.status == "success")
+            {
+                Log($"✅ Bot yanıtı gönderildi!", "Bot");
+                if (dgvBotApproval != null) dgvBotApproval.Rows.Remove(row);
+                
+                // Remove from dict
+                var kvp = _pendingInteractionDict.FirstOrDefault(x => x.Value.Url == url);
+                if (kvp.Value != null) _pendingInteractionDict.TryRemove(kvp.Key, out _);
+                
+                MessageBox.Show("Yanıt Başarıyla Gönderildi!");
+            }
+            else
+            {
+                MessageBox.Show($"Hata: {res.message}");
+            }
         }
 
         private async Task ApproveSelectedThread()
@@ -4901,10 +5262,40 @@ namespace XiDeAI_Pro
             if (dgvGuruApproval.SelectedRows.Count == 0) return;
             var row = dgvGuruApproval.SelectedRows[0];
             
-            string content = row.Cells["Content"].Value?.ToString() ?? "";
+            // Use EDITED content from RichTextBox if available
+            string content = (rtbGuruPreview != null && !string.IsNullOrWhiteSpace(rtbGuruPreview.Text)) 
+                             ? rtbGuruPreview.Text 
+                             : (row.Cells["Content"].Value?.ToString() ?? "");
             string imgPath = row.Cells["ImagePath"].Value?.ToString() ?? "";
             
             if (string.IsNullOrEmpty(content)) return;
+            
+            // v4.1.1: BOT REPLY HANDLER
+            if (content.StartsWith("BOT_REPLY|||"))
+            {
+                var parts = content.Split(new[] { "|||" }, StringSplitOptions.None);
+                if (parts.Length >= 3) // PREFIX, URL, REPLY, HANDLE
+                {
+                    string targetUrl = parts[1];
+                    string replyText = parts[2];
+                    
+                    Log("🤖 Bot yanıtı onaylandı, gönderiliyor...", "Social");
+                    var res = await _opManager.SocialIntel.ReplyToTweetAsync(targetUrl, replyText);
+                    
+                    if (res.status == "success")
+                    {
+                        Log("✅ Bot yanıtı gönderildi!", "Social");
+                        dgvGuruApproval.Rows.Remove(row);
+                        MessageBox.Show("Yanıt başarıyla gönderildi.");
+                        return;
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Hata: {res.message}");
+                        return;
+                    }
+                }
+            }
 
             // Disable UI
             Log("🧵 Thread onaylandı, yayınlanıyor...", "Twitter");
@@ -4919,7 +5310,11 @@ namespace XiDeAI_Pro
             if (result != null && result.status == "success")
             {
                 Log("✅ Thread başarıyla yayınlandı!", "Twitter");
-                dgvGuruApproval.Rows.Remove(row);
+                // SAFETY FIX: Check if row still exists and belongs to grid
+                if (dgvGuruApproval != null && !row.IsNewRow && dgvGuruApproval.Rows.Contains(row))
+                {
+                    dgvGuruApproval.Rows.Remove(row);
+                }
                 MessageBox.Show("Thread yayınlandı!");
             }
             else
@@ -4984,6 +5379,7 @@ namespace XiDeAI_Pro
 
             try
             {
+                dgvSignals.Rows.Clear(); // FIX: Clear old history before loading
                 var history = _opManager.Performance.GetRecentSignals(100);
                 foreach (var rec in history)
                 {
@@ -5010,8 +5406,9 @@ namespace XiDeAI_Pro
                 Log($"⚠️ Geçmiş sinyaller yüklenirken hata: {ex.Message}", "System");
             }
         }
-        private void InitializeGuruPanel()
+        private void InitializeGuruPanel_OLD()
         {
+            /* DEPRECATED 
             if (_guruPanelInitialized) return;
             _guruPanelInitialized = true;
 
@@ -5114,6 +5511,158 @@ namespace XiDeAI_Pro
             // Bring actions to front
             pnlActions.BringToFront();
             lblTitle.BringToFront();
+        } */
+        } // END InitializeGuruPanel_OLD
+
+        private void InitializeGuruPanel()
+        {
+            if (_guruPanelInitialized) return;
+            _guruPanelInitialized = true;
+
+            pnlGuruCenter.Controls.Clear();
+            pnlGuruCenter.Padding = new Padding(10);
+            
+            // Header
+            var lblTitle = new Label { 
+                Text = "👑 ÜSTAT TAKİP MERKEZİ - @EFELERiiNEFESi3", 
+                Dock = DockStyle.Top, 
+                Height = 40, 
+                ForeColor = Color.Gold, 
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            pnlGuruCenter.Controls.Add(lblTitle);
+
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 300, BackColor = Color.FromArgb(40,40,40) };
+            
+            // --- TOP: Live Feed (Guru Tweets) ---
+            var tlpFeed = new TableLayoutPanel {
+                Dock = DockStyle.Fill,
+                RowCount = 3,
+                ColumnCount = 1,
+                BackColor = Color.FromArgb(40,40,40),
+                Padding = new Padding(0)
+            };
+            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F)); // Header
+            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Grid
+            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F)); // Button
+
+            // Header Label
+            var lblFeedHeader = new Label { 
+                Text = "📡 Canlı Akış (Son Tweetler & Tablolar)", 
+                Dock = DockStyle.Fill, 
+                Font = new Font("Segoe UI", 10, FontStyle.Bold), 
+                ForeColor = Color.Cyan,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(5, 0, 0, 0)
+            };
+            tlpFeed.Controls.Add(lblFeedHeader, 0, 0);
+            
+            dgvGuru = new DataGridView { 
+                 Dock = DockStyle.Fill, 
+                 ColumnHeadersVisible = true, // EXPLICIT VISIBILITY
+                 ColumnHeadersHeight = 35,
+                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing, 
+                 BackgroundColor = Color.FromArgb(30, 30, 35),
+                 ForeColor = Color.White,
+                 BorderStyle = BorderStyle.None,
+                 ReadOnly = true,
+                 AllowUserToAddRows = false,
+                 RowHeadersVisible = false,
+                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                 EnableHeadersVisualStyles = false
+            };
+            // Style
+            DataGridViewCellStyle hStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(20,20,20), ForeColor = Color.Gold, Font = new Font("Segoe UI", 9, FontStyle.Bold), SelectionBackColor = Color.Indigo };
+            dgvGuru.ColumnHeadersDefaultCellStyle = hStyle;
+            dgvGuru.DefaultCellStyle.BackColor = Color.FromArgb(40,40,45);
+            dgvGuru.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
+            dgvGuru.DefaultCellStyle.SelectionBackColor = Color.Indigo;
+
+            dgvGuru.Columns.Add("Date", "Saat"); dgvGuru.Columns[0].Width = 60;
+            dgvGuru.Columns.Add("Text", "İçerik");
+            dgvGuru.RowTemplate.Height = 40;
+            
+            tlpFeed.Controls.Add(dgvGuru, 0, 1);
+            
+            var btnScanHoca = new Button { Text = "🔍 Hocayı Şimdi Tara", Dock = DockStyle.Fill, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnScanHoca.Click += async (s, e) => await ScanGuruAccountAsync();
+            tlpFeed.Controls.Add(btnScanHoca, 0, 2);
+            
+            split.Panel1.Controls.Add(tlpFeed);
+
+            // --- BOTTOM: Approvals (Drafts) ---
+            var pnlReview = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
+            
+            var headerPanel = new Panel { Dock = DockStyle.Top, Height = 30 };
+            headerPanel.Controls.Add(new Label { Text = "📝 Onay Bekleyen Analizler (Taslaklar)", Dock = DockStyle.Left, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Orange, AutoSize = true });
+            
+            var btnDelete = new Button { Text = "❌ Sil", Dock = DockStyle.Right, Width = 80, BackColor = Color.Maroon, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnDelete.Click += (s,e) => RejectSelectedThread();
+            headerPanel.Controls.Add(btnDelete);
+            
+            pnlReview.Controls.Add(headerPanel);
+
+            var approvalSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 600 };
+
+            dgvGuruApproval = new DataGridView { 
+                Dock = DockStyle.Fill, 
+                BackgroundColor = Color.FromArgb(35, 35, 40), 
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                EnableHeadersVisualStyles = false
+            };
+            
+            dgvGuruApproval.ColumnHeadersDefaultCellStyle = hStyle;
+            dgvGuruApproval.DefaultCellStyle.BackColor = Color.FromArgb(35, 35, 40);
+            dgvGuruApproval.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
+            dgvGuruApproval.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+
+            dgvGuruApproval.Columns.Add("Date", "Tarih");
+            dgvGuruApproval.Columns.Add("Symbol", "Sembol");
+            dgvGuruApproval.Columns.Add("Snippet", "Özet");
+            dgvGuruApproval.Columns.Add("Status", "Durum");
+            dgvGuruApproval.Columns.Add("Content", "C"); dgvGuruApproval.Columns["Content"].Visible=false;
+            dgvGuruApproval.Columns.Add("ImagePath", "I"); dgvGuruApproval.Columns["ImagePath"].Visible=false;
+            dgvGuruApproval.RowTemplate.Height = 35;
+            
+            approvalSplit.Panel1.Controls.Add(dgvGuruApproval);
+            
+            // Preview
+            var pnlPreview = new Panel { Dock = DockStyle.Fill };
+            var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 200, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
+            rtbGuruPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20,20,20), ForeColor = Color.White, BorderStyle = BorderStyle.None, ReadOnly = false };
+            var btnPublish = new Button { Text = "✅ YAYINLA", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            btnPublish.Click += async (s,e) => await ApproveSelectedThread();
+            
+            pnlPreview.Controls.Add(rtbGuruPreview);
+            pnlPreview.Controls.Add(picPreview);
+            pnlPreview.Controls.Add(btnPublish);
+            
+            approvalSplit.Panel2.Controls.Add(pnlPreview);
+            pnlReview.Controls.Add(approvalSplit);
+            
+            split.Panel2.Controls.Add(pnlReview);
+            pnlGuruCenter.Controls.Add(split);
+            
+            // Preview Logic
+            dgvGuruApproval.SelectionChanged += (s, e) => {
+                if (dgvGuruApproval.SelectedRows.Count > 0)
+                {
+                    var row = dgvGuruApproval.SelectedRows[0];
+                    rtbGuruPreview.Text = row.Cells["Content"].Value?.ToString() ?? "";
+                    string imgPath = row.Cells["ImagePath"].Value?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(imgPath) && File.Exists(imgPath)) {
+                        try { using (var fs = new FileStream(imgPath, FileMode.Open, FileAccess.Read)) { picPreview.Image = Image.FromStream(fs); } } catch { picPreview.Image = null; }
+                    } else picPreview.Image = null;
+                }
+            };
         }
 
         private async Task ScanGuruAccountAsync()
@@ -5217,7 +5766,386 @@ namespace XiDeAI_Pro
                 }
             }
         }
+        private void InitializeFenerbahcePanel()
+        {
+            if (_fenerbahceInitialized) return;
+            _fenerbahceInitialized = true;
+
+            pnlFenerbahce.Controls.Clear();
+
+            // --- 1. HEADER (Top) ---
+            var lblHeader = new Label { 
+                Text = "FENERBAHÇE FAN ZONE 💙💛", 
+                Dock = DockStyle.Top, 
+                Height = 60, 
+                Font = new Font("Segoe UI", 18, FontStyle.Bold), 
+                ForeColor = Color.Yellow, 
+                BackColor = Color.Navy, 
+                TextAlign = ContentAlignment.MiddleCenter 
+            };
+            
+            // --- 2. SIDEBAR (Roster List) - Right ---
+            // --- 2. SIDEBAR (Roster List) - Right (TLP Fixed Layout) ---
+            var pnlSide = new TableLayoutPanel {
+                Dock = DockStyle.Fill, // Will fill the parent TLP cell
+                ColumnCount = 1,
+                RowCount = 4,
+                Width = 300,
+                BackColor = Color.FromArgb(32, 32, 40),
+                Padding = new Padding(0)
+            };
+            pnlSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F)); // Title
+            pnlSide.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // List
+            pnlSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F)); // Refresh
+            pnlSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F)); // Add Account
+
+            var lblSideTitle = new Label {
+                Text = "📋 TAKİP LİSTESİ / KADRO",
+                Dock = DockStyle.Top,
+                Height = 35,
+                ForeColor = Color.Gold,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.FromArgb(25, 25, 35)
+            };
+            lblSideTitle.Dock = DockStyle.Fill; 
+            pnlSide.Controls.Add(lblSideTitle, 0, 0);
+
+            var lvwRoster = new ListView {
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                BackColor = Color.FromArgb(40, 40, 50),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                FullRowSelect = true,
+                HeaderStyle = ColumnHeaderStyle.None,
+                Font = new Font("Segoe UI", 9)
+            };
+            lvwRoster.Columns.Add("Hesap", 260); // Tek kolon
+            
+            // Groups
+            var grpOfficial = new ListViewGroup("Resmi", "Resmi Hesaplar");
+            var grpAthlete = new ListViewGroup("Sporcu", "Sporcular (Futbol/Basket/Voleybol)");
+            var grpReporter = new ListViewGroup("Muhabir", "Muhabir ve Fanlar");
+            lvwRoster.Groups.AddRange(new[] { grpOfficial, grpAthlete, grpReporter });
+            lvwRoster.ShowGroups = true;
+
+            lvwRoster.Dock = DockStyle.Fill; 
+            pnlSide.Controls.Add(lvwRoster, 0, 1);
+
+            // Refresh Button
+            var btnRefreshRoster = new Button {
+                Text = "🔄 Listeyi Güncelle",
+                Dock = DockStyle.Bottom,
+                Height = 35,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(60, 60, 70),
+                Cursor = Cursors.Hand
+            };
+
+            // v4.5.3: User-friendly Add Account/Athlete Dialog (replaced Notepad approach)
+            var btnEditConfig = new Button {
+                Text = "➕ Hesap Ekle",
+                Dock = DockStyle.Bottom,
+                Height = 35,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.Yellow,
+                BackColor = Color.FromArgb(80, 60, 20),
+                Cursor = Cursors.Hand
+            };
+            btnEditConfig.Click += (s, e) => {
+                // Create a simple input dialog
+                var dlg = new Form {
+                    Text = "💙💛 FanZone - Hesap Ekle",
+                    Width = 400,
+                    Height = 280,
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    BackColor = Color.FromArgb(30, 30, 40)
+                };
+
+                var lblType = new Label { Text = "Hesap Türü:", Left = 20, Top = 20, Width = 100, ForeColor = Color.White };
+                var cmbType = new ComboBox { Left = 130, Top = 18, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+                cmbType.Items.AddRange(new[] { "Resmi Hesap", "Sporcu", "Muhabir/Fan" });
+                cmbType.SelectedIndex = 1;
+
+                var lblHandle = new Label { Text = "Twitter Handle:", Left = 20, Top = 60, Width = 100, ForeColor = Color.White };
+                var txtHandle = new TextBox { Left = 130, Top = 58, Width = 220, BackColor = Color.FromArgb(50, 50, 60), ForeColor = Color.White };
+                txtHandle.PlaceholderText = "@kullaniciadi";
+
+                var lblName = new Label { Text = "İsim (Sporcu):", Left = 20, Top = 100, Width = 100, ForeColor = Color.White };
+                var txtName = new TextBox { Left = 130, Top = 98, Width = 220, BackColor = Color.FromArgb(50, 50, 60), ForeColor = Color.White };
+                txtName.PlaceholderText = "Örn: Edin Dzeko";
+
+                var lblSport = new Label { Text = "Branş:", Left = 20, Top = 140, Width = 100, ForeColor = Color.White };
+                var cmbSport = new ComboBox { Left = 130, Top = 138, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+                cmbSport.Items.AddRange(new[] { "Futbol", "Basketbol", "Voleybol", "Diğer" });
+                cmbSport.SelectedIndex = 0;
+
+                // Show/hide athlete fields based on type
+                cmbType.SelectedIndexChanged += (ss, ee) => {
+                    bool isSporcu = cmbType.SelectedIndex == 1;
+                    lblName.Visible = txtName.Visible = lblSport.Visible = cmbSport.Visible = isSporcu;
+                };
+
+                var btnOk = new Button { Text = "✅ Ekle", Left = 130, Top = 190, Width = 100, DialogResult = DialogResult.OK, FlatStyle = FlatStyle.Flat, BackColor = Color.Green, ForeColor = Color.White };
+                var btnCancel = new Button { Text = "İptal", Left = 250, Top = 190, Width = 100, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, BackColor = Color.Gray, ForeColor = Color.White };
+
+                dlg.Controls.AddRange(new Control[] { lblType, cmbType, lblHandle, txtHandle, lblName, txtName, lblSport, cmbSport, btnOk, btnCancel });
+                dlg.AcceptButton = btnOk;
+                dlg.CancelButton = btnCancel;
+
+                if (dlg.ShowDialog() == DialogResult.OK) {
+                    var handle = txtHandle.Text.Trim();
+                    if (string.IsNullOrEmpty(handle)) {
+                        MessageBox.Show("Handle boş olamaz!", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    if (!handle.StartsWith("@")) handle = "@" + handle;
+
+                    var cfg = ConfigManager.Current;
+                    if (cmbType.SelectedIndex == 1) {
+                        // Sporcu
+                        var name = txtName.Text.Trim();
+                        if (string.IsNullOrEmpty(name)) name = handle;
+                        cfg.FenerbahceAthletes.Add(new FenerbahceAthlete { Name = name, Handle = handle, Sport = cmbSport.Text });
+                    } else {
+                        // Resmi veya Muhabir
+                        if (cmbType.SelectedIndex == 0) {
+                            cfg.FenerbahceAccounts.Insert(0, handle); // Resmi en başa
+                        } else {
+                            cfg.FenerbahceAccounts.Add(handle); // Muhabir sona
+                        }
+                    }
+                    ConfigManager.Save();
+                    ReloadRoster();
+                    Log($"✅ FanZone: '{handle}' eklendi.", "System");
+                }
+            };
+
+            // v4.3.5: Context menu for deleting items
+            var ctxMenu = new ContextMenuStrip();
+            var mnuDelete = new ToolStripMenuItem("🗑️ Sil");
+            mnuDelete.Click += (s, e) => {
+                if (lvwRoster.SelectedItems.Count == 0) return;
+                var selected = lvwRoster.SelectedItems[0];
+                var group = selected.Group?.Name;
+                var text = selected.Text;
+                
+                if (MessageBox.Show($"'{text}' silinsin mi?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                    return;
+
+                try {
+                    var cfg = ConfigManager.Current;
+                    if (group == "Sporcu") {
+                        // Parse "Name (@Handle)" format
+                        var match = System.Text.RegularExpressions.Regex.Match(text, @"(.+)\s+\((@\w+)\)");
+                        if (match.Success) {
+                            var handle = match.Groups[2].Value;
+                            cfg.FenerbahceAthletes.RemoveAll(a => a.Handle.Equals(handle, StringComparison.OrdinalIgnoreCase));
+                        }
+                    } else {
+                        cfg.FenerbahceAccounts.Remove(text);
+                    }
+                    ConfigManager.Save();
+                    ReloadRoster();
+                    Log($"🗑️ FanZone: '{text}' silindi.", "System");
+                } catch { }
+            };
+            ctxMenu.Items.Add(mnuDelete);
+            lvwRoster.ContextMenuStrip = ctxMenu;
+
+            btnRefreshRoster.Dock = DockStyle.Fill;
+            pnlSide.Controls.Add(btnRefreshRoster, 0, 2);
+            
+            btnEditConfig.Dock = DockStyle.Fill;
+            pnlSide.Controls.Add(btnEditConfig, 0, 3);
+
+            // Local Helper to Populate List
+            void ReloadRoster() {
+                try {
+                    // Reload config from disk to pick up manual edits
+                    ConfigManager.Load();
+                    
+                    lvwRoster.BeginUpdate();
+                    lvwRoster.Items.Clear();
+                    var cfg = ConfigManager.Current;
+
+                    // Resmi
+                    foreach(var acc in cfg.FenerbahceAccounts.Take(2)) 
+                        lvwRoster.Items.Add(new ListViewItem(acc) { Group = grpOfficial, ForeColor = Color.Yellow });
+
+                    // Sporcular
+                    foreach(var ath in cfg.FenerbahceAthletes)
+                        lvwRoster.Items.Add(new ListViewItem($"{ath.Name} ({ath.Handle})") { Group = grpAthlete });
+
+                    // Muhabirler (Liste dışındakiler veya geri kalanı)
+                    foreach(var acc in cfg.FenerbahceAccounts.Skip(2))
+                        lvwRoster.Items.Add(new ListViewItem(acc) { Group = grpReporter });
+
+                    lvwRoster.EndUpdate();
+                    Log($"📋 FanZone listesi yenilendi. Toplam: {lvwRoster.Items.Count}", "System");
+                } catch { }
+            }
+            
+            btnRefreshRoster.Click += (s, e) => ReloadRoster();
+            
+            // Initial Load
+            ReloadRoster();
+
+            // --- 3. MAIN CONTENT (Left/Fill) ---
+            var pnlMain = new Panel {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(0, 0, 5, 0) // Sağdan boşluk bırak ki sidebar ile yapışmasın
+            };
+
+            // Main Controls (Start/Stop)
+            var pnlControls = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(40,40,40) };
+            
+            var btnStart = new Button { Text = "▶️ SALDIR (Başlat)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Green, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            btnStart.Click += (s,e) => { 
+                _opManager.FanZone.Start(); 
+                MessageBox.Show("Tam saha pres başladı! Modül devrede.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
+            };
+            
+            var btnStop = new Button { Text = "⏹️ MOLA (Durdur)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Red, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            btnStop.Click += (s,e) => { 
+                _opManager.FanZone.Stop(); 
+                MessageBox.Show("Modül dinlenmeye çekildi.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
+            };
+
+            var btnClear = new Button { Text = "🧹 Temizle", Width = 100, Dock = DockStyle.Right, FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
+            btnClear.Click += (s,e) => { dgvFenerbahce.Rows.Clear(); };
+
+            pnlControls.Controls.Add(btnStop);
+            pnlControls.Controls.Add(btnStart);
+            pnlControls.Controls.Add(btnClear);
+            // Note: pnlControls is added to pnlMain later with proper Z-order
+
+            // Main Grid
+            dgvFenerbahce = new DataGridView { 
+                Dock = DockStyle.Fill,
+                BackgroundColor = Color.MidnightBlue, 
+                ForeColor = Color.Yellow,
+                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                EnableHeadersVisualStyles = false,
+                ScrollBars = ScrollBars.Vertical,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            };
+            
+            // Grid Styling
+            DataGridViewCellStyle headerStyle = new DataGridViewCellStyle();
+            headerStyle.BackColor = Color.Navy;
+            headerStyle.ForeColor = Color.Yellow;
+            headerStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            dgvFenerbahce.ColumnHeadersDefaultCellStyle = headerStyle;
+            dgvFenerbahce.EnableHeadersVisualStyles = false;
+
+            dgvFenerbahce.DefaultCellStyle.BackColor = Color.FromArgb(30,30,40);
+            dgvFenerbahce.DefaultCellStyle.ForeColor = Color.White;
+            dgvFenerbahce.DefaultCellStyle.SelectionBackColor = Color.Navy;
+            dgvFenerbahce.DefaultCellStyle.SelectionForeColor = Color.Yellow;
+            dgvFenerbahce.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+
+            // Columns - v4.5.3: Added Etkileşim column
+            dgvFenerbahce.Columns.Add("Time", "Zaman");
+            dgvFenerbahce.Columns[0].Width = 55;
+            dgvFenerbahce.Columns.Add("Source", "Kaynak");
+            dgvFenerbahce.Columns[1].Width = 100;
+            dgvFenerbahce.Columns.Add("Interaction", "Etkileşim");
+            dgvFenerbahce.Columns[2].Width = 60;
+            dgvFenerbahce.Columns.Add("Tweet", "İçerik");
+            dgvFenerbahce.Columns.Add("Reaction", "AI Yanıtı");
+            dgvFenerbahce.Columns.Add("Status", "Durum");
+            dgvFenerbahce.Columns[5].Width = 75;
+
+            // v4.5.3 FIX: Proper Z-order for WinForms Dock
+            // Controls with Dock=Fill must be added FIRST to the container that fills the space.
+            // But for Dock layout to respect Top/Right panels, those Top/Right panels must be
+            // added to the PARENT (pnlFenerbahce) and brought to front.
+
+            // 1. Assemble Main Panel (Fill)
+            // pnlControls (Top) must be added to pnlMain
+            // dgvFenerbahce (Fill) must be added to pnlMain
+            // Since pnlControls is Top, we add it to Controls collection.. wait.
+            // Dock priority is based on Z-Order (indices 0 is top).
+            // To have pnlControls at TOP of pnlMain, it must be at the front of Z-order within pnlMain?
+            // No, standard rule: Add Fill last, or SendToBack().
+            
+            // v4.5.4 FIX: Use Nested TableLayoutPanels for 100% strict geometry
+            var tlpRoot = new TableLayoutPanel {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+                BackColor = Color.Navy
+            };
+            tlpRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F)); // Header
+            tlpRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Content
+            
+            // 1. Header (Fixed Row 0)
+            lblHeader.Dock = DockStyle.Fill;
+            lblHeader.Text = "FENERBAHÇE FAN ZONE (v4.5.0) 💙💛"; // Final Release
+            tlpRoot.Controls.Add(lblHeader, 0, 0);
+            
+            // 2. Body Split (Content Row 1)
+            var tlpBody = new TableLayoutPanel {
+                Dock = DockStyle.Fill,
+                RowCount = 1,
+                ColumnCount = 2,
+                BackColor = Color.FromArgb(30, 30, 40),
+                Margin = new Padding(0)
+            };
+            tlpBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // Main (Fill)
+            tlpBody.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300F)); // Side (Fixed)
+            
+            // 2a. Main Content (TLP instead of Panel to avoid overlap)
+            var tlpMain = new TableLayoutPanel {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+                Margin = new Padding(0),
+                BackColor = Color.FromArgb(30, 30, 40)
+            };
+            tlpMain.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F)); // Buttons
+            tlpMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Grid
+            
+            // Row 0: Controls
+            pnlControls.Dock = DockStyle.Fill;
+            pnlControls.Margin = new Padding(0);
+            tlpMain.Controls.Add(pnlControls, 0, 0);
+            
+            // Row 1: Grid
+            dgvFenerbahce.Dock = DockStyle.Fill;
+            dgvFenerbahce.Margin = new Padding(0);
+            // Explicit Header Fixes
+            dgvFenerbahce.ColumnHeadersVisible = true;
+            dgvFenerbahce.ColumnHeadersHeight = 35;
+            dgvFenerbahce.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            
+            tlpMain.Controls.Add(dgvFenerbahce, 0, 1);
+            
+            tlpBody.Controls.Add(tlpMain, 0, 0);
+
+            // 2b. Sidebar (Right)
+            pnlSide.Dock = DockStyle.Fill;
+            pnlSide.Margin = new Padding(0);
+            tlpBody.Controls.Add(pnlSide, 1, 0);
+
+            // Add Body to Root
+            tlpRoot.Controls.Add(tlpBody, 0, 1);
+            
+            pnlFenerbahce.Controls.Add(tlpRoot);
+            
+            // v4.5.3: Event wiring moved to InitializeAsync to avoid duplicate rows
+            // (OnNewFanContent was being wired twice, causing duplicate entries)
+        }
     }
 }
-
-

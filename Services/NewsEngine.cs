@@ -21,6 +21,8 @@ namespace XiDeAI_Pro.Services
         private readonly StatsEngine _stats;
         private readonly NewsPersistenceService _persistence;
         private readonly object _lock = new object();
+        
+        public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
 
         public NewsEngine(GeminiService gemini, TwitterService twitter, SocialIntelService socialIntel, TelegramService telegram, SpamProtection spam, PromptManager prompts, StatsEngine stats, NewsPersistenceService persistence)
         {
@@ -36,33 +38,41 @@ namespace XiDeAI_Pro.Services
 
         public event Action<string, string>? OnLog;
         public event Action<string>? OnStatusUpdate;
-        public event Action<NewsItem, string, int, string>? OnNewsPendingApproval; // Item, Summary, Score, Reasoning
+        public event Action<NewsItem, string, int, string, string, bool>? OnNewsPendingApproval; // Item, Summary, Score, Category, Reasoning, IncludesAnalysis
         public event Action<NewsItem, string>? OnNewsRejected;
-        public event Action<NewsItem, string, int>? OnNewsProcessed; // News, Summary, Importance
+        public event Action<NewsItem, string, int, string>? OnNewsProcessed; // News, Summary, Importance, Category
+
+        public List<NewsHistoryItem> GetRecentHighImpactNews(int count = 3)
+        {
+             return _persistence.GetRecentImportantNews(count);
+        }
 
         public async Task ProcessNews(NewsItem item)
         {
             try
             {
-                OnLog?.Invoke($"🔍 [NewsEngine] Haber analiz ediliyor: {item.Title}", "News");
+                // v3.8.5: Rate Limiting - Prevent TooManyRequests when bulk processing
+                await Task.Delay(2000); // 2 second delay between news items
+                
                 _stats.RecordActivity("NewsEngine", $"Processing news: {item.Title}", true, item.Source);
                 
-                // v3.6.4: Safety Recency Check (Max 24h)
-                if (item.PubDate < DateTime.Now.AddHours(-24))
+                // v3.6.4: Safety Recency Check (Max 48h - Extended for Weekends)
+                if (item.PubDate < DateTime.Now.AddHours(-48))
                 {
-                    OnLog?.Invoke($"⏭️ Haber atlandı (Haber çok eski: {item.PubDate:g})", "NewsEngine");
+                    OnLog?.Invoke($"⏭️ Haber atlandı (Haber çok eski [>48h]: {item.PubDate:g})", "NewsEngine");
                     return;
                 }
                 
                 // v2.1: Pre-Filtering (Noise Reduction)
                 if (item.Title.Length < 10 || item.Title.Split(' ').Length < 3) return;
-                
-                // v2.3: Deduplication (Title similarity + Persistence)
+
                 if (_persistence.IsDuplicate(item.Title, item.Source, out string dupReason))
                 {
                      OnLog?.Invoke($"⏭️ Haber atlandı ({dupReason})", "NewsEngine");
                      return;
                 }
+
+                OnLog?.Invoke($"🔍 [NewsEngine] Haber analiz ediliyor: {item.Title}", "News");
 
                 // v2.2: Advanced Noise Filter (Quota Shield)
                 bool isHighValue = IsHighValueNews(item.Title);
@@ -75,8 +85,8 @@ namespace XiDeAI_Pro.Services
                 OnLog?.Invoke($"📰 Yeni Haber Analiz Ediliyor: {item.Title}", "NewsEngine");
                 OnStatusUpdate?.Invoke($"{item.Title} analiz ediliyor...");
 
-                // 1. AI Editor Analysis (New Prompt)
-                string? analysisRaw = await _gemini.AnalyzeNewsImpact(item.Title, item.Source);
+                // v4.2.2: Two-Step News Analysis (1-10 Scale)
+                string? analysisRaw = await _gemini.AnalyzeNewsImpactTwoStep(item.Title, item.Source);
                 
                 if (string.IsNullOrEmpty(analysisRaw))
                 {
@@ -84,41 +94,84 @@ namespace XiDeAI_Pro.Services
                     return;
                 }
 
-                // 2. Parse Structured Output
-                // Format: CONFIDENCE: X, STATUS: Y, SUMMARY: Z
+                // 2. Parse Structured Output (1-10 scale)
                 var analysisData = ParseAnalysisData(analysisRaw);
                 int score = analysisData.Confidence;
                 string status = analysisData.Status;
                 string summary = analysisData.Summary;
                 string symbols = analysisData.Symbols;
+                string category = analysisData.Category;
 
-                // 3. Action Decision based on Score & Status
-                if (score <= 2 || status == "REJECT")
+                // v4.2.2: SON DAKIKA Öncelik Boost
+                string lowerTitle = item.Title.ToLower(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
+                if (lowerTitle.Contains("son dakika") && score < 8)
                 {
-                    string finalReason = status == "REJECT" ? $"AI Red Kararı: {analysisData.Reasoning}" : "Skor çok düşük";
-                    OnLog?.Invoke($"🗑️ Haber Reddedildi (Skor: {score}): {item.Title} | Gerekçe: {finalReason}", "NewsEngine");
+                    int oldScore = score;
+                    score = Math.Max(score, 8);
+                    OnLog?.Invoke($"🚨 SON DAKIKA boost: Skor {oldScore} → {score}", "NewsEngine");
+                }
+
+                // v4.2.2: FENERBAHÇE BYPASS (Fanatik Modu) - Güncellendi 1-10 skalası
+                if (lowerTitle.Contains("fenerbahçe") || lowerTitle.Contains("fenerbahce") || lowerTitle.Contains("sarı lacivert") || lowerTitle.Contains("ali koç") || lowerTitle.Contains("jose mourinho"))
+                {
+                    if (score < 7)
+                    {
+                        score = 7; // Force Pending (news only)
+                        status = "PENDING_NEWS_ONLY";
+                        analysisData = (score, status, summary, symbols, category, "💛💙 FAN ZONE: Fenerbahçe haberi, skor boost uygulandı.");
+                        OnLog?.Invoke($"💛💙 Fenerbahçe Haberi Korundu: {item.Title}", "NewsEngine");
+                    }
+                }
+
+                // 3. Action Decision based on Score (1-10 Scale)
+                // < 7: REJECT
+                // 7-8: PENDING_NEWS_ONLY (Onaylı, sadece haber)
+                // 9: PENDING_WITH_ANALYSIS (Onaylı, haber + analiz)
+                // 10: AUTO_POST_WITH_ANALYSIS (Otomatik, haber + analiz)
+
+                if (score < 7 || status == "REJECT")
+                {
+                    string finalReason = status == "REJECT" ? $"AI Red Kararı: {analysisData.Reasoning}" : $"Skor çok düşük ({score}/10)";
+                    OnLog?.Invoke($"🗑️ Haber Reddedildi (Skor: {score}/10): {item.Title}", "NewsEngine");
                     OnNewsRejected?.Invoke(item, finalReason);
                     return;
                 }
 
-                if (status == "PENDING" || (score >= 3 && score <= 4))
+                if (score >= 7 && score <= 8 || status == "PENDING_NEWS_ONLY")
                 {
-                    // ONAY GEREKTİRİYOR
-                    OnLog?.Invoke($"⚠️ Haber Onaya Düştü (Skor: {score}): {item.Title}", "NewsEngine");
-                    
-                    // Kalıcı hafızaya PENDING olarak kaydet
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false); // false = not tweeted yet
-                    // TODO: Update persistence to actually store 'PENDING' status explicitly if needed, currently bool WasTweeted=false implies pending/failed.
-                    
-                    OnNewsPendingApproval?.Invoke(item, summary, score, analysisData.Reasoning);
+                    // ONAY GEREKTİRİYOR - SADECE HABER
+                    OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
+                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, false); // false = no analysis
                     return;
                 }
 
-                if (score == 5 || status == "AUTO_POST")
+                if (score == 9 || status == "PENDING_WITH_ANALYSIS")
                 {
-                    // OTOMATİK PAYLAŞ
-                     OnLog?.Invoke($"🔥 KRİTİK HABER (Skor: 5): {item.Title}", "NewsEngine");
-                     await PostNewsThreadToTwitter(item, summary, symbols);
+                    // ONAY GEREKTİRİYOR - HABER + ANALİZ
+                    OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
+                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, true); // true = with analysis
+                    return;
+                }
+
+                if (score == 10 || status == "AUTO_POST_WITH_ANALYSIS")
+                {
+                    // OTOMATİK PAYLAŞ - HABER + ANALİZ
+                    OnLog?.Invoke($"🔥 KRİTİK HABER (Skor: 10/10): {item.Title}", "NewsEngine");
+                    
+                    // Kategoriye özel analiz thread'i üret
+                    string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(category, item.Title, item.Source, item.Link);
+                    
+                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols);
+                    if (success)
+                    {
+                        OnNewsProcessed?.Invoke(item, summary, score, category);
+                    }
+                    else
+                    {
+                        OnLog?.Invoke($"⚠️ Otomatik paylaşım başarısız: {msg}", "NewsEngine");
+                    }
                 }
             }
             catch (Exception ex)
@@ -127,18 +180,22 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        public async Task ForcePostNews(NewsItem item, string summary)
+        public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary)
         {
             OnLog?.Invoke($"👤 Kullanıcı Onayladı: {item.Title}", "NewsEngine");
-            await PostNewsThreadToTwitter(item, summary, "BIST100");
+            return await PostNewsThreadToTwitter(item, summary, "BIST100");
         }
 
-        private async Task PostNewsThreadToTwitter(NewsItem item, string summary, string symbols)
+        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols)
         {
             // Config: SpamProtectNews Check
             if (ConfigManager.Current.SpamProtectNews)
             {
-                if (!_spam.CanPostGeneral(out string reason)) return;
+                if (!_spam.CanPostGeneral(out string reason))
+                {
+                    OnLog?.Invoke($"🛡️ Spam koruması: {reason}", "NewsEngine");
+                    return (false, $"Spam koruması: {reason}");
+                }
             }
 
             // Generate Thread Content
@@ -148,13 +205,13 @@ namespace XiDeAI_Pro.Services
             if (ContentQualityGuard.IsSpamOrLowQuality(threadContent ?? "", out string spamReason))
             {
                 OnLog?.Invoke($"⚠️ Thread içeriği SPAM/KALİTESİZ ({spamReason}), atlanıyor.", "NewsEngine");
-                return;
+                return (false, $"Thread içeriği kalitesiz: {spamReason}");
             }
 
             if (string.IsNullOrEmpty(threadContent) || threadContent.Contains("NO_IMPACT"))
             {
                 OnLog?.Invoke("⚠️ AI thread içeriği üretemedi, işlem iptal.", "NewsEngine");
-                return;
+                return (false, "AI thread içeriği üretemedi");
             }
 
             // Post as Thread
@@ -175,21 +232,25 @@ namespace XiDeAI_Pro.Services
                 _persistence.AddParsedNews(item.Title, item.Source, item.Link, 5, true);
                 
                 // Event tetikle (UI güncellemesi için)
-                OnNewsProcessed?.Invoke(item, summary, 5);
+                OnNewsProcessed?.Invoke(item, summary, 5, "EKONOMI"); // Legacy: Fixed category
+                
+                return (true, "Haber başarıyla paylaşıldı!");
             }
             else
             {
                 OnLog?.Invoke($"❌ Paylaşım Başarısız: {result.message}", "Twitter");
+                return (false, $"Twitter hatası: {result.message}");
             }
         }
 
 
-        private (int Confidence, string Status, string Summary, string Symbols, string Reasoning) ParseAnalysisData(string raw)
+        private (int Confidence, string Status, string Summary, string Symbols, string Category, string Reasoning) ParseAnalysisData(string raw)
         {
             int confidence = 0;
             string status = "REJECT";
             string summary = "";
             string symbols = "BIST100";
+            string category = "EKONOMI";
             string reasoning = "";
 
             try
@@ -197,64 +258,83 @@ namespace XiDeAI_Pro.Services
                 var lines = raw.Split('\n');
                 foreach (var line in lines)
                 {
-                    if (line.StartsWith("CONFIDENCE:")) int.TryParse(line.Replace("CONFIDENCE:", "").Trim(), out confidence);
-                    if (line.StartsWith("STATUS:")) status = line.Replace("STATUS:", "").Trim();
-                    if (line.StartsWith("SUMMARY:")) summary = line.Replace("SUMMARY:", "").Trim();
-                    if (line.StartsWith("SYMBOLS:")) symbols = line.Replace("SYMBOLS:", "").Trim();
-                    if (line.StartsWith("REASONING:")) reasoning = line.Replace("REASONING:", "").Trim();
+                    // v3.6.5: Robust parsing (strip markdown stars and be case-insensitive)
+                    string cleanLine = line.Replace("**", "").Trim();
+                    
+                    if (cleanLine.StartsWith("CONFIDENCE:", StringComparison.OrdinalIgnoreCase)) 
+                        int.TryParse(cleanLine.Substring("CONFIDENCE:".Length).Trim(), out confidence);
+                    else if (cleanLine.StartsWith("STATUS:", StringComparison.OrdinalIgnoreCase)) 
+                        status = cleanLine.Substring("STATUS:".Length).Trim().ToUpper().Replace(" ", "_");
+                    else if (cleanLine.StartsWith("SUMMARY:", StringComparison.OrdinalIgnoreCase)) 
+                        summary = cleanLine.Substring("SUMMARY:".Length).Trim();
+                    else if (cleanLine.StartsWith("SYMBOLS:", StringComparison.OrdinalIgnoreCase)) 
+                        symbols = cleanLine.Substring("SYMBOLS:".Length).Trim();
+                    else if (cleanLine.StartsWith("CATEGORY:", StringComparison.OrdinalIgnoreCase)) 
+                        category = cleanLine.Substring("CATEGORY:".Length).Trim().ToUpper();
+                    else if (cleanLine.StartsWith("REASONING:", StringComparison.OrdinalIgnoreCase)) 
+                        reasoning = cleanLine.Substring("REASONING:".Length).Trim();
                 }
             }
             catch { }
 
-            // Fallback parsing if JSON-like structure failed
-            if (confidence == 0 && raw.Contains("Önem: 5")) confidence = 5;
+            // v4.2.2: Fallback for old 1-5 scale responses (multiply by 2)
+            if (confidence > 0 && confidence <= 5 && raw.Contains("CONFIDENCE:"))
+            {
+                confidence = confidence * 2; // Scale 1-5 to 2-10
+            }
 
-            return (confidence, status, summary, symbols, reasoning);
+            return (confidence, status, summary, symbols, category, reasoning);
         }
+
 
         private bool IsHighValueNews(string title)
         {
+            // 0. DEBUG / TEST MODE
+            if (ConfigManager.Current.NewsTestMode)
+            {
+                OnLog?.Invoke($"🧪 Test Modu Aktif: '{title}' filtresiz geçiriliyor.", "NewsEngine");
+                return true;
+            }
+
             var lower = title.ToLower();
 
-            // 1. Türkiye Ekonomisine Direkt Etki Kontrolü (Core Filter)
-            // ✅ KABUL (Türkiye Ekonomisini doğrudan ilgilendir)
+            // 1. Türkiye Ekonomisine Direkt Etki Kontrolü (Core Filter - Expanded v3.8.2)
             string[] trEconomyKeywords = {
-                "bist", "borsaistanbul", "borsa", "kap", "merkez bankası", "tcmb", "enflasyon", "dolar", "lira",
-                "tbmm", "hazine", "vergi", "gümrük", "ticaret", "ihracat", "ithacat", "dis ticaret",
-                "türk ekonomi", "türkiye ekonom", "ekonomik büyüme", "gdp", "gayri safi", "faiz oranı",
-                "bankasıofisi", "banka", "sigorta", "emlak", "gayrimenkul", "çimento", "döner sermaye",
-                "kaolin", "fosfor", "maden", "petrol", "doğalgaz", "enerji", "elektrik", "su",
-                "atatürk", "istanbul", "kanal", "kaynarca", "selçuk", "efes", "troia", "göbekli",
-                "kültür ve turizm", "turizm", "otel", "havaalanı", "liman", "gemi", "ulaştırma",
-                "makine", "otomobil", "tekstil", "hazır giyim", "ayakkabı", "plastik", "kimya",
-                "gıda", "tarım", "hayvancılık", "balık", "su ürünleri", "ilaç", "sağlık",
-                "telekom", "internet", "teknoloji", "yazılım", "fintech", "kripto", "blockchain",
-                "rize", "kahramanmaraş", "gaziantep", "ankara", "izmir", "antalya", "bursa",
-                "kamu özel ortaklık", "kpo", "ihracat kredi", "kredisi", "stb", "fon"
+                // Kurumlar
+                "bist", "borsaistanbul", "borsa", "kap", "merkez bankası", "tcmb", "tbmm", "hazine", "spk", "bddk", "sgk",
+                // Makro
+                "enflasyon", "dolar", "lira", "tl", "faiz", "gsyh", "büyüme", "cari açık", "dış ticaret", "ihracat", "ithacat", "resesyon",
+                // Şirket/Finans
+                "temettü", "sermaye", "bilanço", "kar payı", "halka arz", "pay alım", "pay satım", "geri alım", "bedelli", "bedelsiz",
+                "hisse", "kredi", "finansman", "borç", "yapılandırma", "konkordato", "satın alma", "birleşme", "yatırım",
+                // Sektörler
+                "banka", "sigorta", "holding", "enerji", "otomotiv", "havacılık", "savunma", "teknoloji", "gyo", "gayrimenkul",
+                "petrol", "doğalgaz", "elektrik", "turizm", "perakende"
             };
 
-            // 🚫 REDDET (Türkiye ekonomisini ALAKASIZ veya spesifik harcama)
+            // 🚫 REDDET (Türkiye ekonomisini ALAKASIZ veya spesifik yerel gürültü)
             string[] nonTrKeywords = {
-                "apple", "microsoft", "google", "amazon", "netflix", "meta", "nvidia", "tesla",
-                "wall street", "nasdaq", "s&p 500", "dow jones", "fed", "federal reserve", "powell",
-                "avrupa", "ab", "ecb", "deutsche", "pbb", "hsbc", "barclays", "lloyds",
+                "wall street", "nasdaq", "s&p 500", "dow jones", 
+                "avrupa", "ab", "ecb", "deutsche", 
                 "londra", "paris", "frankfurt", "zurich", "tokyo", "sydney", "singapur",
-                "forex", "dolar euro", "gbp", "jpy", "eur", "usd", "chf",
-                "çin", "hindistan", "rusya", "abd", "usa", "america", "usa", "europeanunion",
-                "kuzey kore", "iran", "suudi", "dubai", "abd başkanı"
+                "forex", "dolar euro", "gbp", "jpy", "eur", "chf",
+                "çin", "hindistan", "rusya", "suudi", "dubai"
             };
 
-            // 2. Non-Turkey Check (Aggressively reject non-Turkey news)
-            // EXCEPT: Allow if it mentions Turkey + international company (e.g., "Apple Türkiye'de yatırım yapmaya hazırlanıyor")
+            // v3.6.5: Allow high-impact Global Tech News as they affect BIST technology sector
+            string[] globalImpactTech = { "apple", "nvidia", "tesla", "microsoft", "google", "fed", "openai", "chatgpt", "btc", "bitcoin", "kripto" };
+            if (globalImpactTech.Any(k => lower.Contains(k)) && (lower.Contains("kritik") || lower.Contains("rekor") || lower.Contains("yeni") || lower.Contains("faiz") || lower.Contains("karar")))
+            {
+                // Global olsa bile kritik teknoloji/kripto haberi
+                return true; 
+            }
+
+            // 2. Non-Turkey Check
             if (nonTrKeywords.Any(k => lower.Contains(k)))
             {
-                bool hasTurkey = lower.Contains("turkey") || lower.Contains("türkiye") || lower.Contains("türk") || lower.Contains("istanbul");
-                bool hasMajorCompany = nonTrKeywords.Any(k => lower.Contains(k));
-                if (hasTurkey && hasMajorCompany)
-                {
-                    return true; // Allow popular companies IF Turkey is also mentioned
-                }
-                return false;
+                // Kurtarıcı kelimeler (Yurt dışı haberi ama Türkiye'yi ilgilendiriyor olabilir)
+                bool hasTurkey = lower.Contains("turkey") || lower.Contains("türkiye") || lower.Contains("türk") || lower.Contains("istanbul") || lower.Contains("etkisi");
+                if (!hasTurkey) return false;
             }
 
             // 3. Zorunlu Geçiş (Kritik konular)
@@ -267,22 +347,26 @@ namespace XiDeAI_Pro.Services
             string[] junkKeywords = { 
                 "galatasaray", "beşiktaş", "trabzonspor", "süper lig", "transfer", "futbol", "oyuncu", 
                 "magazin", "ünlü oyuncu", "şok iddia", "günaydın", "hayırlı cumalar", "iyi akşamlar",
-                "burcu", "astroloji", "fal", "reklam", "dış haberleri", "sosyal medya"
+                "burcu", "astroloji", "fal", "reklam", "dış haberleri", "sosyal medya", "tiktok", "instagram",
+                "okullar tatil", "kar tatili", "eğitime ara", "hava durumu", "meteoroloji", "fırtına", "yağış",
+                "şampiyon oldu", "kupa finali", "gol attı", "personel alımı", "sınav sonuçları", "kpss", "ales"
             };
             if (junkKeywords.Any(k => lower.Contains(k)))
             {
-                // EXCEPTION: Allow Fenerbahçe sports news
-                if (lower.Contains("fenerbahçe") || lower.Contains("fb"))
+                // EXCEPTION: Fenerbahçe finansal veya çok kritik haberleri (Ali Koç açıklaması vb. kalsın)
+                bool isFenerbahce = lower.Contains("fenerbahçe") || lower.Contains("fenerbahce") || lower.Contains("ali koç");
+                if (isFenerbahce && (lower.Contains("borsa") || lower.Contains("hisse") || lower.Contains("kap") || lower.Contains("sermaye")))
                 {
-                    return true; // Allow Fenerbahçe sports news
+                    return true;
                 }
                 return false;
             }
 
             // 5. Mikro Hisse Hareketleri (Quota Shield)
-            if (lower.Contains("dolarlık hisse satışı") || lower.Contains("dolarlık hisse alımı"))
+            // ÇOK KATIDAN ESNEĞE: "00.000" şartını kaldırdım. "Milyon/Milyar" varsa kalsın.
+            if (lower.Contains("dolarlık hisse") || lower.Contains("lot hisse"))
             {
-                bool isLargeAmount = lower.Contains("00.000") || lower.Contains("milyon") || lower.Contains("milyar");
+                bool isLargeAmount = lower.Contains("milyon") || lower.Contains("milyar") || lower.Contains("yüklü");
                 if (!isLargeAmount) return false;
             }
 
@@ -290,15 +374,16 @@ namespace XiDeAI_Pro.Services
             string[] analystJunk = { "fiyat hedefini", "tavsiyesini yineledi", "tavsiye bildirdi", "görünüm nedeniyle al", "görünüm nedeniyle sat" };
             if (analystJunk.Any(k => lower.Contains(k)))
             {
-                 string[] majorBanks = { "goldman", "morgan stanley", "jpmorgan", "tcmb", "msci", "fitch", "moody", "s&p", "merrill" };
+                 // Büyük kurumlar kalsın
+                 string[] majorBanks = { "goldman", "morgan stanley", "jpmorgan", "tcmb", "msci", "fitch", "moody", "s&p", "merrill", "hsbc", "ak yatırım", "iş yatırım", "yapı kredi" };
                  if (!majorBanks.Any(b => lower.Contains(b))) return false;
             }
 
             // 7. Diğer Gürültü Kriterleri
             if (title.Count(c => c == '#') > 5) return false;
-            if (lower.Contains("hisse satışını tamamladı") && !lower.Contains("milyon")) return false;
 
-            // 8. Default: Reject if no TR keyword match AND not spiky enough
+            // 8. Default: Reject if no TR keyword match
+             OnLog?.Invoke($"🛡️ Filtreye Takıldı (Keyword Yok): {title}", "NewsEngine");
             return false;
         }
     }

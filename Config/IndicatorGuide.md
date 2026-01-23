@@ -35,7 +35,7 @@ Grafiğin alt ortasında **4 sütunlu bir tablo** görünür:
 ---
 
 ## 📈 HAREKETLİ ORTALAMALAR (Opsiyonel - Varsayılan Kapalı)
-Aktif ise 6 farklı EMA çizgisi görünür:
+Aktif ise 6 farklı EMA çizgisi görünür (**linewidth=2**, AI Vision Optimized):
 
 | Renk | Kod | Periyot | Anlam |
 |------|-----|---------|-------|
@@ -92,15 +92,22 @@ Aktif ise 6 farklı EMA çizgisi görünür:
 
 ---
 
-## 🔢 PİVOT SEVİYELERİ (Yatay Çizgiler + Sağ Etiketler)
+## 🔢 PİVOT SEVİYELERİ (Yatay Çizgiler + Sol Etiketler)
 
-Grafiğin sağında 3 farklı zaman dilimi için pivot seviyeleri:
+Grafiğin **sol tarafında** 3 farklı zaman dilimi için pivot seviyeleri görünür:
 
 | Etiket | Anlam | Renk | Hesaplama |
 |--------|-------|------|-----------|
 | P-D, P-W, P-M | Pivot (Günlük/Haftalık/Aylık) | Mavi | (H + L + C) / 3 |
 | S1, S2, S3 | Destek seviyeleri | Yeşil | P bazlı formüller |
 | R1, R2, R3 | Direnç seviyeleri | Kırmızı | P bazlı formüller |
+
+**Görsel Özellikler:**
+- **Etiket Konumu:** Sol tarafta (label_right) - artık ekran dışında kalmaz
+- **Çizgi Uzatma:** Sağa doğru uzar (extend.right) - tüm grafiği kaplar
+- **Etiket Boyutu:** Ayarlanabilir (tiny/small/normal/large)
+- **Etiket Arka Plan:** Siyah transparan kutu (okunabilirlik için)
+- **Aylık Pivotlar:** Artık görünür ve okunabilir
 
 **Traditional Pivot Formülleri:**
 - **P (Pivot)** = (Önceki High + Low + Close) / 3
@@ -117,6 +124,7 @@ Grafiğin sağında 3 farklı zaman dilimi için pivot seviyeleri:
 - S seviyeleri **destek** olarak çalışır
 - R seviyeleri **direnç** olarak çalışır
 - Günlük (D), Haftalık (W), Aylık (M) pivotlar farklı etiketlerle gösterilir
+- **Önemli:** Tüm pivot çizgileri sağa uzar, etiketler sol tarafta sabit kalır
 
 ---
 
@@ -262,13 +270,17 @@ Fibonacci: 0.618 seviyesi kırılımı
 Order Block, güçlü bir fiyat hareketinden hemen önce oluşan **son kararsızlık mumunun** oluşturduğu bölgedir. Kurumsal oyuncuların sipariş verdiği bölgeleri işaretler.
 
 ### Bullish Order Block (🟢 OB)
-- **Görünüm:** Yeşil transparan kutu + "🟢 OB" etiketi (alta)
+- **Renk:** Teal transparan (#00BFA5, 60% şeffaflık) - AI Vision Optimized
+- **Border:** Opak Teal (#00BFA5, 0% şeffaflık)
+- **Etiket:** "🟢 OB" (normal boyut, Teal arka plan)
 - **Oluşum:** Düşüş trendi → Son kırmızı mum → Güçlü yeşil mum (ATR × 1.5)
 - **Bölge:** Son kırmızı mumun Low-High aralığı
 - **Anlam:** Kurumsal alım bölgesi, fiyat buraya dönerse **destek** bulabilir
 
 ### Bearish Order Block (🔴 OB)
-- **Görünüm:** Kırmızı transparan kutu + "🔴 OB" etiketi (üstte)
+- **Renk:** Turuncu transparan (#FF6D00, 60% şeffaflık) - AI Vision Optimized
+- **Border:** Opak Turuncu (#FF6D00, 0% şeffaflık)
+- **Etiket:** "🔴 OB" (normal boyut, Turuncu arka plan)
 - **Oluşum:** Yükseliş trendi → Son yeşil mum → Güçlü kırmızı mum (ATR × 1.5)
 - **Bölge:** Son yeşil mumun Low-High aralığı
 - **Anlam:** Kurumsal satış bölgesi, fiyat buraya dönerse **direnç** görür
@@ -277,7 +289,7 @@ Order Block, güçlü bir fiyat hareketinden hemen önce oluşan **son kararsız
 - Order Block'a **geri dönüş** → Test beklenir
 - OB içinde **pivot** → Güçlü reaksiyon
 - OB **kırılımı** → Trend zayıfladı
-- Maksimum 3 OB gösterilir (en güncel olanlar)
+- Maksimum 5 OB gösterilir (en güncel olanlar)
 
 ---
 
@@ -286,13 +298,17 @@ Order Block, güçlü bir fiyat hareketinden hemen önce oluşan **son kararsız
 FVG, 3 mum arasında oluşan **fiyat dengesizliğidir** (imbalance). Piyasa bu boşlukları doldurmaya çalışır.
 
 ### Bullish FVG (FVG↑)
-- **Görünüm:** Turkuaz kesikli kutu + "FVG↑" etiketi
+- **Renk:** Lime transparan (color.lime, 50% şeffaflık) - AI Vision Optimized
+- **Border:** Opak Lime + **Solid çizgi** (dashed değil, width=2)
+- **Etiket:** "FVG↑" (normal boyut, Lime arka plan)
 - **Oluşum:** Mum 1 High < Mum 3 Low → Arada gap var
 - **Bölge:** Mum 1 High ile Mum 3 Low arası
 - **Anlam:** Yükseliş imbalance, fiyat geri dönüp bu boşluğu **doldurabilir** (destek)
 
 ### Bearish FVG (FVG↓)
-- **Görünüm:** Turuncu kesikli kutu + "FVG↓" etiketi
+- **Renk:** Fuşya transparan (color.fuchsia, 50% şeffaflık) - AI Vision Optimized
+- **Border:** Opak Fuşya + **Solid çizgi** (width=2)
+- **Etiket:** "FVG↓" (normal boyut, Fuşya arka plan)
 - **Oluşum:** Mum 1 Low > Mum 3 High → Arada gap var
 - **Bölge:** Mum 3 High ile Mum 1 Low arası
 - **Anlam:** Düşüş imbalance, fiyat geri dönüp bu boşluğu **doldurabilir** (direnç)
@@ -310,22 +326,26 @@ FVG, 3 mum arasında oluşan **fiyat dengesizliğidir** (imbalance). Piyasa bu b
 
 MSB, önceki swing high/low seviyelerinin kırılmasıyla **trend değişimini** işaretler.
 
-### Bullish MSB (⬆ MSB)
-- **Görünüm:** Yeşil kalın çizgi + "⬆ MSB" etiketi
+> **⚠️ V2.0 Güncellemesi:** Artık MSB yerine **BOS** (Break of Structure) ve **CHOCH** (Change of Character) ayrımı yapılıyor. Detaylar için aşağıdaki BOS/CHOCH bölümüne bakın.
+
+### Bullish MSB/BOS (⬆ BOS veya ⚡ CHOCH)
+- **Çizgi:** Lime kalın (**width=3**) - AI Vision Optimized
+- **Etiket:** "⬆ BOS" veya "⚡ CHOCH" (**large** boyut)
 - **Oluşum:** Önceki swing high seviyesi yukarı kırıldı
 - **Anlam:** Yükseliş trendi güçleniyor, **higher high** oluştu
 - **Strateji:** Long pozisyon açma/tutma sinyali
 
-### Bearish MSB (⬇ MSB)
-- **Görünüm:** Mor/Magenta kalın çizgi + "⬇ MSB" etiketi
+### Bearish MSB/BOS (⬇ BOS veya ⚡ CHOCH)
+- **Çizgi:** Fuşya kalın (**width=3**) - AI Vision Optimized
+- **Etiket:** "⬇ BOS" veya "⚡ CHOCH" (**large** boyut)
 - **Oluşum:** Önceki swing low seviyesi aşağı kırıldı
 - **Anlam:** Düşüş trendi güçleniyor, **lower low** oluştu
 - **Strateji:** Short pozisyon açma/tutma sinyali
 
 **Yorumlama:**
-- MSB + RSI Divergence → **Güçlü trend değişimi**
-- MSB + Order Block → Kurumsal onay
-- MSB + FVG → Momentum artıyor
+- MSB/BOS + RSI Divergence → **Güçlü trend değişimi**
+- MSB/BOS + Order Block → Kurumsal onay
+- **CHOCH:** Trend yönü değişiyor (önemli!)
 - Swing uzunluğu: 5 bar (varsayılan)
 
 ---
@@ -351,6 +371,84 @@ Konsolidasyon (dar aralık) sonrası güçlü fiyat hareketlerini tespit eder.
 - Breakout sonrası **pullback** → Giriş fırsatı
 - Fake breakout → Hızlı geri dönüş (OB veya FVG'de)
 - Range boyutu minimum ATR × 2 olmalı
+
+---
+
+## 💧 LİKİDİTE HAVUZLARI (Liquidity Pools - LIQ)
+
+Likidite havuzları, **stop-loss emirlerinin** yoğun olduğu bölgeleri gösterir. Kurumsal oyuncular bu bölgeleri "avlamak" için kullanır.
+
+### Görünüm:
+- **Kutu:** Sarı transparan (color.yellow, 70%)
+- **Etiket:** "💧 LIQ" (normal boyut)
+- **Kenar:** Sarı noktalı çizgi (dotted)
+
+### Tespit Mantığı:
+- **Eşit High'lar:** 3 ardışık bar'da aynı high seviyesi (ATR × 0.1 tolerans)
+- **Eşit Low'lar:** 3 ardışık bar'da aynı low seviyesi
+- Bu seviyeler **stop-loss avı** (liquidity sweep) için hedef
+
+### Yorumlama:
+- Likidite havuzuna **yaklaşma** → Sweep beklenir
+- Havuza **dokunup geri dönüş** → Fake breakout, ters yön sinyali
+- Havuz **temizlendikten sonra** → Gerçek hareket başlar
+- Maksimum 3 havuz gösterilir (en güncel)
+
+**Strateji:**
+- LIQ bölgesinin **hemen altında/üstünde** stop koymaktan kaçın
+- LIQ sweep sonrası **ters yön giriş** fırsatı
+- LIQ + OB + MSB → **Ultra güçlü sinyal**
+
+---
+
+## ⚡ BOS/CHOCH (Break of Structure / Change of Character)
+
+V2.0 güncellemesiyle MSB artık **BOS** ve **CHOCH** olarak ayrıştırıldı.
+
+### BOS (Break of Structure - ⬆ BOS / ⬇ BOS)
+- **Anlam:** Mevcut trend yönünde yapı kırılımı (trend devam)
+- **Yeşil "⬆ BOS":** Yükseliş trendinde yeni higher high
+- **Mor "⬇ BOS":** Düşüş trendinde yeni lower low
+- **Strateji:** Trend yönünde pozisyon tut
+
+### CHOCH (Change of Character - ⚡ CHOCH)
+- **Renk:** Sarı (color.yellow, 0%)
+- **Etiket:** "⚡ CHOCH" (large boyut)
+- **Anlam:** **TREND DEĞİŞİMİ** - önceki trendin tersine kırılım!
+- **Oluşum:** Düşüş trendindeyken yukarı MSB veya yükseliş trendindeyken aşağı MSB
+- **Strateji:** Pozisyon yönünü değiştir, yeni trend başlıyor
+
+### Yorumlama:
+- **BOS:** Trendle birlikte devam et
+- **CHOCH:** Dikkat! Trend değişiyor, pozisyonu gözden geçir
+- CHOCH + RSI Divergence → **Çok güçlü dönüş sinyali**
+- CHOCH + OB → Yeni trendin ilk giriş noktası
+
+---
+
+## 🔘 MİTİGATİON BLOCKS (Kırılan Order Block'lar)
+
+Mitigation, fiyatın bir Order Block'a girip çıktığı anı tespit eder. Bu OB artık "kullanılmış" sayılır.
+
+### Görünüm:
+- **Renk:** Gri (color.gray, 70%) - eski yeşil/kırmızı yerine
+- **Border:** Gri (beyaz değil)
+- **Etiket:** Aynı kalır (🟢 OB veya 🔴 OB)
+
+### Tespit Mantığı:
+- **Bullish OB Mitigation:** Fiyat OB'nin içine girdi (low ≤ OB top) ve yukarı çıktı (close > OB top)
+- **Bearish OB Mitigation:** Fiyat OB'nin içine girdi (high ≥ OB bottom) ve aşağı çıktı (close < OB bottom)
+
+### Yorumlama:
+- **Gri OB:** Bu bölge artık güçlü destek/direnç değil
+- Fiyat gri OB'ye tekrar dönerse **zayıf reaksiyon** beklenir
+- Gri OB'nin **altı/üstü** daha güvenli stop seviyesi
+- Aktif (renkli) OB'ler hala güçlü, gri olanlar tükenmiş
+
+**Strateji:**
+- Yeni oluşan (renkli) OB'leri tercih et
+- Gri OB'lere güvenme, ikincil destek/direnç olarak değerlendir
+- Gri OB + Yeni FVG → Yeni fırsat (taze bölge)
 
 ---
 

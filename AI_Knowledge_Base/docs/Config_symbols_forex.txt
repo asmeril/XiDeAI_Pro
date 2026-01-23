@@ -1,0 +1,72 @@
+# FOREX (Döviz Çiftleri) Sembol Listesi
+# Format: SYMBOL|Turkish Name|Yahoo Symbol|TradingView Symbol|Category
+# Encoding: UTF-8
+
+# === MAJÖR PARİTELER (Major Pairs) ===
+EURUSD|Euro/Dolar|EURUSD=X|FX:EURUSD|Majör
+GBPUSD|Sterlin/Dolar|GBPUSD=X|FX:GBPUSD|Majör
+USDJPY|Dolar/Yen|USDJPY=X|FX:USDJPY|Majör
+USDCHF|Dolar/İsviçre Frangı|USDCHF=X|FX:USDCHF|Majör
+USDCAD|Dolar/Kanada Doları|USDCAD=X|FX:USDCAD|Majör
+AUDUSD|Avustralya Doları/Dolar|AUDUSD=X|FX:AUDUSD|Majör
+NZDUSD|Yeni Zelanda Doları/Dolar|NZDUSD=X|FX:NZDUSD|Majör
+
+# === EUR ÇİFTLERİ (EUR Pairs) ===
+EURGBP|Euro/Sterlin|EURGBP=X|FX:EURGBP|Minör
+EURJPY|Euro/Yen|EURJPY=X|FX:EURJPY|Minör
+EURCHF|Euro/İsviçre Frangı|EURCHF=X|FX:EURCHF|Minör
+EURCAD|Euro/Kanada Doları|EURCAD=X|FX:EURCAD|Minör
+EURAUD|Euro/Avustralya Doları|EURAUD=X|FX:EURAUD|Minör
+EURNZD|Euro/Yeni Zelanda Doları|EURNZD=X|FX:EURNZD|Minör
+EURTRY|Euro/Türk Lirası|EURTRY=X|FX:EURTRY|Egzotik
+
+# === GBP ÇİFTLERİ (GBP Pairs) ===
+GBPJPY|Sterlin/Yen|GBPJPY=X|FX:GBPJPY|Minör
+GBPCHF|Sterlin/İsviçre Frangı|GBPCHF=X|FX:GBPCHF|Minör
+GBPCAD|Sterlin/Kanada Doları|GBPCAD=X|FX:GBPCAD|Minör
+GBPAUD|Sterlin/Avustralya Doları|GBPAUD=X|FX:GBPAUD|Minör
+GBPNZD|Sterlin/Yeni Zelanda Doları|GBPNZD=X|FX:GBPNZD|Minör
+GBPTRY|Sterlin/Türk Lirası|GBPTRY=X|FX:GBPTRY|Egzotik
+
+# === JPY ÇİFTLERİ (JPY Pairs) ===
+CADJPY|Kanada Doları/Yen|CADJPY=X|FX:CADJPY|Minör
+CHFJPY|İsviçre Frangı/Yen|CHFJPY=X|FX:CHFJPY|Minör
+AUDJPY|Avustralya Doları/Yen|AUDJPY=X|FX:AUDJPY|Minör
+NZDJPY|Yeni Zelanda Doları/Yen|NZDJPY=X|FX:NZDJPY|Minör
+
+# === DİĞER MİNÖR PARİTELER ===
+AUDCAD|Avustralya Doları/Kanada Doları|AUDCAD=X|FX:AUDCAD|Minör
+AUDCHF|Avustralya Doları/İsviçre Frangı|AUDCHF=X|FX:AUDCHF|Minör
+AUDNZD|Avustralya Doları/Yeni Zelanda Doları|AUDNZD=X|FX:AUDNZD|Minör
+CADCHF|Kanada Doları/İsviçre Frangı|CADCHF=X|FX:CADCHF|Minör
+NZDCAD|Yeni Zelanda Doları/Kanada Doları|NZDCAD=X|FX:NZDCAD|Minör
+NZDCHF|Yeni Zelanda Doları/İsviçre Frangı|NZDCHF=X|FX:NZDCHF|Minör
+
+# === EGZOTİK PARİTELER (Exotic Pairs) ===
+USDTRY|Dolar/Türk Lirası|USDTRY=X|FX:USDTRY|Egzotik
+USDZAR|Dolar/Güney Afrika Randı|USDZAR=X|FX:USDZAR|Egzotik
+USDMXN|Dolar/Meksika Pesosu|USDMXN=X|FX:USDMXN|Egzotik
+USDBRL|Dolar/Brezilya Reali|USDBRL=X|FX:USDBRL|Egzotik
+USDRUB|Dolar/Rus Rublesi|USDRUB=X|FX:USDRUB|Egzotik
+USDINR|Dolar/Hint Rupisi|USDINR=X|FX:USDINR|Egzotik
+USDCNY|Dolar/Çin Yuanı|USDCNY=X|FX:USDCNY|Egzotik
+USDHKD|Dolar/Hong Kong Doları|USDHKD=X|FX:USDHKD|Egzotik
+USDSGD|Dolar/Singapur Doları|USDSGD=X|FX:USDSGD|Egzotik
+USDKRW|Dolar/Güney Kore Wonu|USDKRW=X|FX:USDKRW|Egzotik
+USDTHB|Dolar/Tayland Bahtı|USDTHB=X|FX:USDTHB|Egzotik
+USDIDR|Dolar/Endonezya Rupisi|USDIDR=X|FX:USDIDR|Egzotik
+USDPLN|Dolar/Polonya Zlotisi|USDPLN=X|FX:USDPLN|Egzotik
+USDSEK|Dolar/İsveç Kronu|USDSEK=X|FX:USDSEK|Egzotik
+USDNOK|Dolar/Norveç Kronu|USDNOK=X|FX:USDNOK|Egzotik
+USDDKK|Dolar/Danimarka Kronu|USDDKK=X|FX:USDDKK|Egzotik
+
+# === KIYMETLİ METALLER (Precious Metals) ===
+XAUUSD|Altın/Dolar|GC=F|TVC:GOLD|Kıymetli Metal
+XAGUSD|Gümüş/Dolar|SI=F|TVC:SILVER|Kıymetli Metal
+XPTUSD|Platin/Dolar|PL=F|TVC:PLATINUM|Kıymetli Metal
+XPDUSD|Paladyum/Dolar|PA=F|TVC:PALLADIUM|Kıymetli Metal
+
+# === ENERJİ (Energy) ===
+WTI|WTI Petrol|CL=F|NYMEX:CL1!|Enerji
+BRENT|Brent Petrol|BZ=F|NYMEX:BZ1!|Enerji
+NATGAS|Doğalgaz|NG=F|NYMEX:NG1!|Enerji

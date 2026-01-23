@@ -17,6 +17,9 @@ namespace XiDeAI_Pro.Services
         private readonly SpamProtection _spam;
         private readonly PromptManager _prompts;
         private readonly StatsEngine _stats;
+        private readonly PerformanceTracker _performance;
+        private readonly ThreadService _threadSvc;
+        private readonly PriceFetchService _priceFetch;
 
         public event Action<string, string>? OnLog;
         public event Action<string>? OnStatusUpdate;
@@ -30,7 +33,10 @@ namespace XiDeAI_Pro.Services
             TwitterService twitter,
             SpamProtection spam,
             PromptManager prompts,
-            StatsEngine stats)
+            StatsEngine stats,
+            PerformanceTracker performance,
+            ThreadService threadSvc,
+            PriceFetchService priceFetch)
         {
             _gemini = gemini;
             _socialIntel = socialIntel;
@@ -38,6 +44,9 @@ namespace XiDeAI_Pro.Services
             _spam = spam;
             _prompts = prompts;
             _stats = stats;
+            _performance = performance;
+            _threadSvc = threadSvc;
+            _priceFetch = priceFetch;
         }
 
         public async Task RunMorningMotivation()
@@ -71,6 +80,7 @@ namespace XiDeAI_Pro.Services
                     _stats.RecordActivity("Operation", "Morning Motivation Posted", true);
                     _motivationRetry = 0;
                     _spam.RecordTweet("MOTIVATION", "DAILY");
+                    _stats.RecordTweet("Motivation", 1, "", tweet);
                 }
                 else throw new Exception("Motivation tweet failed to post.");
             }
@@ -83,7 +93,8 @@ namespace XiDeAI_Pro.Services
 
         public async Task RunMarketCloseSummary()
         {
-            if (!_spam.CanPostGeneral(out string reason))
+            // MARKET CLOSE is critical, ignore hourly/daily limits
+            if (!_spam.CanPostGeneral(out string reason, ignoreLimits: true))
             {
                 OnLog?.Invoke($"🛡️ Spam Protection (Kapanış): {reason}", "Operation");
                 return;
@@ -91,7 +102,7 @@ namespace XiDeAI_Pro.Services
 
             try
             {
-                OnStatusUpdate?.Invoke("🌆 Pazar kapanış özeti hazırlanıyor...");
+                OnStatusUpdate?.Invoke("🌆 Piyasa kapanış özeti hazırlanıyor...");
                 
                 var financials = await _socialIntel.GetFinancialSummaryAsync();
                 var gainers = await _socialIntel.GetTopGainersAsync();
@@ -122,6 +133,7 @@ namespace XiDeAI_Pro.Services
                         anySent = true;
                         _stats.RecordActivity("Operation", "Market Close Report Tweet Posted", true);
                         _spam.RecordTweet("REPORT", "CLOSE");
+                        _stats.RecordTweet("MarketClose", 1, "", t);
                     }
                     await Task.Delay(3000);
                 }
@@ -141,16 +153,142 @@ namespace XiDeAI_Pro.Services
             }
         }
 
+        public async Task RunDailyReport()
+        {
+            try
+            {
+                OnLog?.Invoke("📊 Mega-Thread: Günlük Birleşik Rapor Hazırlanıyor...", "Operation");
+                
+                // 1. Piyasa Özetini Çek (FX, Altın, Gümüş, BIST100)
+                var financials = await _socialIntel.GetFinancialSummaryAsync();
+                var market = new MarketSnapshot();
+                if (financials != null)
+                {
+                    market.Bist100 = financials.GetValueOrDefault("BIST100", "N/A");
+                    market.UsdTry = financials.GetValueOrDefault("USD", "N/A");
+                    market.EurTry = financials.GetValueOrDefault("EUR", "N/A");
+                    market.Gold = financials.GetValueOrDefault("Gold", "N/A");
+                    market.Silver = financials.GetValueOrDefault("Silver", "N/A");
+                }
+
+                // 2. En Çok Yükselenler/Düşenler
+                var gainers = await _socialIntel.GetTopGainersAsync();
+                if (gainers != null && gainers.Any())
+                {
+                    market.TopGainers = gainers.Select(d => new MarketMover { Symbol = d.Symbol, Price = d.Close, ChangePercent = d.ChangePercent }).ToList();
+                }
+
+                var losers = await _socialIntel.GetTopLosersAsync();
+                if (losers != null && losers.Any())
+                {
+                    market.TopLosers = losers.Select(d => new MarketMover { Symbol = d.Symbol, Price = d.Close, ChangePercent = d.ChangePercent }).ToList();
+                }
+
+                // 2.1 En Çok Hacim Yapanlar (YENİ)
+                var volume = await _socialIntel.GetTopVolumeAsync();
+                if (volume != null && volume.Any())
+                {
+                    market.TopVolume = volume.Select(d => new MarketMover { Symbol = d.Symbol, Price = d.Close, ChangePercent = d.ChangePercent }).ToList();
+                    OnLog?.Invoke($"✅ Hacim verileri alındı: {market.TopVolume.Count} hisse.", "Operation");
+                }
+
+                // 3. Sinyal Fiyatlarını Güncelle
+                var todaySignals = _performance.GetDailyReport(DateTime.Now).Signals;
+                if (todaySignals.Count > 0)
+                {
+                    var symbols = todaySignals.Select(s => s.Symbol).Distinct();
+                    OnLog?.Invoke($"🔍 {symbols.Count()} hisse için güncel fiyatlar sorgulanıyor (PriceFetch)...", "Operation");
+                    
+                    var tasks = symbols.Select(async sym => 
+                    {
+                        // Auto-detect market type (Borsami? Kripto mu?)
+                        string mType = "BIST";
+                        if (sym.EndsWith("USDT") || sym.Length > 5) mType = "Kripto";
+                        
+                        var pInfo = await _priceFetch.GetPriceAsync(sym, mType);
+                        return (Symbol: sym, Price: pInfo?.Price ?? 0);
+                    });
+
+                    var results = await Task.WhenAll(tasks);
+                    var signalPrices = results.Where(x => x.Price > 0).ToDictionary(x => x.Symbol, x => x.Price);
+
+                    if (signalPrices.Count > 0)
+                    {
+                        _performance.UpdateClosingPrices(signalPrices);
+                        OnLog?.Invoke($"✅ {signalPrices.Count} hisse fiyatı güncellendi.", "Operation");
+                    }
+                }
+
+                // 4. Raporu Sentezle
+                decimal marketReturn = 0;
+                var report = _performance.GetDailyReport(DateTime.Now, marketReturn);
+                
+                if (report.TotalSignals == 0 && market.Bist100 == "N/A")
+                {
+                    OnLog?.Invoke("ℹ️ Rapor için yeterli veri yok, atlanıyor.", "Operation");
+                    return;
+                }
+
+                // 5. AI Sentezi
+                OnLog?.Invoke("🤖 AI Performans Analizi Hazırlanıyor...", "Operation");
+                string aiSummary = await _gemini.GeneratePerformanceSynthesis(report) ?? "Günün özeti hazırlandı.";
+
+                // 6. Yayınla
+                // MEGA-THREAD is critical, ignore hourly/daily limits
+                if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason, ignoreLimits: true))
+                {
+                    OnLog?.Invoke($"🛡️ Spam koruması aktif: {reason}", "Operation");
+                    return;
+                }
+
+                OnLog?.Invoke("📊 Mega-Thread paylaşılıyor...", "Operation");
+                var ok = await _threadSvc.PostUnifiedDailyReportAsync(report, market, aiSummary, XiDeAI_Pro.Config.ConfigManager.Current.DailyTrends);
+
+                if (ok)
+                {
+                    _spam.RecordTweet("REPORT", "DAILY_UNIFIED");
+                    _stats.RecordTweet("DailyReport", 1, "", "Unified Daily Report Thread");
+                    OnLog?.Invoke("✅ Birleşik Günlük Rapor başarıyla yayınlandı.", "Operation");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"❌ Raporlama Hatası: {ex.Message}", "Operation");
+            }
+        }
+
+        public async Task RunWeeklyReport()
+        {
+            try
+            {
+                var report = _performance.GetWeeklyReport();
+                if (report.TotalSignals > 0)
+                {
+                    if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason))
+                    {
+                        OnLog?.Invoke($"🛡️ Spam protection (Rapor/Haftalık): {reason}", "Operation");
+                        return;
+                    }
+                    OnLog?.Invoke("📅 Posting weekly report...", "Operation");
+                    var ok = await _threadSvc.PostWeeklyReportThread(report, XiDeAI_Pro.Config.ConfigManager.Current.DailyTrends);
+                    if (ok) 
+                    {
+                        _spam.RecordTweet("REPORT", "WEEKLY");
+                        _stats.RecordTweet("WeeklyReport", 1, "", "Weekly Report Thread");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"❌ Haftalık Rapor Hatası: {ex.Message}", "Operation");
+            }
+        }
+
         private async Task<bool> ExecuteScheduledTweet(string content, string category)
         {
-            // Web First
-            var web = await _socialIntel.PostTweet(content);
-            if (web.status == "success") return true;
-
-            OnLog?.Invoke($"⚠️ Web {category} failed ({web.message}), switching to API...", "Operation");
-            
-            // API Fallback
-            return await _twitter.SendTweetAsync(content);
+            // TwitterService centrally handles both Selenium/WebView2 and API Fallback
+            var res = await _twitter.SendTweetAsync(content);
+            return !string.IsNullOrEmpty(res);
         }
 
         private void LogRetry(string name, int count, string error, Func<Task> retryAction)

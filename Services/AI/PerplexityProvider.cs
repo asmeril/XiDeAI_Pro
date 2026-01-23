@@ -35,11 +35,13 @@ namespace XiDeAI_Pro.Services.AI
             ModelName = $"perplexity-{modelName}";
             _logger = logger;
             
-            // Set authorization header
-            if (!_client.DefaultRequestHeaders.Contains("Authorization"))
-            {
-                _client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-            }
+            // v3.7.0: Removed global _client.DefaultRequestHeaders.Add("Authorization", ...)
+            // We now add the header specifically to each HttpRequestMessage in SendRequest.
+            // This prevents double 'Authorization' headers which causes 401 errors.
+            
+            // Masked log for verification
+            string maskedKey = _apiKey.Length > 8 ? $"{_apiKey.Substring(0, 5)}...{_apiKey.Substring(_apiKey.Length - 4)}" : "****";
+            _logger($"✅ Perplexity provider initialized with model: {_modelName} (Key: {maskedKey})");
         }
         
         public async Task<string?> SendRequest(string prompt, int maxTokens = 1000)
@@ -85,7 +87,8 @@ namespace XiDeAI_Pro.Services.AI
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger($"❌ Perplexity API Error: {response.StatusCode} - {responseContent}");
+                    _logger($"❌ Perplexity API Error: {response.StatusCode}");
+                    _logger($"📄 Response Detail: {responseContent}");
                     return null;
                 }
                 
