@@ -385,7 +385,8 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
                 return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt);
             }
 
-            return await SendRequest(prompt);
+            // v4.6.6: Lower temperature for news threads (0.3) for stability and consistent separator usage
+            return await SendRequest(prompt, temperature: 0.3);
         }
 
         public async Task<string?> GeneratePerformanceSynthesis(DailyReport report)
@@ -412,7 +413,7 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
 
         private string GeneratePremiumNewsAnalysisPrompt(string title, string source, string link = "")
         {
-            // Link varsa prompt'a ekle, yoksa sadece kaynak adını kullan
+            // v4.6.6: Refined prompt to avoid square brackets in placeholders and ensure ||| consistency
             string linkSection = !string.IsNullOrEmpty(link) 
                 ? $"🔗 {link}" 
                 : $"🔗 Kaynak: {source}";
@@ -426,24 +427,25 @@ Kaynak: {source}
 {linkSection}
 
 === TWEET 1 (Haber & Giriş) ===
-🚨 [Haber Başlığı]
-{source} kaynaklı haberi analiz ettim. Durum [ÖNEMLİ/KRİTİK]!
+🚨 HABER: {title}
+{source} kaynaklı haberi analiz ettim. Durum KRİTİK!
 {linkSection}
 
 #BIST100 #Haber #Borsa
 
 === TWEET 2 (Derin Analiz) ===
 🧠 ANALİZ:
-• [Haberin kısa ve net özeti]
-• [Piyasa üzerindeki doğrudan etkileri]
-• [Yatırımcıların dikkat etmesi gereken riskler]
+• ÖZET: Haberin kısa ve net özeti.
+• ETKİ: Piyasa üzerindeki doğrudan etkileri.
+• RİSK: Yatırımcıların dikkat etmesi gereken riskler. 
 
-⚠️ Y.T.D.
+⚠️ Y.T.D. 
 
 KURALLAR:
 1. Tweetleri ||| ile ayır.
-2. {linkSection} kısmını AYNEN TWEET 1'de kullan. KESİNLİKLE ""[Haber Linki Buraya Gelecek]"" gibi placeholder yazma.
-3. KESİNLİKLE kendini tanıtma (yaş, isim vb.). Doğrudan habere odaklan.";
+2. {linkSection} kısmını AYNEN TWEET 1'de kullan. KESİNLİKLE placeholder yazma.
+3. KESİNLİKLE kendini tanıtma (yaş, isim vb.). Doğrudan habere odaklan.
+4. ÇIKTI FORMATI: TWEET 1 ||| TWEET 2";
         }
 
         private string GenerateStandardNewsAnalysisPrompt(string title, string source)

@@ -1,5 +1,4 @@
-﻿# 🗺️ XiDeAI Pro - Project Code Index
-> **Version:** 4.6.5 (Live)
+﻿> **Version:** 4.6.6 (Live)
 > **Architecture:** Hybrid (C# WinForms + HTTP Daemon + Python Selenium + WebView2 Bridge)
 > **Last Updated:** 2026-02-27
 
@@ -77,7 +76,7 @@ Bu script "Standalone" (Tek başına) çalışabilen güçlü bir bottur.
 - **Driver Pool:** `ChromeDriverPool` sınıfı ile tarayıcıları önbelleğe alır (Performans artışı).
 - **Smart Search:** `find_influencer_posts` fonksiyonu ile hem timeline hem de genel arama yapar.
 - **Human-Like Behavior:** **(v4.6.0)** `human_delay` fonksiyonu ile insansı beklemeler yapar ve yakalanmayı önler.
-- **Robust Typing:** Tweet atarken metni karakter karakter değil, JS enjeksiyonu ve Clipboard kombinasyonu ile yazar (React uyumlu).
+- **Robust Typing:** **(v4.6.6)** Metni `document.execCommand('insertText', ...)` kullanarak JS enjeksiyonu ile yazar. React senkronizasyonu için "WAKE UP" mekanizması içerir ve Türk karakterleri için ultra-stabilitedir.
 - **Commands:** `search_influencer`, `post_tweet`, `fetch_replies`, `discover_influencers` vb.
 
 ---
@@ -241,6 +240,7 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
 
 
 

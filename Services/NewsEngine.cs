@@ -216,6 +216,14 @@ namespace XiDeAI_Pro.Services
 
             // Post as Thread
             string[] parts = threadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
+
+            // v4.6.6: Safety Check - If AI returned a single block but it's too long, split it by logical sentences
+            if (parts.Length == 1 && parts[0].Length > 280)
+            {
+                OnLog?.Invoke("⚠️ AI thread separatoru (|||) kullanmadı. İçerik otomatik bölünüyor...", "NewsEngine");
+                parts = ThreadService.SplitText(parts[0], 275).ToArray();
+            }
+
             var result = await _socialIntel.PostThreadAsync(parts.ToList()); 
             
             if (result.status == "success")

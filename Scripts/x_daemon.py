@@ -324,6 +324,81 @@ def shutdown_driver():
     log("Driver shutdown complete")
 
 
+
+def robust_type_and_verify(driver, element, text, tweet_index=0):
+    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.6.6)"""
+    import json
+    import pyperclip
+    from selenium.webdriver.common.keys import Keys
+    
+    # Try multiple methods (JS is most robust for Turkish chars / React)
+    methods = ["js_insert", "clipboard", "sendkeys"]
+    
+    for method in methods:
+        try:
+            # 1. Clear box first (Force focus + select all)
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", element)
+            time.sleep(0.3)
+            driver.execute_script("arguments[0].focus();", element)
+            time.sleep(0.2)
+            
+            # Use JS to clear if send_keys fails
+            driver.execute_script("arguments[0].innerText = '';", element)
+            element.send_keys(Keys.CONTROL, 'a')
+            element.send_keys(Keys.BACKSPACE)
+            time.sleep(0.5)
+            
+            log(f"[TYPE] Part {tweet_index} using {method}")
+            
+            if method == "js_insert":
+                js_text = json.dumps(text)
+                driver.execute_script(f"""
+                    var elem = arguments[0];
+                    elem.focus();
+                    document.execCommand('insertText', false, {js_text});
+                    elem.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    elem.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                """, element)
+                
+                # WAKE UP REACT: Send dummy key press to force state update 
+                # (Prevents ghost/empty tweet error)
+                time.sleep(0.3)
+                try:
+                    element.send_keys(" ")
+                    time.sleep(0.1)
+                    element.send_keys(Keys.BACKSPACE)
+                except: pass
+                
+            elif method == "clipboard":
+                pyperclip.copy(text)
+                from selenium.webdriver.common.action_chains import ActionChains
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                
+            elif method == "sendkeys":
+                # Batch send
+                element.send_keys(text)
+            
+            # VERIFICATION WAIT (Increased to 2s for React sync stability)
+            time.sleep(2.0)
+            
+            # Visual verification: Check text length
+            current_text = element.text.strip()
+            input_len = len(text.strip())
+            current_len = len(current_text)
+            
+            # If we have something close to input length, it's a success
+            if input_len > 0 and current_len >= input_len * 0.9:
+                log(f"✅ Part {tweet_index} verified ({current_len}/{input_len})")
+                return True
+            else:
+                log(f"⚠️ Part {tweet_index} length mismatch ({current_len}/{input_len})")
+                
+        except Exception as e:
+            log(f"❌ Method {method} failed: {e}")
+            
+    return False
+
+
 # ============== COMMAND HANDLERS ==============
 
 def cmd_search(params):
@@ -595,17 +670,9 @@ def cmd_post_thread(params):
             EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0'], [role='textbox']"))
         )
         
-        # Type first tweet
-        try:
-            pyperclip.copy(tweets[0])
-            tweet_box.click()
-            time.sleep(0.3)
-            from selenium.webdriver.common.action_chains import ActionChains
-            ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-        except Exception as paste_err:
-            log(f"Clipboard paste failed, falling back to send_keys: {paste_err}")
-            tweet_box.clear()
-            tweet_box.send_keys(tweets[0])
+        # Type first tweet (Using robust engine)
+        if not robust_type_and_verify(driver, tweet_box, tweets[0], 0):
+            log("Warning: First tweet verification failed, continuing anyway...")
         time.sleep(1)
         
         # Add more tweets to thread (Robust v4.6.3 Engine)
@@ -665,20 +732,12 @@ def cmd_post_thread(params):
                 else:
                     log(f"Warning: 'Add' button not found for part {i+1}. Attempting direct fallback...")
                 
-                # 3. Find new text area
+                # 3. Find new text area and type
                 text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
                 if len(text_areas) > i:
                     active_box = text_areas[i]
-                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", active_box)
-                    time.sleep(0.5)
-                    try:
-                        pyperclip.copy(tweet_text)
-                        active_box.click()
-                        time.sleep(0.3)
-                        ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-                    except Exception as paste_err:
-                         log(f"Clipboard paste failed for part {i+1}, falling back to send_keys: {paste_err}")
-                         active_box.send_keys(tweet_text)
+                    if not robust_type_and_verify(driver, active_box, tweet_text, i):
+                        log(f"Warning: Part {i+1} verification failed.")
                     time.sleep(0.5)
                 else:
                     log(f"CRITICAL: New textbox for part {i+1} NOT found after click.")

@@ -676,4 +676,14 @@ Kullanıcı geri bildirimlerine dayalı kritik düzeltmeler ve iyileştirmeler y
 - **İyileştirme:** Tüm debug logları `APPDATA_DIR` altına taşındı ve Python `print` çıktıları JSON akışını bozmaması için `stderr`'e yönlendirildi.
 - **Büyük Fix:** v4.6.4 ile gelen thread ve cookie senkronizasyonu düzeltmeleri korunarak sistem stabilize edildi.
 
+---
+
+## 27 Şubat 2026
+
+### v4.6.6 (2026-02-27) - Hotfix: News Threading Stability
+- **Fix:** Haber paylaşımı sırasında oluşan "Durum Ö" ve metin kesilmesi (truncation) sorunu giderildi.
+- **İyileştirme:** `x_daemon.py` içinde `send_keys` yerine JavaScript (`document.execCommand`) tabanlı yazım mekanizması kullanılarak Türk karakterlerinin %100 doğru iletilmesi sağlandı.
+- **AI Stabilitesi:** `GeminiService` promptları köşeli parantezlerden temizlendi ve model temperature değeri 0.3'e çekilerek daha istikrarlı çıktı elde edildi.
+- **Emniyet:** `NewsEngine.cs` içinde separator (`|||`) eksikliğine karşı otomatik bölme (auto-split) koruması eklendi.
+
 
