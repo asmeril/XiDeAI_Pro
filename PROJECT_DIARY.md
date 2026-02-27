@@ -666,4 +666,14 @@ Kullanıcı geri bildirimlerine dayalı kritik düzeltmeler ve iyileştirmeler y
 - **Bug Fix:** Cookie yükleme sonrası yaşanan giriş ekranına yönlenme problemi, `refresh()` yerine doğrudan home navigasyonu (`x.com/home`) yapılarak çözüldü.
 - **Teknik:** `update-version.ps1` kullanılarak tüm proje dosyaları ve manifest v4.6.4 sürümüne yükseltildi.
 
+---
+
+## 27 Şubat 2026
+
+### v4.6.5 (2026-02-27) - Hotfix: JSON Parsing Error
+- **Fix:** Influencer search sırasında oluşan "'L' is an invalid start of a value" hatası giderildi.
+- **Detay:** `social_intel.py` içindeki `log_debug` fonksiyonunda bulunan hardcoded (`d:\Projects`) log yolu ve bu yol hata verdiğinde `stdout`'a basılan "Log error" mesajı temizlendi.
+- **İyileştirme:** Tüm debug logları `APPDATA_DIR` altına taşındı ve Python `print` çıktıları JSON akışını bozmaması için `stderr`'e yönlendirildi.
+- **Büyük Fix:** v4.6.4 ile gelen thread ve cookie senkronizasyonu düzeltmeleri korunarak sistem stabilize edildi.
+
 

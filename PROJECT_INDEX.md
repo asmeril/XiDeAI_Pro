@@ -1,5 +1,5 @@
 ﻿# 🗺️ XiDeAI Pro - Project Code Index
-> **Version:** 4.6.4 (Live)
+> **Version:** 4.6.5 (Live)
 > **Architecture:** Hybrid (C# WinForms + HTTP Daemon + Python Selenium + WebView2 Bridge)
 > **Last Updated:** 2026-02-27
 
@@ -241,6 +241,7 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
 
 
 

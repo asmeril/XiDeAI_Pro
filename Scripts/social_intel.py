@@ -641,7 +641,7 @@ def load_cookies(driver):
 
 def login_interactive():
     """Opens visible browser for user to login manually"""
-    print("Opening browser for login...")
+    print("Opening browser for login...", file=sys.stderr)
     driver = setup_driver(headless=False)
     if not driver:
         return {"status": "error", "message": "Failed to start driver"}
@@ -649,7 +649,7 @@ def login_interactive():
     try:
         driver.get("https://x.com/i/flow/login")
         
-        print("Waiting for login... (Time limit: 120s)")
+        print("Waiting for login... (Time limit: 120s)", file=sys.stderr)
         # Polling for login success
         start_time = time.time()
         logged_in = False
@@ -787,14 +787,15 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
 
                 except: pass
 
-                # DEBUG LOGGING SETUP (Project Root)
-                debug_path = Path(r"d:\Projects\XiDeAI_Pro\debug_scan.log")
+                # DEBUG LOGGING (Ported to AppData for reliability)
+                debug_path = APPDATA_DIR / "debug_scan.log"
                 def log_debug(msg):
                     try:
                         with open(debug_path, "a", encoding="utf-8") as f:
                             f.write(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
                     except Exception as e:
-                        print(f"Log error: {e}")
+                        # CRITICAL: Use stderr to avoid polluting JSON output in stdout
+                        print(f"Log error (non-critical): {e}", file=sys.stderr)
                 
                 log_debug(f"--- START SCAN FOR {handle} (URL: {timeline_url}) ---")
                 
