@@ -3,6 +3,26 @@
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
 
+## 📅 27 Şubat 2026
+
+## 📅 27 Şubat 2026
+
+### 🚀 v4.6.3 - Global 280-Character Limit Enforcer (HOTFIX)
+
+**Değişiklikler:**
+- **Merkezi X Karakter Sınırı:** `ThreadService.SplitText` metodu `SocialIntelService` aktarım katmanına entegre edildi. Artık Haber, Sinyal, veya Manuel Analiz fark etmeksizin gönderilen her tweet parçası 280 karakteri aşıyorsa akıllıca (cümle bütünlüğü korunarak) alt zincirlere bölünür. Mavi tiksiz hesaplarda yaşanan "Tweet karakter sınırını aştı" hataları tamamen önlendi.
+- **AI Prompt Revizyonları:** `PromptManager.cs` içerisindeki tüm promptlara AI'ın 280 karakter altında içerik üretmesini zorunlu kılan katı yönergeler eklendi.
+
+---
+
+### 🚀 v4.6.2 - Cookie Format & Telegram Fixes (HOTFIX)
+
+**Değişiklikler:**
+- **undetected-chromedriver Cookie Senkronizasyonu:** WebView2'den kaydedilen JSON çerezlerindeki `isSecure`, `isHttpOnly` ve `expires` anahtarlarının Selenium'un beklediği `secure`, `httpOnly`, `expiry` anahtarlarına dönüştürülmesi sağlandı. Bu sayede `Failed to load cookies` hatası çözüldü (`social_intel.py` & `x_daemon.py`).
+- **Telegram Bağlantı Testi:** `/start` eksikliğinden kaynaklı "chat not found" (HTTP 400) hataları UI'da mesaj kutusu şeklinde gösterilerek daha belirgin uyarı mekanizması yazıldı (`TelegramService.cs`).
+
+---
+
 ## 📅 21 Ocak 2026
 
 ### 🚀 v4.4.0 - X Daemon Architecture (MAJOR)
@@ -627,4 +647,11 @@ Kullanıcı geri bildirimlerine dayalı kritik düzeltmeler ve iyileştirmeler y
 
 > TODO: Release notes eklenecek.
 
+---
 
+## 27 Şubat 2026
+
+### ✨ v4.6.1 (2026-02-27)
+- **Anti-Bot Güvenliği:** Standart Selenium yerine donanımsal düzeyde Chrome parmak izlerini gizleyen `undetected-chromedriver` kütüphanesi entegre edildi. Cloudflare ve X bot duvarları aşıldı.
+- **Güvenli Başlangıç (Safe Boot):** Program açılır açılmaz arka planda tetiklenen X Daemon, Haber Taraması, Fenerbahçe Modülü, DeepScan ve Trend Etkileşim servislerinin otomatik başlaması **devre dışı bırakıldı**. Tüm modüller artık sadece ana ekrandaki "START" butonuna manuel basıldığında güvenle çalışmaya başlar.
+- **İyileştirme:** `MainForm.cs`, `OperationManager.cs`, `x_daemon.py` ve `social_intel.py` dosyalarında anti-bot senkronizasyonları tamamlandı.cek.

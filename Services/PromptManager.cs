@@ -53,6 +53,7 @@ Senin olayın robotik analizler değil; piyasanın ruhunu okumak, 'Ben buradayı
 |||
 [Tweet 3: Strateji ve Kapanış + Hashtagler + YTD]
 
+⚠️ ÖNEMLİ KURAL: Twitter'ın 280 karakter sınırına uyum sağlamak ZORUNDASIN. Her bir tweet parçası (||| ile ayrılan) KESİNLİKLE 280 karakterden kısa olmalı. Lüzumsuz kelime kullanma.
 ⚠️ NOT: Kitabi tanım yapma (MSB nedir açıklama), doğrudan kullan. ""Net bir MSB var, yön yukarı"" de geç.";
         }
 
@@ -88,9 +89,11 @@ Senin dilin samimi, usta işi ve güven verici. Robotik analizlerden nefret eder
 3. **YOL HARİTASI:** ""Şurası kalemiz olmalı (Destek)"", ""Burası kâr cebe yakışır (Direnç)"" gibi samimi bir dille strateji kur.
 
 ### KURALLAR:
-- Maks 1200 karakter.
-- Liste yapma (madde madde yazma), akıcı bir paragraf olsun. Sanki yanındaki dostuna grafiği anlatıyorsun.
-- Sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle.";
+- Toplam metni tek bir akıcı paragraf halinde yazma, X'te thread olabilmesi için ||| işaretiyle mantıklı noktalardan böl.
+- Her bir parça (||| ile ayrılmış) KESİNLİKLE 280 KARAKTERDEN KISA olmalıdır.
+- Maksimum 1200 karakter toplam uzunluk.
+- Liste yapma (madde madde yazma). Sanki yanındaki dostuna grafiği anlatıyorsun.
+- En son parçanın sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle.";
         }
 
         public string GetNewsAnalysisPrompt(string newsContent, string source)
@@ -411,9 +414,11 @@ Sadece grafiğe değil, genel piyasa havasına ve haberlere de hakimsin.
 3. **YOL HARİTASI:** Destek/Direnç deme; ""Burası kalemiz"", ""Burası kâr durağı"" de.
 
 ### KURALLAR:
-- Maks 1200 karakter.
-- Liste mantığından kaçın, akıcı bir sohbet havasında yaz.
-- Sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle.";
+- Toplam metni akıcı bir sohbet havasında yazıp, X (Twitter) thread'i olabilmesi için ||| işaretini kullanarak mantıklı yerlerden böl.
+- Her bir parça KESİNLİKLE 280 KARAKTERDEN KISA olmalıdır. Uzatmaktan kaçın.
+- Maksimum 1200 karakter toplam.
+- Liste mantığından kaçın.
+- En son parçanın sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle.";
         }
 
         public string GetDeepScanPrompt(SignalData signal)
@@ -521,13 +526,14 @@ Giriş tarzın: {selectedStyle}
 3. KAPANIS: Motivasyon verici, samimi ve yatırım tavsiyesi içermeyen bir final.
 
 ### CIKTI FORMATI (SADECE TWEET METINLERINI YAZ):
-...buraya sadece 1. tweet...
+...buraya sadece 1. tweet (Max 280 Karakter)...
 |||
-...buraya sadece 2. tweet...
+...buraya sadece 2. tweet (Max 280 Karakter)...
 |||
-...buraya sadece 3. tweet...
+...buraya sadece 3. tweet (Max 280 Karakter)...
 
 KESIN YASAKLAR:
+- Her bir parça KESİNLİKLE 280 karakterden KISA olmalıdır. Twitter limitlerine uymak hayati önemdedir.
 - ""(Birinci Tweet Metni)"" veya ""(...)"" gibi yönlendirme ifadelerini ASLA çıktıya yazma.
 - 'Tweet 1:', '[...]' gibi başlıkları ASLA kullanma.
 - Giriş cümlen, seçilen stile ({selectedStyle}) uygun olmalı.";

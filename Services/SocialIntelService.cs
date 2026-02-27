@@ -654,6 +654,13 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostTweet(string text, string? mediaPath = null)
         {
+            // v4.6.2: If simple tweet exceeds 280 chars, automatically convert to Trade/Thread mode
+            if (text.Length > 280)
+            {
+                Logger.Twitter($"⚠️ Tekil tweet metni 280 karakteri aşıyor ({text.Length}). Otomatik olarak Thread'e dönüştürülüyor.");
+                return await PostThreadAsync(new List<string> { text }, mediaPath);
+            }
+
             // 1. Try Internal Bridge (WebView2) First - More reliable as it uses current session
             if (OnPostTweetRequested != null)
             {
@@ -732,6 +739,23 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostThreadAsync(List<string> tweets, string? mediaPath = null)
         {
+            // v4.6.2: STRICT 280-CHARACTER LIMIT ENFORCEMENT
+            var safeTweets = new List<string>();
+            foreach (var t in tweets)
+            {
+                if (t.Length > 280)
+                {
+                    Logger.Twitter($"⚠️ Uzun tweet tespit edildi ({t.Length} karakter). 280 sınırına göre otomatik bölünüyor...");
+                    var subParts = ThreadService.SplitText(t, 275); // 275 for safety margin (e.g. 1/3)
+                    safeTweets.AddRange(subParts);
+                }
+                else
+                {
+                    safeTweets.Add(t);
+                }
+            }
+            tweets = safeTweets;
+
             // 1. Try Internal Bridge
             if (OnPostThreadRequested != null)
             {

@@ -51,7 +51,7 @@ class ChromeDriverPool:
     _max_age = 3600  # 1 hour, then recreate
     
     @classmethod
-    def get(cls, headless=True, use_undetected=False):
+    def get(cls, headless=True, use_undetected=True):
         with cls._lock:
             # Recreate if too old (memory leak prevention)
             if cls._driver and cls._creation_time:
@@ -250,7 +250,7 @@ def _make_heuristic_hints(ua_string):
     ]
     return hints
 
-def _create_driver_internal(headless=True, use_undetected=False):
+def _create_driver_internal(headless=True, use_undetected=True):
     """Internal driver creation (moved from setup_driver)"""
     ensure_dirs()
 
@@ -369,7 +369,19 @@ def _create_driver_internal(headless=True, use_undetected=False):
         return None
 
 # App data directory
-APPDATA_DIR = Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))) / "XiDeAI"
+def _discover_appdata():
+    paths = [
+        Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))) / "XiDeAI",
+        Path(os.path.dirname(__file__)).parent, # Root of app
+        Path(os.path.dirname(__file__)).parent.parent / "XiDeAI", # Sibling XiDeAI folder
+        Path(os.path.dirname(__file__)), # Current dir
+    ]
+    for p in paths:
+        if (p / "twitter_cookies.json").exists() or (p / "twitter_cookies.pkl").exists():
+            return p
+    return paths[0] # Default
+
+APPDATA_DIR = _discover_appdata()
 PROFILE_DIR = APPDATA_DIR / "chrome_anon_profile"
 COOKIES_FILE = APPDATA_DIR / "twitter_cookies.pkl"
 
@@ -495,7 +507,7 @@ def ensure_dirs():
     APPDATA_DIR.mkdir(parents=True, exist_ok=True)
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 
-def setup_driver(headless=True, use_undetected=False, bypass_pool=False):
+def setup_driver(headless=True, use_undetected=True, bypass_pool=False):
     """
     DEPRECATED: Use ChromeDriverPool.get() instead for better performance.
     Kept for backward compatibility with interactive login.
@@ -517,6 +529,19 @@ def load_cookies(driver):
     """Load cookies from pickle OR json file"""
     json_file = APPDATA_DIR / "twitter_cookies.json"
     
+    # v4.6.2: Google Drive conflict fallback - check for (1), (2) suffixed copies
+    if not json_file.exists():
+        import glob
+        # Try finding in APPDATA_DIR or script's parent
+        search_dirs = [APPDATA_DIR, Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))) / "XiDeAI"]
+        for sd in search_dirs:
+            pattern = str(sd / "twitter_cookies*.json")
+            candidates = sorted(glob.glob(pattern), key=lambda f: os.path.getmtime(f), reverse=True)
+            if candidates:
+                json_file = Path(candidates[0])
+                print(f"[COOKIE] Using fallback JSON: {json_file.name} from {sd}", file=sys.stderr)
+                break
+    
     if not COOKIES_FILE.exists() and not json_file.exists():
         return False
         
@@ -531,14 +556,37 @@ def load_cookies(driver):
             try:
                 import json
                 cookies = json.loads(json_file.read_text())
-                for cookie in cookies:
-                    if 'sameSite' in cookie and cookie['sameSite'] not in ["Strict", "Lax", "None"]:
-                        del cookie['sameSite']
-                    # Selenium add_cookie needs specific fields, remove unknown ones if any issues arise?
-                    # Generally dict is fine.
-                    try: driver.add_cookie(cookie)
-                    except: pass
-                print(f"✅ JSON Session Synced: {len(cookies)} cookies loaded from WebView2", file=sys.stderr)
+                added_count = 0
+                for c in cookies:
+                    cookie_dict = {
+                        'name': c.get('name', c.get('Name')),
+                        'value': c.get('value', c.get('Value')),
+                        'domain': c.get('domain', c.get('Domain')),
+                        'path': c.get('path', c.get('Path', '/')),
+                    }
+                    if 'expires' in c: cookie_dict['expiry'] = int(c['expires'])
+                    elif 'Expires' in c: cookie_dict['expiry'] = int(c['Expires'])
+                    
+                    if 'isSecure' in c: cookie_dict['secure'] = bool(c['isSecure'])
+                    elif 'Secure' in c: cookie_dict['secure'] = bool(c['Secure'])
+                    elif 'secure' in c: cookie_dict['secure'] = bool(c['secure'])
+
+                    if 'isHttpOnly' in c: cookie_dict['httpOnly'] = bool(c['isHttpOnly'])
+                    elif 'HttpOnly' in c: cookie_dict['httpOnly'] = bool(c['HttpOnly'])
+                    elif 'httpOnly' in c: cookie_dict['httpOnly'] = bool(c['httpOnly'])
+                    
+                    if 'sameSite' in c and c['sameSite'] in ["Strict", "Lax", "None"]:
+                        cookie_dict['sameSite'] = c['sameSite']
+                        
+                    # Selenium add_cookie ignores domains matching ".something.com" sometimes if strictly checked, 
+                    # but usually it's fine.
+                    try: 
+                        driver.add_cookie(cookie_dict)
+                        added_count += 1
+                    except Exception as cookie_err: 
+                        print(f"Bypassed cookie err {cookie_dict.get('name')}: {cookie_err}", file=sys.stderr)
+                        
+                print(f"✅ JSON Session Synced: {added_count}/{len(cookies)} cookies loaded from WebView2", file=sys.stderr)
             except Exception as je:
                 print(f"JSON Cookie Error: {je}", file=sys.stderr)
 

@@ -2189,13 +2189,24 @@ namespace XiDeAI_Pro
             Log("🚀 Watcher Service Started...");
             Log($"📁 Watching: {cfg.WatchFolderKing}, {cfg.WatchFolderDip}, {cfg.WatchFolderAnka}, {cfg.WatchFolderMiner}");
             
-            // v4.0 Bot Interaction Activation
-            if (_botTimer != null) {
-                _botTimer.Start();
-                Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
-                // Run immediate check
-                Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
-            }
+            // v4.0 Bot Interaction Activation (DISABLED PER USER REQUEST)
+            // if (_botTimer != null) {
+            //     _botTimer.Start();
+            //     Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
+            //     // Run immediate check
+            //     Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
+            // }
+
+            // --- MANUAL START FOR X MODULES ---
+            Task.Run(async () => {
+                Log("🚀 Başlatma tuşuna basıldı, X modülleri ayağa kaldırılıyor...", "System");
+                try { await _opManager.SocialIntel.StartDaemonAsync(); } catch (Exception ex) { Log($"[Daemon] Starter Error: {ex.Message}", "System"); }
+            });
+            _opManager.NewsTracker.Start();
+            // _opManager.FanZone.Start(); // DISABLED PER USER REQUEST
+            // _deepScanTimer.Start(); // Removed per user request, keep manual for now
+            // _trendEngagementTimer.Start(); // Removed per user request
+            // ----------------------------------
 
             btnStart.Enabled = false;
             btnStart.Text = "⏳ Running...";
@@ -4734,7 +4745,7 @@ namespace XiDeAI_Pro
                    }
                }
             };
-            _deepScanTimer.Start();
+            // _deepScanTimer.Start(); // DISABLED AUTO-START for safety
         }
 
         /// <summary>
@@ -4768,8 +4779,8 @@ namespace XiDeAI_Pro
                     Log($"❌ TrendEngagement Timer Error: {ex.Message}", "System");
                 }
             };
-            _trendEngagementTimer.Start();
-            Log("🔥 Dinamik Trend Engagement başlatıldı (5dk kontrol döngüsü)", "System");
+            // _trendEngagementTimer.Start(); // DISABLED AUTO-START for safety
+            Log("🔥 Dinamik Trend Engagement hazır (OTOMATİK BAŞLAMASI KAPATILDI)", "System");
         }
 
         private void ShowAboutDialog()

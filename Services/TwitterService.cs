@@ -273,11 +273,6 @@ namespace XiDeAI_Pro.Services
                 return (false, $"❌ Test hatası: {ex.Message}");
             }
         }
-    }
-}
-
-
-        }
         
         /// <summary>
         /// Checks if the action is safe to perform based on ConfigManager rules.

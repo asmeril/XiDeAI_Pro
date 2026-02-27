@@ -20,7 +20,20 @@ from urllib.parse import parse_qs, urlparse
 # Configuration
 HOST = "127.0.0.1"
 PORT = 5580
-APPDATA_DIR = Path(os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))) / "XiDeAI"
+
+def _discover_appdata():
+    paths = [
+        Path(os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))) / "XiDeAI",
+        Path(os.path.dirname(__file__)).parent, # Root of app
+        Path(os.path.dirname(__file__)).parent.parent / "XiDeAI", # Sibling XiDeAI folder
+        Path(os.path.dirname(__file__)), # Current dir
+    ]
+    for p in paths:
+        if (p / "twitter_cookies.json").exists() or (p / "twitter_cookies.pkl").exists():
+            return p
+    return paths[0] # Default
+
+APPDATA_DIR = _discover_appdata()
 COOKIES_FILE = APPDATA_DIR / "twitter_cookies.pkl"
 
 # Global state
@@ -31,15 +44,13 @@ _shutdown_flag = False
 
 # Import Selenium components
 try:
-    from selenium import webdriver
+    import undetected_chromedriver as uc
     from selenium.webdriver.common.by import By
     from selenium.webdriver.common.keys import Keys
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
 except ImportError:
-    print("ERROR: selenium not installed", file=sys.stderr)
+    print("ERROR: selenium or undetected_chromedriver not installed", file=sys.stderr)
     sys.exit(1)
 
 
@@ -109,26 +120,25 @@ def _make_heuristic_hints(ua_string):
 def _create_driver():
     """Create a new Chrome driver with optimal settings"""
     try:
-        options = Options()
-        options.add_argument("--disable-blink-features=AutomationControlled")
+        options = uc.ChromeOptions()
+        # Removed anti-bot flags since undetected-chromedriver handles it natively
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
         options.add_argument("--window-size=1920,1080")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option("useAutomationExtension", False)
+        
+        # Fast Page Load
+        options.page_load_strategy = 'eager'
+        
+        # Image blocking
+        prefs = {"profile.managed_default_content_settings.images": 2}
+        options.add_experimental_option("prefs", prefs)
         
         # Use headless for background operations
         if os.environ.get("X_VISIBLE", "").lower() != "true":
             options.add_argument("--headless=new")
         
-        # Find chromedriver
-        driver_path = APPDATA_DIR / "drivers" / "chromedriver.exe"
-        if driver_path.exists():
-            service = Service(str(driver_path))
-            driver = webdriver.Chrome(service=service, options=options)
-        else:
-            driver = webdriver.Chrome(options=options)
+        # Create UC driver
+        driver = uc.Chrome(options=options, use_subprocess=True)
         
         # v4.4.7: Deep Identity Sync (Client Hints)
         json_file = APPDATA_DIR / "twitter_cookies.json"
@@ -178,6 +188,19 @@ def _load_cookies(driver):
     """Load cookies into the driver"""
     json_file = APPDATA_DIR / "twitter_cookies.json"
     
+    # v4.6.2: Google Drive conflict fallback - check for (1), (2) suffixed copies
+    if not json_file.exists():
+        import glob
+        # Try finding in APPDATA_DIR or script's parent
+        search_dirs = [APPDATA_DIR, Path(os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))) / "XiDeAI"]
+        for sd in search_dirs:
+            pattern = str(sd / "twitter_cookies*.json")
+            candidates = sorted(glob.glob(pattern), key=lambda f: os.path.getmtime(f), reverse=True)
+            if candidates:
+                json_file = Path(candidates[0])
+                log(f"[COOKIE] Using fallback JSON: {json_file.name} from {sd}")
+                break
+    
     if not COOKIES_FILE.exists() and not json_file.exists():
         log("No cookies file found")
         return False
@@ -191,11 +214,35 @@ def _load_cookies(driver):
             try:
                 import json
                 cookies = json.loads(json_file.read_text())
+                added_count = 0
                 for c in cookies:
-                    if 'sameSite' in c and c['sameSite'] not in ["Strict", "Lax", "None"]:
-                        del c['sameSite']
-                    try: driver.add_cookie(c)
-                    except: pass
+                    cookie_dict = {
+                        'name': c.get('name', c.get('Name')),
+                        'value': c.get('value', c.get('Value')),
+                        'domain': c.get('domain', c.get('Domain')),
+                        'path': c.get('path', c.get('Path', '/')),
+                    }
+                    if 'expires' in c: cookie_dict['expiry'] = int(c['expires'])
+                    elif 'Expires' in c: cookie_dict['expiry'] = int(c['Expires'])
+                    
+                    if 'isSecure' in c: cookie_dict['secure'] = bool(c['isSecure'])
+                    elif 'Secure' in c: cookie_dict['secure'] = bool(c['Secure'])
+                    elif 'secure' in c: cookie_dict['secure'] = bool(c['secure'])
+
+                    if 'isHttpOnly' in c: cookie_dict['httpOnly'] = bool(c['isHttpOnly'])
+                    elif 'HttpOnly' in c: cookie_dict['httpOnly'] = bool(c['HttpOnly'])
+                    elif 'httpOnly' in c: cookie_dict['httpOnly'] = bool(c['httpOnly'])
+                    
+                    if 'sameSite' in c and c['sameSite'] in ["Strict", "Lax", "None"]:
+                        cookie_dict['sameSite'] = c['sameSite']
+                        
+                    try: 
+                        driver.add_cookie(cookie_dict)
+                        added_count += 1
+                    except Exception as cookie_err: 
+                        log(f"Bypassed cookie err {cookie_dict.get('name')}: {cookie_err}")
+                        
+                log(f"✅ JSON Session Synced: {added_count}/{len(cookies)} cookies loaded from WebView2")
             except Exception as je:
                 log(f"JSON Cookie Error: {je}")
 

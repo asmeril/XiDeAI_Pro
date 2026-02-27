@@ -346,7 +346,7 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        private List<string> SplitText(string text, int limit)
+        public static List<string> SplitText(string text, int limit)
         {
             var parts = new List<string>();
             if (string.IsNullOrEmpty(text)) return parts;

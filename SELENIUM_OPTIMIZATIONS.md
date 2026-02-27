@@ -3,13 +3,19 @@
 ## 📊 Mevcut Durum
 - **WebView2**: Fonksiyonel sorunlar nedeniyle devre dışı
 - **Selenium**: Tüm X (Twitter) işlemleri için aktif kullanımda
-- **Python Script**: `social_intel.py` (1900+ satır)
+- **Anti-Bot Sistemi**: `undetected-chromedriver` ile Chrome otomasyon izleri (fingerprint) tamamen maskelendi.
+- **Python Script**: `social_intel.py` (1900+ satır) ve `x_daemon.py` (HTTP Daemon)
 
 ---
 
 ## ⚡ Uygulanan İyileştirmeler
 
-### 1. **WebView2 Fallback Kodları Temizlendi**
+### 1. **Anti-Bot & Gizlilik (undetected-chromedriver)**
+Standart Selenium'un kolayca tespit edilmesi nedeniyle `undetected-chromedriver` kütüphanesine geçildi:
+- Chrome otomasyon bayrakları (`disable-blink-features=AutomationControlled` vs.) donanımsal düzeyde yamalandı.
+- Headless (ekransız) modda bile Cloudflare ve X DataDome engelleri başarılı şekilde aşılır hale geldi.
+
+### 2. **WebView2 Fallback Kodları Temizlendi**
 ```diff
 - // WebView2 bridge kontrolü
 - if (OnPostTweetRequested != null) { ... }

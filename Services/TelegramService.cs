@@ -75,8 +75,10 @@ namespace XiDeAI_Pro.Services
                 if (response.IsSuccessStatusCode)
                 {
                     // For test, send immediately bypass queue to give instant feedback
-                    bool msgSent = await SendMessageInternalAsync("🔔 X'iDeAI Test Mesajı: Bağlantı Başarılı!");
-                    return msgSent ? (true, "✅ Bot aktif ve mesaj gönderildi!") : (true, "⚠️ Bot aktif ama mesaj gönderilemedi (Chat ID hatalı olabilir).");
+                    var chatCheck = await SendMessageInternalWithResultAsync("🔔 X'iDeAI Test Mesajı: Bağlantı Başarılı!");
+                    if (chatCheck.Success) return (true, "✅ Bot aktif ve test mesajı başarıyla Telegram'a gönderildi!");
+                    
+                    return (true, $"⚠️ Bot aktif (API Key doğru) AMA mesaj gönderilemedi.\n\nHata: {chatCheck.Error}\n\nOlası Sebepler:\n1. Chat ID hatalı olabilir.\n2. Eğer bu kendi ID'niz ise, Telegram'dan bota girip önce '/start' yazmalısınız.\n3. Eğer grup ise, botu gruba ekleyip yönetici yapmalısınız.");
                 }
                 return (false, $"❌ Bot Token hatalı. (HTTP {(int)response.StatusCode})");
             }
@@ -96,13 +98,13 @@ namespace XiDeAI_Pro.Services
             return Task.FromResult(true); // Always return true as it's queued
         }
 
-        private async Task<bool> SendMessageInternalAsync(string message)
+        private async Task<(bool Success, string Error)> SendMessageInternalWithResultAsync(string message)
         {
             var chatId = ConfigManager.Current.TelegramChatId;
             if (string.IsNullOrEmpty(_baseUrl) || string.IsNullOrEmpty(chatId)) 
             {
                 Logger.Telegram("⚠️ Mesaj gönderilemedi: BaseURL veya ChatID eksik.");
-                return false;
+                return (false, "Chat ID boş veya kaydedilmemiş");
             }
 
             try
@@ -130,15 +132,23 @@ namespace XiDeAI_Pro.Services
                          Logger.Telegram("⏳ Rate Limit hit. Waiting extra 5 seconds...");
                          await Task.Delay(5000); 
                     }
+                    
+                    return (false, errorDetail);
                 }
                 
-                return success;
+                return (true, "");
             }
             catch (Exception ex)
             {
                 Logger.Telegram($"❌ Telegram SendMessage Hatası: {ex.Message}");
-                return false;
+                return (false, ex.Message);
             }
+        }
+        
+        private async Task<bool> SendMessageInternalAsync(string message)
+        {
+            var result = await SendMessageInternalWithResultAsync(message);
+            return result.Success;
         }
 
         public class TelegramUpdateInfo

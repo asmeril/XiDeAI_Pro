@@ -166,11 +166,11 @@ namespace XiDeAI_Pro.Services
             SocialIntel.SetInfluencerControl(InfluencerControl);
             SocialIntel.SetStatsEngine(Stats);
             
-            // v4.4.0: Start X daemon in background
-            _ = Task.Run(async () => {
-                try { await SocialIntel.StartDaemonAsync(); }
-                catch (Exception ex) { Logger.Sys($"[Daemon] Startup error: {ex.Message}"); }
-            });
+            // v4.4.0: X daemon in background (DISABLED AUTO-START for safety)
+            // _ = Task.Run(async () => {
+            //     try { await SocialIntel.StartDaemonAsync(); }
+            //     catch (Exception ex) { Logger.Sys($"[Daemon] Startup error: {ex.Message}"); }
+            // });
             
             // 4. Analysis & Execution Services (Dependency: Intelligence)
             // [HIVE REMOVED] Sentinel service moved to HiveProjesi
@@ -248,22 +248,17 @@ namespace XiDeAI_Pro.Services
 
         public void StartOperations()
         {
-            NewsTracker.Start();
-            FanZone.Start(); 
+            // DISABLED AUTO-START for safety
+            // NewsTracker.Start();
+            // FanZone.Start(); 
             // v4.1.0: Start Athlete Discovery in background
-            Task.Run(async () => {
-                await Task.Delay(10000); // 10 sn bekle
-                // v4.5.4 Optimization: Skip if we already have athletes (Don't spam Google on every boot)
-                if (ConfigManager.Current.FenerbahceAthletes.Count == 0)
-                {
-                    await AthleteDiscovery.DiscoverAthletes();
-                }
-                else
-                {
-                    // Maybe run a lighter check or just log
-                    Logger.FanZone("ℹ️ Sporcu listesi dolu, otomatik keşif atlandı.");
-                }
-            });
+            // Task.Run(async () => {
+            //     await Task.Delay(10000); // 10 sn bekle
+            //     if (ConfigManager.Current.FenerbahceAthletes.Count == 0)
+            //     {
+            //         await AthleteDiscovery.DiscoverAthletes();
+            //     }
+            // });
         }
 
         // SyncGeminiProviders - v3.7.2: Register providers in ModelManager
