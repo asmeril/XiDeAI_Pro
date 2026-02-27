@@ -137,8 +137,26 @@ def _create_driver():
         if os.environ.get("X_VISIBLE", "").lower() != "true":
             options.add_argument("--headless=new")
         
-        # Create UC driver
-        driver = uc.Chrome(options=options, use_subprocess=True)
+        # Create UC driver with version fallback
+        try:
+            driver = uc.Chrome(options=options, use_subprocess=True)
+        except Exception as driver_err:
+            if "version" in str(driver_err).lower():
+                log("Version mismatch detected in x_daemon, forcing version 145...")
+                # RECREATE OPTIONS: Cannot reuse after failure
+                options = uc.ChromeOptions()
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--window-size=1920,1080")
+                options.page_load_strategy = 'eager'
+                prefs = {"profile.managed_default_content_settings.images": 2}
+                options.add_experimental_option("prefs", prefs)
+                if os.environ.get("X_VISIBLE", "").lower() != "true":
+                    options.add_argument("--headless=new")
+                
+                driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+            else:
+                raise driver_err
         
         # v4.4.7: Deep Identity Sync (Client Hints)
         json_file = APPDATA_DIR / "twitter_cookies.json"
@@ -263,9 +281,9 @@ def _load_cookies(driver):
         
         log(f"Cookies loaded. Refreshing session...")
         
-        # FIX: Refresh to apply cookies
+        # FIX: Navigate to home to apply cookies
         try:
-            driver.refresh()
+            driver.get("https://x.com/home")
             time.sleep(3)
             current = driver.current_url.lower()
             if "login" in current or "signin" in current or "i/flow" in current:
@@ -590,28 +608,82 @@ def cmd_post_thread(params):
             tweet_box.send_keys(tweets[0])
         time.sleep(1)
         
-        # Add more tweets to thread
+        # Add more tweets to thread (Robust v4.6.3 Engine)
         for i, tweet_text in enumerate(tweets[1:], 1):
-            # Click "Add another Tweet" button
+            log(f"Processing thread part {i+1}/{len(tweets)}...")
             try:
-                add_btn = driver.find_element(By.CSS_SELECTOR, "[data-testid='addButton'], [aria-label*='Add']")
-                driver.execute_script("arguments[0].click();", add_btn)
-                time.sleep(1)
+                # 1. Count existing textboxes to verify spawn
+                old_count = len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']"))
                 
-                # Find new text area
-                text_areas = driver.find_elements(By.CSS_SELECTOR, "[data-testid^='tweetTextarea_'], [role='textbox']")
+                # 2. Find "Add another Tweet" button [Robust Selectors]
+                add_btn = None
+                
+                # Try data-testid first
+                try:
+                    btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
+                    for b in btns:
+                        if b.is_displayed():
+                            add_btn = b
+                            break
+                except: pass
+                
+                if not add_btn:
+                    # Try labels (localized)
+                    labels = ["Tweet ekle", "Add Tweet", "Add another Tweet", "Başka bir gönderi ekle", "Gönderi ekle", "Add post", "Ekle", "Post ekle"]
+                    # Simplified XPath for daemon efficiency
+                    xpath = " | ".join([f"//*[@aria-label='{l}']" for l in labels])
+                    try:
+                        btns = driver.find_elements(By.XPATH, xpath)
+                        for b in btns:
+                            if b.is_displayed():
+                                add_btn = b
+                                break
+                    except: pass
+                
+                if not add_btn:
+                    # Fallback to SVG plus icon detection
+                    try:
+                        svg_btns = driver.find_elements(By.CSS_SELECTOR, "div[role='button']:has(svg), button:has(svg)")
+                        for b in svg_btns:
+                            if b.is_displayed():
+                                # Heuristic: addButton usually has a plus-like SVG
+                                add_btn = b
+                                break
+                    except: pass
+
+                if add_btn:
+                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", add_btn)
+                    time.sleep(0.5)
+                    driver.execute_script("arguments[0].click();", add_btn)
+                    
+                    # Wait for new box
+                    try:
+                        WebDriverWait(driver, 5).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count)
+                        time.sleep(1)
+                    except:
+                        log("Warning: New box did not spawn after click.")
+                else:
+                    log(f"Warning: 'Add' button not found for part {i+1}. Attempting direct fallback...")
+                
+                # 3. Find new text area
+                text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
                 if len(text_areas) > i:
+                    active_box = text_areas[i]
+                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", active_box)
+                    time.sleep(0.5)
                     try:
                         pyperclip.copy(tweet_text)
-                        text_areas[i].click()
+                        active_box.click()
                         time.sleep(0.3)
                         ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
                     except Exception as paste_err:
-                         log(f"Clipboard paste failed for reply {i}, falling back to send_keys: {paste_err}")
-                         text_areas[i].send_keys(tweet_text)
+                         log(f"Clipboard paste failed for part {i+1}, falling back to send_keys: {paste_err}")
+                         active_box.send_keys(tweet_text)
                     time.sleep(0.5)
+                else:
+                    log(f"CRITICAL: New textbox for part {i+1} NOT found after click.")
             except Exception as e:
-                log(f"Error adding tweet {i+1}: {e}")
+                log(f"Error adding thread part {i+1}: {e}")
         
         # Click Post button
         time.sleep(1)

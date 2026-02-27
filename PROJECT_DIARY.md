@@ -655,3 +655,15 @@ Kullanıcı geri bildirimlerine dayalı kritik düzeltmeler ve iyileştirmeler y
 - **Anti-Bot Güvenliği:** Standart Selenium yerine donanımsal düzeyde Chrome parmak izlerini gizleyen `undetected-chromedriver` kütüphanesi entegre edildi. Cloudflare ve X bot duvarları aşıldı.
 - **Güvenli Başlangıç (Safe Boot):** Program açılır açılmaz arka planda tetiklenen X Daemon, Haber Taraması, Fenerbahçe Modülü, DeepScan ve Trend Etkileşim servislerinin otomatik başlaması **devre dışı bırakıldı**. Tüm modüller artık sadece ana ekrandaki "START" butonuna manuel basıldığında güvenle çalışmaya başlar.
 - **İyileştirme:** `MainForm.cs`, `OperationManager.cs`, `x_daemon.py` ve `social_intel.py` dosyalarında anti-bot senkronizasyonları tamamlandı.cek.
+
+---
+
+## 27 Şubat 2026
+
+### v4.6.4 (2026-02-27) - Twitter Threading & Session Fix
+- **Fix:** `MainForm.cs` ve `OperationEngine.cs` üzerindeki kapanış raporu (Market Close) döngüsü düzeltildi. Artık raporlar ayrı ayrı tweetler yerine tek bir zincir (thread) olarak paylaşılacak.
+- **İyileştirme:** `x_daemon.py` üzerindeki zincirleme mantığı güçlendirildi. Çoklu buton bulma ve "Add another post" butonu doğrulama adımları eklendi.
+- **Bug Fix:** Cookie yükleme sonrası yaşanan giriş ekranına yönlenme problemi, `refresh()` yerine doğrudan home navigasyonu (`x.com/home`) yapılarak çözüldü.
+- **Teknik:** `update-version.ps1` kullanılarak tüm proje dosyaları ve manifest v4.6.4 sürümüne yükseltildi.
+
+

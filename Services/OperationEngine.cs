@@ -117,25 +117,27 @@ namespace XiDeAI_Pro.Services
                 string? tweetSet = await _gemini.GenerateMarketCloseTableTweet(indices, gTable, lTable, vTable);
                 if (string.IsNullOrEmpty(tweetSet)) throw new Exception("Gemini report generation failed.");
 
-                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
                 bool anySent = false;
-                foreach (var t in tweets.Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)))
-                {
-                    // SPAM/KALİTE KONTROLÜ
-                    if (ContentQualityGuard.IsSpamOrLowQuality(t, out string spamReason))
-                    {
-                        OnLog?.Invoke($"⚠️ İçerik kalitesi düşük, atlanıyor: {spamReason}", "Operation");
-                        continue;
-                    }
 
-                    if (await ExecuteScheduledTweet(t, "MarketClose"))
+                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(x => x.Trim())
+                                   .Where(x => !string.IsNullOrEmpty(x))
+                                   .ToList();
+
+                if (tweets.Count > 0)
+                {
+                    OnStatusUpdate?.Invoke($"🚀 Market Close Summary: {tweets.Count} tweets thread identifying. Posting...");
+                    var result = await _socialIntel.PostThreadAsync(tweets);
+                    
+                    if (result != null && result.status == "success")
                     {
+                        OnLog?.Invoke("✅ Piyasa Kapanış Raporu (zincir) başarıyla paylaşıldı.", "Operation");
                         anySent = true;
-                        _stats.RecordActivity("Operation", "Market Close Report Tweet Posted", true);
-                        _spam.RecordTweet("REPORT", "CLOSE");
-                        _stats.RecordTweet("MarketClose", 1, "", t);
                     }
-                    await Task.Delay(3000);
+                    else
+                    {
+                        OnLog?.Invoke($"❌ Piyasa Kapanış Raporu hatası: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Operation");
+                    }
                 }
 
                 if (anySent)
@@ -143,7 +145,7 @@ namespace XiDeAI_Pro.Services
                     _closeRetry = 0;
                     OnLog?.Invoke("✅ Piyasa Kapanış Raporu (zincir) başarıyla paylaşıldı.", "Operation");
                 }
-                else if (tweets.Length > 0) OnLog?.Invoke("⚠️ Hiçbir tweet gönderilemedi (spam veya hata).", "Operation");
+                else if (tweets.Count > 0) OnLog?.Invoke("⚠️ Hiçbir tweet gönderilemedi (spam veya hata).", "Operation");
                 else throw new Exception("No valid content generated.");
             }
             catch (Exception ex)

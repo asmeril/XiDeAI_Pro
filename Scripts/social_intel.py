@@ -303,7 +303,24 @@ def _create_driver_internal(headless=True, use_undetected=True):
             # OPTIMIZATION: Page load strategy (images enabled; blocking breaks X UI/media previews)
             options.page_load_strategy = 'eager'
             
-            driver = uc.Chrome(options=options, version_main=None, headless=headless)
+            try:
+                driver = uc.Chrome(options=options, version_main=None, headless=headless)
+            except Exception as e:
+                if "version" in str(e).lower():
+                    print(f"Version mismatch in social_intel, forcing v145... {e}", file=sys.stderr)
+                    # RECREATE OPTIONS: Cannot reuse after failure
+                    options = uc.ChromeOptions()
+                    if headless:
+                        options.add_argument("--headless=new")
+                    options.add_argument("--disable-blink-features=AutomationControlled")
+                    options.add_argument("--no-sandbox")
+                    options.add_argument("--disable-dev-shm-usage")
+                    options.add_argument("--window-size=1920,1080")
+                    options.page_load_strategy = 'eager'
+                    
+                    driver = uc.Chrome(options=options, version_main=145, headless=headless)
+                else:
+                    raise e
             try:
                 driver.set_page_load_timeout(25)
             except Exception:
@@ -605,9 +622,9 @@ def load_cookies(driver):
                  # Only log if JSON also failed
                  if not json_file.exists(): print(f"Pickle Cookie Error: {pe}", file=sys.stderr)
         
-        # MAJOR FIX: Refresh to activate cookies
+        # MAJOR FIX: Navigate instead of refresh to activate cookies
         try:
-            driver.refresh()
+            driver.get("https://x.com/home")
             time.sleep(3)
             
             # Simple check if we are still on login page

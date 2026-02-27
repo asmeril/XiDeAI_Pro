@@ -2340,39 +2340,28 @@ namespace XiDeAI_Pro
 
                 if (string.IsNullOrEmpty(tweetSet)) return;
 
-                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-                int tweetCount = 0;
-                foreach (var t in tweets)
+                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(t => t.Trim())
+                                   .Where(t => !string.IsNullOrEmpty(t))
+                                   .ToList();
+
+                if (tweets.Count > 0)
                 {
-                    tweetCount++;
-                    string cleanedTweet = t.Trim();
+                    Log($"🚀 Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
+                    var result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                     
-                    if (ConfigManager.Current.AutoTweet)
+                    if (result != null && result.status == "success")
                     {
-                        var webResult = await _opManager.SocialIntel.PostTweet(cleanedTweet);
-                        if (webResult.status == "success")
-                        {
-                            Log($"✅ Market Close Tweet {tweetCount} sent (WebView)!", "Twitter");
-                            _opManager.Spam.RecordTweet("REPORT", "CLOSE");
-                        }
+                        Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
+                        for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
                     }
                     else
                     {
-                        string? sentUrl = await _opManager.Twitter.SendTweetAsync(cleanedTweet);
-                        if (!string.IsNullOrEmpty(sentUrl))
-                        {
-                            Log($"✅ Market Close Tweet {tweetCount} sent (API)!", "Twitter");
-                            _opManager.Spam.RecordTweet("REPORT", "CLOSE"); 
-                        }
-                        else
-                        {
-                            Log($"❌ Market Close Tweet {tweetCount} failed: {_opManager.Twitter.LastError}", "Twitter"); 
-                        }
+                        Log($"❌ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
                     }
-                    await Task.Delay(3000);
                 }
 
-                Log($"✅ Market Close Summary completed ({tweetCount} tweets sent)!", "Twitter");
+                Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
             }
             catch (Exception ex)
             {
