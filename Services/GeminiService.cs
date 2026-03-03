@@ -376,9 +376,9 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
 
 
 
-        public async Task<string?> AnalyzeNewsForThread(string title, string source, string link = "")
+        public async Task<string?> AnalyzeNewsForThread(string title, string source, string summary, string link = "")
         {
-            string prompt = GeneratePremiumNewsAnalysisPrompt(title, source, link);
+            string prompt = GeneratePremiumNewsAnalysisPrompt(title, source, summary, link);
 
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
@@ -411,41 +411,31 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
             return await SendRequest(prompt);
         }
 
-        private string GeneratePremiumNewsAnalysisPrompt(string title, string source, string link = "")
+        private string GeneratePremiumNewsAnalysisPrompt(string title, string source, string summary, string link = "")
         {
-            // v4.6.6: Refined prompt to avoid square brackets in placeholders and ensure ||| consistency
+            // v4.6.7: Completely redesigned prompt to bypass Gemini "Panic/Dangerous Content" safety filters 
+            // by removing the hardcoded "Durum KRİTİK!" template which was causing generation aborts at 126 chars.
             string linkSection = !string.IsNullOrEmpty(link) 
                 ? $"🔗 {link}" 
                 : $"🔗 Kaynak: {source}";
             
-            return $@"KİMLİK: Sen uzman bir Baş Ekonomist ve Stratejistsin. Piyasa tecrübeni profesyonel ama samimi bir dille yansıt.
+            return $@"KİMLİK: Sen deneyimli ve profesyonel bir Baş Ekonomist ve Stratejistsin.
 
-GÖREV: Aşağıdaki haberi 2 tweet halinde analiz et. 
+GÖREV: Aşağıdaki finansal haberi, Twitter (X) platformu için 2 ayrı tweet halinde, profesyonel bir dille analiz et. Asla abartılı veya panik yaratacak kelimeler kullanma.
 
-Piyasa Haberi: {title}
-Kaynak: {source}
-{linkSection}
+HABER BİLGİLERİ:
+- Başlık: {title}
+- Özet: {summary}
+- Kaynak: {source}
+- Link: {linkSection}
 
-=== TWEET 1 (Haber & Giriş) ===
-🚨 HABER: {title}
-{source} kaynaklı haberi analiz ettim. Durum KRİTİK!
-{linkSection}
-
-#BIST100 #Haber #Borsa
-
-=== TWEET 2 (Derin Analiz) ===
-🧠 ANALİZ:
-• ÖZET: Haberin kısa ve net özeti.
-• ETKİ: Piyasa üzerindeki doğrudan etkileri.
-• RİSK: Yatırımcıların dikkat etmesi gereken riskler. 
-
-⚠️ Y.T.D. 
-
-KURALLAR:
-1. Tweetleri ||| ile ayır.
-2. {linkSection} kısmını AYNEN TWEET 1'de kullan. KESİNLİKLE placeholder yazma.
-3. KESİNLİKLE kendini tanıtma (yaş, isim vb.). Doğrudan habere odaklan.
-4. ÇIKTI FORMATI: TWEET 1 ||| TWEET 2";
+ÇIKTI FORMATI VE KURALLAR:
+1. Analizini tam olarak iki (2) tweet halinde yazmalısın.
+2. Tweetleri birbirinden ayırmak için KESİNLİKLE aralarına ||| koymalısın.
+3. Birinci tweet, haberin ne olduğunu açıklamalı ve en sona {linkSection} ile #BIST100 #Borsa etiketlerini eklemelidir.
+4. İkinci tweet, haberin piyasa etkilerini (fırsat veya riskleri) profesyonelce yorumlamalı ve sonuna 'Y.T.D.' eklemelidir.
+5. 'TWEET 1', 'TWEET 2' gibi başlıkları ASLA ÇIKTIYA YAZMA.
+6. Çıktın sadec ve sadece tweet metinlerinden ve ayırıcı ||| işaretinden oluşmalıdır.";
         }
 
         private string GenerateStandardNewsAnalysisPrompt(string title, string source)

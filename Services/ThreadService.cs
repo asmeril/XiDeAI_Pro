@@ -232,9 +232,8 @@ namespace XiDeAI_Pro.Services
                     fullAnalysis = fullAnalysis.Replace("[LINK]", tvLink);
                 }
 
-                if (!fullAnalysis.StartsWith("🦁"))
+                // v4.6.13: Her zaman tweet1 başlığını ekle (AI çıktısından bağımsız olarak başlık garantili)
                 {
-                    // If AI didn't provide its own lion header, we add our manual tweet1
                     string userHandle = ConfigManager.Current.XLoginUser;
                     string headerTag = string.IsNullOrEmpty(userHandle) ? "🇹🇷" : $"🇹🇷 @{userHandle} |";
                     
@@ -466,14 +465,18 @@ namespace XiDeAI_Pro.Services
             
             var finalTags = list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             
-            // Metinde zaten olanları Tweet 4 listesinden çıkar (tekrar olmasın)
+            // v4.6.13: CRITICAL FIX - Only deduplicate trend-sourced tags, NOT the core symbol/BIST tags.
+            // Previously this filter removed #SEMBOL and #BIST100 if they appeared in the AI text,
+            // leaving the last tweet nearly empty. Now we always keep base tags.
+            var coreBaseTags = new HashSet<string>(baseTags.Select(t => t.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
             if (!string.IsNullOrEmpty(existingContent))
             {
                 var existingHashtags = System.Text.RegularExpressions.Regex.Matches(existingContent, @"#\w+")
                     .Select(m => m.Value.ToLowerInvariant())
                     .ToHashSet();
                 
-                finalTags = finalTags.Where(t => !existingHashtags.Contains(t.ToLowerInvariant())).ToList();
+                // Only remove tags that are NOT core base tags
+                finalTags = finalTags.Where(t => coreBaseTags.Contains(t.ToLowerInvariant()) || !existingHashtags.Contains(t.ToLowerInvariant())).ToList();
             }
 
             // Blacklist (Non-financial spammy tags)

@@ -88,6 +88,7 @@ namespace XiDeAI_Pro.Services
         }
 
         // General-purpose gate for non-symbol posts (news, reports, batches, manual)
+        // v4.6.15: Even critical posts (10/10 news) now have a mandatory 3-5 minute cooldown to prevent X spam detection
         public bool CanPostGeneral(out string reason, bool ignoreLimits = false, bool isCritical = false)
         {
             reason = "";
@@ -95,10 +96,25 @@ namespace XiDeAI_Pro.Services
             
             var now = DateTime.Now;
 
+            // 1. Quiet Hours (Bypass only if critical)
             if (!isCritical && IsQuietHours(now))
             {
                 reason = $"Quiet hours ({QuietStart:hh\\:mm}-{QuietEnd:hh\\:mm})";
                 return false;
+            }
+
+            // 2. Global "Throttle" for ALL General posts (Prevention for X Anti-Spam)
+            // Even if critical, don't allow posts closer than 3 minutes apart
+            var lastGlobal = _records.OrderByDescending(r => r.Timestamp).FirstOrDefault();
+            if (lastGlobal != null && (now - lastGlobal.Timestamp).TotalMinutes < 3)
+            {
+                // Exceptions: If its critical, we might allow it if older than 1 min (very aggressive)
+                // but for now, 3 min is a safe "antispam" window for the account reputation.
+                if (!isCritical || (now - lastGlobal.Timestamp).TotalMinutes < 1)
+                {
+                    reason = $"Global anti-spam throttle ({(3 - (now - lastGlobal.Timestamp).TotalMinutes):0.#} min remaining)";
+                    return false;
+                }
             }
 
             if (!isCritical)
@@ -123,6 +139,8 @@ namespace XiDeAI_Pro.Services
 
         public void RecordTweet(string symbol, string strategy, string tweetId = "")
         {
+            // v4.6.15: Record as a record even if tweetId is empty (which might mean failure or pending)
+            // This ensures symbol-cooldowns are triggered to prevent retry-loops for the same signal.
             _records.Add(new TweetRecord
             {
                 Symbol = symbol,

@@ -24,7 +24,7 @@ namespace XiDeAI_Pro.Services
         private readonly string _historyFilePath;
         private List<NewsHistoryItem> _history = new List<NewsHistoryItem>();
         private readonly object _lock = new object();
-        private const int SIMILARITY_THRESHOLD = 80; // %80 benzerlik
+        private const int SIMILARITY_THRESHOLD = 60; // v4.6.11: %80'den %60'a düşürüldü (Farklı kaynakların benzer/eş anlamlı başlıklarını yakalamak için)
         private const int MAX_HISTORY_DAYS = 7; // 7 günlük geçmiş tut
 
         public NewsPersistenceService()
@@ -98,21 +98,15 @@ namespace XiDeAI_Pro.Services
         public bool IsDuplicate(string title, string source, out string reason)
         {
             reason = string.Empty;
-            string cleanTitle = title.Trim();
+            string cleanTitle = NormalizeTitle(title);
             
             lock (_lock)
             {
-                // 1. Exact Match (URL veya ID)
-                // (Burada URL kontrolü de yapılabilir ama şimdilik başlık odaklı gidiyoruz)
-
-                // 2. Fuzzy Match (Levenshtein)
-                // Son 24 saatteki haberlere bakmak performans açısından daha iyi olabilir ama
-                // şimdilik tüm history (max 7 gün) taranıyor.
                 foreach (var item in _history)
                 {
-                    // Kaynak farklı olsa bile çok benzer başlık risklidir (Copy-paste habercilik)
-                    int distance = LevenshteinDistance(cleanTitle.ToLower(), item.Title.ToLower());
-                    int maxLength = Math.Max(cleanTitle.Length, item.Title.Length);
+                    string storedTitle = NormalizeTitle(item.Title);
+                    int distance = LevenshteinDistance(cleanTitle.ToLower(), storedTitle.ToLower());
+                    int maxLength = Math.Max(cleanTitle.Length, storedTitle.Length);
                     if (maxLength == 0) continue;
 
                     double similarity = 1.0 - ((double)distance / maxLength);
@@ -135,7 +129,7 @@ namespace XiDeAI_Pro.Services
                 var item = new NewsHistoryItem
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Title = title.Trim(),
+                    Title = NormalizeTitle(title), // v4.6.14: Normalize before saving (strips \n, extra spaces)
                     Source = source,
                     Url = url,
                     ProcessedAt = DateTime.Now,
@@ -146,6 +140,15 @@ namespace XiDeAI_Pro.Services
                 _history.Add(item);
                 SaveHistory();
             }
+        }
+
+        /// <summary>Normalize title: collapse whitespace/newlines to single space</summary>
+        private static string NormalizeTitle(string title)
+        {
+            if (string.IsNullOrEmpty(title)) return string.Empty;
+            // Replace any sequence of whitespace (including \r\n, \n, \t) with a single space
+            return System.Text.RegularExpressions.Regex
+                .Replace(title.Trim(), @"[\r\n\t]+|\s{2,}", " ");
         }
 
         // Levenshtein Distance Algoritması

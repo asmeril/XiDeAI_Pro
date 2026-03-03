@@ -427,6 +427,8 @@ namespace XiDeAI_Pro.Services
                 else
                 {
                     OnLog?.Invoke($"❌ Paylaşım Hatası: {errorMsg}", "Twitter");
+                    // v4.6.15: Even on failure, record the attempt to trigger symbol cooldown and prevent loops
+                    _spam.RecordTweet(sig.Symbol, sig.Strategy + "_FAILED");
                 }
             }
             catch (Exception ex)

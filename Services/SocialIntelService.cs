@@ -178,8 +178,10 @@ namespace XiDeAI_Pro.Services
         private static DateTime _lastSearchCompletedUtc = DateTime.MinValue;
         private static readonly TimeSpan SearchCooldown = TimeSpan.FromSeconds(20);
 
-        // v4.4.0: Daemon Architecture
-        private static readonly HttpClient _daemonClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        // v4.6.14: Timeout raised to 10min - thread posting takes 4-12min per run.
+        // 60s timeout was causing C# to abort TCP connection before Python finished,
+        // resulting in WinError 10053 (ConnectionAbortedError) on every thread post.
+        private static readonly HttpClient _daemonClient = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         private static Process? _daemonProcess;
         private static bool _daemonAvailable = false;
         private const string DAEMON_URL = "http://127.0.0.1:5580";
@@ -218,6 +220,24 @@ namespace XiDeAI_Pro.Services
                     psi.EnvironmentVariables["X_VISIBLE"] = "true";
 
                 _daemonProcess = Process.Start(psi);
+                
+                // v4.6.12: ASYNC STREAM CONSUMPTION TO PREVENT OS BUFFER DEADLOCK (<4KB pipe freeze)
+                if (_daemonProcess != null)
+                {
+                    _daemonProcess.OutputDataReceived += (sender, e) => {
+                        // Consuming standard output prevents the internal OS pipe buffer from filling up
+                    };
+                    _daemonProcess.ErrorDataReceived += (sender, e) => {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            Logger.Sys($"[Daemon Log] {e.Data}");
+                        }
+                    };
+                    
+                    _daemonProcess.BeginOutputReadLine();
+                    _daemonProcess.BeginErrorReadLine();
+                }
+
                 Logger.Sys("[Daemon] Starting X daemon...");
 
                 // Wait for daemon to start
@@ -677,6 +697,34 @@ namespace XiDeAI_Pro.Services
                 catch (Exception ex)
                 {
                     Logger.Twitter($"⚠️ Dahili tweet gönderim hatası: {ex.Message}");
+                }
+            }
+
+            // 1.5 v4.6.15: Try Daemon (Central browser instance)
+            if (UseDaemon && _daemonAvailable)
+            {
+                try
+                {
+                    Logger.Twitter("🔄 [DAEMON] Tekil tweet gönderimi başlatılıyor...");
+                    var payload = new { text = text, media = mediaPath };
+                    string daemonJson = await DaemonRequestAsync("/post_tweet", payload);
+                    var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
+                    
+                    if (daemonResult?.status == "success")
+                    {
+                        Logger.Twitter("✅ [DAEMON] Tweet gönderimi başarılı.");
+                        ConfigManager.AddWebUsage();
+                        _stats?.RecordTweet("SocialIntel", 1, "", text);
+                        return daemonResult;
+                    }
+                    else
+                    {
+                        Logger.Twitter($"⚠️ [DAEMON] Tweet hatası: {daemonResult?.ErrorMessage}. Python fallback...");
+                    }
+                }
+                catch (Exception dex)
+                {
+                    Logger.Twitter($"⚠️ [DAEMON] Tweet exception: {dex.Message}. Python fallback...");
                 }
             }
 

@@ -139,6 +139,13 @@ namespace XiDeAI_Pro.Services
 
                 if (score >= 7 && score <= 8 || status == "PENDING_NEWS_ONLY")
                 {
+                    // v4.6.11: Sessiz saatler kontrolü (10/10 olmayanlar gece uyandırmasın)
+                    if (ConfigManager.Current.SpamProtectNews && !_spam.CanPostGeneral(out string reason, false, isCritical: false))
+                    {
+                        OnLog?.Invoke($"🛡️ Sessiz Saatler / Spam: Haber es geçildi ({reason})", "NewsEngine");
+                        return;
+                    }
+
                     // ONAY GEREKTİRİYOR - SADECE HABER
                     OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
                     _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
@@ -148,6 +155,13 @@ namespace XiDeAI_Pro.Services
 
                 if (score == 9 || status == "PENDING_WITH_ANALYSIS")
                 {
+                    // v4.6.11: Sessiz saatler kontrolü
+                    if (ConfigManager.Current.SpamProtectNews && !_spam.CanPostGeneral(out string reason, false, isCritical: false))
+                    {
+                        OnLog?.Invoke($"🛡️ Sessiz Saatler / Spam: Haber es geçildi ({reason})", "NewsEngine");
+                        return;
+                    }
+
                     // ONAY GEREKTİRİYOR - HABER + ANALİZ
                     OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
                     _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
@@ -163,7 +177,8 @@ namespace XiDeAI_Pro.Services
                     // Kategoriye özel analiz thread'i üret
                     string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(category, item.Title, item.Source, item.Link);
                     
-                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols);
+                    // v4.6.11: 10/10 haberler kritik olduğu için sessiz saatleri delip geçer (isCritical: true)
+                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols, isCritical: true);
                     if (success)
                     {
                         OnNewsProcessed?.Invoke(item, summary, score, category);
@@ -183,15 +198,15 @@ namespace XiDeAI_Pro.Services
         public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary)
         {
             OnLog?.Invoke($"👤 Kullanıcı Onayladı: {item.Title}", "NewsEngine");
-            return await PostNewsThreadToTwitter(item, summary, "BIST100");
+            return await PostNewsThreadToTwitter(item, summary, "BIST100", isCritical: true);
         }
 
-        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols)
+        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols, bool isCritical = false)
         {
             // Config: SpamProtectNews Check
             if (ConfigManager.Current.SpamProtectNews)
             {
-                if (!_spam.CanPostGeneral(out string reason))
+                if (!_spam.CanPostGeneral(out string reason, isCritical: isCritical))
                 {
                     OnLog?.Invoke($"🛡️ Spam koruması: {reason}", "NewsEngine");
                     return (false, $"Spam koruması: {reason}");
@@ -199,7 +214,7 @@ namespace XiDeAI_Pro.Services
             }
 
             // Generate Thread Content
-            string? threadContent = await _gemini.AnalyzeNewsForThread(item.Title, item.Source, item.Link);
+            string? threadContent = await _gemini.AnalyzeNewsForThread(item.Title, item.Source, summary, item.Link);
             
             // v3.0: İçerik Kalite Kontrolü
             if (ContentQualityGuard.IsSpamOrLowQuality(threadContent ?? "", out string spamReason))
@@ -247,6 +262,8 @@ namespace XiDeAI_Pro.Services
             else
             {
                 OnLog?.Invoke($"❌ Paylaşım Başarısız: {result.message}", "Twitter");
+                // v4.6.15: Even on failure, record the attempt to trigger global rate limits
+                _spam.RecordTweet("NEWS_FAILED", symbols);
                 return (false, $"Twitter hatası: {result.message}");
             }
         }

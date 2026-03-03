@@ -2258,7 +2258,7 @@ namespace XiDeAI_Pro
 
         private async Task PostMorningMotivation()
         {
-            if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason))
+            if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
             {
                 Log($"🛡️ Spam protection (Motivation): {reason}", "Twitter");
                 return;
@@ -2298,7 +2298,7 @@ namespace XiDeAI_Pro
 
         private async Task PostMarketCloseSummary()
         {
-            if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason))
+            if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
             {
                 Log($"🛡️ Spam protection (Kapanış Özeti): {reason}", "Twitter");
                 return;

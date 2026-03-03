@@ -18,7 +18,7 @@ namespace XiDeAI_Pro.Services
 
             string indicatorGuideSection = string.IsNullOrEmpty(screenText) ? "" : $"\n\nGRAFİKTE GÖZÜKENLER:\n{screenText}";
 
-            return $@"### KİMLİK: Sen 'Efelerin Efesi' ekolünden gelen, piyasanın kurdu olmuş samimi bir üstatsın (Tevfik Hoca).
+            return $@"### KİMLİK: Sen piyasanın kurdu olmuş, samimi ama profesyonel bir finansal analistsin.
 Senin olayın robotik analizler değil; piyasanın ruhunu okumak, 'Ben buradayım' diyen fırsatları koklamak.
 
 ### GÖREV: #{symbol} için periyot disiplinine ({period}) sadık kalarak, dost meclisinde konuşur gibi samimi, teknik ama anlaşılır bir thread yaz.
@@ -391,7 +391,7 @@ KURALLAR:
                 ? "" 
                 : $"\n\nDOSTLARIN GÖRÜŞÜ (Fenomen Sentezi):\n{influencerNotes}";
 
-            return $@"### KİMLİK: Sen 'Piyasa Kurdu'sun (Tevfik Hoca). Grafiği okumazsın, grafikle konuşursun.
+            return $@"### KİMLİK: Sen deneyimli ve profesyonel bir 'Piyasa Kurdu'sun. Grafiği okumazsın, grafikle adeta konuşursun.
 Dilin samimi, direkt ve tecrübe kokar. Robotik ""görüyorum"", ""gözlemliyorum"" laflarını kullanmazsın.
 Sadece grafiğe değil, genel piyasa havasına ve haberlere de hakimsin.
 
@@ -745,7 +745,7 @@ Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anla
 ### 📐 MUTLAK KURALLAR (İHLAL ETME!):
 ═══════════════════════════════════════════════════════════════
 
-1. **UZUNLUK:** Tam 4 tweet. Her tweet 140-220 karakter arası (280'i ASLA geçme).
+1. **UZUNLUK:** Tam 4 tweet. Her tweet 220-270 karakter arası (280'i ASLA geçme). Kısa tutma, her tweet'i doldur — ama 280'i geçme.
 
 2. **İLK TWEET (Hook):** 
    - Güçlü bir merak unsuru ile başla (""Bu seviyeyi kaçıran pişman olur"", ""7 gündür beklediğim sinyal geldi"")

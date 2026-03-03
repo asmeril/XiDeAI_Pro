@@ -39,6 +39,10 @@ namespace XiDeAI_Pro.Services.AI
         {
             try
             {
+                // v4.6.10: CRITICAL FIX - Gemini 2.5 'thinking' models consume ~800 tokens internally as "thoughtsTokenCount".
+                // Bumping minimum maxTokens to 4000 to prevent mid-word MAX_TOKENS truncation.
+                if (maxTokens < 4000) maxTokens = 4000;
+
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_modelName}:generateContent?key={_apiKey}";
                 
                 var requestBody = new
@@ -52,6 +56,13 @@ namespace XiDeAI_Pro.Services.AI
                                 new { text = prompt }
                             }
                         }
+                    },
+                    safetySettings = new[]
+                    {
+                        new { category = "HARM_CATEGORY_HARASSMENT", threshold = "BLOCK_NONE" },
+                        new { category = "HARM_CATEGORY_HATE_SPEECH", threshold = "BLOCK_NONE" },
+                        new { category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold = "BLOCK_NONE" },
+                        new { category = "HARM_CATEGORY_DANGEROUS_CONTENT", threshold = "BLOCK_NONE" }
                     },
                     generationConfig = new
                     {
@@ -88,6 +99,17 @@ namespace XiDeAI_Pro.Services.AI
                             if (firstPart.TryGetProperty("text", out var text))
                             {
                                 result = text.GetString();
+                                
+                                // v4.6.9: CRITICAL FIX - Verify it's not a mid-generation safety abort
+                                if (firstCandidate.TryGetProperty("finishReason", out var finishReason))
+                                {
+                                    string reason = finishReason.GetString() ?? "";
+                                    if (reason == "SAFETY" || reason == "MAX_TOKENS" || reason == "RECITATION" || reason == "PROHIBITED_CONTENT")
+                                    {
+                                        _logger($"⚠️ Gemini generation chopped off mid-word due to API FinishReason: {reason}. Discarding partial content.");
+                                        result = null; 
+                                    }
+                                }
                             }
                         }
                     }
@@ -116,6 +138,16 @@ namespace XiDeAI_Pro.Services.AI
                                 if (firstPart.TryGetProperty("text", out var text))
                                 {
                                     result = text.GetString();
+                                    
+                                    if (firstCandidate.TryGetProperty("finishReason", out var finishReason))
+                                    {
+                                        string reason = finishReason.GetString() ?? "";
+                                        if (reason == "SAFETY" || reason == "MAX_TOKENS" || reason == "RECITATION" || reason == "PROHIBITED_CONTENT")
+                                        {
+                                            _logger($"⚠️ [RETRY] Gemini generation chopped off due to: {reason}");
+                                            result = null; 
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -156,6 +188,9 @@ namespace XiDeAI_Pro.Services.AI
         {
             try
             {
+                // v4.6.10: CRITICAL FIX - Prevent MAX_TOKENS early cutoff
+                if (maxTokens < 4000) maxTokens = 4000;
+
                 if (!System.IO.File.Exists(imagePath))
                 {
                     _logger($"❌ Image file not found: {imagePath}");

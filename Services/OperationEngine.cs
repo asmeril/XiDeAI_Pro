@@ -57,7 +57,7 @@ namespace XiDeAI_Pro.Services
                 return;
             }
 
-            if (!_spam.CanPostGeneral(out string reason))
+            if (!_spam.CanPostGeneral(out string reason, isCritical: true))
             {
                 OnLog?.Invoke($"🛡️ Spam Protection (Motivation): {reason}", "Operation");
                 return;
@@ -94,7 +94,7 @@ namespace XiDeAI_Pro.Services
         public async Task RunMarketCloseSummary()
         {
             // MARKET CLOSE is critical, ignore hourly/daily limits
-            if (!_spam.CanPostGeneral(out string reason, ignoreLimits: true))
+            if (!_spam.CanPostGeneral(out string reason, ignoreLimits: true, isCritical: true))
             {
                 OnLog?.Invoke($"🛡️ Spam Protection (Kapanış): {reason}", "Operation");
                 return;
@@ -237,7 +237,7 @@ namespace XiDeAI_Pro.Services
 
                 // 6. Yayınla
                 // MEGA-THREAD is critical, ignore hourly/daily limits
-                if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason, ignoreLimits: true))
+                if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason, ignoreLimits: true, isCritical: true))
                 {
                     OnLog?.Invoke($"🛡️ Spam koruması aktif: {reason}", "Operation");
                     return;
@@ -266,7 +266,7 @@ namespace XiDeAI_Pro.Services
                 var report = _performance.GetWeeklyReport();
                 if (report.TotalSignals > 0)
                 {
-                    if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason))
+                    if (XiDeAI_Pro.Config.ConfigManager.Current.SpamProtectReports && !_spam.CanPostGeneral(out string reason, isCritical: true))
                     {
                         OnLog?.Invoke($"🛡️ Spam protection (Rapor/Haftalık): {reason}", "Operation");
                         return;

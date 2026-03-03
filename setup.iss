@@ -1,7 +1,7 @@
 ﻿; X'iDeAI Installer Script
 
 #define MyAppName "XiDeAI Pro"
-#define MyAppVersion "4.6.6"
+#define MyAppVersion "4.6.15"
 #define MyAppPublisher "iDeAI Labs"
 #define MyAppExeName "XiDeAI_Pro.exe"
 
@@ -77,6 +77,15 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+
+
+
+
+
+
+
+
 
 
 
