@@ -3,7 +3,18 @@
 Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
 
 
-## ?? 27 Subat 2026
+## 📅 18 Mart 2026
+
+### 🚀 v4.7.11 - Thread Creation Flow Fixed (HOTFIX)
+
+**Değişiklikler:**
+- **X API / DOM Güncellemesi:** X'in "Aynı hesaptan yeni gönderi ekle" (Plus/Add) butonu üzerinde yaptığı test-id değişiklikleri yüzünden botun thread (zincir tweet) atamaması sorunu çözüldü.
+- **Robust Clicking Engine:** `x_daemon.py` içerisine IdealSmartNotifier (`social_intel.py`) projesinde kullanılan, Türkçe "Tweet ekle" etiketlerini ve + (artı) ikonunun SVG yolunu arayan, çok daha agresif kaydırmalı (JS scrollIntoview) ve yedekli tıklama döngüsü eklendi.
+- Artık AI 3000 parçalık analiz atsa dahi Twitter kutucuğu başarıyla açılıp doldurulacaktır. İletişim kopmaları önlendi.
+
+---
+
+## 📅 27 Subat 2026
 
 ## ?? 27 Subat 2026
 
@@ -762,5 +773,156 @@ Kullanici geri bildirimlerine dayali kritik d?zeltmeler ve iyilestirmeler yapild
 - **Sağlam Başarı Doğrulaması:** Tekil tweet gönderimlerinde (raporlar gibi), tweet kutusu kapandıktan sonra X'in hata mesajları (toast) taranıyor ve gerçek başarı teyit ediliyor.
 - **isCritical Throttle Desteği:** Raporlar "kritik" olarak işaretlendi. Bu sayede global 3 dakikalık hız sınırı (antispam throttle), bu önemli paylaşımlar için 1 dakikaya inerek gecikmeleri önlüyor.
 - **X UI Uyumluluğu:** Paylaşım kutusundaki buton algılama sorunları için çoklu CSS seçici desteği ve JavaScript tabanlı tıklama mekanizması eklendi.
+
+---
+
+## 04 Mart 2026
+
+### v4.6.16 Release - Thread Bölme Optimizasyonu (|||)
+
+**Değişiklikler:**
+- **Thread Parça Sayısı Sabitlendi:** AI'nın thread'leri gereksiz yere uzatması (8-10 parça) engellendi. Manuel analizlerde tam 4, sinyal analizlerinde tam 3 tweet üretilmesi separatist (`|||`) kurallarıyla garantiye alındı.
+- **Dolu Tweet Blokları:** Her bir tweet parçasının 240-270 karakter arası dolu içerikle hazırlanması sağlandı. Böylece "tek cümlelik" kısa tweetlerin önüne geçildi.
+- **Sinyal Başlık Senkronizasyonu:** C# tarafından eklenen teknik analiz başlığı ile AI çıktısı arasındaki çakışma giderildi (AI artık kendi başlıklarını üretmiyor).
+- **Syntax Fix (Hotfix):** PromptManager içindeki tırnak işareti uyumsuzlukları nedeniyle oluşan derleme hataları giderildi.
+
+---
+
+## 04 Mart 2026
+
+### v4.6.17 Release - Manuel Analiz \u0026 Daemon Fixes
+
+**Değişiklikler:**
+- **x_daemon Medya Desteği:** Daemon artık `/post_thread` ve `/post_tweet` üzerinden grafik/medya dosyalarını başarıyla X'e yüklüyor. (Manuel analiz thread'lerindeki grafik sorunu çözüldü).
+- **Kesin Başarı Doğrulaması:** Paylaşım sonrası tweet kutusunun kapandığı ve X tarafında hata oluşmadığı daemon düzeyinde 12 saniyelik timeout ile doğrulanıyor.
+- **Eksik Endpoint Eklendi:** Tekil paylaşımlar (raporlar vb.) için eksik olan `/post_tweet` handler'ı daemon'a entegre edildi.
+- **Buton Robustness:** X'in dinamik butonları için `social_intel.py`'daki gelişmiş XPATH ve SVG seçicileri daemon'a port edildi.
+
+---
+
+## 04 Mart 2026
+
+### v4.6.18 Release
+
+**Değişiklikler:**
+- **Derin Analiz \u0026 Viral Kanca:** Haber thread promptu Gemini üzerinden 3-4 parçalık formata geçirildi. Haber sadece aktarılmıyor, Jeopolitik/Toplumsal/Ekonomik (Second-Order Effect) domino etkisi analiz ediliyor. İlk tweet "okuyucuyu durduracak" kanca (hook) yapısına büründü.
+- **Akıllı Etiketleme (Auto-Mention):** Haber içinde ve analiz süreçlerinde adı geçen şirket, kurum ve kişilerin (@TCMB, @elonmusk vb.) resmi X hesapları yapay zeka tarafından tahmin edilip analiz içine doğalca entegre edilmeye başlandı. (Bkz: Smart Tagging)
+- **FENOMEN RADARI (Dost Meclisi):** Manuel ve Sinyal Analizlerinde veritabanındaki fenomenlerin öngörüleri artık @mention şeklinde, "duayen persona" jargonuyla tweet akışına ekleniyor.
+- **Visual Hooks (Görsel Kanca):** X algoritmasının medyalı paylaşımları %300 daha fazla desteklediği gerçeğiyle `NewsTrackerService` üzerinden haberlerin orijinal kapak görselleri URL üzerinden indirilip, `NewsEngine` aracı ile X Daemon'a ilk tweet grafiği olarak aktarılmaya başlandı. Python (`x_daemon.py`) tweet url'lerinden görsel okuma işlevine kavuştu.
+- **Semantik X Keşfet Optimizasyonu:** Promptların tamamına "Borsa, Teknik Analiz, Ekonomi, Jeopolitik" gibi algoritma dostu semantik anahtar kelimelerin hashtag kullanılmadan cümle içine yedirilmesi kuralı eklendi.
+- **Jeopolitik Kritik Filtre:** Spam korumasına takılan "Füze, Savaş, MSB" odaklı yüksek etkili haberler için özel geçiş izni (`IsHighValueNews`) tasarlandı.
+
+---
+
+## 05 Mart 2026
+
+### v4.6.19 Release
+
+**Değişiklikler:**
+- **Gerçek Zamanlı Piyasa Verileri (yfinance Entegrasyonu):** `social_intel.py` içerisine `get_financial_summary` metodu eklendi; kapanış tabloları için kullanılan BIST100, USD/TRY ve Gram Altın mock verileri yerine anlık ve canlı fiyatlama çekilmeye başlandı. C# `OperationEngine`'in mock veriye düşme senaryosu düzeltildi.
+- **Güvenli Akıllı Etiketleme (Safe Auto-Mention):** YZ haber promptu (`GeminiService.cs`), siyasetçi, bakan, parti lideri veya tartışmalı figürleri otomatik etiketlemeyi kısıtlayacak şekilde katı kurallarla güncellendi. Mention sadece TCMB, Aselsan, SSB gibi temiz ve resmi hesaplara daraltıldı.
+
+---
+
+## 05 Mart 2026
+
+### v4.6.20 Release
+
+**Değişiklikler:**
+- **Onay Sekmesi Gece Koruması Düzeltildi:** Haberler için Sessiz Saatler (SpamProtection) filtresi, onaya düşen (7-9 puanlık) haberleri artık tamamen yok etmiyor. Gece gelen onaylı haberler uygulamanın "Onay Bekleyenler" havuzunda biriktirilip kullanıcının onayını bekliyor.
+- **10 Puan Kuralı Katılaştırma (Makro Filtresi):** Yapay zekanın "Son Dakika" haberlerine bol keseden 10 puan (otomatik paylaşım hakkı) verip filtreleri delmesi engellendi. SADECE ülke veya dünya çapında şok etkisi yaratan (Savaş, Lider suikasti/istifası, Pandemi, Makro Afet vb.) olaylara 10 puan verebilecek şekilde AI promptu daraltıldı.
+
+---
+
+## 05 Mart 2026
+
+### v4.7.0 Release
+
+**Değişiklikler:**
+- **Haber Modülü Bağımsızlığı (Auto-Start Çözümü):** Ana tarayıcı (`btnStart`) başlatıldığında izinsiz tetiklenen haber modülünün çalışması engellendi. Artık haber modülü tamamen bağımsız ve sadece kullanıcı isterse çalışır.
+- **Kaliteli ve Küresel Haber Kaynakları (X İptali):** Twitter'da (X) dolaşan kalitesiz ve asılsız "haberlerin" YZ'yi yormasını durdurmak için "FetchXNews" (Twitter İstihbaratı) fonksiyonu tamamen iptal edildi.
+- **Doğu Bloku ve Batı Ajansları:** Mevcut RSS havuzuna *Japonya (Kyodo), Çin (Xinhua), Rusya (TASS)* gibi ülkelerin devlete bağlı makroekonomik istihbarat ajansları; Batı'dan ise *WSJ (Wall Street Journal), BBC News* ile yerli lider *AA/TRT* dahil edildi.
+- **Resmi Gazete Radarı:** Türkiye pazarındaki stratejik yasa/atama kararlarını gece yarısı yayınlandığı saniyede yakalamak için Google News tabanlı özel bir "Resmi Gazete" filtre bloğu eklendi.
+
+---
+
+## 06 Mart 2026
+
+### v4.7.1 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 06 Mart 2026
+
+### v4.7.2 Release
+
+**Degisiklikler:**
+- **Mukerrer Haber Onleme Guclendirildi:** NewsTrackerService.cs icerisindeki duplication kontrolu 3 katmanli hale getirildi. (1) URL link eslesmesi. (2) Normalize edilmis tam baslik eslesmesi (noktalama + buyuk/kucuk harf duyarsiz). (3) Token-tabanli fuzzy match: Farkli kaynaklarin ayni haberin %70+ kelime ortusumu varsa mukerrer sayilir ve atlanir.
+- **Basliklar Kalici Kaydediliyor:** _seenTitles listesi artik 
+ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da haber gecmisi korunuyor.
+
+---
+
+## 06 Mart 2026
+
+### v4.7.7 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 09 Mart 2026
+
+### v4.7.8 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 09 Mart 2026
+
+### v4.7.9 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 09 Mart 2026
+
+### v4.7.10 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 18 Mart 2026
+
+### v4.7.11 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 📅 18 Mart 2026
+
+### 🚀 v4.8.0 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 📅 19 Mart 2026
+
+### 🚀 v4.8.1 - ChromeDriver Native Crash Fix & Chrome 146+ Compatibility
+
+**Değişiklikler:**
+- **Chrome 145+ Native Crash Fix:** Twitter gönderiminde `document.execCommand('insertText')` kullanımından kaynaklı native ChromeDriver çökmesi giderildi. `social_intel.py` ve `x_daemon.py` üzerindeki yazım yöntemi, kilitlenmeye yol açmayan **DOM Node Insertion (InputEvent + TextNode)** ve **Pano (Clipboard)** yöntemleriyle değiştirildi.
+- **Otomatik Chrome Sürümü Algılama:** `x_daemon.py` ve `social_intel.py` artık sistemdeki Chrome sürümünü Windows Registry üzerinden otomatik algılıyor. Hardcoded `version_main=145` kısıtı kaldırılarak Chrome 146+ sürümleriyle tam uyum sağlandı.
+- **Daemon Crash Recovery:** `SocialIntelService.cs` tarafında daemon'a istek gönderilmeden önce sağlık kontrolü (health check) eklendi. Daemon çökmüşse C# tarafı bunu algılayıp otomatik olarak yeniden başlatıyor.
+- **Metrik & Log Düzenlemeleri:** `social_intel.py` üzerindeki duplicate print satırları temizlendi ve yazım yöntemleri `js_native` olarak isimlendirildi.
+
+---
 
 

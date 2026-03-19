@@ -137,12 +137,32 @@ def _create_driver():
         if os.environ.get("X_VISIBLE", "").lower() != "true":
             options.add_argument("--headless=new")
         
-        # Create UC driver with version fallback
+        # Create UC driver with auto-detected version fallback (v4.8.0)
         try:
             driver = uc.Chrome(options=options, use_subprocess=True)
         except Exception as driver_err:
             if "version" in str(driver_err).lower():
-                log("Version mismatch detected in x_daemon, forcing version 145...")
+                # Auto-detect installed Chrome version instead of hardcoding
+                detected_ver = None
+                try:
+                    import subprocess
+                    # Windows: Read Chrome version from registry
+                    result = subprocess.run(
+                        ['reg', 'query', r'HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon', '/v', 'version'],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        ver_match = re.search(r'(\d+)\.', result.stdout)
+                        if ver_match:
+                            detected_ver = int(ver_match.group(1))
+                            log(f"Detected Chrome version: {detected_ver}")
+                except Exception as detect_err:
+                    log(f"Chrome version detection failed: {detect_err}")
+                
+                if not detected_ver:
+                    detected_ver = 146  # Safe modern default
+                
+                log(f"Version mismatch detected in x_daemon, forcing version {detected_ver}...")
                 # RECREATE OPTIONS: Cannot reuse after failure
                 options = uc.ChromeOptions()
                 options.add_argument("--no-sandbox")
@@ -154,7 +174,7 @@ def _create_driver():
                 if os.environ.get("X_VISIBLE", "").lower() != "true":
                     options.add_argument("--headless=new")
                 
-                driver = uc.Chrome(options=options, use_subprocess=True, version_main=145)
+                driver = uc.Chrome(options=options, use_subprocess=True, version_main=detected_ver)
             else:
                 raise driver_err
         
@@ -326,60 +346,77 @@ def shutdown_driver():
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.6.6)"""
-    import json
+    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.7.11 - Chrome 145+ compat)"""
     import pyperclip
     from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.common.action_chains import ActionChains
     
-    # Try multiple methods (JS is most robust for Turkish chars / React)
-    methods = ["js_insert", "clipboard", "sendkeys"]
+    # Chrome 130+ removed execCommand('insertText') causing native crash.
+    # New method order: clipboard (most reliable) -> nativeInputValueSetter JS -> sendkeys
+    methods = ["clipboard", "js_native", "sendkeys"]
     
     for method in methods:
         try:
-            # 1. Clear box first (Force focus + select all)
+            # 1. Scroll into view and focus
             driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", element)
             time.sleep(0.3)
             driver.execute_script("arguments[0].focus();", element)
             time.sleep(0.2)
             
-            # Use JS to clear if send_keys fails
-            driver.execute_script("arguments[0].innerText = '';", element)
+            # Clear the box: Select All + Backspace
             element.send_keys(Keys.CONTROL, 'a')
+            time.sleep(0.1)
             element.send_keys(Keys.BACKSPACE)
-            time.sleep(0.5)
+            time.sleep(0.3)
             
             log(f"[TYPE] Part {tweet_index} using {method}")
             
-            if method == "js_insert":
-                js_text = json.dumps(text)
-                driver.execute_script(f"""
-                    var elem = arguments[0];
-                    elem.focus();
-                    document.execCommand('insertText', false, {js_text});
-                    elem.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    elem.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                """, element)
-                
-                # WAKE UP REACT: Send dummy key press to force state update 
-                # (Prevents ghost/empty tweet error)
-                time.sleep(0.3)
+            if method == "clipboard":
+                # Primary method: clipboard paste (works with Turkish chars, React state)
+                pyperclip.copy(text)
+                time.sleep(0.2)
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                time.sleep(0.5)
+                # WAKE UP REACT with a dummy space+backspace
                 try:
                     element.send_keys(" ")
                     time.sleep(0.1)
                     element.send_keys(Keys.BACKSPACE)
                 except: pass
                 
-            elif method == "clipboard":
-                pyperclip.copy(text)
-                from selenium.webdriver.common.action_chains import ActionChains
-                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+            elif method == "js_native":
+                # Secondary: DOM text node insertion to bypass React's synthetic events
+                # Works on Chrome 130+ without execCommand crash
+                driver.execute_script("""
+                    var elem = arguments[0];
+                    elem.focus();
+                    elem.innerHTML = '';
+                    var ev1 = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: arguments[1] });
+                    elem.dispatchEvent(ev1);
+                    var textNode = document.createTextNode(arguments[1]);
+                    var sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) {
+                        sel.getRangeAt(0).insertNode(textNode);
+                        sel.collapse(textNode, textNode.length);
+                    } else {
+                        elem.appendChild(textNode);
+                    }
+                    elem.dispatchEvent(new Event('input', { bubbles: true }));
+                    elem.dispatchEvent(new Event('change', { bubbles: true }));
+                """, element, text)
+                time.sleep(0.5)
+                try:
+                    element.send_keys(" ")
+                    time.sleep(0.1)
+                    element.send_keys(Keys.BACKSPACE)
+                except: pass
                 
             elif method == "sendkeys":
-                # Batch send
+                # Last resort: direct send_keys (may be slow for long text)
                 element.send_keys(text)
             
-            # VERIFICATION WAIT (Increased to 2s for React sync stability)
-            time.sleep(2.0)
+            # VERIFICATION WAIT
+            time.sleep(1.5)
             
             # Visual verification: Check text length
             current_text = element.text.strip()
@@ -391,7 +428,7 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
                 log(f"✅ Part {tweet_index} verified ({current_len}/{input_len})")
                 return True
             else:
-                log(f"⚠️ Part {tweet_index} length mismatch ({current_len}/{input_len})")
+                log(f"⚠️ Part {tweet_index} length mismatch ({current_len}/{input_len}), trying next method...")
                 
         except Exception as e:
             log(f"❌ Method {method} failed: {e}")
@@ -682,7 +719,7 @@ def cmd_post_thread(params):
                 # 1. Count existing textboxes to verify spawn
                 old_count = len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']"))
                 
-                # 2. Find "Add another Tweet" button [Robust Selectors]
+                # 2. Find "Add another Tweet" button [Robust Selectors - Ported from IdealSmartNotifier]
                 add_btn = None
                 
                 # Try data-testid first
@@ -691,46 +728,92 @@ def cmd_post_thread(params):
                     for b in btns:
                         if b.is_displayed():
                             add_btn = b
+                            log("Found Add Button via data-testid='addButton'")
                             break
                 except: pass
                 
+                # Try labels (localized and expanded)
                 if not add_btn:
-                    # Try labels (localized)
-                    labels = ["Tweet ekle", "Add Tweet", "Add another Tweet", "Başka bir gönderi ekle", "Gönderi ekle", "Add post", "Ekle", "Post ekle"]
-                    # Simplified XPath for daemon efficiency
-                    xpath = " | ".join([f"//*[@aria-label='{l}']" for l in labels])
+                    valid_labels = [
+                        "Tweet ekle", "Add Tweet", "Add another Tweet", 
+                        "Başka bir gönderi ekle", "Gönderi ekle", "Zincir ekle", 
+                        "Add", "Ekle", "Gönderi Ekle", "Post ekle", "Add post",
+                        "Yeni gönderi ekle", "New post"
+                    ]
+                    
+                    xpath_parts = [f"@aria-label='{label}'" for label in valid_labels]
+                    xpath_join = " or ".join(xpath_parts)
+                    xpath = f"//div[@role='button'][{xpath_join}] | //button[{xpath_join}]"
+                    
                     try:
                         btns = driver.find_elements(By.XPATH, xpath)
                         for b in btns:
                             if b.is_displayed():
+                                label = (b.get_attribute("aria-label") or "").lower()
+                                
+                                # NUCLEAR EXCLUSION LIST: Ban all other toolbar icons
+                                forbidden_terms = [
+                                    "medya", "media", "fotoğraf", "photo", "video", "gif", 
+                                    "anket", "poll", "emoji", "planla", "schedule", 
+                                    "konum", "location", "kalın", "bold", "italik", "italic", "liste", "list"
+                                ]
+                                
+                                if any(term in label for term in forbidden_terms):
+                                    continue
+                                    
                                 add_btn = b
+                                log(f"Found Add Button via label: {label}")
                                 break
                     except: pass
                 
+                # Fallback to SVG plus icon detection
                 if not add_btn:
-                    # Fallback to SVG plus icon detection
                     try:
-                        svg_btns = driver.find_elements(By.CSS_SELECTOR, "div[role='button']:has(svg), button:has(svg)")
-                        for b in svg_btns:
+                        plus_candidates = driver.find_elements(By.CSS_SELECTOR, 
+                            "div[role='button']:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z']), " +
+                            "button:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z'])"
+                        )
+                        for b in plus_candidates:
                             if b.is_displayed():
-                                # Heuristic: addButton usually has a plus-like SVG
                                 add_btn = b
+                                log("Found Add Button via SVG path")
                                 break
                     except: pass
 
                 if add_btn:
-                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", add_btn)
-                    time.sleep(0.5)
-                    driver.execute_script("arguments[0].click();", add_btn)
+                    # AGGRESSIVE SCROLL & CLICK LOGIC
+                    try:
+                        driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", add_btn)
+                        time.sleep(0.5)
+                        # Click via JS
+                        driver.execute_script("arguments[0].click();", add_btn)
+                    except Exception as e:
+                        log(f"Error clicking Add button via standard methods: {e}")
                     
                     # Wait for new box
+                    box_spawned = False
                     try:
                         WebDriverWait(driver, 5).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count)
                         time.sleep(1)
+                        box_spawned = True
                     except:
                         log("Warning: New box did not spawn after click.")
+
+                    if not box_spawned:
+                        log("CRITICAL: Failed to create new tweet box! Retrying click...")
+                        try:
+                            driver.execute_script("arguments[0].click();", add_btn)
+                            time.sleep(3)
+                            if len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count:
+                                box_spawned = True
+                                log("Recovery successful! Box spawned on second try.")
+                        except: pass
+
+                    if not box_spawned:
+                        log("ABORTING THREAD: Cannot spawn new box. Preventing overwrite in x_daemon.")
+                        return {"status": "error", "message": f"Failed to spawn new tweet box for part {i+1}. Thread aborted."}
                 else:
-                    log(f"Warning: 'Add' button not found for part {i+1}. Attempting direct fallback...")
+                    log(f"CRITICAL Warning: 'Add' button NOT found for part {i+1}.")
                 
                 # 3. Find new text area and type
                 text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
@@ -963,3 +1046,4 @@ if __name__ == "__main__":
     log("X Daemon v1.0")
     log("=" * 50)
     run_server()
+

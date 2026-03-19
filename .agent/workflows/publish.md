@@ -13,8 +13,14 @@ description: Build, Publish and Generate Setup for XiDeAI Pro
     - `PROJECT_MANIFEST_vX.X.X.md` içinde sürüm notları detaylı mı? Sadece başlık yetmez.
 
 ## 1. Update Version & Documentation (Single Command)
+
+> **📌 Sürüm Numarası Kuralı:** Format `MAJOR.MINOR.PATCH`'tir.
+> - Normal güncelleme: sadece `PATCH` artar → `4.7.8` → `4.7.9`
+> - **PATCH 9'a ulaştığında:** bir sonraki sürümde `MINOR` artar, `PATCH` 0'a sıfırlanır → `4.7.9` → `4.8.0` (4.7.10 OLMAZ)
+> - Büyük mimari değişikliklerde: `MAJOR` artar → `5.0.0`
+
 ```powershell
-.\update-version.ps1 -Version "3.8.0"
+.\update-version.ps1 -Version "4.8.0"
 ```
 **Otomatik güncellenenler:**
 - `.csproj` (Version, AssemblyVersion, FileVersion)

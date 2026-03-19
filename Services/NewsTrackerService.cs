@@ -13,6 +13,9 @@ namespace XiDeAI_Pro.Services
         public string Title { get; set; } = "";
         public string Link { get; set; } = "";
         public string Source { get; set; } = "";
+        public string? ImageUrl { get; set; } // v4.6.18: Added for Visual Hooks strategy
+        public string? Description { get; set; } // v4.7.3: Haber özeti/gövdesi (RSS body)
+        public bool IsFlash { get; set; } = false; // v4.7.3: Flaş haber bayrağı ("son dakika", "breaking" vb.)
         public DateTime PubDate { get; set; }
     }
 
@@ -23,13 +26,24 @@ namespace XiDeAI_Pro.Services
 
         private readonly List<string> _rssFeeds = new List<string>
         {
-            "https://www.bloomberght.com/rss",
-            "https://www.foreks.com/rss",
-            "https://www.aa.com.tr/rss/ekonomi",
-            "https://www.dunya.com/rss",
-            "https://tr.investing.com/rss/news.rss",
-            "https://www.hurriyet.com.tr/rss/ekonomi",
-            "https://www.cnbc.com/id/10000664/device/rss/rss.html" // CNBC Finance
+            // YERLİ RESMİ & KALİTELİ KAYNAKLAR
+            "https://www.bloomberght.com/rss", // Bloomberg HT
+            "https://www.aa.com.tr/tr/rss/default?cat=guncel", // AA Güncel (Makro ve Siyasi olaylar)
+            "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", // AA Ekonomi
+            "https://www.trthaber.com/xml_mobile.php", // TRT Haber Son Dakika
+            "https://www.dunya.com/rss", // Dünya Gazetesi (Ekonomi)
+            "https://tr.investing.com/rss/news.rss", // Investing TR
+            "https://news.google.com/rss/search?q=%22Resmi+Gazete%22&hl=tr&gl=TR&ceid=TR:tr", // Resmi Gazete (Özel Google News Filtresi ile anlık yakalama)
+
+            // YABANCI & GLOBAL KAYNAKLAR (Batı)
+            "https://search.cnbc.com/rs/search/combinedcms/view.xml?profile=120000346&id=10000664", // CNBC Markets
+            "http://feeds.bbci.co.uk/news/world/rss.xml", // BBC World News
+            "https://feeds.a.dj.com/rss/RSSWorldNews.xml", // Wall Street Journal World News
+
+            // ASYA & DOĞU BLOKU RESMİ AJANSLARI (Jeopolitik Makro)
+            "https://tass.com/rss/v2.xml", // TASS (Rusya Resmi Devlet Ajansı)
+            "http://www.xinhuanet.com/english/rss/worldrss.xml", // Xinhua (Çin Resmi Devlet Ajansı)
+            "https://english.kyodonews.net/rss/news.xml" // Kyodo News (Japonya Lider Haber Ajansı)
         };
 
         private readonly HashSet<string> _seenLinks = new HashSet<string>();
@@ -83,12 +97,14 @@ namespace XiDeAI_Pro.Services
             string dir = System.IO.Path.Combine(appData, "XiDeAI");
             System.IO.Directory.CreateDirectory(dir);
             _historyPath = System.IO.Path.Combine(dir, "news_seen_links.json");
+            _historyTitlesPath = System.IO.Path.Combine(dir, "news_seen_titles.json"); // v4.7.2
 
             LoadHistory();
             // _ = MarkAllAsSeen(); // Removed: Wait for Start() to trigger the first check properly
         }
 
         private readonly string _historyPath;
+        private readonly string _historyTitlesPath; // v4.7.2: Başlıklar da kalıcı olarak kaydediliyor
 
         private void LoadHistory()
         {
@@ -99,9 +115,15 @@ namespace XiDeAI_Pro.Services
                     string json = System.IO.File.ReadAllText(_historyPath);
                     var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
                     if (list != null)
-                    {
                         foreach(var l in list) _seenLinks.Add(l);
-                    }
+                }
+                // v4.7.2: Başlıkları da diskten yükluyoruz (yeniden başlatmada sıfırlanmıyor)
+                if (System.IO.File.Exists(_historyTitlesPath))
+                {
+                    string json = System.IO.File.ReadAllText(_historyTitlesPath);
+                    var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+                    if (list != null)
+                        foreach(var t in list) _seenTitles.Add(t);
                 }
             }
             catch { }
@@ -111,9 +133,12 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
-                var list = _seenLinks.ToList();
-                string json = System.Text.Json.JsonSerializer.Serialize(list);
-                System.IO.File.WriteAllText(_historyPath, json);
+                string jsonLinks = System.Text.Json.JsonSerializer.Serialize(_seenLinks.ToList());
+                System.IO.File.WriteAllText(_historyPath, jsonLinks);
+
+                // v4.7.2: Başlıkları da diske yaz
+                string jsonTitles = System.Text.Json.JsonSerializer.Serialize(_seenTitles.ToList());
+                System.IO.File.WriteAllText(_historyTitlesPath, jsonTitles);
             }
             catch { }
         }
@@ -143,18 +168,30 @@ namespace XiDeAI_Pro.Services
                 // v3.6.4: Skip legacy news (Recency Filter)
                 if (news.PubDate < threshold) continue;
 
-                string cleanTitle = news.Title.Trim().ToLower();
+                string cleanTitle = NormalizeTitle(news.Title);
                 bool isNewLink = !_seenLinks.Contains(news.Link);
                 bool isNewTitle = !_seenTitles.Contains(cleanTitle);
 
-                if (isNewLink && isNewTitle)
+                // v4.7.2: Fuzzy (token-based) title deduplication
+                // Farklı kaynaklardan gelen aynı haberin farklı başlıklarını yakalar
+                bool isSimilarTitle = false;
+                if (isNewTitle)
+                {
+                    isSimilarTitle = IsSimilarToSeenTitle(cleanTitle);
+                    if (isSimilarTitle)
+                    {
+                        LogAction?.Invoke($"⚠️ Benzer haber atlandı (fuzzy match): {news.Title.Substring(0, Math.Min(60, news.Title.Length))}", "News");
+                    }
+                }
+
+                if (isNewLink && isNewTitle && !isSimilarTitle)
                 {
                     _seenLinks.Add(news.Link);
                     _seenTitles.Add(cleanTitle);
                     
                     // Keep cache size manageable
-                    if (_seenLinks.Count > 1000) _seenLinks.Remove(_seenLinks.First());
-                    if (_seenTitles.Count > 1000) _seenTitles.Remove(_seenTitles.First());
+                    if (_seenLinks.Count > 2000) _seenLinks.Remove(_seenLinks.First());
+                    if (_seenTitles.Count > 2000) _seenTitles.Remove(_seenTitles.First());
                         
                     SaveHistory(); // Persist on change
 
@@ -162,6 +199,58 @@ namespace XiDeAI_Pro.Services
                     OnNewsDetected?.Invoke(news);
                 }
             }
+        }
+
+        /// <summary>
+        /// Başlığı normalize eder: küçük harf, noktalama temizliği, fazla boşluklar kalkar.
+        /// </summary>
+        private string NormalizeTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return "";
+            // Küçük harf
+            var s = title.Trim().ToLowerInvariant();
+            // Noktalama işaretlerini temizle
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"[^\w\s]", " ");
+            // Fazla boşlukları sil
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+            return s;
+        }
+
+        /// <summary>
+        /// v4.7.2: Token-tabanlı fuzzy deduplication.
+        /// Gerçek anlamlı kelimelerin (stop-word olmayan) %70'i örtüşüyorsa aynı haber sayılır.
+        /// </summary>
+        private bool IsSimilarToSeenTitle(string normalizedTitle)
+        {
+            if (_seenTitles.Count == 0) return false;
+
+            var stopWords = new HashSet<string> { "ve", "ile", "de", "da", "bir", "bu", "o", "en",
+                "the", "a", "an", "of", "in", "on", "at", "to", "for", "is", "are", "was", "be" };
+
+            var newTokens = normalizedTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                          .Where(t => t.Length > 2 && !stopWords.Contains(t))
+                                          .ToHashSet();
+
+            if (newTokens.Count < 3) return false; // Çok kısa başlıkları atlama — fuzzy yanlış pozitif riskli
+
+            // Son 500 görülen başlık ile kıyasla (performans için sınırla)
+            foreach (var seen in _seenTitles.TakeLast(500))
+            {
+                var seenTokens = seen.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                    .Where(t => t.Length > 2 && !stopWords.Contains(t))
+                                    .ToHashSet();
+
+                if (seenTokens.Count < 3) continue;
+
+                int overlap = newTokens.Intersect(seenTokens).Count();
+                int minLen = Math.Min(newTokens.Count, seenTokens.Count);
+
+                // %70 token örtüşmesi = mükerrer
+                if ((double)overlap / minLen >= 0.70)
+                    return true;
+            }
+
+            return false;
         }
 
         private async Task<List<NewsItem>> FetchAllNews()
@@ -182,67 +271,13 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // 2. Selenium X News (Blocking call, run in parallel or careful)
-            try 
-            {
-               LogAction?.Invoke("📡 X (Twitter) üzerinden son dakika haberleri çekiliyor...", "News");
-               await FetchXNews(allNews); 
-            }
-            catch (Exception ex)
-            {
-                LogAction?.Invoke($"❌ X haber çekilirken kritik hata: {ex.Message}", "News");
-            }
+            // v4.6.22: Kullanıcı talebi üzerine X (Twitter) haber taraması gereksiz "gürültü" ve magazin/manipülasyon riski sebebiyle İPTAL EDİLMİŞTİR.
+            // Sadece yukarıda belirlenen güvenilir ulusal/küresel RSS (Ajans) haberleri kullanılacaktır.
 
             return allNews;
         }
 
-        private async Task FetchXNews(List<NewsItem> allNews)
-        {
-            var result = await _socialIntel.FetchBreakingNews();
-            if (result == null)
-            {
-                LogAction?.Invoke("❌ X haber çekme sonucu null döndü", "News");
-                return;
-            }
 
-            if (result.status == "error")
-            {
-                LogAction?.Invoke("❌ X haber hatası: Bilinmiyor", "News");
-                return;
-            }
-
-            if (result.data == null || result.data.Length == 0)
-            {
-                LogAction?.Invoke("ℹ️ X haber bulunamadı (0 sonuç)", "News");
-                return;
-            }
-
-            LogAction?.Invoke($"✅ X haber çekildi: {result.data.Length} sonuç", "News");
-
-            if (result != null && result.status == "success" && result.data != null)
-            {
-                foreach (var item in result.data)
-                {
-                    // Basic duplicate check is done later by Link/Content
-                    // v3.6.5: Use specific tweet URL for robust deduplication
-                    string tweetUrl = string.IsNullOrWhiteSpace(item.url) ? $"https://X.com/{item.source}" : item.url;
-                    
-                    DateTime pubDate = DateTime.Now;
-                    if (!string.IsNullOrEmpty(item.time) && DateTime.TryParse(item.time, out DateTime parsedDt))
-                    {
-                        pubDate = parsedDt;
-                    }
-
-                    allNews.Add(new NewsItem
-                    {
-                        Title = item.text.Length > 100 ? item.text.Substring(0, 97) + "..." : item.text,
-                        Link = tweetUrl,
-                        Source = $"X ({item.source})",
-                        PubDate = pubDate 
-                    });
-                }
-            }
-        }
 
         private async Task<List<NewsItem>> FetchFeed(string url)
         {
@@ -267,17 +302,42 @@ namespace XiDeAI_Pro.Services
                         // Identify source from URL
                         string source = "RSS";
                         if (url.Contains("bloomberg")) source = "BloombergHT";
-                        else if (url.Contains("foreks")) source = "Foreks";
-                        else if (url.Contains("aa.com")) source = "AA";
-                        else if (url.Contains("dunya")) source = "Dünya";
+                        else if (url.Contains("aa.com")) source = "Anadolu Ajansı";
+                        else if (url.Contains("dunya")) source = "Dünya Gazetesi";
                         else if (url.Contains("investing")) source = "Investing";
                         else if (url.Contains("cnbc")) source = "CNBC";
+                        else if (url.Contains("trt")) source = "TRT Haber";
+                        else if (url.Contains("bbc")) source = "BBC News";
+                        else if (url.Contains("dj.com")) source = "WSJ";
+                        else if (url.Contains("google") && url.Contains("Resmi")) source = "Resmi Gazete / Mevzuat";
+                        else if (url.Contains("tass")) source = "TASS (Russia)";
+                        else if (url.Contains("xinhua")) source = "Xinhua (China)";
+                        else if (url.Contains("kyodo")) source = "Kyodo (Japan)";
+
+                        // v4.6.18: Extract Image from RSS
+                        string? imageUrl = null;
+                        try {
+                            XNamespace media = "http://search.yahoo.com/mrss/";
+                            imageUrl = entry.Element(media + "content")?.Attribute("url")?.Value 
+                                     ?? entry.Element("enclosure")?.Attribute("url")?.Value;
+                        } catch { }
+
+                    string rawDesc = entry.Element("description")?.Value ?? "";
+                        // HTML tag'larini temizle
+                        string cleanDesc = System.Text.RegularExpressions.Regex.Replace(rawDesc, "<.*?>", "").Trim();
+                        if (cleanDesc.Length > 500) cleanDesc = cleanDesc.Substring(0, 497) + "...";
+
+                        // Flaş Haber bayrağını belirle
+                        bool isFlash = title.ToLower().Contains("son dakika") || title.ToLower().Contains("breaking") || title.ToLower().Contains("⚠");
 
                         items.Add(new NewsItem
                         {
                             Title = title.Trim(),
                             Link = link.Trim(),
                             Source = source,
+                            Description = string.IsNullOrWhiteSpace(cleanDesc) ? null : cleanDesc,
+                            IsFlash = isFlash,
+                            ImageUrl = imageUrl,
                             PubDate = pubDate
                         });
                     }

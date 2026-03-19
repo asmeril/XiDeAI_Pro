@@ -1,4 +1,4 @@
-// NEWS_ENGINE_VERSION: 1.0
+﻿// NEWS_ENGINE_VERSION: 1.0
 // PURPOSE: Central hub for AI-driven news processing, filtering, and summarization.
 // Decouples news intelligence from the UI and NewsTrackerService.
 
@@ -102,14 +102,11 @@ namespace XiDeAI_Pro.Services
                 string symbols = analysisData.Symbols;
                 string category = analysisData.Category;
 
-                // v4.2.2: SON DAKIKA Öncelik Boost
+                // v4.7.3: Son Dakika skor boost kaldırıldı.
+                // AI'a zaten "son dakika haberlere max 9" kuralı verildi, çelişkiyi yönettik.
+
+                // v4.7.3: lowerTitle Fenerbahçe kontrolü için tanımlandı
                 string lowerTitle = item.Title.ToLower(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
-                if (lowerTitle.Contains("son dakika") && score < 8)
-                {
-                    int oldScore = score;
-                    score = Math.Max(score, 8);
-                    OnLog?.Invoke($"🚨 SON DAKIKA boost: Skor {oldScore} → {score}", "NewsEngine");
-                }
 
                 // v4.2.2: FENERBAHÇE BYPASS (Fanatik Modu) - Güncellendi 1-10 skalası
                 if (lowerTitle.Contains("fenerbahçe") || lowerTitle.Contains("fenerbahce") || lowerTitle.Contains("sarı lacivert") || lowerTitle.Contains("ali koç") || lowerTitle.Contains("jose mourinho"))
@@ -139,12 +136,8 @@ namespace XiDeAI_Pro.Services
 
                 if (score >= 7 && score <= 8 || status == "PENDING_NEWS_ONLY")
                 {
-                    // v4.6.11: Sessiz saatler kontrolü (10/10 olmayanlar gece uyandırmasın)
-                    if (ConfigManager.Current.SpamProtectNews && !_spam.CanPostGeneral(out string reason, false, isCritical: false))
-                    {
-                        OnLog?.Invoke($"🛡️ Sessiz Saatler / Spam: Haber es geçildi ({reason})", "NewsEngine");
-                        return;
-                    }
+                    // v4.6.20: Sessiz saatler (gece) koruması artık onaya düşen haberleri YUTMAYACAK.
+                    // UI Onay Bekleyenler sekmesinde birikecek. Kullanıcı sabah uyanıp onaylayabilir.
 
                     // ONAY GEREKTİRİYOR - SADECE HABER
                     OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
@@ -155,12 +148,7 @@ namespace XiDeAI_Pro.Services
 
                 if (score == 9 || status == "PENDING_WITH_ANALYSIS")
                 {
-                    // v4.6.11: Sessiz saatler kontrolü
-                    if (ConfigManager.Current.SpamProtectNews && !_spam.CanPostGeneral(out string reason, false, isCritical: false))
-                    {
-                        OnLog?.Invoke($"🛡️ Sessiz Saatler / Spam: Haber es geçildi ({reason})", "NewsEngine");
-                        return;
-                    }
+                    // v4.6.20: Sessiz saatler kontrolü (gece) iptal edildi, haberler çöpe atılmak yerine onay havuzunda bekleyecek.
 
                     // ONAY GEREKTİRİYOR - HABER + ANALİZ
                     OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
@@ -174,8 +162,11 @@ namespace XiDeAI_Pro.Services
                     // OTOMATİK PAYLAŞ - HABER + ANALİZ
                     OnLog?.Invoke($"🔥 KRİTİK HABER (Skor: 10/10): {item.Title}", "NewsEngine");
                     
-                    // Kategoriye özel analiz thread'i üret
-                    string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(category, item.Title, item.Source, item.Link);
+                    // Kategoriye özel analiz thread'i üret (description + isFlash ile zenginleştirilmiş)
+                    string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(
+                        category, item.Title, item.Source, item.Link,
+                        description: item.Description,
+                        isFlash: item.IsFlash);
                     
                     // v4.6.11: 10/10 haberler kritik olduğu için sessiz saatleri delip geçer (isCritical: true)
                     var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols, isCritical: true);
@@ -213,8 +204,11 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // Generate Thread Content
-            string? threadContent = await _gemini.AnalyzeNewsForThread(item.Title, item.Source, summary, item.Link);
+            // Generate Thread Content (description + isFlash ile zenginleştirilmiş)
+            string? threadContent = await _gemini.AnalyzeNewsForThread(
+                item.Title, item.Source, summary, item.Link,
+                description: item.Description,
+                isFlash: item.IsFlash);
             
             // v3.0: İçerik Kalite Kontrolü
             if (ContentQualityGuard.IsSpamOrLowQuality(threadContent ?? "", out string spamReason))
@@ -239,7 +233,83 @@ namespace XiDeAI_Pro.Services
                 parts = ThreadService.SplitText(parts[0], 275).ToArray();
             }
 
-            var result = await _socialIntel.PostThreadAsync(parts.ToList()); 
+            
+
+
+            // v4.6.18: Visual Hook - Haber görselini indir ve thread'e ekle
+            string? localImagePath = null;
+            if (!string.IsNullOrEmpty(item.ImageUrl))
+            {
+                try
+                {
+                    using var httpClient = new System.Net.Http.HttpClient();
+                    httpClient.Timeout = TimeSpan.FromSeconds(10);
+                    var imgBytes = await httpClient.GetByteArrayAsync(item.ImageUrl);
+                    string ext = item.ImageUrl.Contains(".png") ? ".png" : ".jpg";
+                    localImagePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"xhive_news_{Guid.NewGuid()}{ext}");
+                    await System.IO.File.WriteAllBytesAsync(localImagePath, imgBytes);
+                    OnLog?.Invoke($"🖼️ Haber görseli indirildi: {localImagePath}", "NewsEngine");
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"⚠️ Görsel indirilemedi: {ex.Message}", "NewsEngine");
+                    localImagePath = null;
+                }
+            }
+
+            // v4.7.3: Görsel yoksa XiDeAI logolu dinamik kart oluştur
+            if (string.IsNullOrEmpty(localImagePath))
+            {
+                try
+                {
+                    string cardPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"xhive_card_{Guid.NewGuid()}.png");
+                    string scriptDir = System.IO.Path.Combine(AppContext.BaseDirectory, "Scripts");
+                    string generatorScript = System.IO.Path.Combine(scriptDir, "news_card_generator.py");
+                    string iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "xideai_icon.ico");
+                    
+                    if (System.IO.File.Exists(generatorScript))
+                    {
+                        string safeTitle = item.Title.Replace("\"", "\\\"");
+                        string safeSource = item.Source.Replace("\"", "\\\"");
+                        string flashArg = item.IsFlash ? "--flash" : "";
+                        string logoArg = System.IO.File.Exists(iconPath) ? $"--logo \"{iconPath}\"" : "";
+                        
+                        var psi = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "python",
+                            Arguments = $"\"{generatorScript}\" --title \"{safeTitle}\" --output \"{cardPath}\" --source \"{safeSource}\" {flashArg} {logoArg}",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true
+                        };
+                        
+                        using var proc = System.Diagnostics.Process.Start(psi);
+                        if (proc != null)
+                        {
+                            await proc.WaitForExitAsync();
+                            if (proc.ExitCode == 0 && System.IO.File.Exists(cardPath))
+                            {
+                                localImagePath = cardPath;
+                                OnLog?.Invoke($"🎨 Haber kartı oluşturuldu ({(item.IsFlash ? "FLAŞ" : "ÖNEMLİ")}): {cardPath}", "NewsEngine");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"⚠️ Haber kartı oluşturulamadı: {ex.Message}", "NewsEngine");
+                }
+            }
+
+
+            var result = await _socialIntel.PostThreadAsync(parts.ToList(), localImagePath);
+
+            // Cleanup temp image
+            if (!string.IsNullOrEmpty(localImagePath) && System.IO.File.Exists(localImagePath))
+            {
+                try { System.IO.File.Delete(localImagePath); } catch { }
+            }
             
             if (result.status == "success")
             {
@@ -337,21 +407,34 @@ namespace XiDeAI_Pro.Services
                 "petrol", "doğalgaz", "elektrik", "turizm", "perakende"
             };
 
-            // 🚫 REDDET (Türkiye ekonomisini ALAKASIZ veya spesifik yerel gürültü)
+            // v4.7.3: nonTrKeywords listesi güncellendi - global ajans kaynaklı haberler (TASS, BBC, WSJ, Xinhua)
+            // bloklanmamalı. Sadece gerçekten alakasız forex/deriştirme haberleri reddediliyor.
             string[] nonTrKeywords = {
-                "wall street", "nasdaq", "s&p 500", "dow jones", 
-                "avrupa", "ab", "ecb", "deutsche", 
-                "londra", "paris", "frankfurt", "zurich", "tokyo", "sydney", "singapur",
-                "forex", "dolar euro", "gbp", "jpy", "eur", "chf",
-                "çin", "hindistan", "rusya", "suudi", "dubai"
+                "nasdaq", "s&p 500", "dow jones", "dax", "cac 40",
+                "forex majors", "dolar euro", "gbp/usd", "eur/usd", "chf/jpy",
+                "cricket", "baseball", "nfl", "nba stats" // Sporu alakasız kategoriler
             };
 
             // v3.6.5: Allow high-impact Global Tech News as they affect BIST technology sector
             string[] globalImpactTech = { "apple", "nvidia", "tesla", "microsoft", "google", "fed", "openai", "chatgpt", "btc", "bitcoin", "kripto" };
             if (globalImpactTech.Any(k => lower.Contains(k)) && (lower.Contains("kritik") || lower.Contains("rekor") || lower.Contains("yeni") || lower.Contains("faiz") || lower.Contains("karar")))
             {
-                // Global olsa bile kritik teknoloji/kripto haberi
                 return true; 
+            }
+
+            // v4.6.18: Allow high-impact Geopolitical News that directly affect Turkey/markets
+            string[] geopoliticalKeywords = {
+                "türkiye", "turkey", "türk", "ankara", "istanbul",
+                "füze", "saldırı", "savaş", "çatışma", "askeri", "operasyon", "nato", "savunma",
+                "msb", "milli savunma", "hava sahası", "balistik", "yaptırım", "ambargo",
+                "iran", "rusya", "ukrayna", "suriye", "irak", "suudi arabistan", "körfez",
+                "petrol", "doğalgaz", "enerji koridoru", "doğu akdeniz", "kanal istanbul",
+                "faiz kararı", "fed kararı", "merkez bankası faiz", "rezerv", "döviz müdahale"
+            };
+            if (geopoliticalKeywords.Any(k => lower.Contains(k)))
+            {
+                OnLog?.Invoke($"🌍 Jeopolitik/Kritik haber geçti: {title}", "NewsEngine");
+                return true;
             }
 
             // 2. Non-Turkey Check

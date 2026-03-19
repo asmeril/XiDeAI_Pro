@@ -32,6 +32,7 @@ namespace XiDeAI_Pro.Services
         public string text { get; set; } = "";
         public string time { get; set; } = "";
         public string url { get; set; } = ""; // EKLENDİ: Gerçek tweet linki için
+        public string? media { get; set; } // v4.6.18: Visual Hook - Tweet görseli
     }
 
     public class SocialIntelNewsResult
@@ -842,34 +843,63 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // 1.5 v4.4.0: Try Daemon (between WebView2 and Python subprocess)
+            // 1.5 v4.8.0: Try Daemon with pre-flight health check and crash recovery
             if (UseDaemon && _daemonAvailable)
             {
                 try
                 {
-                    Logger.Twitter("🔄 [DAEMON] Thread posting başlatılıyor...");
-                    var payload = new { tweets = tweets, media = mediaPath };
-                    string daemonJson = await DaemonRequestAsync("/post_thread", payload);
-                    var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
-                    
-                    if (daemonResult?.status == "success")
+                    // Pre-flight: Verify daemon is actually alive before sending heavy request
+                    if (!await CheckDaemonHealthAsync())
                     {
-                        Logger.Twitter("✅ [DAEMON] Thread gönderimi başarılı.");
+                        Logger.Twitter("⚠️ [DAEMON] Pre-flight health check failed. Attempting auto-restart...");
                         try
                         {
-                            var cfg = ConfigManager.Current;
-                            cfg.CheckReset();
-                            cfg.DailyTotalTweetCount += tweets.Count;
-                            cfg.MonthlyTotalTweetCount += tweets.Count;
-                            ConfigManager.Save();
+                            StopDaemon();
+                            await StartDaemonAsync();
                         }
-                        catch { }
-                        return daemonResult;
+                        catch (Exception restartEx)
+                        {
+                            Logger.Twitter($"⚠️ [DAEMON] Auto-restart failed: {restartEx.Message}. Using Python fallback...");
+                            _daemonAvailable = false;
+                        }
                     }
-                    else
+
+                    if (_daemonAvailable)
                     {
-                        Logger.Twitter($"⚠️ [DAEMON] Thread hatası: {daemonResult?.ErrorMessage}. Python fallback...");
+                        Logger.Twitter("🔄 [DAEMON] Thread posting başlatılıyor...");
+                        var payload = new { tweets = tweets, media = mediaPath };
+                        string daemonJson = await DaemonRequestAsync("/post_thread", payload);
+                        var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
+                        
+                        if (daemonResult?.status == "success")
+                        {
+                            Logger.Twitter("✅ [DAEMON] Thread gönderimi başarılı.");
+                            try
+                            {
+                                var cfg = ConfigManager.Current;
+                                cfg.CheckReset();
+                                cfg.DailyTotalTweetCount += tweets.Count;
+                                cfg.MonthlyTotalTweetCount += tweets.Count;
+                                ConfigManager.Save();
+                            }
+                            catch { }
+                            return daemonResult;
+                        }
+                        else
+                        {
+                            Logger.Twitter($"⚠️ [DAEMON] Thread hatası: {daemonResult?.ErrorMessage}. Python fallback...");
+                        }
                     }
+                }
+                catch (TaskCanceledException)
+                {
+                    Logger.Twitter("⚠️ [DAEMON] Thread request timed out. Daemon may have crashed. Marking unavailable...");
+                    _daemonAvailable = false;
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Logger.Twitter($"⚠️ [DAEMON] Connection refused/reset: {httpEx.Message}. Daemon crashed. Python fallback...");
+                    _daemonAvailable = false;
                 }
                 catch (Exception dex)
                 {

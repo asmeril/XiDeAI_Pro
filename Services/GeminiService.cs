@@ -376,9 +376,9 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
 
 
 
-        public async Task<string?> AnalyzeNewsForThread(string title, string source, string summary, string link = "")
+        public async Task<string?> AnalyzeNewsForThread(string title, string source, string summary, string link = "", string? description = null, bool isFlash = false)
         {
-            string prompt = GeneratePremiumNewsAnalysisPrompt(title, source, summary, link);
+            string prompt = GeneratePremiumNewsAnalysisPrompt(title, source, summary, link, description, isFlash);
 
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
@@ -411,17 +411,15 @@ CEVAP: Sadece 'EVET' veya 'HAYIR' cevabını ver. Başka açıklama yapma.
             return await SendRequest(prompt);
         }
 
-        private string GeneratePremiumNewsAnalysisPrompt(string title, string source, string summary, string link = "")
+        private string GeneratePremiumNewsAnalysisPrompt(string title, string source, string summary, string link = "", string? description = null, bool isFlash = false)
         {
-            // v4.6.7: Completely redesigned prompt to bypass Gemini "Panic/Dangerous Content" safety filters 
-            // by removing the hardcoded "Durum KRİTİK!" template which was causing generation aborts at 126 chars.
-            string linkSection = !string.IsNullOrEmpty(link) 
-                ? $"🔗 {link}" 
-                : $"🔗 Kaynak: {source}";
+            // v4.6.18: X Algorithm & Distribution Hack Optimized Prompt
+            string linkSection = !string.IsNullOrEmpty(link) ? $"🔗 {link}" : $"🔗 Kaynak: {source}";
             
             return $@"KİMLİK: Sen deneyimli ve profesyonel bir Baş Ekonomist ve Stratejistsin.
 
-GÖREV: Aşağıdaki finansal haberi, Twitter (X) platformu için 2 ayrı tweet halinde, profesyonel bir dille analiz et. Asla abartılı veya panik yaratacak kelimeler kullanma.
+GÖREV: Aşağıdaki haberi, X platformunda viral olacak, derinlemesine yorumlayan, 3 ile 4 tweet arasında değişen bir analiz thread'ine dönüştür. Haberin sadece ekonomik etkileri değil, toplumsal, jeopolitik ve stratejik silsilesini (Second-Order Effects) düşün.
+Haberin önemi yüksekse bunu yansıt — 'güvenli' ve sıkıcı olmaktan kaçın. Okuyucuyu durduracak bir kanca kur.
 
 HABER BİLGİLERİ:
 - Başlık: {title}
@@ -429,13 +427,20 @@ HABER BİLGİLERİ:
 - Kaynak: {source}
 - Link: {linkSection}
 
+X ALGORİTMASI DAĞITIM STRATEJİLERİ (UYGULA):
+1. 🎯 AKILLI ETİKETLEME (Auto-Mention): SADECE resmi kurumları, kamu şirketlerini veya zararsız teknoloji oluşumlarını etiketle (Örn: @TCMB, @aselsan, @Savunma_SSB). KESİN YASAK: Asla siyasetçileri, parti liderlerini, bakanları veya tartışmalı figürleri etiketleme. Bireyleri etiketlemekten uzak dur, metne doğal yedir ancak @ kullanma.
+2. 🧲 KANCA (Hook): İlk tweet o kadar çarpıcı olmalı ki kullanıcı kaydırmayı durdurmalı. Şok edici bir veri, retorik soru veya sarsıcı bir tespitle başla.
+3. 🧠 DERİN ANALİZ: Haberin yüzeyini değil, altını analiz et. ""Bu neden oldu?"" ve ""Bunun sonucunda 3 ay, 1 yıl sonra ne olacak?"" sorularını cevapla. Zincirleme etkiler (domino) ortaya çıkar.
+4. 📈 SEMANTİK KELİMELER: X algoritmasının ""For You"" kısmında öne çıkardığı anahtar kelimeleri (Borsa, Ekonomi, Teknoloji, Yatırım, Savunma, Jeopolitik) hashtag kullanmadan metne doğal yedir.
+
 ÇIKTI FORMATI VE KURALLAR:
-1. Analizini tam olarak iki (2) tweet halinde yazmalısın.
-2. Tweetleri birbirinden ayırmak için KESİNLİKLE aralarına ||| koymalısın.
-3. Birinci tweet, haberin ne olduğunu açıklamalı ve en sona {linkSection} ile #BIST100 #Borsa etiketlerini eklemelidir.
-4. İkinci tweet, haberin piyasa etkilerini (fırsat veya riskleri) profesyonelce yorumlamalı ve sonuna 'Y.T.D.' eklemelidir.
-5. 'TWEET 1', 'TWEET 2' gibi başlıkları ASLA ÇIKTIYA YAZMA.
-6. Çıktın sadec ve sadece tweet metinlerinden ve ayırıcı ||| işaretinden oluşmalıdır.";
+- Analizini KISA ve ÖZ şekilde 3 veya 4 tweet halinde yaz. Asla destan yazma, kelime israfından kaçın. Her tweet 270 karakterin ALTINDA KALMAK ZORUNDADIR. (Haber çok önemliyse 4, orta düzeydeyse 3 tweet.)
+- Tweetleri birbirinden ayırmak için KESİNLİKLE aralarına üç boru karakteri koy (ayırıcı).
+- Bolca profesyonel emoji kullan.
+- İlk tweet, çarpıcı kancayı ve sonuna {linkSection} eklemeli.
+- Son tweet akıllı hashtagler (#BIST100 #Ekonomi #Savunma vb.) ve Y.T.D. ile bitmelidir.
+- Tweet numaraları veya bölüm başlıkları ASLA yazma. Çıktın SADECE tweet metinleri ve aralarındaki ayırıcılardan oluşmalı.";
+
         }
 
         private string GenerateStandardNewsAnalysisPrompt(string title, string source)
@@ -1184,9 +1189,9 @@ KURALLAR:
         /// Kategoriye özel haber analiz thread'i üretir
         /// Sadece skor 9-10 olan haberler için kullanılır
         /// </summary>
-        public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link)
+        public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
-            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link);
+            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash);
             
             // Kategoriye göre config al
             var config = _prompts.GetNewsCategoryConfig(category);

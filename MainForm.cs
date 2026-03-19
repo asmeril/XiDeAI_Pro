@@ -2202,7 +2202,7 @@ namespace XiDeAI_Pro
                 Log("🚀 Başlatma tuşuna basıldı, X modülleri ayağa kaldırılıyor...", "System");
                 try { await _opManager.SocialIntel.StartDaemonAsync(); } catch (Exception ex) { Log($"[Daemon] Starter Error: {ex.Message}", "System"); }
             });
-            _opManager.NewsTracker.Start();
+            // _opManager.NewsTracker.Start(); // v4.6.21 FIX: Kaldırıldı. Haber takibi kendi başlat butonu (btnNewsStart) ile çalışacak.
             // _opManager.FanZone.Start(); // DISABLED PER USER REQUEST
             // _deepScanTimer.Start(); // Removed per user request, keep manual for now
             // _trendEngagementTimer.Start(); // Removed per user request
@@ -3057,8 +3057,10 @@ namespace XiDeAI_Pro
                 }
                 else
                 {
-                    LogAI("   ⚠️ Modal kapanmadı ama gönderim denenmiş olabilir.");
-                    return new SocialIntelResult { status = "success", message = "Thread sent (unverified)" };
+                    LogAI("   ⚠️ Modal kapanmadı, gönderim başarısız kabul ediliyor.");
+                    // Önceki kod (v4.7.5): "status": "success" dönüyordu (unverified mantığı) ve OperationEngine yanılıyordu.
+                    // Yeni Kod (v4.7.6): "error" döner, böylece üst katmanlar fallback'e (x_daemon.py) yönelir veya tekrar dener.
+                    return new SocialIntelResult { status = "error", message = "Thread sent verification failed (modal stuck)" };
                 }
             }
             catch (Exception ex)
