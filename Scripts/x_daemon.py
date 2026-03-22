@@ -967,7 +967,7 @@ def _post_single_tweet(driver, text, reply_to_url=None):
             log("Post button click failed")
             return None
 
-        # Gönderilmesini bekle — dialog kapansın veya tweet URL'si değişsin
+        # Gönderilmesini bekle
         time.sleep(3)
         try:
             WebDriverWait(driver, 10).until(
@@ -976,26 +976,64 @@ def _post_single_tweet(driver, text, reply_to_url=None):
             )
             log("Compose dialog closed — tweet posted")
         except Exception:
-            log("Dialog close timeout — checking current URL...")
+            log("Dialog close timeout — continuing...")
 
-        # Yeni tweet URL'sini al: timeline'daki en son tweet'i bul
+        # Yeni tweet URL'sini al:
+        # Yöntem 1: driver.current_url zaten /status/ID formatına geçmiş olabilir
+        cur = driver.current_url
+        if "/status/" in cur:
+            log(f"Tweet URL from current_url: {cur}")
+            return cur
+
+        # Yöntem 2: Profil sayfasındaki ilk (en yeni) tweet — HOME DEĞİL, profil kullan
+        try:
+            # Kendi kullanıcı adını öğren
+            handle = driver.execute_script("""
+                var el = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
+                return el ? el.getAttribute('href') : null;
+            """)
+            if handle:
+                profile_url = f"https://x.com{handle}"
+                driver.get(profile_url)
+                time.sleep(2.5)
+                # İlk tweet linki — profile'da en üstteki bizim
+                status_links = WebDriverWait(driver, 10).until(
+                    lambda d: d.find_elements(By.CSS_SELECTOR,
+                        "article[data-testid='tweet'] a[href*='/status/']")
+                )
+                for lnk in status_links:
+                    href = lnk.get_attribute("href") or ""
+                    # Kendi profilimize ait tweet URL'si
+                    if handle.strip("/") in href and "/status/" in href:
+                        if not href.startswith("http"):
+                            href = "https://x.com" + href
+                        log(f"Tweet URL from profile: {href}")
+                        return href
+        except Exception as e:
+            log(f"Profile URL method failed: {e}")
+
+        # Yöntem 3: /home timeline fallback
         try:
             driver.get("https://x.com/home")
             time.sleep(2.5)
-            # En son kendi tweet'imizin URL'sini bul
-            latest = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR,
-                    "article[data-testid='tweet'] a[href*='/status/']"))
-            )
-            tweet_url = latest.get_attribute("href")
-            # Tam URL yap
-            if tweet_url and not tweet_url.startswith("http"):
-                tweet_url = "https://x.com" + tweet_url
-            log(f"Latest tweet URL: {tweet_url}")
-            return tweet_url
+            handle_frag = driver.execute_script("""
+                var el = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
+                return el ? el.getAttribute('href') : null;
+            """) or ""
+            articles = driver.find_elements(By.CSS_SELECTOR,
+                "article[data-testid='tweet'] a[href*='/status/']")
+            for a in articles:
+                href = a.get_attribute("href") or ""
+                if handle_frag.strip("/") in href and "/status/" in href:
+                    if not href.startswith("http"):
+                        href = "https://x.com" + href
+                    log(f"Tweet URL from home: {href}")
+                    return href
         except Exception as e:
-            log(f"Could not get tweet URL: {e}")
-            return "https://x.com/home"  # URL bulunamazsa devam et
+            log(f"Home fallback failed: {e}")
+
+        log("WARNING: Could not get tweet URL, using home as fallback")
+        return "https://x.com/home"
 
     except Exception as e:
         log(f"_post_single_tweet error: {type(e).__name__}: {e}")
