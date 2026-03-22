@@ -20,7 +20,6 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
-OverwriteReadOnly=yes
 ; Uninstaller settings - ICO dosyasını kullan (EXE yerine daha güvenilir)
 UninstallDisplayIcon={app}\xideai_icon.ico
 UninstallDisplayName={#MyAppName}
