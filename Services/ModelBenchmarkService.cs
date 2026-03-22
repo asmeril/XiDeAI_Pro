@@ -32,7 +32,6 @@ namespace XiDeAI_Pro.Services
         /// </summary>
         public static readonly string[] FallbackModels = new[]
         {
-            "gemini-2.0-flash-exp",
             "gemini-2.0-flash",
             "gemini-2.5-flash",
             "gemini-2.5-pro"
@@ -128,13 +127,15 @@ namespace XiDeAI_Pro.Services
         }
         
         /// <summary>
-        /// Run benchmark on all available models
+        /// Run benchmark on all available models.
+        /// If modelsToTest is provided (from live API), uses those; otherwise falls back to FallbackModels.
         /// </summary>
-        public async Task<List<BenchmarkResult>> RunBenchmarkAsync(string apiKey)
+        public async Task<List<BenchmarkResult>> RunBenchmarkAsync(string apiKey, string[]? modelsToTest = null)
         {
             var results = new List<BenchmarkResult>();
+            var targets = (modelsToTest != null && modelsToTest.Length > 0) ? modelsToTest : FallbackModels;
             
-            foreach (var model in FallbackModels)
+            foreach (var model in targets)
             {
                 var result = await TestModelAsync(apiKey, model);
                 results.Add(result);

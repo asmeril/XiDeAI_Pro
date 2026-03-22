@@ -14,7 +14,7 @@ namespace XiDeAI_Pro.Services.AI
         string ProviderName { get; }
         
         /// <summary>
-        /// Specific model name (e.g., "gemini-2.0-flash-exp", "claude-3-5-sonnet")
+        /// Specific model name (e.g., "gemini-2.0-flash", "gemini-2.5-flash")
         /// </summary>
         string ModelName { get; }
         

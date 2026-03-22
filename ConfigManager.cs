@@ -13,7 +13,7 @@ namespace XiDeAI_Pro.Config
         public string TwitterAccessToken { get; set; } = "";
         public string TwitterTokenSecret { get; set; } = "";
         public string GeminiApiKey { get; set; } = "";
-        public string GeminiModel { get; set; } = "gemini-2.0-flash-exp"; // Selected Gemini model
+        public string GeminiModel { get; set; } = "gemini-2.5-flash"; // Selected Gemini model
         public string TradingViewUsername { get; set; } = "";
         public string TradingViewChartId { get; set; } = "GDHgGCEv";  // Kullanıcının özel chart ID'si
         public string TradingViewSymbol { get; set; } = "NASDAQ:AAPL"; // Varsayılan sembol (BIST widget'ta çalışmıyor)

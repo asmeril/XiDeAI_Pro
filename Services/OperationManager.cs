@@ -298,14 +298,13 @@ namespace XiDeAI_Pro.Services
             if (!string.IsNullOrEmpty(cfg.GeminiApiKey))
             {
                 // Register default model from config
-                string defaultModel = cfg.GeminiModel ?? "gemini-2.0-flash-exp";
+                string defaultModel = cfg.GeminiModel ?? "gemini-2.5-flash";
                 var provider = new GeminiProvider(cfg.GeminiApiKey, defaultModel, (msg) => Console.WriteLine($"[AI-Gemini] {msg}"));
                 ModelManager.RegisterProvider(defaultModel, provider);
                 
                 // Also register potential hardcoded fallbacks for specific task preferences
-                // IMPORTANT: Use correct Gemini model identifiers (v3.8.5 - Updated to 2.5 series)
                 var commonModels = new[] { 
-                    "gemini-2.0-flash-exp",     // Fast, experimental
+                    "gemini-2.0-flash",         // Fast, stable
                     "gemini-2.5-flash",         // Fast, stable (PRODUCTION)
                     "gemini-2.5-pro",           // Balanced (PRODUCTION)
                     "gemini-exp-1206"           // Experimental Pro
@@ -508,9 +507,12 @@ namespace XiDeAI_Pro.Services
                     Logger.AI($"[AutoBenchmark] 📋 {availableModels.Count} model bulundu.");
                 }
                 
-                // 2. Run benchmark on fallback models
+                // 2. Run benchmark — use live API model list if available, otherwise fallback
                 var benchmark = new ModelBenchmarkService();
-                var results = await benchmark.RunBenchmarkAsync(apiKey);
+                var modelNames = availableModels.Count > 0
+                    ? availableModels.ConvertAll(m => m.Name).ToArray()
+                    : null;
+                var results = await benchmark.RunBenchmarkAsync(apiKey, modelNames);
                 
                 // 3. Log results
                 int successCount = results.Count(r => r.Success);

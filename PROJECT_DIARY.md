@@ -962,4 +962,12 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 
 > TODO: Release notes eklenecek.
 
+---
+
+## 22 Mart 2026
+
+### v4.9.1 Release
+
+> TODO: Release notes eklenecek.
+
 

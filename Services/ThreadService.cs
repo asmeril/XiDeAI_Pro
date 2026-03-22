@@ -930,7 +930,7 @@ namespace XiDeAI_Pro.Services
 
             try
             {
-                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.0-flash-exp";
+                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.5-flash";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
                 var response = await client.PostAsync(url, content);
                 

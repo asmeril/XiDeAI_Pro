@@ -349,83 +349,89 @@ def shutdown_driver():
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.8.2 - innerText Fixed)"""
+    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.9.1 - No Ctrl+A global clear)"""
     import pyperclip
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.common.action_chains import ActionChains
     
-    # New method order: clipboard (most reliable) -> js_native -> sendkeys
-    methods = ["clipboard", "js_native", "sendkeys"]
+    # Method order: js_insert (most reliable for contenteditable) -> clipboard -> sendkeys
+    methods = ["js_insert", "clipboard", "sendkeys"]
     
     for method in methods:
         try:
-            # 1. Scroll into view and focus
-            driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", element)
-            time.sleep(0.3)
+            # 1. Scroll into view and focus THIS element specifically
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", element)
+            time.sleep(0.2)
             driver.execute_script("arguments[0].focus();", element)
             time.sleep(0.2)
             
-            # Clear the box: Select All + Backspace
-            element.send_keys(Keys.CONTROL, 'a')
-            time.sleep(0.1)
-            element.send_keys(Keys.BACKSPACE)
-            time.sleep(0.3)
+            # 2. Clear ONLY this element via JS (no Ctrl+A which affects whole page)
+            driver.execute_script("""
+                var el = arguments[0];
+                el.focus();
+                // Select all content within this specific element only
+                var range = document.createRange();
+                range.selectNodeContents(el);
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('delete', false, null);
+            """, element)
+            time.sleep(0.2)
             
             log(f"[TYPE] Part {tweet_index} using {method}")
             
-            if method == "clipboard":
-                # Primary method: clipboard paste
-                pyperclip.copy(text)
-                time.sleep(0.3)
-                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-                time.sleep(0.5)
-                # WAKE UP REACT: ActionChains based typing is sometimes safer than send_keys
-                ActionChains(driver).send_keys(" ").send_keys(Keys.BACKSPACE).perform()
-                
-            elif method == "js_native":
-                # Secondary: DOM text node insertion
+            if method == "js_insert":
+                # Most reliable: execCommand insertText (triggers React synthetic events)
                 driver.execute_script("""
-                    var elem = arguments[0];
-                    elem.focus();
-                    elem.innerHTML = '';
-                    var ev1 = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: arguments[1] });
-                    elem.dispatchEvent(ev1);
-                    var textNode = document.createTextNode(arguments[1]);
-                    var sel = window.getSelection();
-                    if (sel && sel.rangeCount > 0) {
-                        sel.getRangeAt(0).insertNode(textNode);
-                        sel.collapse(textNode, textNode.length);
-                    } else {
-                        elem.appendChild(textNode);
-                    }
-                    elem.dispatchEvent(new Event('input', { bubbles: true }));
-                    elem.dispatchEvent(new Event('change', { bubbles: true }));
+                    var el = arguments[0];
+                    el.focus();
+                    var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                        window.HTMLElement.prototype, 'innerHTML');
+                    // Use execCommand which triggers proper React events
+                    document.execCommand('selectAll', false, null);
+                    document.execCommand('delete', false, null);
+                    document.execCommand('insertText', false, arguments[1]);
                 """, element, text)
-                time.sleep(0.5)
-                # WAKE UP REACT
+                time.sleep(0.3)
+                # Nudge React to re-render
+                ActionChains(driver).move_to_element(element).click().perform()
+                time.sleep(0.3)
+                
+            elif method == "clipboard":
+                pyperclip.copy(text)
+                time.sleep(0.2)
+                # Click element first to ensure focus
+                ActionChains(driver).move_to_element(element).click().perform()
+                time.sleep(0.2)
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                time.sleep(0.4)
+                # Nudge React
                 ActionChains(driver).send_keys(" ").send_keys(Keys.BACKSPACE).perform()
                 
             elif method == "sendkeys":
-                # Last resort
+                ActionChains(driver).move_to_element(element).click().perform()
+                time.sleep(0.2)
                 element.send_keys(text)
             
-            # VERIFICATION WAIT: Allow React to sync state
-            time.sleep(2.0)
+            # Allow React to sync
+            time.sleep(1.5)
             
-            # Visual verification: Use innerText via JS for contenteditable reliability
-            current_text = driver.execute_script("return arguments[0].innerText;", element).strip()
+            # Verify via innerText
+            current_text = driver.execute_script(
+                "return arguments[0].innerText;", element).strip()
             input_len = len(text.strip())
             current_len = len(current_text)
             
-            # If we have something close to input length, it's a success
-            if input_len > 0 and current_len >= input_len * 0.9:
+            if input_len > 0 and current_len >= input_len * 0.85:
                 log(f"✅ Part {tweet_index} verified ({current_len}/{input_len})")
                 return True
             else:
                 log(f"⚠️ Part {tweet_index} length mismatch ({current_len}/{input_len}), trying next method...")
                 
         except Exception as e:
-            log(f"❌ Method {method} failed: {e}")
+            log(f"❌ Method {method} failed: {type(e).__name__}: {e}")
             
     return False
 
@@ -759,11 +765,9 @@ def _find_add_button(driver):
 
 def _click_post_button(driver):
     """
-    Robustly click the final 'Post All' / 'Tweet All' button.
-    Tries multiple selectors and methods. v4.9.0.
+    Robustly find the final 'Post All' / 'Tweet All' button.
+    Returns element if found and enabled, None otherwise. v4.9.1.
     """
-    from selenium.webdriver.common.action_chains import ActionChains
-
     # Selector priority list — X changes these frequently
     selectors = [
         "[data-testid='tweetButton']",
@@ -777,15 +781,34 @@ def _click_post_button(driver):
         "post all", "tweet all", "post", "send"
     ]
 
+    def _is_enabled(btn):
+        """Check if button is truly enabled (React-safe check)"""
+        try:
+            aria_disabled = btn.get_attribute("aria-disabled")
+            if aria_disabled == "true":
+                return False
+            # React disabled buttons often have specific class patterns
+            class_attr = btn.get_attribute("class") or ""
+            if "disabled" in class_attr.lower():
+                return False
+            # Check data-testid has no 'disabled' hint
+            style = btn.get_attribute("style") or ""
+            if "pointer-events: none" in style:
+                return False
+            return True
+        except Exception:
+            return False
+
     for sel in selectors:
         try:
             btns = driver.find_elements(By.CSS_SELECTOR, sel)
             for b in btns:
-                if b.is_displayed():
-                    disabled = b.get_attribute("aria-disabled") == "true" or not b.is_enabled()
-                    if not disabled:
+                try:
+                    if b.is_displayed() and _is_enabled(b):
                         log(f"Post button found via selector: {sel}")
                         return b
+                except Exception:  # StaleElementReferenceException
+                    pass
         except Exception: pass
 
     # Label search
@@ -793,16 +816,53 @@ def _click_post_button(driver):
         all_btns = driver.find_elements(By.CSS_SELECTOR,
             "div[role='button'][aria-label], button[aria-label], div[role='button'], button[type='button']")
         for b in all_btns:
-            if not b.is_displayed():
-                continue
-            label = (b.get_attribute("aria-label") or b.text or "").lower()
-            if any(k in label for k in post_labels):
-                if b.get_attribute("aria-disabled") != "true":
+            try:
+                if not b.is_displayed():
+                    continue
+                label = (b.get_attribute("aria-label") or b.text or "").lower()
+                if any(k in label for k in post_labels) and _is_enabled(b):
                     log(f"Post button found via label: '{label}'")
                     return b
+            except Exception:  # StaleElementReferenceException
+                pass
     except Exception: pass
 
     return None
+
+
+def _safe_click_element(driver, elem, label="element"):
+    """
+    Click an element with StaleElement protection: re-finds by testid if stale. v4.9.1.
+    Returns True on success.
+    """
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.common.exceptions import StaleElementReferenceException
+
+    for attempt in range(3):
+        try:
+            # First try JS click (most reliable for React)
+            driver.execute_script("arguments[0].click();", elem)
+            log(f"{label} clicked via JS (attempt {attempt+1})")
+            return True
+        except StaleElementReferenceException:
+            log(f"{label} stale on attempt {attempt+1}, re-finding...")
+            # Re-find the button
+            elem = _click_post_button(driver)
+            if not elem:
+                log(f"{label} re-find failed")
+                return False
+            time.sleep(0.5)
+        except Exception as e:
+            log(f"{label} JS click failed: {type(e).__name__}: {e}")
+            # Try ActionChains as last resort
+            try:
+                ActionChains(driver).move_to_element(elem).click().perform()
+                log(f"{label} clicked via ActionChains")
+                return True
+            except Exception as ae:
+                log(f"{label} ActionChains failed: {type(ae).__name__}: {ae}")
+                return False
+    return False
 
 
 def cmd_post_thread(params):
@@ -962,44 +1022,39 @@ def cmd_post_thread(params):
             time.sleep(0.5)
 
         # ── STEP 5: Click Post button ─────────────────────────────────────────
-        # Extra wait: React needs to enable the post button after typing
+        # Extra wait: React needs to enable the post button after all typing
         time.sleep(2)
 
+        # Re-focus last textbox so React re-evaluates button state
+        try:
+            text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
+            if text_areas:
+                text_areas[-1].click()
+                time.sleep(0.5)
+        except Exception: pass
+
         post_btn = None
-        for wait_attempt in range(4):  # Wait up to ~12 seconds total
+        for wait_attempt in range(6):  # Wait up to ~18 seconds total
             post_btn = _click_post_button(driver)
             if post_btn:
+                log(f"Post button ready on attempt {wait_attempt+1}")
                 break
-            log(f"Post button not ready yet (attempt {wait_attempt+1}/4), waiting...")
+            log(f"Post button not ready yet (attempt {wait_attempt+1}/6), waiting...")
             time.sleep(3)
 
         if not post_btn:
             log("FATAL: Post button not found after all attempts")
             return {"status": "error", "message": "Post button not found"}
 
-        # Scroll into view, then click
+        # Scroll into view
         try:
             driver.execute_script(
                 "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", post_btn)
             time.sleep(0.5)
         except Exception: pass
 
-        # Try JS click first, then ActionChains as fallback
-        clicked = False
-        try:
-            driver.execute_script("arguments[0].click();", post_btn)
-            clicked = True
-            log("Post button clicked via JS")
-        except Exception as e:
-            log(f"JS click failed: {type(e).__name__}: {e}")
-
-        if not clicked:
-            try:
-                ActionChains(driver).move_to_element(post_btn).click().perform()
-                clicked = True
-                log("Post button clicked via ActionChains")
-            except Exception as e:
-                log(f"ActionChains click failed: {type(e).__name__}: {e}")
+        # Click with StaleElement protection
+        clicked = _safe_click_element(driver, post_btn, "Post button")
 
         if not clicked:
             return {"status": "error", "message": "Post button click failed"}

@@ -532,7 +532,7 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                 string json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.0-flash-exp";
+                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.5-flash";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
                 
                 var response = await client.PostAsync(url, content).ConfigureAwait(false);
@@ -747,7 +747,7 @@ NOT: Eğer etki düşükse sadece 'NO_IMPACT' yaz.";
                 string json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.0-flash-exp";
+                var model = !string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) ? ConfigManager.Current.GeminiModel : "gemini-2.5-flash";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
                 
                 var response = await client.PostAsync(url, content).ConfigureAwait(false);
@@ -865,7 +865,7 @@ PİYASA GÖRÜŞÜ (Sosyal Medya Fenomen Analizi):
         private string GetSelectedModel()
         {
             var model = ConfigManager.Current.GeminiModel;
-            return string.IsNullOrEmpty(model) ? "gemini-2.0-flash-exp" : model;
+            return string.IsNullOrEmpty(model) ? "gemini-2.5-flash" : model;
         }
 
         /// <summary>

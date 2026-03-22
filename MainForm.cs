@@ -831,7 +831,7 @@ namespace XiDeAI_Pro
             
             flowVariable.Controls.Add(new Label { Text = "Gemini Model:", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             cmbGeminiModel = new ComboBox { Width = 400, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
-            cmbGeminiModel.Items.Add("gemini-2.0-flash-exp"); cmbGeminiModel.SelectedIndex = 0;
+            cmbGeminiModel.Items.Add("gemini-2.5-flash"); cmbGeminiModel.SelectedIndex = 0;
             flowVariable.Controls.Add(cmbGeminiModel);
             var btnTestGemini = new Button { Text = "🤖 AI Test / Model Bul", Width = 400, Height = 30, BackColor = Color.MediumPurple, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
             AttachHoverEffect(btnTestGemini, Color.MediumOrchid, Color.MediumPurple);
@@ -2109,7 +2109,7 @@ namespace XiDeAI_Pro
             }
             cfg.PerplexityApiKey = newPerplexityKey;
             
-            cfg.GeminiModel = cmbGeminiModel.SelectedItem?.ToString() ?? "gemini-2.0-flash-exp";
+            cfg.GeminiModel = cmbGeminiModel.SelectedItem?.ToString() ?? "gemini-2.5-flash";
             cfg.TelegramBotToken = txtTelToken.Text.Trim();
             cfg.TelegramChatId = txtTelChatId.Text.Trim();
             cfg.TradingViewChartId = txtTvChartId.Text.Trim();

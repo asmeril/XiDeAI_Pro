@@ -34,7 +34,7 @@ namespace XiDeAI_Pro.Services.AI
         /// <summary>
         /// Initialize task-to-model preferences (priority order for fallback)
         /// IMPORTANT: Use valid Gemini API model identifiers:
-        /// - gemini-2.0-flash-exp (Fast, latest experimental)
+        /// - gemini-2.0-flash (Fast, stable)
         /// - gemini-2.5-flash (Fast, stable)
         /// - gemini-2.5-pro (Balanced, high quality)
         /// - gemini-exp-1206 (Experimental Pro)
@@ -45,29 +45,29 @@ namespace XiDeAI_Pro.Services.AI
             _taskModelPreferences[TaskType.DeepScan] = new List<string> 
             { 
                 "gemini-2.5-flash",      // 1st: Higher rate limit
-                "gemini-2.0-flash-exp"   // 2nd: Free tier fallback
+                "gemini-2.0-flash"       // 2nd: Fallback
             };
             
             // News Analysis - v4.5.3: Flash-first to avoid rate limits
             _taskModelPreferences[TaskType.NewsAnalysis] = new List<string> 
             { 
                 "gemini-2.5-flash",      // 1st: Higher rate limit, stable
-                "gemini-2.0-flash-exp"   // 2nd: Fallback (free tier)
+                "gemini-2.0-flash"       // 2nd: Fallback
             };
 
             // News Thread Generation - v4.5.3: Flash-first for stability
             _taskModelPreferences[TaskType.NewsThreadGeneration] = new List<string>
             {
                 "gemini-2.5-flash",      // 1st: Stable, good quality
-                "gemini-2.0-flash-exp"   // 2nd: Free fallback
+                "gemini-2.0-flash"       // 2nd: Fallback
             };
             
             // Formation Analysis - Vision quality is critical
             _taskModelPreferences[TaskType.FormationAnalysis] = new List<string> 
             { 
                 "gemini-2.5-pro",        // 1st: Best vision
-                "gemini-2.0-flash-exp",  // 2nd: Good vision
-                "gemini-2.5-flash"       // 3rd: Basic vision
+                "gemini-2.5-flash",      // 2nd: Good vision
+                "gemini-2.0-flash"       // 3rd: Basic vision
             };
             
             // Tweet Generation - v4.5.3: Pro-first for quality replies
@@ -80,7 +80,7 @@ namespace XiDeAI_Pro.Services.AI
             // Smart Quote - Simple text processing
             _taskModelPreferences[TaskType.SmartQuote] = new List<string> 
             { 
-                "gemini-2.0-flash-exp",  // 1st: Fast and sufficient
+                "gemini-2.5-flash",      // 1st: Fast and sufficient
                 "gemini-2.5-pro"         // 2nd: Fallback
             };
             
@@ -104,7 +104,7 @@ namespace XiDeAI_Pro.Services.AI
             { 
                 "perplexity-sonar",      // 1st: Real-time trends
                 "perplexity-sonar-pro",  // 2nd: More detailed
-                "gemini-2.0-flash-exp"   // 3rd: Fallback
+                "gemini-2.0-flash"       // 3rd: Fallback
             };
             
             // General Analysis - v4.5.3: Pro-first for Manuel Analiz quality
@@ -131,15 +131,15 @@ namespace XiDeAI_Pro.Services.AI
             // FanZone Reaction - creative but specific
             _taskModelPreferences[TaskType.FanZoneReaction] = new List<string>
             {
-                "gemini-2.0-flash-exp",  // 1st: Fast
-                "gemini-2.5-flash"       // 2nd: Better tone
+                "gemini-2.5-flash",      // 1st: Fast and good tone
+                "gemini-2.0-flash"       // 2nd: Fallback
             };
 
             // Ar-Ge Analysis - Deep understanding
             _taskModelPreferences[TaskType.ArGeAnalysis] = new List<string>
             {
                 "gemini-2.5-pro",        // 1st: Best logic
-                "gemini-2.0-flash-exp"   // 2nd: Fallback
+                "gemini-2.0-flash"       // 2nd: Fallback
             };
         }
         
