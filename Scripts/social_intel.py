@@ -88,49 +88,40 @@ def human_delay(min_s=2.0, max_s=5.0):
     time.sleep(sleep_time)
 
 def atomic_clear(elem, driver=None):
-    """Aggressively clears a contenteditable element (React-safe, Chrome 145+ compatible)"""
+    """Clears a contenteditable element — SADECE hedef element (Ctrl+A YOK, v4.9.2)"""
     try:
-        from selenium.webdriver.common.keys import Keys
         elem.click()
         if driver: driver.execute_script("arguments[0].focus();", elem)
         time.sleep(0.2)
-        
-        # 1. Select All + Backspace (Standard)
-        elem.send_keys(Keys.CONTROL, 'a')
-        time.sleep(0.1)
-        elem.send_keys(Keys.BACKSPACE)
-        
-        # 2. Hard JS Clear (React Reset) - NO execCommand (crashes Chrome 145+)
+        # selectNodeContents: sadece bu element'in içini seç, Ctrl+A kullanma
         if driver:
             driver.execute_script("""
-                var e = arguments[0];
-                e.value = '';
-                e.innerText = '';
-                e.textContent = '';
+                var el = arguments[0];
+                el.focus();
+                var range = document.createRange();
+                range.selectNodeContents(el);
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand('delete', false, null);
             """, elem)
-        time.sleep(0.5)
-        
-        # 3. Check emptiness
-        if len(elem.text.strip()) > 0:
-            print("Warning: Element not empty after clean. Forcing delete loop...", file=sys.stderr)
-            for _ in range(20): # Force delete loop
-                elem.send_keys(Keys.BACKSPACE)
-                if len(elem.text.strip()) == 0: break
+        time.sleep(0.3)
     except: pass
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING WITH BUTTON STATE CHECK - Ported from v3.4.1 Backup"""
+    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.8.2 - innerText Fixed)"""
     from selenium.webdriver.common.by import By
     from selenium.webdriver.common.keys import Keys
-    import json
+    from selenium.webdriver.common.action_chains import ActionChains
+    import pyperclip
     
     # LOG TEXT STATS
     print(f"DEBUG: Tweet {tweet_index} text length: {len(text)} chars", file=sys.stderr)
     
-    methods = ["clipboard", "sendkeys", "js_native"]
+    methods = ["clipboard", "js_native", "sendkeys"]
     
-    for attempt, method in enumerate(methods):
+    for method in methods:
         # ALWAYS CLEAN BEFORE TYPING
         atomic_clear(element, driver)
         human_delay(1.0, 2.5) # Safety Delay before typing
@@ -139,20 +130,17 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
         
         if method == "clipboard":
             try:
-                import pyperclip
                 pyperclip.copy(text)
-                element.send_keys(Keys.CONTROL, 'v')
+                time.sleep(0.3)
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                time.sleep(0.5)
+                # React nudge: END key — metin değiştirmez, sadece cursor sona gider
+                ActionChains(driver).send_keys(Keys.END).perform()
             except Exception as e:
                 print(f"Clipboard fail: {e}", file=sys.stderr)
         
-        elif method == "sendkeys":
-            try:
-                 # Batch send
-                element.send_keys(text)
-            except: pass
-
         elif method == "js_native":
-            # v4.8.0: Safe DOM insertion (replaces execCommand which crashes Chrome 145+)
+            # v4.8.2: Safe DOM insertion
             try:
                 driver.execute_script("""
                     var elem = arguments[0];
@@ -171,32 +159,31 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
                     elem.dispatchEvent(new Event('input', { bubbles: true }));
                     elem.dispatchEvent(new Event('change', { bubbles: true }));
                 """, element, text)
-                
-                # WAKE UP REACT: Send dummy key press to force state update
-                time.sleep(0.3)
-                try:
-                    element.send_keys(" ")
-                    time.sleep(0.1)
-                    element.send_keys(Keys.BACKSPACE)
-                except: pass
+                time.sleep(0.5)
+                # React nudge: END key
+                ActionChains(driver).send_keys(Keys.END).perform()
+            except: pass
+
+        elif method == "sendkeys":
+            try:
+                element.send_keys(text)
             except: pass
         
-        # VERIFICATION WAIT (Increased to 3s for React sync stability)
-        time.sleep(3.0) 
+        # VERIFICATION WAIT (React sync)
+        time.sleep(2.5) 
         
-        # VISUAL VERIFICATION: Check length ratio
-        current_text = element.text.strip()
+        # VISUAL VERIFICATION: Use innerText via JS 
+        current_text = driver.execute_script("return arguments[0].innerText;", element).strip()
         input_len = len(text.strip())
         current_len = len(current_text)
         
-        # If duplication occurred, length will be roughly 2x (or > 1.5x)
+        # If duplication occurred
         if input_len > 50 and current_len > input_len * 1.5:
              print(f"DUPLICATION DETECTED! Input: {input_len}, Current: {current_len}. Retrying...", file=sys.stderr)
-             continue # Fail this method, try next (which triggers clean)
+             continue
         
         # SUCCESS CHECK: Is button enabled?
         try:
-            # Try multiple post button selectors
             selectors = ["[data-testid='tweetButtonInline']", "[data-testid='tweetButton']", "div[role='button'][data-testid$='Button']"]
             for sel in selectors:
                 btns = driver.find_elements(By.CSS_SELECTOR, sel)
@@ -208,6 +195,7 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
         
         # Fallback text check
         if input_len > 0 and current_len >= input_len * 0.9:
+            print(f"✅ Part {tweet_index} verified ({current_len}/{input_len})", file=sys.stderr)
             return True
     
     return False
@@ -1092,21 +1080,41 @@ def search_influencer_feed(query, symbol_hint):
                     # Priority 1: User-Names (Standard X layout)
                     user_el = art.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
                     handle_text = user_el.text
-                    if "@" in handle_text:
-                        handle = "@" + handle_text.split("@")[1].split("\n")[0].split(" ")[0]
+                    # Pattern: "Name @handle · 2h"
+                    matches = re.findall(r'@(\w+)', handle_text)
+                    if matches:
+                        handle = "@" + matches[0]
                     else:
-                        handle = handle_text.split("\n")[0]
+                        # Split by @ if regex fails
+                        if "@" in handle_text:
+                            handle = "@" + handle_text.split("@")[1].split()[0]
+                        else:
+                            handle = handle_text.split("\n")[0]
                 except Exception:
                     try:
-                        # Priority 2: Direct link to profile
+                        # Priority 2: Direct link to profile (Highly reliable if User-Names fails)
                         links = art.find_elements(By.CSS_SELECTOR, "a[role='link']")
                         for link in links:
                             href = link.get_attribute("href") or ""
-                            if "status" not in href and "x.com/" in href:
-                                handle = "@" + href.split("x.com/")[1].split("/")[0]
-                                break
-                    except:
-                        handle = "X-User"
+                            # Profile links: x.com/username (no 'status', 'search', etc.)
+                            if "x.com/" in href and not any(x in href for x in ["/status/", "/search", "/home", "/explore", "/i/"]):
+                                potential_handle = href.split("x.com/")[1].split("/")[0].split("?")[0]
+                                if potential_handle:
+                                    handle = "@" + potential_handle
+                                    break
+                    except: pass
+                
+                # Priority 3: Regex on full text if still empty
+                if not handle or handle == "@":
+                    try:
+                        full_text = art.text
+                        handle_match = re.search(r'@(\w+)', full_text)
+                        if handle_match:
+                            handle = "@" + handle_match.group(1)
+                    except: pass
+
+                if not handle:
+                    handle = "X-User" # Absolute fallback
                 
                 url = ""
                 time_str = ""
@@ -1888,381 +1896,196 @@ def get_financial_summary():
     return {"status": "success", "data": data}
 
 def post_thread_chain(tweets, media_path=None):
-    """Post a chain of tweets (thread) using compose modal's 'Add another post' button"""
+    """
+    Post a tweet thread — v4.9.2 REPLY-CHAIN
+    Her tweet ayrı gönderilir: 1. tweet normal, sonrakiler bir öncekine reply.
+    Add buton/compose modal yaklaşımı tamamen terk edildi.
+    """
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    
-    if not tweets: return {"status": "error", "message": "No tweets provided"}
-    
-    # -------------------------------------------------------------
-    # SMART SPLIT LOGIC
-    # -------------------------------------------------------------
-    def smart_split_text(text, limit=4000): # Updated for Premium/Blue (was 280)
-        if len(text) <= limit: return [text]
-        parts = []
-        words = text.split(' ')
-        current_chunk = ""
-        for word in words:
-            if len(current_chunk) + len(word) + 1 > limit:
-                parts.append(current_chunk.strip())
-                current_chunk = word + " "
-            else:
-                current_chunk += word + " "
-        if current_chunk: parts.append(current_chunk.strip())
-        return parts
 
-    final_tweets = []
-    for i, t in enumerate(tweets):
-        # Only split if REALLY long (Premium limit)
-        if len(t) > 4000:
-            print(f"Warning: Tweet {i} is extraordinarily long ({len(t)} chars). Splitting automatically.", file=sys.stderr)
-            chunks = smart_split_text(t, limit=4000)
-            final_tweets.extend(chunks)
-        else:
-            final_tweets.append(t)
-    
-    tweets = final_tweets
-    # -------------------------------------------------------------
+    if not tweets:
+        return {"status": "error", "message": "No tweets provided"}
 
     if not COOKIES_FILE.exists():
         return {"status": "error", "message": "No cookies found."}
-        
-    # Run visible to avoid detection
+
+    def _post_one(driver, text, reply_to_url=None):
+        """Tek bir tweet gönder. reply_to_url verilirse o tweet'e reply atar."""
+        try:
+            if reply_to_url:
+                driver.get(reply_to_url)
+                time.sleep(3)
+                try:
+                    reply_btn = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR,
+                            "[data-testid='reply']"))
+                    )
+                    driver.execute_script("arguments[0].click();", reply_btn)
+                    print(f"Reply button clicked: {reply_to_url}", file=sys.stderr)
+                    time.sleep(2)
+                except Exception as e:
+                    print(f"Reply btn fail, fallback intent URL: {e}", file=sys.stderr)
+                    tweet_id = reply_to_url.rstrip("/").split("/")[-1]
+                    driver.get(f"https://x.com/intent/tweet?in_reply_to={tweet_id}")
+                    time.sleep(3)
+            else:
+                driver.get("https://x.com/compose/tweet")
+                print("Compose opened via URL", file=sys.stderr)
+                time.sleep(3)
+
+            # Textbox bul
+            selectors = [
+                "[data-testid='tweetTextarea_0']",
+                "div[role='textbox']",
+                "div[contenteditable='true']"
+            ]
+            box = None
+            for sel in selectors:
+                try:
+                    box = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+                    )
+                    if box:
+                        print(f"Textbox found: {sel}", file=sys.stderr)
+                        break
+                except Exception:
+                    continue
+
+            if not box:
+                print("FATAL: Textbox not found", file=sys.stderr)
+                return None
+
+            # Yaz
+            robust_type_and_verify(driver, box, text, 0)
+
+            # Post butonu bekle
+            post_btn = None
+            btn_selectors = [
+                "[data-testid='tweetButton']",
+                "[data-testid='tweetButtonInline']",
+                "[data-testid='sendReplies']",
+            ]
+            for attempt in range(8):
+                for sel in btn_selectors:
+                    try:
+                        btns = driver.find_elements(By.CSS_SELECTOR, sel)
+                        for b in btns:
+                            if b.is_displayed() and b.get_attribute("aria-disabled") != "true":
+                                post_btn = b
+                                break
+                    except Exception:
+                        pass
+                    if post_btn:
+                        break
+                if post_btn:
+                    print(f"Post button ready (attempt {attempt+1})", file=sys.stderr)
+                    break
+                print(f"Post button not ready (attempt {attempt+1}/8)...", file=sys.stderr)
+                time.sleep(2.5)
+
+            if not post_btn:
+                print("FATAL: Post button not found", file=sys.stderr)
+                return None
+
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", post_btn)
+            time.sleep(0.4)
+            driver.execute_script("arguments[0].click();", post_btn)
+            time.sleep(3)
+
+            # Dialog kapansın
+            try:
+                WebDriverWait(driver, 8).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR,
+                        "[data-testid='tweetTextarea_0']"))
+                )
+                print("Dialog closed — posted", file=sys.stderr)
+            except Exception:
+                print("Dialog close timeout — continuing", file=sys.stderr)
+
+            # Tweet URL'sini al
+            # Yöntem 1: current_url
+            cur = driver.current_url
+            if "/status/" in cur:
+                print(f"Tweet URL (current_url): {cur}", file=sys.stderr)
+                return cur
+
+            # Yöntem 2: profil sayfası
+            try:
+                handle_el = driver.execute_script(
+                    "var el=document.querySelector('a[data-testid=\"AppTabBar_Profile_Link\"]'); return el?el.getAttribute('href'):null;")
+                if handle_el:
+                    driver.get(f"https://x.com{handle_el}")
+                    time.sleep(2.5)
+                    links = driver.find_elements(By.CSS_SELECTOR,
+                        "article[data-testid='tweet'] a[href*='/status/']")
+                    for lnk in links:
+                        href = lnk.get_attribute("href") or ""
+                        if handle_el.strip("/") in href and "/status/" in href:
+                            print(f"Tweet URL (profile): {href}", file=sys.stderr)
+                            return href
+            except Exception as e:
+                print(f"Profile URL method: {e}", file=sys.stderr)
+
+            print("WARNING: Could not get tweet URL", file=sys.stderr)
+            return "https://x.com/home"
+
+        except Exception as e:
+            print(f"_post_one error: {type(e).__name__}: {e}", file=sys.stderr)
+            return None
+
+    # ── Driver başlat ────────────────────────────────────────────────────────
     driver = setup_driver(headless=False)
-    if not driver: return {"status": "error", "message": "Failed to start driver"}
+    if not driver:
+        return {"status": "error", "message": "Failed to start driver"}
 
     try:
         if not load_cookies(driver):
-             return {"status": "error", "message": "Failed to load cookies"}
+            return {"status": "error", "message": "Failed to load cookies"}
 
-        # Refresh to apply cookies and verify login
         driver.refresh()
         time.sleep(2)
-        
-        # Check if we're logged in (not on login page)
-        current_url = driver.current_url.lower()
-        if "login" in current_url or "flow" in current_url:
-            return {"status": "error", "message": "Session expired. Please re-login in visible mode."}
-        
-        # Go to compose page
-        driver.get("https://x.com/compose/tweet")
-        time.sleep(3)
-        
-        # Check again if redirected to login
-        if "login" in driver.current_url.lower():
-            return {"status": "error", "message": "Not logged in. Cookies may have expired."}
-        
-        try:
-            # Initial wait for first box
-            # Huge wait for initial load (sometimes X is slow or shows spinner)
-            print("Waiting for tweet box...", file=sys.stderr)
-            
-            # Try multiple selectors for the compose box
-            selectors = [
-                "[data-testid='tweetTextarea_0']",
-                "[role='textbox'][data-testid]",
-                "[class*='DraftEditor-root']",
-                "div[contenteditable='true']"
-            ]
-            
-            tweet_box = None
-            for selector in selectors:
-                try:
-                    tweet_box = WebDriverWait(driver, 15).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                    )
-                    if tweet_box:
-                        print(f"Found tweet box with selector: {selector}", file=sys.stderr)
-                        break
-                except:
-                    continue
-            
-            if not tweet_box:
-                # Last resort: check if we're on the wrong page
-                page_source = driver.page_source.lower()
-                if "sign up" in page_source or "log in" in page_source:
-                    return {"status": "error", "message": "Not logged in. Please open visible browser and login."}
-                return {"status": "error", "message": "Could not find tweet compose box. X UI may have changed."}
-            
-            time.sleep(2) # Extra buffer
-            
-            # 0. Upload Media (if provided) to the FIRST tweet
-            if media_path and os.path.exists(media_path):
-                try:
-                    file_input = driver.find_element(By.CSS_SELECTOR, "input[type='file']")
-                    file_input.send_keys(os.path.abspath(media_path))
-                    
-                    # Wait for media to load (look for attachments)
-                    WebDriverWait(driver, 30).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='attachments']"))
-                    )
-                    time.sleep(1)
-                except Exception as media_err:
-                     return {"status": "error", "message": f"Media upload failed: {str(media_err)}"}
 
+        if "login" in driver.current_url.lower() or "flow" in driver.current_url.lower():
+            return {"status": "error", "message": "Session expired. Please re-login."}
 
-            # Post Loop
-            for i, tweet_text in enumerate(tweets):
-                # PACING: Slow down for human-like behavior
-                print(f"Processing tweet {i}...", file=sys.stderr)
-                time.sleep(2.0)
+        print(f"[Thread] reply-chain: {len(tweets)} tweets", file=sys.stderr)
 
-                # 1. Add "Plus" button if 2nd+ tweet
-                if i > 0:
-                    try:
-                        # FORCE SCROLL DOWN before looking for buttons
-                        try:
-                            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
-                            time.sleep(0.5)
-                        except: pass
+        # ── 1. tweet ─────────────────────────────────────────────────────────
+        print(f"[Thread] Posting tweet 1/{len(tweets)}...", file=sys.stderr)
+        first_url = _post_one(driver, tweets[0], reply_to_url=None)
 
-                        # Count existing textboxes
-                        existing_boxes = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
-                        old_count = len(existing_boxes)
+        if not first_url:
+            return {"status": "error", "message": "First tweet failed"}
 
-                        target_btn = None
-                        
-                        # 1. Try strict ID (Best case)
-                        try:
-                            btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
-                            for btn in btns:
-                                if btn.is_displayed():
-                                    target_btn = btn
-                                    print("Found Add Button via data-testid='addButton'", file=sys.stderr)
-                                    break
-                        except: pass
-                        
-                        # 2. Try Exact Localized Labels (Expanded for 2025+ X UI)
-                        if not target_btn:
-                            # Strict list of valid labels for the (+) button
-                            # Added English/Turkish variations + new X UI labels
-                            valid_labels = [
-                                "Tweet ekle", "Add Tweet", "Add another Tweet", 
-                                "Başka bir gönderi ekle", "Gönderi ekle", "Zincir ekle", 
-                                "Add", "Ekle", "Gönderi Ekle", "Post ekle", "Add post",
-                                "Yeni gönderi ekle", "New post"
-                            ]
-                            
-                            # Construct XPath for EXACT match or STARTS WITH to be safer
-                            xpath_parts = [f"@aria-label='{label}'" for label in valid_labels]
-                            xpath_join = " or ".join(xpath_parts)
-                            xpath = f"//div[@role='button'][{xpath_join}] | //button[{xpath_join}]"
-                            
-                            try:
-                                btns = driver.find_elements(By.XPATH, xpath)
-                                for btn in btns:
-                                    if btn.is_displayed():
-                                        label = (btn.get_attribute("aria-label") or "").lower()
-                                        
-                                        # NUCLEAR EXCLUSION LIST: Ban all other toolbar icons
-                                        forbidden_terms = [
-                                            "medya", "media", 
-                                            "fotoğraf", "photo", 
-                                            "video", 
-                                            "gif", 
-                                            "anket", "poll", 
-                                            "emoji", 
-                                            "planla", "schedule", 
-                                            "konum", "location", 
-                                            "kalın", "bold", 
-                                            "italik", "italic",
-                                            "liste", "list"
-                                        ]
-                                        
-                                        if any(term in label for term in forbidden_terms):
-                                            print(f"Ignoring toolbar button: {label}", file=sys.stderr)
-                                            continue
-                                            
-                                        target_btn = btn
-                                        print(f"Found Add Button via label: {label}", file=sys.stderr)
-                                        break
-                            except: pass
-                        
-                        # 3. NEW 2025: Try finding via SVG Plus icon in toolbar
-                        if not target_btn:
-                            try:
-                                # Look for clickable elements containing a plus SVG near the tweet button
-                                plus_candidates = driver.find_elements(By.CSS_SELECTOR, 
-                                    "div[role='button']:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z']), " +
-                                    "button:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z'])"
-                                )
-                                for cand in plus_candidates:
-                                    if cand.is_displayed():
-                                        target_btn = cand
-                                        print("Found Add Button via SVG Plus icon", file=sys.stderr)
-                                        break
-                            except: pass
-                        
-                        # 4. NEW 2025: Fallback - Find by visible "+" text or small button near toolbar end
-                        if not target_btn:
-                            try:
-                                # Look for any small circular/square button with + symbol
-                                all_btns = driver.find_elements(By.CSS_SELECTOR, "div[role='button'], button")
-                                for btn in all_btns:
-                                    if not btn.is_displayed():
-                                        continue
-                                    text = btn.text.strip()
-                                    # Direct "+" match or very small icon button
-                                    if text == "+" or text == "➕":
-                                        target_btn = btn
-                                        print("Found Add Button via visible '+' text", file=sys.stderr)
-                                        break
-                            except: pass
-                        
-                        # 5. LAST RESORT: Scroll up and look for any unclicked add mechanism
-                        if not target_btn:
-                            try:
-                                driver.execute_script("window.scrollTo(0, 0);")
-                                time.sleep(0.5)
-                                # Re-check with original selector after scroll
-                                btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
-                                for btn in btns:
-                                    if btn.is_displayed():
-                                        target_btn = btn
-                                        print("Found Add Button after scroll-to-top", file=sys.stderr)
-                                        break
-                            except: pass
+        print(f"[Thread] ✅ Tweet 1 posted: {first_url}", file=sys.stderr)
+        time.sleep(4)
 
-                        if target_btn:
-                            # Scroll and Click
-                            driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", target_btn)
-                            time.sleep(1.0)
-                            driver.execute_script("arguments[0].click();", target_btn)
-                            time.sleep(2.0) # Wait for animation/modal expansion
-                        else:
-                            print("Warning: 'Plus' (+) button not found with STRICT selectors! Threading might fail.", file=sys.stderr)
-                        
-                        # WAIT & VERIFY Logic (10s timeout)
-                        box_spawned = False
-                        try:
-                            WebDriverWait(driver, 10).until(
-                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
-                            )
-                            box_spawned = True
-                            print(f"New tweet box spawned. Total: {old_count + 1}", file=sys.stderr)
-                        except:
-                            print("Warning: Timed out waiting for new textbox.", file=sys.stderr)
-                        
-                        if not box_spawned:
-                            print("CRITICAL: Failed to create new tweet box! Retrying click...", file=sys.stderr)
-                            # ONE LAST TRY
-                            try:
-                                if target_btn: 
-                                    driver.execute_script("arguments[0].click();", target_btn)
-                                    time.sleep(3.0)
-                                    if len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count:
-                                        print("Recovery successful! Box spawned.", file=sys.stderr)
-                                        box_spawned = True
-                            except: pass
+        # ── Kalan tweetler ───────────────────────────────────────────────────
+        last_url = first_url
+        for i, tweet_text in enumerate(tweets[1:], 2):
+            print(f"[Thread] Posting tweet {i}/{len(tweets)} as reply...", file=sys.stderr)
+            reply_url = _post_one(driver, tweet_text, reply_to_url=last_url)
 
-                        if not box_spawned:
-                            print("ABORTING THREAD: Cannot spawn new box. Preventing overwrite.", file=sys.stderr)
-                            break # Dangerous to continue, we might overwrite previous tweet
+            if not reply_url:
+                print(f"[Thread] WARNING: Tweet {i} failed", file=sys.stderr)
+                time.sleep(3)
+                reply_url = last_url  # aynı URL'e retry
 
-                    except Exception as e:
-                        print(f"Error clicking Add button: {e}", file=sys.stderr)
+            print(f"[Thread] ✅ Tweet {i} posted", file=sys.stderr)
+            last_url = reply_url
+            time.sleep(4)
 
-                # 2. Find the active box for THIS tweet
-                try:
-                    # Universal Selector logic
-                    time.sleep(1.0)
-                    textboxes = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
-                    
-                    if not textboxes:
-                        print(f"Error: No textboxes found for tweet {i}!", file=sys.stderr)
-                        active_box = driver.switch_to.active_element
-                    else:
-                        if len(textboxes) <= i:
-                             print(f"CRITICAL ERROR: New textbox for tweet {i} not found. Skipping.", file=sys.stderr)
-                             continue
-                        active_box = textboxes[i]
-                    
-                    # FORCE SCROLL TO ACTIVE BOX
-                    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", active_box)
-                    time.sleep(0.5)
-                    # Extra nudge for sticky headers
-                    try:
-                        active_box.send_keys(Keys.PAGE_DOWN) 
-                        time.sleep(0.2)
-                    except: pass
-                    
-                    # TYPE AND VERIFY (Using Global Helper)
-                    success = robust_type_and_verify(driver, active_box, tweet_text, i)
-                    
-                    if not success:
-                         print(f"Warning: Failed to verify entry for tweet {i}", file=sys.stderr)
-                    
-                except Exception as e:
-                     print(f"Error handling tweet {i}: {e}", file=sys.stderr)
-
-            # 3. Post All
-            try:
-                tweet_btn = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButton']"))
-                )
-                
-                # Check directly attribute
-                is_disabled = tweet_btn.get_attribute("aria-disabled")
-                if is_disabled == "true":
-                     print("Final check: Button is disabled. Attempting one last check...", file=sys.stderr)
-                     # Maybe focus the last box again?
-                     try:
-                        textareas = driver.find_elements(By.CSS_SELECTOR, "[data-testid^='tweetTextarea_']")
-                        if textareas: textareas[-1].click()
-                        time.sleep(1)
-                     except: pass
-                
-                driver.execute_script("arguments[0].click();", tweet_btn)
-                
-                # Verify Success (Wait for modal to close or toast)
-                time.sleep(5)
-            except Exception as loop_err:
-                 print(f"Error in post loop: {loop_err}", file=sys.stderr)
-                 try:
-                    debug_path = os.path.join(APPDATA_DIR, "screenshots", f"debug_post_error_{i}.png")
-                    driver.save_screenshot(debug_path)
-                 except: pass
-                 return {"status": "error", "message": f"Post loop fail at {i}: {str(loop_err)}"}
-            
-            # Verify Success and get URL
-            time.sleep(5)
-            posted_url = ""
-            try:
-                # Try to find the "View" link in the success toast
-                view_link = driver.find_elements(By.XPATH, "//span[contains(text(), 'View')]")
-                if not view_link:
-                    # Fallback: check current URL if it changed
-                    if "/status/" in driver.current_url:
-                        posted_url = driver.current_url
-                else:
-                    # Click or get href? Usually success toast is not a real link but we can try to find the actual status
-                    pass
-                
-                if not posted_url:
-                    # Last resort: Get the last tweet from profile
-                    driver.get("https://x.com/home") # home sometimes shows yours at the top or go to profile
-                    time.sleep(2)
-                    last_tweet = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet'] a[href*='/status/']")
-                    if last_tweet:
-                        posted_url = last_tweet[0].get_attribute("href")
-            except: pass
-
-            return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!", "url": posted_url}
-            
-        except Exception as e:
-            try:
-                debug_path = os.path.join(APPDATA_DIR, "screenshots", "debug_error.png")
-                driver.save_screenshot(debug_path)
-                print(f"DEBUG: Screenshot saved to {debug_path}", file=sys.stderr)
-            except: pass
-            
-            import traceback
-            return {"status": "error", "message": f"Thread fail at general step: {str(e)} | {traceback.format_exc()}"}
+        print(f"✅ Thread posted successfully ({len(tweets)} parts)", file=sys.stderr)
+        return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!", "url": first_url}
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        import traceback
+        return {"status": "error", "message": f"Thread fail: {str(e)} | {traceback.format_exc()}"}
     finally:
-        if driver: driver.quit()
+        if driver:
+            driver.quit()
 
 def fetch_search_news():
     """Search for breaking financial news on X"""
@@ -2313,23 +2136,27 @@ def fetch_search_news():
                 if not content or len(content.strip()) < 10:
                     continue
 
-                # 2. Extract handle
-                handle = "X-Haber"
+                # 2. Extract handle (Improved v4.8.2)
+                handle = ""
                 try:
                     user_el = tweet.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
                     handle_text = user_el.text
-                    if "@" in handle_text:
-                        handle = handle_text.split("@")[1].split("\n")[0].split(" ")[0]
-                except:
+                    m = re.search(r'@(\w+)', handle_text)
+                    if m: handle = "@" + m.group(1)
+                except: pass
+
+                if not handle:
                     try:
-                        # Fallback: find any link to profile
+                        # Profile link fallback
                         links = tweet.find_elements(By.CSS_SELECTOR, "a[role='link']")
                         for l in links:
                             href = l.get_attribute("href") or ""
-                            if "status" not in href and "x.com/" in href:
-                                handle = href.split("x.com/")[1].split("/")[0]
+                            if "x.com/" in href and not any(x in href for x in ["/status/", "/search", "home"]):
+                                handle = "@" + href.split("x.com/")[1].split("/")[0].split("?")[0]
                                 break
                     except: pass
+                
+                if not handle: handle = "X-Haber"
                 
                 # 3. Real URL & Time
                 url = "https://x.com"
