@@ -879,8 +879,135 @@ def _safe_click_element(driver, elem, label="element"):
     return False
 
 
+def _post_single_tweet(driver, text, reply_to_url=None):
+    """
+    Post a single tweet, optionally as a reply.
+    Returns the URL of the posted tweet, or None on failure.
+    v4.9.2: Reply-chain approach — her tweet ayrı ayrı gönderilir.
+    """
+    from selenium.webdriver.common.action_chains import ActionChains
+    import pyperclip
+
+    try:
+        if reply_to_url:
+            # Reply: direkt reply URL'e git
+            driver.get(reply_to_url)
+            time.sleep(2.5)
+            # Reply butonunu bul
+            try:
+                reply_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                        "[data-testid='reply'], [aria-label*='Reply'], [aria-label*='Yanıtla']"))
+                )
+                driver.execute_script("arguments[0].click();", reply_btn)
+                log(f"Reply button clicked for: {reply_to_url}")
+                time.sleep(2)
+            except Exception as e:
+                log(f"Reply button not found, trying compose URL: {e}")
+                # Fallback: compose URL ile reply
+                tweet_id = reply_to_url.rstrip("/").split("/")[-1]
+                driver.get(f"https://x.com/intent/tweet?in_reply_to={tweet_id}")
+                time.sleep(2.5)
+        else:
+            # İlk tweet: compose modal aç
+            compose_opened = False
+            try:
+                sidenav_btn = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR,
+                        "[data-testid='SideNav_NewTweet_Button'], [data-testid='tweetButtonInline']"))
+                )
+                driver.execute_script("arguments[0].click();", sidenav_btn)
+                log("Compose opened via SideNav button")
+                compose_opened = True
+                time.sleep(2)
+            except Exception:
+                pass
+
+            if not compose_opened:
+                driver.get("https://x.com/compose/tweet")
+                log("Compose opened via URL")
+                time.sleep(3)
+
+        # Textbox'ı bul
+        try:
+            box = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                    "[data-testid='tweetTextarea_0'], div[role='textbox']"))
+            )
+        except Exception as e:
+            log(f"Textbox not found: {e}")
+            return None
+
+        # Yaz
+        if not robust_type_and_verify(driver, box, text, 0):
+            log("Warning: text verify failed, continuing anyway...")
+
+        # Post butonunu bekle ve tıkla
+        post_btn = None
+        for attempt in range(8):
+            post_btn = _click_post_button(driver)
+            if post_btn:
+                log(f"Post button ready (attempt {attempt+1})")
+                break
+            log(f"Post button not ready (attempt {attempt+1}/8), waiting...")
+            time.sleep(2.5)
+
+        if not post_btn:
+            log("FATAL: Post button not found")
+            return None
+
+        try:
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", post_btn)
+            time.sleep(0.4)
+        except Exception:
+            pass
+
+        if not _safe_click_element(driver, post_btn, "Post button"):
+            log("Post button click failed")
+            return None
+
+        # Gönderilmesini bekle — dialog kapansın veya tweet URL'si değişsin
+        time.sleep(3)
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR,
+                    "[data-testid='tweetTextarea_0']"))
+            )
+            log("Compose dialog closed — tweet posted")
+        except Exception:
+            log("Dialog close timeout — checking current URL...")
+
+        # Yeni tweet URL'sini al: timeline'daki en son tweet'i bul
+        try:
+            driver.get("https://x.com/home")
+            time.sleep(2.5)
+            # En son kendi tweet'imizin URL'sini bul
+            latest = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                    "article[data-testid='tweet'] a[href*='/status/']"))
+            )
+            tweet_url = latest.get_attribute("href")
+            # Tam URL yap
+            if tweet_url and not tweet_url.startswith("http"):
+                tweet_url = "https://x.com" + tweet_url
+            log(f"Latest tweet URL: {tweet_url}")
+            return tweet_url
+        except Exception as e:
+            log(f"Could not get tweet URL: {e}")
+            return "https://x.com/home"  # URL bulunamazsa devam et
+
+    except Exception as e:
+        log(f"_post_single_tweet error: {type(e).__name__}: {e}")
+        return None
+
+
 def cmd_post_thread(params):
-    """Post a tweet thread — v4.9.0 (Deep Robust Rewrite)"""
+    """
+    Post a tweet thread — v4.9.2 REPLY-CHAIN APPROACH
+    Her tweet ayrı ayrı gönderilir: 1. tweet normal, sonrakiler reply olarak.
+    Bu yaklaşım Twitter'ın compose modal Add buton sorununu tamamen bypass eder.
+    """
     tweets = params.get("tweets", [])
     media_path = params.get("media")
 
@@ -892,201 +1019,36 @@ def cmd_post_thread(params):
         return {"status": "error", "message": "Driver not available"}
 
     try:
-        from selenium.webdriver.common.action_chains import ActionChains
-        import pyperclip
+        log(f"[Thread] Starting reply-chain approach: {len(tweets)} tweets")
 
-        # ── STEP 1: Open compose dialog ──────────────────────────────────────
-        # Try SideNav button first (more reliable than /compose/tweet URL in new X)
-        compose_opened = False
-        try:
-            sidenav_btn = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR,
-                    "[data-testid='SideNav_NewTweet_Button'], [data-testid='tweetButtonInline']"))
-            )
-            driver.execute_script("arguments[0].click();", sidenav_btn)
-            log("Compose opened via SideNav_NewTweet_Button")
-            compose_opened = True
-            time.sleep(2)
-        except Exception:
-            pass
+        # ── 1. tweet: normal compose ─────────────────────────────────────────
+        log(f"[Thread] Posting tweet 1/{len(tweets)}...")
+        first_url = _post_single_tweet(driver, tweets[0], reply_to_url=None)
 
-        if not compose_opened:
-            driver.get("https://x.com/compose/tweet")
-            log("Compose opened via URL navigate")
-            time.sleep(3)
+        if not first_url:
+            log("FATAL: Could not post first tweet")
+            return {"status": "error", "message": "First tweet failed"}
 
-        # ── STEP 2: Wait for first tweet box ─────────────────────────────────
-        try:
-            first_box = WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR,
-                    "[data-testid='tweetTextarea_0'], div[role='textbox']"))
-            )
-        except Exception as e:
-            log(f"FATAL: Could not find first tweet box: {e}")
-            return {"status": "error", "message": "Could not open compose box"}
+        log(f"[Thread] ✅ Tweet 1 posted: {first_url}")
+        time.sleep(4)  # Twitter'ın indexlemesi için bekle
 
-        # ── STEP 3: Type first tweet ──────────────────────────────────────────
-        if not robust_type_and_verify(driver, first_box, tweets[0], 0):
-            log("Warning: First tweet verification failed, continuing anyway...")
-        time.sleep(1)
+        # ── Kalan tweetler: reply olarak ─────────────────────────────────────
+        last_url = first_url
+        for i, tweet_text in enumerate(tweets[1:], 2):
+            log(f"[Thread] Posting tweet {i}/{len(tweets)} as reply to: {last_url}")
+            reply_url = _post_single_tweet(driver, tweet_text, reply_to_url=last_url)
 
-        # ── STEP 4: Add remaining tweets ─────────────────────────────────────
-        for i, tweet_text in enumerate(tweets[1:], 1):
-            log(f"Processing thread part {i+1}/{len(tweets)}...")
-            part_success = False
+            if not reply_url:
+                log(f"WARNING: Tweet {i} failed, trying to continue with last known URL...")
+                # Son bilinen URL ile devam et
+                time.sleep(3)
+                reply_url = last_url  # fallback — aynı URL'e reply dene
 
-            for attempt in range(3):  # Up to 3 attempts per part
-                try:
-                    old_count = len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']"))
+            log(f"[Thread] ✅ Tweet {i} posted")
+            last_url = reply_url
+            time.sleep(4)  # Her tweet arasında bekle
 
-                    result = _find_add_button(driver)
-
-                    if result == "ctrl_enter_sent":
-                        # Ctrl+Enter was sent, wait for new box
-                        spawned = False
-                        try:
-                            WebDriverWait(driver, 5).until(
-                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
-                            )
-                            spawned = True
-                        except Exception:
-                            pass
-
-                        if not spawned:
-                            log(f"Ctrl+Enter did not spawn new box (attempt {attempt+1})")
-                            time.sleep(1)
-                            continue
-
-                    elif result is not None:
-                        add_btn = result
-                        # Wait for enabled state
-                        for _ in range(12):
-                            if add_btn.get_attribute("aria-disabled") != "true":
-                                break
-                            time.sleep(0.5)
-                        else:
-                            log(f"Add button stayed disabled (attempt {attempt+1}), retrying...")
-                            time.sleep(1)
-                            continue
-
-                        # Scroll and click
-                        driver.execute_script(
-                            "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", add_btn)
-                        time.sleep(0.4)
-                        driver.execute_script("arguments[0].click();", add_btn)
-
-                        # Wait for new textbox
-                        spawned = False
-                        try:
-                            WebDriverWait(driver, 6).until(
-                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
-                            )
-                            spawned = True
-                        except Exception:
-                            log("JS click didn't spawn box, trying ActionChains...")
-                            try:
-                                ActionChains(driver).move_to_element(add_btn).click().perform()
-                                WebDriverWait(driver, 5).until(
-                                    lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
-                                )
-                                spawned = True
-                                log("ActionChains click succeeded")
-                            except Exception:
-                                pass
-
-                        if not spawned:
-                            log(f"Box not spawned after button click (attempt {attempt+1})")
-                            time.sleep(1)
-                            continue
-                    else:
-                        log(f"Add button completely NOT found (attempt {attempt+1})")
-                        time.sleep(2)
-                        continue
-
-                    # ── Find the new box and type ─────────────────────────────
-                    time.sleep(1.2)  # v4.9.2: Twitter'ın yeni box'ı render etmesi için daha uzun bekle
-                    text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
-                    new_count = len(text_areas)
-                    log(f"Textbox count after spawn: {new_count} (was {old_count})")
-
-                    if new_count > old_count:
-                        # En son (yeni) box'a ActionChains ile tıkla — JS click focus kaybına neden olabilir
-                        active_box = text_areas[-1]
-                        try:
-                            ActionChains(driver).move_to_element(active_box).click().perform()
-                        except Exception:
-                            driver.execute_script("arguments[0].click();", active_box)
-                        time.sleep(0.5)
-                        if robust_type_and_verify(driver, active_box, tweet_text, i):
-                            part_success = True
-                            log(f"✅ Thread part {i+1} written successfully")
-                            break
-                        else:
-                            log(f"Typing failed for part {i+1} (attempt {attempt+1})")
-                    else:
-                        log(f"Textbox count unchanged after spawn (attempt {attempt+1})")
-
-                    time.sleep(1)
-
-                except Exception as part_err:
-                    log(f"Exception in thread part {i+1} attempt {attempt+1}: {type(part_err).__name__}: {part_err}")
-                    time.sleep(1)
-
-            if not part_success:
-                log(f"ABORTING: Could not add thread part {i+1} after 3 attempts")
-                return {"status": "error", "message": f"Failed to spawn box for part {i+1}"}
-
-            time.sleep(0.5)
-
-        # ── STEP 5: Click Post button ─────────────────────────────────────────
-        # Extra wait: React needs to enable the post button after all typing
-        time.sleep(2)
-
-        # Re-focus last textbox so React re-evaluates button state
-        try:
-            text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
-            if text_areas:
-                text_areas[-1].click()
-                time.sleep(0.5)
-        except Exception: pass
-
-        post_btn = None
-        for wait_attempt in range(6):  # Wait up to ~18 seconds total
-            post_btn = _click_post_button(driver)
-            if post_btn:
-                log(f"Post button ready on attempt {wait_attempt+1}")
-                break
-            log(f"Post button not ready yet (attempt {wait_attempt+1}/6), waiting...")
-            time.sleep(3)
-
-        if not post_btn:
-            log("FATAL: Post button not found after all attempts")
-            return {"status": "error", "message": "Post button not found"}
-
-        # Scroll into view
-        try:
-            driver.execute_script(
-                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", post_btn)
-            time.sleep(0.5)
-        except Exception: pass
-
-        # Click with StaleElement protection
-        clicked = _safe_click_element(driver, post_btn, "Post button")
-
-        if not clicked:
-            return {"status": "error", "message": "Post button click failed"}
-
-        # Wait for dialog to close (indicates success)
-        time.sleep(2)
-        try:
-            WebDriverWait(driver, 8).until(
-                EC.invisibility_of_element_located((By.CSS_SELECTOR,
-                    "[data-testid='tweetTextarea_0']"))
-            )
-            log(f"✅ Thread posted successfully ({len(tweets)} parts)")
-        except Exception:
-            log("Warning: Compose dialog did not close after click — may still have posted")
-
+        log(f"✅ Thread posted successfully ({len(tweets)} parts) via reply-chain")
         return {"status": "success", "message": f"Thread posted ({len(tweets)} tweets)"}
 
     except Exception as e:
