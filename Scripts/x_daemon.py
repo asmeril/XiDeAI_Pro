@@ -349,28 +349,37 @@ def shutdown_driver():
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.9.1 - No Ctrl+A global clear)"""
+    """ULTRA-ROBUST TYPING v4.9.2
+    - clipboard FIRST (en güvenilir yöntem Twitter için)
+    - js_insert SADECE element-scoped selectNodeContents kullanır (selectAll YOK)
+    - sendkeys fallback
+    - React nudge: end-of-line key press (boşluk+backspace YOK — tüm modal'ı etkileyebilir)
+    """
     import pyperclip
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.common.action_chains import ActionChains
-    
-    # Method order: js_insert (most reliable for contenteditable) -> clipboard -> sendkeys
-    methods = ["js_insert", "clipboard", "sendkeys"]
-    
+
+    # clipboard önce çünkü Twitter'ın contenteditable'ı paste event'ini en iyi işliyor
+    methods = ["clipboard", "js_insert", "sendkeys"]
+
     for method in methods:
         try:
-            # 1. Scroll into view and focus THIS element specifically
+            # 1. Scroll + focus — SADECE bu element'e
             driver.execute_script(
                 "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", element)
-            time.sleep(0.2)
-            driver.execute_script("arguments[0].focus();", element)
-            time.sleep(0.2)
-            
-            # 2. Clear ONLY this element via JS (no Ctrl+A which affects whole page)
+            time.sleep(0.3)
+
+            # 2. Element'e tıkla (focus)
+            try:
+                ActionChains(driver).move_to_element(element).click().perform()
+            except Exception:
+                driver.execute_script("arguments[0].click();", element)
+            time.sleep(0.3)
+
+            # 3. SADECE bu element'in içini temizle — selectAll KULLANMA
             driver.execute_script("""
                 var el = arguments[0];
                 el.focus();
-                // Select all content within this specific element only
                 var range = document.createRange();
                 range.selectNodeContents(el);
                 var sel = window.getSelection();
@@ -378,61 +387,66 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
                 sel.addRange(range);
                 document.execCommand('delete', false, null);
             """, element)
-            time.sleep(0.2)
-            
-            log(f"[TYPE] Part {tweet_index} using {method}")
-            
-            if method == "js_insert":
-                # Most reliable: execCommand insertText (triggers React synthetic events)
+            time.sleep(0.3)
+
+            log(f"[TYPE] Part {tweet_index} method={method}")
+
+            if method == "clipboard":
+                pyperclip.copy(text)
+                time.sleep(0.2)
+                # Paste
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                time.sleep(0.5)
+                # React nudge: End tuşu — metin değiştirmez, sadece cursor'u sona götürür
+                ActionChains(driver).send_keys(Keys.END).perform()
+                time.sleep(0.2)
+
+            elif method == "js_insert":
+                # selectAll YOK — sadece element-scoped insertText
                 driver.execute_script("""
                     var el = arguments[0];
                     el.focus();
-                    var nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-                        window.HTMLElement.prototype, 'innerHTML');
-                    // Use execCommand which triggers proper React events
-                    document.execCommand('selectAll', false, null);
+                    var range = document.createRange();
+                    range.selectNodeContents(el);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
                     document.execCommand('delete', false, null);
                     document.execCommand('insertText', false, arguments[1]);
                 """, element, text)
-                time.sleep(0.3)
-                # Nudge React to re-render
-                ActionChains(driver).move_to_element(element).click().perform()
-                time.sleep(0.3)
-                
-            elif method == "clipboard":
-                pyperclip.copy(text)
-                time.sleep(0.2)
-                # Click element first to ensure focus
-                ActionChains(driver).move_to_element(element).click().perform()
-                time.sleep(0.2)
-                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
                 time.sleep(0.4)
-                # Nudge React
-                ActionChains(driver).send_keys(" ").send_keys(Keys.BACKSPACE).perform()
-                
+                # React nudge: click + END
+                try:
+                    ActionChains(driver).move_to_element(element).click().perform()
+                    ActionChains(driver).send_keys(Keys.END).perform()
+                except Exception:
+                    pass
+                time.sleep(0.3)
+
             elif method == "sendkeys":
-                ActionChains(driver).move_to_element(element).click().perform()
-                time.sleep(0.2)
                 element.send_keys(text)
-            
-            # Allow React to sync
-            time.sleep(1.5)
-            
-            # Verify via innerText
+                time.sleep(0.3)
+                ActionChains(driver).send_keys(Keys.END).perform()
+
+            # React sync bekle
+            time.sleep(1.2)
+
+            # Verify
             current_text = driver.execute_script(
                 "return arguments[0].innerText;", element).strip()
             input_len = len(text.strip())
             current_len = len(current_text)
-            
-            if input_len > 0 and current_len >= input_len * 0.85:
-                log(f"✅ Part {tweet_index} verified ({current_len}/{input_len})")
+
+            if input_len > 0 and current_len >= input_len * 0.80:
+                log(f"✅ Part {tweet_index} verified ({current_len}/{input_len}) via {method}")
                 return True
             else:
-                log(f"⚠️ Part {tweet_index} length mismatch ({current_len}/{input_len}), trying next method...")
-                
+                log(f"⚠️ Part {tweet_index} mismatch ({current_len}/{input_len}) via {method}, next method...")
+
         except Exception as e:
-            log(f"❌ Method {method} failed: {type(e).__name__}: {e}")
-            
+            log(f"❌ Method {method} failed for part {tweet_index}: {type(e).__name__}: {e}")
+
+    log(f"FATAL: All methods failed for part {tweet_index}")
     return False
 
 
@@ -990,16 +1004,19 @@ def cmd_post_thread(params):
                         continue
 
                     # ── Find the new box and type ─────────────────────────────
-                    time.sleep(0.8)
+                    time.sleep(1.2)  # v4.9.2: Twitter'ın yeni box'ı render etmesi için daha uzun bekle
                     text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
                     new_count = len(text_areas)
                     log(f"Textbox count after spawn: {new_count} (was {old_count})")
 
                     if new_count > old_count:
-                        # Click the newest (last) box
+                        # En son (yeni) box'a ActionChains ile tıkla — JS click focus kaybına neden olabilir
                         active_box = text_areas[-1]
-                        driver.execute_script("arguments[0].click();", active_box)
-                        time.sleep(0.3)
+                        try:
+                            ActionChains(driver).move_to_element(active_box).click().perform()
+                        except Exception:
+                            driver.execute_script("arguments[0].click();", active_box)
+                        time.sleep(0.5)
                         if robust_type_and_verify(driver, active_box, tweet_text, i):
                             part_success = True
                             log(f"✅ Thread part {i+1} written successfully")
