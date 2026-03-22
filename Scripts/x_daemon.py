@@ -801,7 +801,7 @@ def _safe_click_element(driver, elem, label="element"):
     return False
 
 
-def _post_single_tweet(driver, text, reply_to_url=None):
+def _post_single_tweet(driver, text, reply_to_url=None, media_path=None):
     """
     Post a single tweet, optionally as a reply.
     Returns the URL of the posted tweet, or None on failure.
@@ -864,7 +864,17 @@ def _post_single_tweet(driver, text, reply_to_url=None):
         if not robust_type_and_verify(driver, box, text, 0):
             log("Warning: text verify failed, continuing anyway...")
 
-        # Post butonunu bekle ve tıkla
+        # Medya yükle (sadece media_path verilmişse)
+        if media_path and os.path.exists(media_path):
+            try:
+                file_input = driver.find_element(By.CSS_SELECTOR,
+                    "input[data-testid='fileInput'], input[accept*='image'][type='file']")
+                file_input.send_keys(media_path)
+                log(f"Media uploaded: {media_path}")
+                time.sleep(3)
+            except Exception as e:
+                log(f"Media upload failed (non-fatal): {e}")
+
         post_btn = None
         for attempt in range(8):
             post_btn = _click_post_button(driver)
@@ -983,7 +993,7 @@ def cmd_post_thread(params):
 
         # ── 1. tweet: normal compose ─────────────────────────────────────────
         log(f"[Thread] Posting tweet 1/{len(tweets)}...")
-        first_url = _post_single_tweet(driver, tweets[0], reply_to_url=None)
+        first_url = _post_single_tweet(driver, tweets[0], reply_to_url=None, media_path=media_path)
 
         if not first_url:
             log("FATAL: Could not post first tweet")

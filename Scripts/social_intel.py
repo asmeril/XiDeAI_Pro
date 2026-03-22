@@ -1910,8 +1910,8 @@ def post_thread_chain(tweets, media_path=None):
     if not COOKIES_FILE.exists():
         return {"status": "error", "message": "No cookies found."}
 
-    def _post_one(driver, text, reply_to_url=None):
-        """Tek bir tweet gönder. reply_to_url verilirse o tweet'e reply atar."""
+    def _post_one(driver, text, reply_to_url=None, media_path=None):
+        """Tek bir tweet gönder. reply_to_url verilirse o tweet'e reply atar. media_path verilirse görsel ekler."""
         try:
             if reply_to_url:
                 driver.get(reply_to_url)
@@ -1959,7 +1959,16 @@ def post_thread_chain(tweets, media_path=None):
             # Yaz
             robust_type_and_verify(driver, box, text, 0)
 
-            # Post butonu bekle
+            # Medya yükle (sadece media_path verilmişse)
+            if media_path and os.path.exists(media_path):
+                try:
+                    file_input = driver.find_element(By.CSS_SELECTOR,
+                        "input[data-testid='fileInput'], input[accept*='image'][type='file']")
+                    file_input.send_keys(media_path)
+                    print(f"Media uploaded: {media_path}", file=sys.stderr)
+                    time.sleep(3)  # Yüklemenin tamamlanmasını bekle
+                except Exception as e:
+                    print(f"Media upload failed (non-fatal): {e}", file=sys.stderr)
             post_btn = None
             btn_selectors = [
                 "[data-testid='tweetButton']",
@@ -2054,7 +2063,7 @@ def post_thread_chain(tweets, media_path=None):
 
         # ── 1. tweet ─────────────────────────────────────────────────────────
         print(f"[Thread] Posting tweet 1/{len(tweets)}...", file=sys.stderr)
-        first_url = _post_one(driver, tweets[0], reply_to_url=None)
+        first_url = _post_one(driver, tweets[0], reply_to_url=None, media_path=media_path)
 
         if not first_url:
             return {"status": "error", "message": "First tweet failed"}

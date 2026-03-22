@@ -743,7 +743,7 @@ Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anla
 ### 📐 MUTLAK KURALLAR (İHLAL ETME!):
 ═══════════════════════════════════════════════════════════════
 
-1. **UZUNLUK:** Tam 4 tweet. Her tweet 220-270 karakter arası (280'i ASLA geçme). Kısa tutma, her tweet'i doldur — ama 280'i geçme.
+1. **UZUNLUK:** Tam 4 tweet. Her tweet 220-270 karakter arası (280'i ASLA geçme). Her tweet EN AZ 3 cümle içermeli. Tek cümlelik tweet YASAK. Kısa tutma, her tweet'i doldur — ama 280'i geçme.
 
 2. **İLK TWEET (Hook):** 
    - Güçlü bir merak unsuru ile başla (""Bu seviyeyi kaçıran pişman olur"", ""7 gündür beklediğim sinyal geldi"")
