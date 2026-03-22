@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>xideai_icon.ico</ApplicationIcon>
     <AssemblyName>XiDeAI_Pro</AssemblyName>
-    <Version>4.8.1</Version>
-    <AssemblyVersion>4.8.1.0</AssemblyVersion>
-    <FileVersion>4.8.1.0</FileVersion>
+    <Version>4.9.0</Version>
+    <AssemblyVersion>4.9.0.0</AssemblyVersion>
+    <FileVersion>4.9.0.0</FileVersion>
     <Company>XiDeAI</Company>
     <Product>XiDeAI Pro</Product>
     <Description>XiDeAI Pro - AI-Powered Trading Assistant</Description>
@@ -40,6 +40,9 @@
     <Exec Command="powershell.exe -ExecutionPolicy Bypass -File copy-publish-assets.ps1 -PublishDir $(PublishDir)" />
   </Target>
 </Project>
+
+
+
 
 
 

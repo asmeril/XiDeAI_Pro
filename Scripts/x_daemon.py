@@ -337,22 +337,24 @@ def shutdown_driver():
     with _driver_lock:
         if _driver:
             try:
+                # v4.8.2: Suppress WinError 6 noise (known UC artifact)
                 _driver.quit()
-            except:
-                pass
+            except Exception as e:
+                # Capture but don't spam if it's just a dead handler
+                if "WinError 6" not in str(e):
+                    log(f"Driver shutdown info: {e}")
             _driver = None
     log("Driver shutdown complete")
 
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.7.11 - Chrome 145+ compat)"""
+    """ULTRA-ROBUST TYPING WITH JS FALLBACK (v4.8.2 - innerText Fixed)"""
     import pyperclip
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.common.action_chains import ActionChains
     
-    # Chrome 130+ removed execCommand('insertText') causing native crash.
-    # New method order: clipboard (most reliable) -> nativeInputValueSetter JS -> sendkeys
+    # New method order: clipboard (most reliable) -> js_native -> sendkeys
     methods = ["clipboard", "js_native", "sendkeys"]
     
     for method in methods:
@@ -372,21 +374,16 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
             log(f"[TYPE] Part {tweet_index} using {method}")
             
             if method == "clipboard":
-                # Primary method: clipboard paste (works with Turkish chars, React state)
+                # Primary method: clipboard paste
                 pyperclip.copy(text)
-                time.sleep(0.2)
+                time.sleep(0.3)
                 ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
                 time.sleep(0.5)
-                # WAKE UP REACT with a dummy space+backspace
-                try:
-                    element.send_keys(" ")
-                    time.sleep(0.1)
-                    element.send_keys(Keys.BACKSPACE)
-                except: pass
+                # WAKE UP REACT: ActionChains based typing is sometimes safer than send_keys
+                ActionChains(driver).send_keys(" ").send_keys(Keys.BACKSPACE).perform()
                 
             elif method == "js_native":
-                # Secondary: DOM text node insertion to bypass React's synthetic events
-                # Works on Chrome 130+ without execCommand crash
+                # Secondary: DOM text node insertion
                 driver.execute_script("""
                     var elem = arguments[0];
                     elem.focus();
@@ -405,21 +402,18 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
                     elem.dispatchEvent(new Event('change', { bubbles: true }));
                 """, element, text)
                 time.sleep(0.5)
-                try:
-                    element.send_keys(" ")
-                    time.sleep(0.1)
-                    element.send_keys(Keys.BACKSPACE)
-                except: pass
+                # WAKE UP REACT
+                ActionChains(driver).send_keys(" ").send_keys(Keys.BACKSPACE).perform()
                 
             elif method == "sendkeys":
-                # Last resort: direct send_keys (may be slow for long text)
+                # Last resort
                 element.send_keys(text)
             
-            # VERIFICATION WAIT
-            time.sleep(1.5)
+            # VERIFICATION WAIT: Allow React to sync state
+            time.sleep(2.0)
             
-            # Visual verification: Check text length
-            current_text = element.text.strip()
+            # Visual verification: Use innerText via JS for contenteditable reliability
+            current_text = driver.execute_script("return arguments[0].innerText;", element).strip()
             input_len = len(text.strip())
             current_len = len(current_text)
             
@@ -685,160 +679,346 @@ def cmd_like(params):
         return {"status": "error", "message": str(e)}
 
 
+def _find_add_button(driver):
+    """
+    Find the 'Add another Tweet' button using multiple strategies.
+    Returns the button element or None.
+    v4.9.0: Unified, deeply robust approach.
+    """
+    from selenium.webdriver.common.action_chains import ActionChains
+
+    # Strategy 1: data-testid
+    try:
+        btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
+        for b in btns:
+            if b.is_displayed() and b.get_attribute("aria-disabled") != "true":
+                log("Found Add Button via data-testid='addButton'")
+                return b
+    except Exception: pass
+
+    # Strategy 2: aria-label (localized, broad)
+    forbidden_terms = [
+        "medya", "media", "fotoğraf", "photo", "video", "gif",
+        "anket", "poll", "emoji", "planla", "schedule",
+        "konum", "location", "kalın", "bold", "italik", "italic",
+        "liste", "list", "link", "bağlantı"
+    ]
+    add_keywords = [
+        "ekle", "add", "zincir", "gönderi ekle", "tweet ekle",
+        "başka", "another", "new post", "post ekle"
+    ]
+    try:
+        all_btns = driver.find_elements(By.CSS_SELECTOR,
+            "div[role='button'][aria-label], button[aria-label]")
+        for b in all_btns:
+            if not b.is_displayed():
+                continue
+            label = (b.get_attribute("aria-label") or "").lower()
+            if not label:
+                continue
+            if any(f in label for f in forbidden_terms):
+                continue
+            if any(k in label for k in add_keywords):
+                if b.get_attribute("aria-disabled") != "true":
+                    log(f"Found Add Button via aria-label: '{label}'")
+                    return b
+    except Exception: pass
+
+    # Strategy 3: SVG plus icon (M11 11V4h2v7h7...)
+    try:
+        plus_svgs = driver.execute_script("""
+            var paths = document.querySelectorAll('svg path');
+            for (var p of paths) {
+                var d = p.getAttribute('d') || '';
+                if (d.includes('M11 11V4') || d.includes('M12 3.75')) {
+                    var btn = p.closest('div[role=\\'button\\'],button');
+                    if (btn && btn.offsetParent !== null) return btn;
+                }
+            }
+            return null;
+        """)
+        if plus_svgs:
+            log("Found Add Button via SVG path scan")
+            return plus_svgs
+    except Exception: pass
+
+    # Strategy 4: Keyboard shortcut Ctrl+Enter on last active textbox — spawn new box
+    try:
+        textboxes = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
+        if textboxes:
+            last_box = textboxes[-1]
+            last_box.click()
+            time.sleep(0.3)
+            ActionChains(driver).key_down(Keys.CONTROL).send_keys(Keys.RETURN).key_up(Keys.CONTROL).perform()
+            log("Add Button not found — sent Ctrl+Enter keyboard shortcut")
+            return "ctrl_enter_sent"  # Special marker
+    except Exception: pass
+
+    return None
+
+
+def _click_post_button(driver):
+    """
+    Robustly click the final 'Post All' / 'Tweet All' button.
+    Tries multiple selectors and methods. v4.9.0.
+    """
+    from selenium.webdriver.common.action_chains import ActionChains
+
+    # Selector priority list — X changes these frequently
+    selectors = [
+        "[data-testid='tweetButton']",
+        "[data-testid='sendReplies']",
+        "[data-testid='tweetButtonInline']",
+    ]
+
+    # Label-based fallback
+    post_labels = [
+        "hepsini paylaş", "tümünü paylaş", "tweet at", "paylaş",
+        "post all", "tweet all", "post", "send"
+    ]
+
+    for sel in selectors:
+        try:
+            btns = driver.find_elements(By.CSS_SELECTOR, sel)
+            for b in btns:
+                if b.is_displayed():
+                    disabled = b.get_attribute("aria-disabled") == "true" or not b.is_enabled()
+                    if not disabled:
+                        log(f"Post button found via selector: {sel}")
+                        return b
+        except Exception: pass
+
+    # Label search
+    try:
+        all_btns = driver.find_elements(By.CSS_SELECTOR,
+            "div[role='button'][aria-label], button[aria-label], div[role='button'], button[type='button']")
+        for b in all_btns:
+            if not b.is_displayed():
+                continue
+            label = (b.get_attribute("aria-label") or b.text or "").lower()
+            if any(k in label for k in post_labels):
+                if b.get_attribute("aria-disabled") != "true":
+                    log(f"Post button found via label: '{label}'")
+                    return b
+    except Exception: pass
+
+    return None
+
+
 def cmd_post_thread(params):
-    """Post a tweet thread"""
+    """Post a tweet thread — v4.9.0 (Deep Robust Rewrite)"""
     tweets = params.get("tweets", [])
     media_path = params.get("media")
-    
+
     if not tweets:
         return {"status": "error", "message": "Tweets required"}
-    
+
     driver = get_driver()
     if not driver:
         return {"status": "error", "message": "Driver not available"}
-    
+
     try:
+        from selenium.webdriver.common.action_chains import ActionChains
         import pyperclip
-        driver.get("https://x.com/compose/tweet")
-        time.sleep(2)
-        
-        # Wait for tweet box
-        tweet_box = WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0'], [role='textbox']"))
-        )
-        
-        # Type first tweet (Using robust engine)
-        if not robust_type_and_verify(driver, tweet_box, tweets[0], 0):
+
+        # ── STEP 1: Open compose dialog ──────────────────────────────────────
+        # Try SideNav button first (more reliable than /compose/tweet URL in new X)
+        compose_opened = False
+        try:
+            sidenav_btn = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR,
+                    "[data-testid='SideNav_NewTweet_Button'], [data-testid='tweetButtonInline']"))
+            )
+            driver.execute_script("arguments[0].click();", sidenav_btn)
+            log("Compose opened via SideNav_NewTweet_Button")
+            compose_opened = True
+            time.sleep(2)
+        except Exception:
+            pass
+
+        if not compose_opened:
+            driver.get("https://x.com/compose/tweet")
+            log("Compose opened via URL navigate")
+            time.sleep(3)
+
+        # ── STEP 2: Wait for first tweet box ─────────────────────────────────
+        try:
+            first_box = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR,
+                    "[data-testid='tweetTextarea_0'], div[role='textbox']"))
+            )
+        except Exception as e:
+            log(f"FATAL: Could not find first tweet box: {e}")
+            return {"status": "error", "message": "Could not open compose box"}
+
+        # ── STEP 3: Type first tweet ──────────────────────────────────────────
+        if not robust_type_and_verify(driver, first_box, tweets[0], 0):
             log("Warning: First tweet verification failed, continuing anyway...")
         time.sleep(1)
-        
-        # Add more tweets to thread (Robust v4.6.3 Engine)
+
+        # ── STEP 4: Add remaining tweets ─────────────────────────────────────
         for i, tweet_text in enumerate(tweets[1:], 1):
             log(f"Processing thread part {i+1}/{len(tweets)}...")
-            try:
-                # 1. Count existing textboxes to verify spawn
-                old_count = len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']"))
-                
-                # 2. Find "Add another Tweet" button [Robust Selectors - Ported from IdealSmartNotifier]
-                add_btn = None
-                
-                # Try data-testid first
+            part_success = False
+
+            for attempt in range(3):  # Up to 3 attempts per part
                 try:
-                    btns = driver.find_elements(By.CSS_SELECTOR, "[data-testid='addButton']")
-                    for b in btns:
-                        if b.is_displayed():
-                            add_btn = b
-                            log("Found Add Button via data-testid='addButton'")
-                            break
-                except: pass
-                
-                # Try labels (localized and expanded)
-                if not add_btn:
-                    valid_labels = [
-                        "Tweet ekle", "Add Tweet", "Add another Tweet", 
-                        "Başka bir gönderi ekle", "Gönderi ekle", "Zincir ekle", 
-                        "Add", "Ekle", "Gönderi Ekle", "Post ekle", "Add post",
-                        "Yeni gönderi ekle", "New post"
-                    ]
-                    
-                    xpath_parts = [f"@aria-label='{label}'" for label in valid_labels]
-                    xpath_join = " or ".join(xpath_parts)
-                    xpath = f"//div[@role='button'][{xpath_join}] | //button[{xpath_join}]"
-                    
-                    try:
-                        btns = driver.find_elements(By.XPATH, xpath)
-                        for b in btns:
-                            if b.is_displayed():
-                                label = (b.get_attribute("aria-label") or "").lower()
-                                
-                                # NUCLEAR EXCLUSION LIST: Ban all other toolbar icons
-                                forbidden_terms = [
-                                    "medya", "media", "fotoğraf", "photo", "video", "gif", 
-                                    "anket", "poll", "emoji", "planla", "schedule", 
-                                    "konum", "location", "kalın", "bold", "italik", "italic", "liste", "list"
-                                ]
-                                
-                                if any(term in label for term in forbidden_terms):
-                                    continue
-                                    
-                                add_btn = b
-                                log(f"Found Add Button via label: {label}")
-                                break
-                    except: pass
-                
-                # Fallback to SVG plus icon detection
-                if not add_btn:
-                    try:
-                        plus_candidates = driver.find_elements(By.CSS_SELECTOR, 
-                            "div[role='button']:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z']), " +
-                            "button:has(svg path[d*='M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z'])"
-                        )
-                        for b in plus_candidates:
-                            if b.is_displayed():
-                                add_btn = b
-                                log("Found Add Button via SVG path")
-                                break
-                    except: pass
+                    old_count = len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']"))
 
-                if add_btn:
-                    # AGGRESSIVE SCROLL & CLICK LOGIC
-                    try:
-                        driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", add_btn)
-                        time.sleep(0.5)
-                        # Click via JS
-                        driver.execute_script("arguments[0].click();", add_btn)
-                    except Exception as e:
-                        log(f"Error clicking Add button via standard methods: {e}")
-                    
-                    # Wait for new box
-                    box_spawned = False
-                    try:
-                        WebDriverWait(driver, 5).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count)
-                        time.sleep(1)
-                        box_spawned = True
-                    except:
-                        log("Warning: New box did not spawn after click.")
+                    result = _find_add_button(driver)
 
-                    if not box_spawned:
-                        log("CRITICAL: Failed to create new tweet box! Retrying click...")
+                    if result == "ctrl_enter_sent":
+                        # Ctrl+Enter was sent, wait for new box
+                        spawned = False
                         try:
-                            driver.execute_script("arguments[0].click();", add_btn)
-                            time.sleep(3)
-                            if len(driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count:
-                                box_spawned = True
-                                log("Recovery successful! Box spawned on second try.")
-                        except: pass
+                            WebDriverWait(driver, 5).until(
+                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
+                            )
+                            spawned = True
+                        except Exception:
+                            pass
 
-                    if not box_spawned:
-                        log("ABORTING THREAD: Cannot spawn new box. Preventing overwrite in x_daemon.")
-                        return {"status": "error", "message": f"Failed to spawn new tweet box for part {i+1}. Thread aborted."}
-                else:
-                    log(f"CRITICAL Warning: 'Add' button NOT found for part {i+1}.")
-                
-                # 3. Find new text area and type
-                text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
-                if len(text_areas) > i:
-                    active_box = text_areas[i]
-                    if not robust_type_and_verify(driver, active_box, tweet_text, i):
-                        log(f"Warning: Part {i+1} verification failed.")
-                    time.sleep(0.5)
-                else:
-                    log(f"CRITICAL: New textbox for part {i+1} NOT found after click.")
+                        if not spawned:
+                            log(f"Ctrl+Enter did not spawn new box (attempt {attempt+1})")
+                            time.sleep(1)
+                            continue
+
+                    elif result is not None:
+                        add_btn = result
+                        # Wait for enabled state
+                        for _ in range(12):
+                            if add_btn.get_attribute("aria-disabled") != "true":
+                                break
+                            time.sleep(0.5)
+                        else:
+                            log(f"Add button stayed disabled (attempt {attempt+1}), retrying...")
+                            time.sleep(1)
+                            continue
+
+                        # Scroll and click
+                        driver.execute_script(
+                            "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", add_btn)
+                        time.sleep(0.4)
+                        driver.execute_script("arguments[0].click();", add_btn)
+
+                        # Wait for new textbox
+                        spawned = False
+                        try:
+                            WebDriverWait(driver, 6).until(
+                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
+                            )
+                            spawned = True
+                        except Exception:
+                            log("JS click didn't spawn box, trying ActionChains...")
+                            try:
+                                ActionChains(driver).move_to_element(add_btn).click().perform()
+                                WebDriverWait(driver, 5).until(
+                                    lambda d: len(d.find_elements(By.CSS_SELECTOR, "div[role='textbox']")) > old_count
+                                )
+                                spawned = True
+                                log("ActionChains click succeeded")
+                            except Exception:
+                                pass
+
+                        if not spawned:
+                            log(f"Box not spawned after button click (attempt {attempt+1})")
+                            time.sleep(1)
+                            continue
+                    else:
+                        log(f"Add button completely NOT found (attempt {attempt+1})")
+                        time.sleep(2)
+                        continue
+
+                    # ── Find the new box and type ─────────────────────────────
+                    time.sleep(0.8)
+                    text_areas = driver.find_elements(By.CSS_SELECTOR, "div[role='textbox']")
+                    new_count = len(text_areas)
+                    log(f"Textbox count after spawn: {new_count} (was {old_count})")
+
+                    if new_count > old_count:
+                        # Click the newest (last) box
+                        active_box = text_areas[-1]
+                        driver.execute_script("arguments[0].click();", active_box)
+                        time.sleep(0.3)
+                        if robust_type_and_verify(driver, active_box, tweet_text, i):
+                            part_success = True
+                            log(f"✅ Thread part {i+1} written successfully")
+                            break
+                        else:
+                            log(f"Typing failed for part {i+1} (attempt {attempt+1})")
+                    else:
+                        log(f"Textbox count unchanged after spawn (attempt {attempt+1})")
+
+                    time.sleep(1)
+
+                except Exception as part_err:
+                    log(f"Exception in thread part {i+1} attempt {attempt+1}: {type(part_err).__name__}: {part_err}")
+                    time.sleep(1)
+
+            if not part_success:
+                log(f"ABORTING: Could not add thread part {i+1} after 3 attempts")
+                return {"status": "error", "message": f"Failed to spawn box for part {i+1}"}
+
+            time.sleep(0.5)
+
+        # ── STEP 5: Click Post button ─────────────────────────────────────────
+        # Extra wait: React needs to enable the post button after typing
+        time.sleep(2)
+
+        post_btn = None
+        for wait_attempt in range(4):  # Wait up to ~12 seconds total
+            post_btn = _click_post_button(driver)
+            if post_btn:
+                break
+            log(f"Post button not ready yet (attempt {wait_attempt+1}/4), waiting...")
+            time.sleep(3)
+
+        if not post_btn:
+            log("FATAL: Post button not found after all attempts")
+            return {"status": "error", "message": "Post button not found"}
+
+        # Scroll into view, then click
+        try:
+            driver.execute_script(
+                "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", post_btn)
+            time.sleep(0.5)
+        except Exception: pass
+
+        # Try JS click first, then ActionChains as fallback
+        clicked = False
+        try:
+            driver.execute_script("arguments[0].click();", post_btn)
+            clicked = True
+            log("Post button clicked via JS")
+        except Exception as e:
+            log(f"JS click failed: {type(e).__name__}: {e}")
+
+        if not clicked:
+            try:
+                ActionChains(driver).move_to_element(post_btn).click().perform()
+                clicked = True
+                log("Post button clicked via ActionChains")
             except Exception as e:
-                log(f"Error adding thread part {i+1}: {e}")
-        
-        # Click Post button
-        time.sleep(1)
-        post_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButton']"))
-        )
-        driver.execute_script("arguments[0].click();", post_btn)
-        time.sleep(3)
-        
+                log(f"ActionChains click failed: {type(e).__name__}: {e}")
+
+        if not clicked:
+            return {"status": "error", "message": "Post button click failed"}
+
+        # Wait for dialog to close (indicates success)
+        time.sleep(2)
+        try:
+            WebDriverWait(driver, 8).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR,
+                    "[data-testid='tweetTextarea_0']"))
+            )
+            log(f"✅ Thread posted successfully ({len(tweets)} parts)")
+        except Exception:
+            log("Warning: Compose dialog did not close after click — may still have posted")
+
         return {"status": "success", "message": f"Thread posted ({len(tweets)} tweets)"}
-        
+
     except Exception as e:
-        log(f"Post thread error: {e}")
+        log(f"Post thread FATAL error: {type(e).__name__}: {e}")
         return {"status": "error", "message": str(e)}
 
 

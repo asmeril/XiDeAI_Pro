@@ -3,7 +3,28 @@
 Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
 
 
-## 📅 18 Mart 2026
+## 📅 22 Mart 2026
+
+### 🚀 v4.9.0 - Thread Posting Engine Tam Yeniden Yazımı (MAJOR FIX)
+
+**Problem (Log Analizi Sonucu):**
+- `x_daemon.log` incelemesinde **112 adet** `Post Click Exception: Message:` (boş mesaj) tespit edildi.
+- Tüm tweet parçaları başarıyla yazılıp doğrulanmasına rağmen son adımda "Tweet At" butonuna tıklama sürekli başarısız oluyordu.
+- `data-testid='addButton'` hiçbir zaman bulunamıyor, add button bulunamadığında kod yine de devam edip yanlış textbox index'ine yazıyordu.
+- `driver.get("https://x.com/compose/tweet")` URL'i yeni X'de güvenilmez.
+
+**Çözüm:**
+- **`_find_add_button(driver)`** yeni bağımsız fonksiyon: 4 sıralı strateji (data-testid → aria-label tarama → SVG path JS scan → Ctrl+Enter fallback). Her strateji başarısız olursa gerçekten `abort` ediyor.
+- **`_click_post_button(driver)`** yeni bağımsız fonksiyon: `tweetButton`, `sendReplies`, `tweetButtonInline` + label tabanlı arama. Butonu **4×3 saniye** bekleyerek React sync'i garantiliyor. JS click başarısız olursa ActionChains devreye giriyor.
+- **`cmd_post_thread`** tamamen yeniden yazıldı: SideNav butonuyla compose açma (URL fallback ile), her parça için 3 deneme hakkı, textbox index'i sabit yerine her zaman `[-1]` (son kutu), kapsamlı exception loglama (`type(e).__name__`).
+- **Compose açma:** URL yerine önce `SideNav_NewTweet_Button` selector'ı deneniyor.
+
+**Değişen Dosyalar:**
+- `Scripts/x_daemon.py` (v4.9.0 - `_find_add_button`, `_click_post_button`, `cmd_post_thread` yeniden yazıldı)
+
+---
+
+## � 18 Mart 2026
 
 ### 🚀 v4.7.11 - Thread Creation Flow Fixed (HOTFIX)
 
@@ -924,5 +945,21 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 - **Metrik & Log Düzenlemeleri:** `social_intel.py` üzerindeki duplicate print satırları temizlendi ve yazım yöntemleri `js_native` olarak isimlendirildi.
 
 ---
+
+---
+
+## 20 Mart 2026
+
+### v4.8.2 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 22 Mart 2026
+
+### v4.9.0 Release
+
+> TODO: Release notes eklenecek.
 
 
