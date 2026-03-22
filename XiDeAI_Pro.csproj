@@ -35,9 +35,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <!-- Post-Publish: Copy Python scripts and Config to publish folder -->
+  <!-- Post-Publish: Copy Python scripts and Config to publish folder, then sync to Dist\publish -->
   <Target Name="PostPublish" AfterTargets="Publish">
-    <Exec Command="powershell.exe -ExecutionPolicy Bypass -File copy-publish-assets.ps1 -PublishDir $(PublishDir)" />
+    <Exec Command="robocopy Scripts $(PublishDir)Scripts /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
+    <Exec Command="robocopy Config $(PublishDir)Config /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
+    <Exec Command="robocopy $(PublishDir) Dist\publish /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
   </Target>
 </Project>
 
