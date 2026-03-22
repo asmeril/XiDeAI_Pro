@@ -1,7 +1,7 @@
 ﻿; X'iDeAI Installer Script
 
 #define MyAppName "XiDeAI Pro"
-#define MyAppVersion "4.9.1"
+#define MyAppVersion "4.9.2"
 #define MyAppPublisher "iDeAI Labs"
 #define MyAppExeName "XiDeAI_Pro.exe"
 
@@ -18,6 +18,9 @@ SetupIconFile=xideai_icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+CloseApplications=yes
+RestartApplications=no
+OverwriteReadOnly=yes
 ; Uninstaller settings - ICO dosyasını kullan (EXE yerine daha güvenilir)
 UninstallDisplayIcon={app}\xideai_icon.ico
 UninstallDisplayName={#MyAppName}

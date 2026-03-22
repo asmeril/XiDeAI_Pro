@@ -68,3 +68,19 @@ if (Test-Path $driversSource) {
 }
 
 Write-Host "✅ Post-publish tamamlandı" -ForegroundColor Green
+
+# --- Deploy: Kurulu dizine dogrudan kopyala ---
+$installDir = "C:\Program Files (x86)\XiDeAI Pro"
+if (Test-Path $installDir) {
+    Write-Host "Deploy: Kurulu dizine kopyalaniyor -> $installDir" -ForegroundColor Cyan
+    $exeSrc = "$BuildOutputDir\XiDeAI_Pro.exe"
+    if (Test-Path $exeSrc) {
+        Copy-Item $exeSrc "$installDir\XiDeAI_Pro.exe" -Force
+        $ver = (Get-Item "$installDir\XiDeAI_Pro.exe").VersionInfo.FileVersion
+        Write-Host "EXE deploy OK: $ver" -ForegroundColor Green
+    }
+    if (Test-Path "$installDir\Scripts") {
+        Copy-Item "Scripts\*.py" "$installDir\Scripts\" -Force
+        Write-Host "Scripts deploy OK" -ForegroundColor Green
+    }
+}
