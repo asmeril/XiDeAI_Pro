@@ -165,6 +165,9 @@ namespace XiDeAI_Pro
             this.Text = $"X'iDeAI Pro v{version} - STABLE";
             InitializeServices();
             
+            // v4.9.2: HistoryPanel'ı erken init et — sekmeye girmeden önce de log buffer'ı çalışsın
+            InitializeHistoryPanel();
+            
             // v3.0 Link Memory to Intelligence
             if (_opManager.SocialIntel != null && _opManager.Memory != null)
             {
@@ -4201,15 +4204,12 @@ namespace XiDeAI_Pro
                     case "System": default: Logger.Sys(msg); break;
                 }
 
-                // v3.0 Live History Update
-                if (pnlHistory != null && pnlHistory.Visible && _historyLogView != null)
+                // v4.9.2 Live History Update — Visible kontrolü kaldırıldı, panel gizliyken de buffer'a yazar
+                if (pnlHistory != null && _historyLogView != null)
                 {
                      string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "Tümü";
                      if (filter == "Tümü" || filter.Equals(category, StringComparison.OrdinalIgnoreCase))
                      {
-                         // Format should match LoadActivityHistory style somewhat
-                         // LoadActivityHistory shows: [Module] [Time] Message
-                         // v3.1 FIX: Insert at top to match "Newest First" order of LoadActivityHistory
                          var logLine = $"[{category}] [{DateTime.Now:HH:mm:ss}] {msg}\n";
                          try 
                          {

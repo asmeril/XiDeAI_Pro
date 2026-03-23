@@ -3,7 +3,37 @@
 Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
 
 
-## 📅 22 Mart 2026
+## 📅 23 Mart 2026
+
+### 🚀 v4.9.3 - Thread Media Fix, Lock Timeout, Publish Pipeline
+
+**Sorunlar (Log Analizi Sonucu):**
+- Thread 1. tweet'e grafik görseli (`media_path`) hiç eklenmiyordu. `_post_one` ve `_post_single_tweet` fonksiyonları `media_path` parametresi almıyordu.
+- `x_session.lock` timeout 180s: 4 tweet × ~60s = 240s+ gerektiriyor, thread yarıda timeout ile kesiliyor.
+- `copy-publish-assets.ps1` kurulu dizine doğrudan dosya kopyalama yapıyordu — her publish sonrası eksik dosya bırakıyordu.
+- Publish pipeline: `csproj PostPublish` hedefi `copy-publish-assets.ps1`'i yanlış parametrelerle çağırıyordu.
+
+**Çözümler:**
+- `x_daemon.py`: `_post_single_tweet(media_path=None)` parametresi + medya yükleme bloğu + `cmd_post_thread` 1. tweet'e `media_path` geçirme.
+- `social_intel.py`: `_post_one(media_path=None)` parametresi + medya yükleme bloğu + 1. tweet çağırısı güncellendi.
+- `lock_manager.py`: `acquire_lock` timeout 180s → 360s.
+- `SocialIntelService.cs`: `RunPythonScript` timeout 180s → 360s.
+- `PromptManager.cs`: Thread prompt'a “EN AZ 3 cümle, tek cümle YASAK” kuralı eklendi.
+- `csproj PostPublish`: `CopyToOutputDirectory: PreserveNewest` mekanizması kullanılıyor, `copy-publish-assets.ps1` çağrısı kaldırıldı.
+- `copy-publish-assets.ps1`: Kurulu dizine doğrudan kopyalama bloğu tamamen kaldırıldı. Tek doğru akış: `dotnet publish → ISCC → kurulum`.
+
+**Değişen Dosyalar:**
+- `Scripts/x_daemon.py`
+- `Scripts/social_intel.py`
+- `Scripts/lock_manager.py`
+- `Services/SocialIntelService.cs`
+- `Services/PromptManager.cs`
+- `XiDeAI_Pro.csproj`
+- `copy-publish-assets.ps1`
+
+---
+
+
 
 ### 🚀 v4.9.0 - Thread Posting Engine Tam Yeniden Yazımı (MAJOR FIX)
 
@@ -967,6 +997,14 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 ## 22 Mart 2026
 
 ### v4.9.1 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 23 Mart 2026
+
+### v4.9.3 Release
 
 > TODO: Release notes eklenecek.
 

@@ -72,11 +72,15 @@ def get_ohlc_data(symbol, interval='1d'):
         
         # v3.9.3: Clear VIP- prefix which causes yfinance 404
         ticker = ticker.replace("VIP-", "")
-        
-        if not any(x in ticker for x in ['.', '^', '=', 'USDT']):
-            ticker = f"{ticker}.IS"
-        
-        # Calculate start date based on interval to ensure enough data
+
+        # Crypto: BTCUSDT -> BTC-USD, ETHUSDT -> ETH-USD, etc.
+        if ticker.endswith("USDT"):
+            ticker = ticker[:-4] + "-USD"
+        elif ticker.endswith("BUSD"):
+            ticker = ticker[:-4] + "-USD"
+
+        if not any(x in ticker for x in ['.', '^', '=', '-USD', '-BTC']):
+            ticker = f"{ticker}.IS"        # Calculate start date based on interval to ensure enough data
         end_date = datetime.now()
         days_back = 15
         if interval == '1wk': days_back = 60

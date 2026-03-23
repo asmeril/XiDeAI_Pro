@@ -170,6 +170,16 @@ namespace XiDeAI_Pro.Services
                  {
                      tweets.Add(SanitizeXContent(aiThreadContent));
                  }
+
+                 // v4.9.2: Merge suspiciously short tweets (single sentence) into previous
+                 for (int i = tweets.Count - 1; i >= 1; i--)
+                 {
+                     if (tweets[i].Trim().Length < 80)
+                     {
+                         tweets[i - 1] = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
+                         tweets.RemoveAt(i);
+                     }
+                 }
                  
                  // Fallback for single tweet if something went wrong
                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.");

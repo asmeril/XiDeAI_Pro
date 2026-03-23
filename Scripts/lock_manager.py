@@ -75,7 +75,7 @@ def _remove_lock_file_with_retry(lock_path: str, attempts: int = 10, min_sleep: 
         print(f"STALE lock could not be removed after {attempts} attempts, failing closed.", file=sys.stderr)
         raise last_error or OSError(f"Could not remove {lock_path}")
 
-def acquire_lock(timeout_seconds=180, stale_seconds=100):  # Reduced from 600s to slightly above C# 90s timeout
+def acquire_lock(timeout_seconds=360, stale_seconds=100):  # Reduced from 600s to slightly above C# 90s timeout
     """
     Acquire file-based lock for X session.
     

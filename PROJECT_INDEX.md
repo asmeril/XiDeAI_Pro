@@ -1,6 +1,6 @@
-﻿> **Version:** 4.9.1 (Live)
+﻿> **Version:** 4.9.3 (Live)
 > **Architecture:** Hybrid (C# WinForms + HTTP Daemon + Python Selenium + WebView2 Bridge)
-> **Last Updated:** 2026-03-22
+> **Last Updated:** 2026-03-23
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -65,12 +65,12 @@ Python scriptleri "Worker" (İşçi) olarak çalışır. C# tarafından komut sa
 
 | Script Dosyası | Görev Tanımı | Kütüphaneler |
 | :--- | :--- | :--- |
-| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sürekli çalışır. **(v4.9.0)** `_find_add_button()`, `_click_post_button()`, `cmd_post_thread()` tamamen yeniden yazıldı. | `selenium`, `undetected_chromedriver` |
-| **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriş yapar, arama yapar, veri çeker, etkileşim kurar. | `selenium`, `pickle` |
+| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sürekli çalışır. **(v4.9.0)** `_find_add_button()`, `_click_post_button()`, `cmd_post_thread()` yeniden yazıldı. **(v4.9.3)** `_post_single_tweet(media_path=None)` — 1. tweet'e grafik görseli desteği eklendi. | `selenium`, `undetected_chromedriver` |
+| **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriş yapar, arama yapar, veri çeker, etkileşim kurar. **(v4.9.3)** `_post_one(media_path=None)` — 1. tweet'e grafik görseli desteği eklendi. | `selenium`, `pickle` |
 | `omni_scout.py` | Reddit ve diğer kaynaklardan viral veri çeker. | `praw` (Reddit API) |
 | `oracle.py` | Tahmin piyasaları verisi (Polymarket vs.) | `requests` |
 | `screenshot.py` | BIST/Crypto grafiklerinin ekran görüntüsünü alır. | `selenium` |
-| **`lock_manager.py`** | **Atomic File Lock.** X (Twitter) oturumlarının çakışmasını önler. | `msvcrt`(Win) / `fcntl`(Linux) |
+| **`lock_manager.py`** | **Atomic File Lock.** X (Twitter) oturumlarının çakışmasını önler. **(v4.9.3)** `acquire_lock` timeout 180s → 360s. | `msvcrt`(Win) / `fcntl`(Linux) |
 
 ### 🐍 `social_intel.py` Capabilities
 Bu script "Standalone" (Tek başına) çalışabilen güçlü bir bottur.
@@ -241,6 +241,8 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
+
 
 
 
