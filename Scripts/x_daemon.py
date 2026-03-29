@@ -910,16 +910,32 @@ def _post_single_tweet(driver, text, reply_to_url=None, media_path=None):
         except Exception:
             log("Dialog close timeout — continuing...")
 
-        # Yeni tweet URL'sini al:
-        # Yöntem 1: driver.current_url zaten /status/ID formatına geçmiş olabilir
+        # ── Yeni tweet URL'sini al ────────────────────────────────────────────
+        # Yöntem 1: current_url zaten /status/ID formatına geçmiş olabilir
         cur = driver.current_url
         if "/status/" in cur:
-            log(f"Tweet URL from current_url: {cur}")
+            log(f"Tweet URL captured from current_url: {cur}")
             return cur
 
-        # Yöntem 2: Profil sayfasındaki ilk (en yeni) tweet — HOME DEĞİL, profil kullan
+        # Yöntem 2: Toast bildirimindeki "Görüntüle" linkini yakala
+        # Twitter bazen compose kapandıktan sonra kısa süre bir toast gösterir.
         try:
-            # Kendi kullanıcı adını öğren
+            for _ in range(5):
+                toast_links = driver.find_elements(By.CSS_SELECTOR,
+                    "a[href*='/status/'], [data-testid='toast'] a[href*='/status/']")
+                for lnk in toast_links:
+                    href = lnk.get_attribute("href") or ""
+                    if "/status/" in href:
+                        if not href.startswith("http"):
+                            href = "https://x.com" + href
+                        log(f"Tweet URL captured from toast/DOM: {href}")
+                        return href
+                time.sleep(0.5)
+        except Exception as e:
+            log(f"Toast URL method failed: {e}")
+
+        # Yöntem 3: Profil sayfasında retry döngüsüyle en yeni tweet — SADECE profil, HOME ASLA
+        try:
             handle = driver.execute_script("""
                 var el = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
                 return el ? el.getAttribute('href') : null;
@@ -927,45 +943,30 @@ def _post_single_tweet(driver, text, reply_to_url=None, media_path=None):
             if handle:
                 profile_url = f"https://x.com{handle}"
                 driver.get(profile_url)
-                time.sleep(2.5)
-                # İlk tweet linki — profile'da en üstteki bizim
-                status_links = WebDriverWait(driver, 10).until(
-                    lambda d: d.find_elements(By.CSS_SELECTOR,
+                handle_frag = handle.strip("/")
+
+                # Yeni tweet'in profilde görünmesini beklemek için retry döngüsü
+                for attempt in range(6):
+                    time.sleep(2)
+                    status_links = driver.find_elements(By.CSS_SELECTOR,
                         "article[data-testid='tweet'] a[href*='/status/']")
-                )
-                for lnk in status_links:
-                    href = lnk.get_attribute("href") or ""
-                    # Kendi profilimize ait tweet URL'si
-                    if handle.strip("/") in href and "/status/" in href:
-                        if not href.startswith("http"):
-                            href = "https://x.com" + href
-                        log(f"Tweet URL from profile: {href}")
-                        return href
+                    for lnk in status_links:
+                        href = lnk.get_attribute("href") or ""
+                        # Sadece kendi profilimize ait URL'yi döndür
+                        if handle_frag in href and "/status/" in href:
+                            if not href.startswith("http"):
+                                href = "https://x.com" + href
+                            log(f"Tweet URL captured from profile (attempt {attempt+1}): {href}")
+                            return href
+                    log(f"Profile retry {attempt+1}/6: tweet URL not yet visible, waiting...")
         except Exception as e:
             log(f"Profile URL method failed: {e}")
 
-        # Yöntem 3: /home timeline fallback
-        try:
-            driver.get("https://x.com/home")
-            time.sleep(2.5)
-            handle_frag = driver.execute_script("""
-                var el = document.querySelector('a[data-testid="AppTabBar_Profile_Link"]');
-                return el ? el.getAttribute('href') : null;
-            """) or ""
-            articles = driver.find_elements(By.CSS_SELECTOR,
-                "article[data-testid='tweet'] a[href*='/status/']")
-            for a in articles:
-                href = a.get_attribute("href") or ""
-                if handle_frag.strip("/") in href and "/status/" in href:
-                    if not href.startswith("http"):
-                        href = "https://x.com" + href
-                    log(f"Tweet URL from home: {href}")
-                    return href
-        except Exception as e:
-            log(f"Home fallback failed: {e}")
-
-        log("WARNING: Could not get tweet URL, using home as fallback")
-        return "https://x.com/home"
+        # ── Güvenli hata: URL bulunamadı, x.com/home KULLANILMAZ ────────────
+        # HOME üzerinden yapılan arama, zaman çizelgesindeki BAŞKA bir kullanıcının
+        # tweetine yanlışlıkla yanıt verilmesine yol açar. Bu yüzden None döndürüyoruz.
+        log("FATAL: Could not capture tweet URL after all attempts. Returning None to prevent wrong reply.")
+        return None
 
     except Exception as e:
         log(f"_post_single_tweet error: {type(e).__name__}: {e}")
@@ -996,8 +997,13 @@ def cmd_post_thread(params):
         first_url = _post_single_tweet(driver, tweets[0], reply_to_url=None, media_path=media_path)
 
         if not first_url:
-            log("FATAL: Could not post first tweet")
+            log("FATAL: Could not post first tweet — first_url is None")
             return {"status": "error", "message": "First tweet failed"}
+
+        # Güvenlik kontrolü: URL gerçek bir tweet sayfası mı?
+        if "/status/" not in first_url:
+            log(f"FATAL: First tweet URL is invalid ('{first_url}'). Thread aborted to prevent wrong reply.")
+            return {"status": "error", "message": f"First tweet URL invalid: {first_url}"}
 
         log(f"[Thread] ✅ Tweet 1 posted: {first_url}")
         time.sleep(4)  # Twitter'ın indexlemesi için bekle
@@ -1008,13 +1014,12 @@ def cmd_post_thread(params):
             log(f"[Thread] Posting tweet {i}/{len(tweets)} as reply to: {last_url}")
             reply_url = _post_single_tweet(driver, tweet_text, reply_to_url=last_url)
 
-            if not reply_url:
-                log(f"WARNING: Tweet {i} failed, trying to continue with last known URL...")
-                # Son bilinen URL ile devam et
-                time.sleep(3)
-                reply_url = last_url  # fallback — aynı URL'e reply dene
+            if not reply_url or "/status/" not in reply_url:
+                # Geçersiz URL varsa son bilinen GEÇERLİ URL ile devam et (değil, durdur)
+                log(f"ERROR: Tweet {i} reply URL is invalid ('{reply_url}'). Stopping thread to prevent wrong reply.")
+                return {"status": "error", "message": f"Thread interrupted at tweet {i}: reply URL capture failed"}
 
-            log(f"[Thread] ✅ Tweet {i} posted")
+            log(f"[Thread] ✅ Tweet {i} posted: {reply_url}")
             last_url = reply_url
             time.sleep(4)  # Her tweet arasında bekle
 

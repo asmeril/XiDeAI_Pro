@@ -1,6 +1,6 @@
-﻿> **Version:** 4.9.3 (Live)
+﻿> **Version:** 4.9.5 (Live)
 > **Architecture:** Hybrid (C# WinForms + HTTP Daemon + Python Selenium + WebView2 Bridge)
-> **Last Updated:** 2026-03-23
+> **Last Updated:** 2026-03-30
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -65,7 +65,7 @@ Python scriptleri "Worker" (İşçi) olarak çalışır. C# tarafından komut sa
 
 | Script Dosyası | Görev Tanımı | Kütüphaneler |
 | :--- | :--- | :--- |
-| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sürekli çalışır. **(v4.9.0)** `_find_add_button()`, `_click_post_button()`, `cmd_post_thread()` yeniden yazıldı. **(v4.9.3)** `_post_single_tweet(media_path=None)` — 1. tweet'e grafik görseli desteği eklendi. | `selenium`, `undetected_chromedriver` |
+| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sürekli çalışır. **(v4.9.4)** `_post_single_tweet` URL yakalama - home fallback kaldırıldı, toast/profile retry eklendi. | `selenium`, `undetected_chromedriver` |
 | **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriş yapar, arama yapar, veri çeker, etkileşim kurar. **(v4.9.3)** `_post_one(media_path=None)` — 1. tweet'e grafik görseli desteği eklendi. | `selenium`, `pickle` |
 | `omni_scout.py` | Reddit ve diğer kaynaklardan viral veri çeker. | `praw` (Reddit API) |
 | `oracle.py` | Tahmin piyasaları verisi (Polymarket vs.) | `requests` |
@@ -241,6 +241,8 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
+
 
 
 

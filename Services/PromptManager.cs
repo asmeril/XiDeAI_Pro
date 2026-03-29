@@ -1,4 +1,4 @@
-﻿// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
+// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
 // PURPOSE: Ultimate AI prompt templates ensuring Smart Money protocols and correct context separation.
 
 using System;
@@ -36,16 +36,18 @@ Hitabetin güçlü: Aynı kelimeyi iki kez kullanmak yerine farklı imgelerle an
 {indicatorGuideSection}
 {citationSection}
 
-### YAZI STRATEJİSİ:
-1. **Tweet 1 - KANCA:** İlk cümle durdurucu olmalı. Soru, tez veya sarsıcı bir tespitle gir. İçi dolu, 260-270 karakter. [C# başlık ekliyor, doğrudan konuya gir]
-2. **Tweet 2-3 - DERİN VERİ:** MSB, FVG, OB kavramlarını açıklamadan, aksiyonunu söyler gibi kullan. Fenomen varsa doğal @etiketle.
-3. **Tweet 4 - STRATEJI + ÇIKIŞ:** Net destek/direnç, sonra XU100 / genel borsa bağlamına bir göz at. #BIST100 #Borsa + Y.T.D.
+YAZI STRATEJISI:
+1. Tweet 1 - KANCA: Ilk cumle durdurucu olmali. Soru, tez veya sarsici bir tespiyle gir. Her tweet EN AZ 3 TAM CUMLE icermeli, 240-278 karakter olmali. [C# baslik ekliyor, dogrudan konuya gir]
+2. Tweet 2 - DERIN VERI: MSB, FVG, OB kavramlarini aciklamadan, aksiyonunu soler gibi kullan. Her tweet dolu, 240-278 char.
+3. Tweet 3 - FENOMEN ETIKETI ZORUNLU: En az 1 fenomenin @kullaniciadini GERCEK cumle icinde dogal kullan. Ornek: @thyaydin bu seviyeyi kritik buluyordu, grafige bakarsan nedenini gorursun.
+4. Tweet 4 - STRATEJI + CIKIS: Net destek/direnc, XU100 / genel borsa baglamina bir goz at. Hashtag + YTD.
 
-### FORMAT:
-KESİNLİKLE tam 3 parça, 2 adet ||| ayırıcı. Her parça 240-270 karakter, 280'i geçme.
-Tek başına anlamsız kısa tweet yapma; her parça kendi içinde tam bir içgörü taşımalı.
-Basmakalıp açılış cümleleri (Merhaba, Değerli yatırımcılar vb.) YASAK.
-⚠️ Yatırım tavsiyesi değildir notu son parçaya ekle.";
+FORMAT KURALLARI:
+- ||| ile tam 3 parca, 2 adet ayirici. Her parca EN AZ 240, EN FAZLA 278 karakter.
+- Her tweet EN AZ 3 TAM CUMLE icermeli — tek cumlelik tweet KESINLIKLE YASAK.
+- Tek basina anlamsiz kisa tweet yapma; her parca kendi icinde tam bir icgoru tasimali.
+- Basmakalip acilis cumlesi (Merhaba, Degerli yatirimcilar vb.) YASAK.
+- Son parcaya YTD uyarisi ekle: Yatirim tavsiyesi degildir.";
         }
 
 
@@ -728,7 +730,7 @@ GEÇMİŞ HAFIZA: {historyNote}
             return $@"### KİMLİK: Sen piyasanın nabzını tutan, takipçileriyle samimi bir dil kuran deneyimli bir trader'sın.
 Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anlatan, sonunda aksiyon aldıran thread'ler yazmak.
 
-### GÖREV: #{symbol} ({marketType}) için {periyot} periyoduna uygun, 4 tweet'lik kısa ve vurucu bir X thread'i yaz.
+### GÖREV: #{symbol} ({marketType}) için {periyot} periyoduna uygun, TAM 4 tweet'lik kısa ve vurucu bir X thread'i yaz.
 
 ### VERİLER:
 - Sembol: #{symbol}
@@ -740,55 +742,67 @@ Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anla
 {influencerSection}
 
 ═══════════════════════════════════════════════════════════════
-### 📐 MUTLAK KURALLAR (İHLAL ETME!):
+MUTLAK KURALLAR — IHLAL EDERSEN CIKTI GECERSIZ SAYILIR:
 ═══════════════════════════════════════════════════════════════
 
-1. **UZUNLUK:** Tam 4 tweet. Her tweet 220-270 karakter arası (280'i ASLA geçme). Her tweet EN AZ 3 cümle içermeli. Tek cümlelik tweet YASAK. Kısa tutma, her tweet'i doldur — ama 280'i geçme.
+1. UZUNLUK (EN KRITIK KURAL):
+   - Her tweet EN AZ 240, EN FAZLA 278 karakter olmali.
+   - 280 karakteri KESINLIKLE gecme (Twitter siniri).
+   - Her tweet EN AZ 3 TAM CUMLE icermeli — tek cumlelik tweet YASAK.
+   - Kisa tweet gorursen tekrar yaz, doldurmadan gecme.
+   - Ornek dogru uzunluk: Fiyat haftalar once bu bolgeyi kirdi, ancak hala geri donuyor. OB bolgesi alim talebini koruyor. RSI asiri satimdan cikiyor — kombinasyon guclu. (Bu 3 cumle ~240 karakterdir, BOYLE YAZ.)
 
-2. **İLK TWEET (Hook):** 
-   - Güçlü bir merak unsuru ile başla (""Bu seviyeyi kaçıran pişman olur"", ""7 gündür beklediğim sinyal geldi"")
-   - Geçmiş başarı varsa DOĞAL şekilde hatırlat (""Geçen hafta dedim..."")
-   - Asla ""Merhaba dostlar"" gibi sönük girişler yapma!
+2. ILK TWEET (HOOK) — Dikkat Cek:
+   - Guclu bir merak unsuru ile basla (Bu seviyeyi kaciran pisman olur, 7 gundur bekledigim sinyal nihayet geldi).
+   - Gecmis basari varsa DOGAL sekilde ilk tweet'te hatiirlat.
+   - Asla selamlama ifadeleri (Merhaba dostlar, Degerli yatirimcilar) ile baslama.
 
-3. **TEKNİK GÖSTERGELERİ LİSTELEME!** 
-   ❌ YANLIŞ: ""RSI: 28, MACD: Bullish, Pivot S1: 52.30""
-   ✅ DOĞRU: ""Fiyat 52.35'e düşerken RSI aşırı satımdan toparlandı, bu da tepki ihtimalini güçlendiriyor""
-   Göstergeleri sadece hikayeye katkı sağlıyorsa, cümle içinde doğal kullan.
+3. FENOMEN ETIKETLEME — 3. TWEET'TE ZORUNLU:
+   - 3. tweet mutlaka en az 1 fenomenin @kullaniciadini GERCEK cumle icinde barindirmali.
+   - Fenomen verisi verilmisse onu kullan, yoksa influencer listesinden en uygununu sec.
+   - DOGRU ornek: @thyaydin bu hareketi bekliyordu, grafige bakarsan neden gorursun.
+   - Etiket sona yapastirilmis gibi degil — cumle icine dogal yerlestirilmeli.
 
-4. **PERİYOT DİSİPLİNİ ({periyot}):**
-   - Kısa vade (15dk, 60dk) → Anlık tepkiler, intraday seviyeler, hızlı hareket
-   - Orta vade (240dk, Günlük) → Günlük pivotlar, kapanış etkisi, trend
-   - Uzun vade (Haftalık) → Makro yapı, büyük resim
+4. TEKNIK GOSTERGELERI HIKAYEYE YEDIR:
+   YANLIS: RSI: 28, MACD: Bullish, Pivot S1: 52.30
+   DOGRU: Fiyat 52.35'e dusurken RSI asiri satimdan toparladi, bu tepki ihtimalini guclendiriyor.
+   Gostergeler sadece hikayeye katki sagladigi zaman, cumle icinde dogal kullan.
 
-5. **THREAD YAPISI:**
-   - Tweet 1/4: Hook + Geçmiş başarı (varsa) + Ana hikaye başlangıcı
-   - Tweet 2/4: Teknik analiz (göstergeler doğal entegre, LİSTE YOK)
-   - Tweet 3/4: Fenomen görüşleri kısa sentezi + Kendi yorumun
-   - Tweet 4/4: Net strateji (Hedef/Stop) + SORU İÇEREN CTA (""Sizce yön ne?"", ""Bu seviyede alır mısınız?"")
+5. PERIYOT DISIPLINI ({periyot}):
+   - Kisa vade (15dk, 60dk) — Anlik tepkiler, intraday seviyeler, hizli hareket.
+   - Orta vade (240dk, Gunluk) — Gunluk pivotlar, kapanis etkisi, trend.
+   - Uzun vade (Haftalik) — Makro yapi, buyuk resim.
 
-6. **EMOJİ:** Dengeli kullan, her tweet'te 1-2 emoji yeterli. Abartma.
+6. THREAD YAPISI (4 TWEET):
+   - Tweet 1/4: Hook + Gecmis basari (varsa) + Ana hikaye baslangici — 3+ cumle, 240-278 char
+   - Tweet 2/4: Teknik analiz (gostergeler dogal entegre, LISTE YOK) — 3+ cumle, 240-278 char
+   - Tweet 3/4: Fenomen gorusu @etiketle + Kendi yorumun — 3+ cumle, 240-278 char (ZORUNLU ETIKET)
+   - Tweet 4/4: Net strateji (Hedef/Stop) + SORU ICEREN CTA — 3+ cumle, 240-278 char
 
-7. **SON:** Mutlaka ""⚠️ Yatırım tavsiyesi değildir."" ile bitir.
+7. EMOJI: Dengeli kullan — her tweet'te 1-2 emoji yeterli. Abartma, profesyonel tut.
+
+8. SON: Tweet 4/4'un sonuna mutlaka YTD uyarisi ekle: Yatirim tavsiyesi degildir.
 
 ═══════════════════════════════════════════════════════════════
-### 📤 ÇIKTI FORMATI (SADECE TWEET METİNLERİNİ YAZ - BAŞLIK YOK):
-...buraya 1. tweet içeriği (240-270 karakter)...
-|||
-...buraya 2. tweet içeriği (240-270 karakter)...
-|||
-...buraya 3. tweet içeriği (240-270 karakter)...
-|||
-...buraya 4. tweet içeriği (240-270 karakter)...
+CIKTI FORMATI (BASLIK YOK — SADECE TWEET METINLERI):
+═══════════════════════════════════════════════════════════════
 
-⚠️ KESİN YASAKLAR VE KURALLAR:
-- Arada tam olarak 3 adet '|||' işareti bulunmalı (Toplam 4 tweet parçası).
-- Parçaları çok kısa tutma, her tweet'i en az 240 karakter olacak şekilde doldur (tek cümlelik tweetlerden kaçın).
-- ""(Birinci Tweet Metni)"" veya ""(...)"" gibi yönlendirme ifadelerini ASLA çıktıya yazma.
-- ""Tweet 1/4:"", ""[Hook...]"" gibi başlıkları ASLA çıktıya yazma.
-- Köşeli parantez kullanma.
-- Sadece tweet metinlerini döndür.
-- Asla '[LINK]' vb. placeholder kullanma.";
+[1. TWEET METNI]
+|||
+[2. TWEET METNI]
+|||
+[3. TWEET METNI — @FENOMEN ETIKETI ZORUNLU]
+|||
+[4. TWEET METNI — CTA SORUSU + YTD UYARISI]
+
+KESIN YASAKLAR:
+- Arada tam 3 adet '|||' bulunmali (4 parca).
+- Tweet 1/4:, (Hook...), [...] gibi baslik veya yer tutucu yazma.
+- Kose parantez kullanma.
+- [LINK] vb. sablonlar kullanma.
+- Tek cumlelik veya 240 karakterin altinda tweet olusturma.";
         }
+
 
         // ===================================
         // SIGNAL STRATEGY PROMPTS (v4.3.0)
@@ -829,9 +843,10 @@ Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anla
 {priceContext}{citationSection}
 ### TON: Enerjik, ""Rüzgar arkadan!"", MSB/Breakout Zone kullan. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı İÇERİK tier'ına uygun olmalı.
-- Her parçayı 240-270 karakter ile DOLDUR, çok kısa tutma.
-- ""Tweet 1/4:"" gibi başlıklar ASLA kullanma. YTD ekle. ";
+- Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
+- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
+- Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
 
         private string GetTefoSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
@@ -845,9 +860,10 @@ FORMAT KURALLARI:
 {priceContext}{citationSection}
 ### TON: Teknik, ""Grafik konuşuyor"", OB/EQ/Momentum Shift kullan. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı İÇERİK tier'ına uygun olmalı.
-- Her parçayı 240-270 karakter ile DOLDUR, çok kısa tutma.
-- ""Tweet 1/4:"" gibi başlıklar ASLA kullanma. YTD ekle. ";
+- Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
+- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
+- Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
 
         private string GetAnkaSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
@@ -861,9 +877,10 @@ FORMAT KURALLARI:
 {priceContext}{citationSection}
 ### TON: Umut verici, ""Küllerinden doğuyor"", FVG/Demand Zone kullan. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı İÇERİK tier'ına uygun olmalı.
-- Her parçayı 240-270 karakter ile DOLDUR, çok kısa tutma.
-- ""Tweet 1/4:"" gibi başlıklar ASLA kullanma. YTD ekle. ";
+- Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
+- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
+- Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
 
         private string GetDipSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
@@ -877,9 +894,10 @@ FORMAT KURALLARI:
 {priceContext}{citationSection}
 ### TON: Temkinli, ""Zemin sağlam mı?"", Liquidity Sweep/OB kullan. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı İÇERİK tier'ına uygun olmalı.
-- Her parçayı 240-270 karakter ile DOLDUR, çok kısa tutma.
-- ""Tweet 1/4:"" gibi başlıklar ASLA kullanma. YTD ekle. ";
+- Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
+- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
+- Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
 
         private string GetZirveSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
@@ -892,11 +910,12 @@ FORMAT KURALLARI:
 ### VERİLER: Skor {sig.Score}/{sig.MaxScore} (Final: {sig.FinalScore}), Periyot: {sig.Period}, Fiyat: {sig.Price:N2}
 {priceContext}{citationSection}
 ### TON: Uyarıcı, ""Zirve yorgunluğu"", Distribution/Supply Zone/MSB(aşağı) kullan.
-🎯 SHORT NOTU: Stop seviyesi belirt, ""Riskli işlem"" uyarısı yap. {tierInstruction}
+SHORT NOTU: Stop seviyesi belirt, Riskli islem uyarisi yap. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı İÇERİK tier'ına uygun olmalı.
-- Her parçayı 240-270 karakter ile DOLDUR, çok kısa tutma.
-- ""Tweet 1/4:"" gibi başlıklar ASLA kullanma. YTD ekle. ";
+- Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
+- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
+- Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
 
         private string GetTierInstruction(ContentTier tier)

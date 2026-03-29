@@ -50,3 +50,5 @@ Bu sürüm; thread gönderiminde grafik görselinin ilk tweete eklenmemesi, lock
 
 
 
+
+

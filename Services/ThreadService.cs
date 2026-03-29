@@ -262,8 +262,9 @@ namespace XiDeAI_Pro.Services
                         basisSuffix = signal.Basis == "XU100" ? " - Kompozit Analiz" : $" - {signal.Basis} Bazlı";
                     }
                     
+                    string currencyLabel = string.IsNullOrEmpty(currency) ? "Puan" : currency;
                     tweet1 = $"{headerTag} #{cleanSymbol} ({periodStr}){basisSuffix} Teknik Analizim\n\n" +
-                             $"💰 Fiyat: {signal.Price:N2} {currency}\n\n" +
+                             $"💰 Fiyat: {signal.Price:N2} {currencyLabel}\n\n" +
                              $"👇 Grafik ve Detaylar:\n" +
                              $"{tvLink}";
                     tweets.Add(tweet1);
@@ -1151,6 +1152,15 @@ namespace XiDeAI_Pro.Services
             if (string.IsNullOrEmpty(symbol)) return "TL";
             
             symbol = symbol.ToUpperInvariant();
+            
+            // BIST Endeksleri — para birimi yok, sadece "puan" bazlı
+            // XU100, XU030, XUTUM, X100, X030, XU050, XBANA, XUSIN vb.
+            if (symbol.StartsWith("XU") || symbol.StartsWith("XB") || 
+                symbol.StartsWith("XI") || symbol.StartsWith("XK") ||
+                symbol.StartsWith("XM") || symbol.StartsWith("XS") ||
+                symbol == "X100" || symbol == "X030" || symbol == "XUTUM" ||
+                symbol.StartsWith("BIST") || symbol.Contains("ENDEKS"))
+                return ""; // Endekslerde para birimi kullanılmaz
             
             // Forex/Commodities ending with USD
             if (symbol.EndsWith("USD") || symbol.Contains("USDT"))

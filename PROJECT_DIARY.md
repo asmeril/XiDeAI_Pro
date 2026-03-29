@@ -1,6 +1,51 @@
-﻿# ?? XiDeAI Pro - Proje Gelistirme G?nl?g?
+# ?? XiDeAI Pro - Proje Gelistirme G?nl?g?
 
 Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
+
+
+## 📅 30 Mart 2026
+
+### 🚀 v4.9.5 - Thread Kalite & Etkileşim Optimizasyonu
+
+**Sorunlar:**
+- Thread'ler 280 karakter limitini akıllıca kullanmıyordu; tek cümlelik, kısa tweet'ler oluşuyordu.
+- Endeks analizlerinde (XU100, XU030 vb.) fiyatın yanında gereksiz "TL" etiketi görünüyordu.
+- AI üretilen thread'lerde fenomen/influencer etiketleri tutarsız ve çoğunlukla yoktu.
+
+**Çözümler:**
+- `Services/PromptManager.cs`: `GetShortThreadPromptWithHistory` (Manuel Analiz) ve tüm sinyal strateji prompt'ları (KING, BOMBA, TEFO, ANKA, DİP, ZİRVE) güncellendi:
+  - Her tweet için **240-278 karakter** zorunluluğu ve **min. 3 tam cümle** kuralı eklendi.
+  - **3. tweet'te fenomen @etiketleme zorunlu** hale getirildi — cümle içine doğal entegrasyon şart.
+  - Eski çelişen kural blokları temizlendi, tek tutarlı kural seti oluşturuldu.
+- `Services/ThreadService.cs`: `GetCurrencyForSymbol` güncellendi:
+  - BIST endeksleri (`XU*`, `XB*`, `XI*` vb.) artık "TL" değil **"Puan"** etiketiyle gösteriliyor.
+  - Para birimi boş döndüğünde fiyat formatlama doğru çalışıyor (`currencyLabel` fallback).
+
+**Değişen Dosyalar:**
+- `Services/PromptManager.cs`
+- `Services/ThreadService.cs`
+
+---
+
+## 📅 30 Mart 2026
+
+### 🚀 v4.9.4 - Incorrect Thread Reply & URL Extraction Fix (CRITICAL)
+
+**Sorunlar:**
+- Thread 2. ve sonraki tweetlerinde bot, kendi parent tweet'inin URL'sini yakalayamadığında `x.com/home` adresine fallback yapıyordu.
+- Home timeline üzerinde bulduğu ilk "Reply" butonuna basarak yanlışlıkla başka kullanıcıların tweet'lerine yanıt veriyordu.
+
+**Çözümler:**
+- `x_daemon.py`: `_post_single_tweet` içerisindeki tehlikeli `x.com/home` fallback'i tamamen kaldırıldı.
+- **Yöntem 1 (Toast):** Tweet atıldıktan hemen sonra DOM'daki "Görüntüle" (Toast) linkini yakalama mantığı eklendi.
+- **Yöntem 2 (Retry Profile):** URL ilk denemede alınamazsa, Profil sayfasında **6 kez retry** (toplam ~12 sn) ile yeni tweet'in belirmesi beklenir.
+- **Güvenlik Kapısı:** `cmd_post_thread` içerisine `/status/` kontrolü eklendi. Geçersiz veya eksik URL durumunda thread güvenli biçimde durdurulur (başka birine yanıt verilmesi imkansız hale getirildi).
+
+**Değişen Dosyalar:**
+- `Scripts/x_daemon.py` (v4.9.4)
+
+---
+
 
 
 ## 📅 23 Mart 2026
@@ -1005,6 +1050,14 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 ## 23 Mart 2026
 
 ### v4.9.3 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 30 Mart 2026
+
+### v4.9.5 Release
 
 > TODO: Release notes eklenecek.
 
