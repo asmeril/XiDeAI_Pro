@@ -1,4 +1,4 @@
-﻿// NEWS_ENGINE_VERSION: 1.0
+// NEWS_ENGINE_VERSION: 1.0
 // PURPOSE: Central hub for AI-driven news processing, filtering, and summarization.
 // Decouples news intelligence from the UI and NewsTrackerService.
 
@@ -118,6 +118,17 @@ namespace XiDeAI_Pro.Services
                         analysisData = (score, status, summary, symbols, category, "💛💙 FAN ZONE: Fenerbahçe haberi, skor boost uygulandı.");
                         OnLog?.Invoke($"💛💙 Fenerbahçe Haberi Korundu: {item.Title}", "NewsEngine");
                     }
+                }
+
+                // v4.8.0: ANTI-HALLUCINATION / SAFETY GUARDRAIL
+                // Felaket, deprem, afet gibi konularda AI'ın otomatik 10/10 puan vermesini ezer.
+                string[] riskKeywords = { "deprem", "sel ", " yangın", "felaket", "tatbikat", "terör", "şehit", "cinayet", "operasyon", "patlama", "saldırı", "bombalı", " kaza ", "can kaybı" };
+                bool hasRisk = riskKeywords.Any(k => lowerTitle.Contains(k) || (item.Description ?? "").ToLower().Contains(k));
+                if (hasRisk && score >= 9) // Eğer riskli ise ve otomatik yayınlanacak (9-10) ise
+                {
+                    OnLog?.Invoke($"🚨 GÜVENLİK FİLTRESİ: Hassas/Afet içerik tespit edildi. Otomatik paylaşım iptal, Onay havuzuna alındı. (Orijinal Skor: {score}/10)", "NewsEngine");
+                    score = 8; // Onay Bekleyenlere (PENDING) yönlendir
+                    status = "PENDING_NEWS_ONLY";
                 }
 
                 // 3. Action Decision based on Score (1-10 Scale)

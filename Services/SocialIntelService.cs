@@ -701,35 +701,7 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // 1.5 v4.6.15: Try Daemon (Central browser instance)
-            if (UseDaemon && _daemonAvailable)
-            {
-                try
-                {
-                    Logger.Twitter("🔄 [DAEMON] Tekil tweet gönderimi başlatılıyor...");
-                    var payload = new { text = text, media = mediaPath };
-                    string daemonJson = await DaemonRequestAsync("/post_tweet", payload);
-                    var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
-                    
-                    if (daemonResult?.status == "success")
-                    {
-                        Logger.Twitter("✅ [DAEMON] Tweet gönderimi başarılı.");
-                        ConfigManager.AddWebUsage();
-                        _stats?.RecordTweet("SocialIntel", 1, "", text);
-                        return daemonResult;
-                    }
-                    else
-                    {
-                        Logger.Twitter($"⚠️ [DAEMON] Tweet hatası: {daemonResult?.ErrorMessage}. Python fallback...");
-                    }
-                }
-                catch (Exception dex)
-                {
-                    Logger.Twitter($"⚠️ [DAEMON] Tweet exception: {dex.Message}. Python fallback...");
-                }
-            }
-
-            // 2. Fallback: Selenium/Python Direct Method (Headless/Background)
+            // 2. Playwright Subprocess Fallback (X-Hive Engine)
             string tempFile = "";
             try
             {
@@ -743,10 +715,11 @@ namespace XiDeAI_Pro.Services
                 tempFile = Path.GetTempFileName();
                 await File.WriteAllTextAsync(tempFile, jsonContent);
 
+                string playwrightScript = Path.Combine(Path.GetDirectoryName(_scriptPath) ?? "", "playwright_daemon.py");
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
-                string args = $"\"{_scriptPath}\" post_tweet --file \"{tempFile}\"{visibilityFlag}";
+                string args = $"\"{playwrightScript}\" post_tweet --file \"{tempFile}\"{visibilityFlag}";
                 
-                string json = await RunPythonScript(args);
+                string json = await RunPythonScript(args, null, null, 120); // 120s timeout for single tweet
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 
                 if (result != null && result.status == "success")
@@ -788,23 +761,6 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostThreadAsync(List<string> tweets, string? mediaPath = null)
         {
-            // v4.6.2: STRICT 280-CHARACTER LIMIT ENFORCEMENT
-            var safeTweets = new List<string>();
-            foreach (var t in tweets)
-            {
-                if (t.Length > 280)
-                {
-                    Logger.Twitter($"⚠️ Uzun tweet tespit edildi ({t.Length} karakter). 280 sınırına göre otomatik bölünüyor...");
-                    var subParts = ThreadService.SplitText(t, 275); // 275 for safety margin (e.g. 1/3)
-                    safeTweets.AddRange(subParts);
-                }
-                else
-                {
-                    safeTweets.Add(t);
-                }
-            }
-            tweets = safeTweets;
-
             // 1. Try Internal Bridge
             if (OnPostThreadRequested != null)
             {
@@ -834,7 +790,7 @@ namespace XiDeAI_Pro.Services
                             return res;
                         }
                         // If it's an error, we fall through to Python fallback
-                        Logger.Twitter($"⚠️ Dahili thread hatası ({res.status}): {res.ErrorMessage}. Python fallback deneniyor...");
+                        Logger.Twitter($"⚠️ Dahili thread hatası ({res.status}): {res.ErrorMessage}. Playwright fallback deneniyor...");
                     }
                 }
                 catch (Exception ex)
@@ -843,71 +799,7 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // 1.5 v4.8.0: Try Daemon with pre-flight health check and crash recovery
-            if (UseDaemon && _daemonAvailable)
-            {
-                try
-                {
-                    // Pre-flight: Verify daemon is actually alive before sending heavy request
-                    if (!await CheckDaemonHealthAsync())
-                    {
-                        Logger.Twitter("⚠️ [DAEMON] Pre-flight health check failed. Attempting auto-restart...");
-                        try
-                        {
-                            StopDaemon();
-                            await StartDaemonAsync();
-                        }
-                        catch (Exception restartEx)
-                        {
-                            Logger.Twitter($"⚠️ [DAEMON] Auto-restart failed: {restartEx.Message}. Using Python fallback...");
-                            _daemonAvailable = false;
-                        }
-                    }
-
-                    if (_daemonAvailable)
-                    {
-                        Logger.Twitter("🔄 [DAEMON] Thread posting başlatılıyor...");
-                        var payload = new { tweets = tweets, media = mediaPath };
-                        string daemonJson = await DaemonRequestAsync("/post_thread", payload);
-                        var daemonResult = JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
-                        
-                        if (daemonResult?.status == "success")
-                        {
-                            Logger.Twitter("✅ [DAEMON] Thread gönderimi başarılı.");
-                            try
-                            {
-                                var cfg = ConfigManager.Current;
-                                cfg.CheckReset();
-                                cfg.DailyTotalTweetCount += tweets.Count;
-                                cfg.MonthlyTotalTweetCount += tweets.Count;
-                                ConfigManager.Save();
-                            }
-                            catch { }
-                            return daemonResult;
-                        }
-                        else
-                        {
-                            Logger.Twitter($"⚠️ [DAEMON] Thread hatası: {daemonResult?.ErrorMessage}. Python fallback...");
-                        }
-                    }
-                }
-                catch (TaskCanceledException)
-                {
-                    Logger.Twitter("⚠️ [DAEMON] Thread request timed out. Daemon may have crashed. Marking unavailable...");
-                    _daemonAvailable = false;
-                }
-                catch (HttpRequestException httpEx)
-                {
-                    Logger.Twitter($"⚠️ [DAEMON] Connection refused/reset: {httpEx.Message}. Daemon crashed. Python fallback...");
-                    _daemonAvailable = false;
-                }
-                catch (Exception dex)
-                {
-                    Logger.Twitter($"⚠️ [DAEMON] Thread exception: {dex.Message}. Python fallback...");
-                }
-            }
-
-            // 2. Python Subprocess Fallback
+            // 2. Playwright Subprocess Fallback (X-Hive Engine)
             string tempFile = "";
             try
             {
@@ -932,9 +824,10 @@ namespace XiDeAI_Pro.Services
                 tempFile = Path.GetTempFileName();
                 await File.WriteAllTextAsync(tempFile, jsonContent);
 
-                // Pass the FILE PATH to Python
+                // Pass the FILE PATH to Playwright
+                string playwrightScript = Path.Combine(Path.GetDirectoryName(_scriptPath) ?? "", "playwright_daemon.py");
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
-                string args = $"\"{_scriptPath}\" post_thread --file \"{tempFile}\"{visibilityFlag}";
+                string args = $"\"{playwrightScript}\" post_thread --file \"{tempFile}\"{visibilityFlag}";
                 
                 string json = await RunPythonScript(args, null, null, 360); // Extended timeout for reply-chain thread posting (4 tweets × ~60s each)
                 

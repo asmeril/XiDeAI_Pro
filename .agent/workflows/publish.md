@@ -1,4 +1,4 @@
-﻿---
+---
 description: Build, Publish and Generate Setup for XiDeAI Pro
 ---
 // turbo-all
@@ -33,14 +33,10 @@ description: Build, Publish and Generate Setup for XiDeAI Pro
 
 ## 2. Clean & Build
 ```powershell
-rm -r Dist -Force
-dotnet publish XiDeAI_Pro.csproj -c Release -o Dist\publish --self-contained true -r win-x64
+rm -r Dist -Force -ErrorAction SilentlyContinue
+dotnet publish XiDeAI_Pro.csproj -c Release -r win-x64 --self-contained true
 ```
-
-## 3. Copy Assets
-```powershell
-powershell -ExecutionPolicy Bypass -File .\copy-publish-assets.ps1
-```
+> **⚠️ KRİTİK:** `-o Dist\publish` argümanını veya `copy-publish-assets.ps1` kullanma! Bunlar birbiriyle çakışarak eski dosyaları yeni build'in üstüne yazar. PostPublish eventi (csproj içindeki) her şeyi `Dist\publish` klasörüne otomatik ve güvenli bir biçimde taşır.
 
 ## 4. Generate Setup
 ```powershell

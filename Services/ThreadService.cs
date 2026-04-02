@@ -160,26 +160,35 @@ namespace XiDeAI_Pro.Services
 
              try
              {
-                 var tweets = new List<string>();
+                 var rawTweets = new List<string>();
                  if (aiThreadContent.Contains("|||"))
                  {
                      var parts = aiThreadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-                     foreach (var p in parts) tweets.Add(SanitizeXContent(p));
+                     foreach (var p in parts)
+                     {
+                         string cleanP = SanitizeXContent(p);
+                         if (!string.IsNullOrWhiteSpace(cleanP))
+                             rawTweets.Add(cleanP);
+                     }
                  }
                  else
                  {
-                     tweets.Add(SanitizeXContent(aiThreadContent));
+                     string cleanP = SanitizeXContent(aiThreadContent);
+                     if (!string.IsNullOrWhiteSpace(cleanP))
+                         rawTweets.Add(cleanP);
                  }
 
                  // v4.9.2: Merge suspiciously short tweets (single sentence) into previous
-                 for (int i = tweets.Count - 1; i >= 1; i--)
+                 for (int i = rawTweets.Count - 1; i >= 1; i--)
                  {
-                     if (tweets[i].Trim().Length < 80)
+                     if (rawTweets[i].Trim().Length < 80)
                      {
-                         tweets[i - 1] = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
-                         tweets.RemoveAt(i);
+                         rawTweets[i - 1] = rawTweets[i - 1].TrimEnd() + " " + rawTweets[i].Trim();
+                         rawTweets.RemoveAt(i);
                      }
                  }
+                 
+                 var tweets = rawTweets;
                  
                  // Fallback for single tweet if something went wrong
                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
@@ -293,9 +302,25 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // v3.5.4: Sanitize all tweets before finalizing
-                for (int i = 0; i < tweets.Count; i++)
+                for (int i = tweets.Count - 1; i >= 0; i--)
                 {
                     tweets[i] = SanitizeXContent(tweets[i]);
+                    // Eğer başlık silindiyse ve tweet boş kaldıysa çıkaralım
+                    if (string.IsNullOrWhiteSpace(tweets[i]))
+                    {
+                        tweets.RemoveAt(i);
+                    }
+                }
+
+                // Önlem: Eğer önceki parçalar çok kısa ise, anlamlı parçalarla birleştir
+                for (int i = tweets.Count - 1; i >= 1; i--)
+                {
+                     // Sadece 1. tweet haricindeki(indeks > 0) aşırı kısa kalan parçaları geriye aktar
+                     if (tweets[i].Trim().Length < 80 && !tweets[i].Contains("Fiyat:"))
+                     {
+                         tweets[i - 1] = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
+                         tweets.RemoveAt(i);
+                     }
                 }
 
                 // ============================================

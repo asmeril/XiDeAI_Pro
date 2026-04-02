@@ -3,6 +3,27 @@
 Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
 
 
+## 📅 31 Mart 2026
+
+### 🚀 v4.9.6 - X-Hive Playwright Engine & Anti-Hallucination Guardrail
+
+**Sorunlar:**
+- `x_daemon.py` Selenium tabanlı olduğu için Thread gönderimlerinde kararsızlık, "Post Click Exception" ve yanlış timeout hataları üretiyordu.
+- NewsEngine, "Deprem/Terör" gibi trajik haberlere AI'nin yüksek skor (10/10) vermesi sebebiyle, kullanıcı onayı sormadan otomatik (Auto-Post) paylaşım yapabiliyordu.
+- Tırnak içi emojiler veya linkler 280 karakter limitine ulaşırken C# kaynaklı yanlış parçalanma yaşanıyordu.
+
+**Çözümler:**
+- **Yeni Playwright Daemon:** X-Hive projesindeki Playwright kullanan süper-kararlı bot motoru sisteme `playwright_daemon.py` olarak eklendi.
+- **Akıllı Karakter Tespiti:** Yeni script X.com standardında (link 23 karakter, emoji 2 karakter vb.) sayım yaparak kusursuz `🧵 1/x` bölen algoritmayı hayata geçirdi. `SocialIntelService.cs`'deki C# kaba bölme iptal edildi.
+- **Anti-Halüsinasyon (Güvenlik Duvarı):** `NewsEngine.cs` üzerine afet, terör gibi anahtar kelimeleri tespit edince skoru 8'e düşüren ve otomatik yayını kesin olarak engelleyip havuza atan "Safety Intercept" eklendi.
+
+**Değişen Dosyalar:**
+- `Scripts/playwright_daemon.py` (YENİ EKLENDİ)
+- `Services/SocialIntelService.cs`
+- `Services/NewsEngine.cs`
+
+---
+
 ## 📅 30 Mart 2026
 
 ### 🚀 v4.9.5 - Thread Kalite & Etkileşim Optimizasyonu
@@ -1060,5 +1081,29 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 ### v4.9.5 Release
 
 > TODO: Release notes eklenecek.
+
+---
+
+## 01 Nisan 2026
+
+### v4.9.7 Release
+
+> **Odak:** X (Twitter) gönderimlerinde karşılaşılan çerez (cookie) yolu hatasının giderilmesi ve Playwright entegrasyonunun kararlı hale getirilmesi.
+
+**Değişiklikler:**
+- **Cookie Path Düzeltmesi:** `playwright_daemon.py` üzerindeki `COOKIES_FILE` yerel yolu, uygulamanın dinamik `%LOCALAPPDATA%\XiDeAI` veya aranan fallback dizinleri `_discover_appdata()` fonksiyonu kullanılarak düzeltildi.
+- **Cookie Load Optimizasyonu:** `x_cookies.json` beklentisi yerine, WebView2 ve önceki sistemlerle tam uyumlu olarak önce `twitter_cookies.json` taranacak; bulunamazsa `twitter_cookies.pkl` (eski format) okunarak Playwright context içine aktarılacaktır.
+
+---
+
+## 01 Nisan 2026
+
+### 🚀 v4.9.8 - Viral Thread Koruması & Etkileşim Optimizasyonu
+**Sorunlar:**
+- AI tarafından `||| Tweet 1` vb. başlıklarla üretilen yanıtlar C# filtremesinde silinince geriye sadece boş bir string (empty string) kalıp X'e yollanıyor ve ilk tweetler metinsiz/hayalet olarak paylaşılan resimlere dönüyordu.
+- Python X-Hive motoru parçalanmış gelen `tweets` dizisini tek bir uzun metne dönüştürüp `(\n\n.join)` yeniden X harf limitlerine göre körlemesine biliyor; bu da hashtag, hook, etkileşim sıralamalarını çökertip "tek cümlelik" yapay tweetler yaratıyordu.
+**Çözümler:**
+- `ThreadService.cs`: Filtreme işleminden sonra kalan "boş" stringler silindi ve diziye eklenmeleri önlendi. Zayıf (80 kar. altı) kalan "yatırım tavsiyesi değildir" gibi tekil cümleler bir önceki ana cümlenin sonuna yapıştırılacak şekilde düzenlendi.
+- `playwright_daemon.py`: C#'tan gelen AI'ın onaylanmış ve ustaca örülmüş parça yapısı ASLA birleştirilmeden doğrudan kullanıldı. Sadece bir parça olağanüstü durumlarda 265'i geçerse bölünecek şekilde X-Hive engeli pasifize edildi.
 
 
