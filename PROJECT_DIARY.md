@@ -1106,4 +1106,31 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 - `ThreadService.cs`: Filtreme işleminden sonra kalan "boş" stringler silindi ve diziye eklenmeleri önlendi. Zayıf (80 kar. altı) kalan "yatırım tavsiyesi değildir" gibi tekil cümleler bir önceki ana cümlenin sonuna yapıştırılacak şekilde düzenlendi.
 - `playwright_daemon.py`: C#'tan gelen AI'ın onaylanmış ve ustaca örülmüş parça yapısı ASLA birleştirilmeden doğrudan kullanıldı. Sadece bir parça olağanüstü durumlarda 265'i geçerse bölünecek şekilde X-Hive engeli pasifize edildi.
 
+---
 
+## 02 Nisan 2026
+
+### v4.9.9 Release
+
+> TODO: Release notes eklenecek.
+
+---
+
+## 07 Nisan 2026
+
+### 🔧 v4.10.2 - LM Studio Vision Fix (4K DPI)
+
+**Sorun:**
+- 4K monitörde 4x DPI ölçeğinde alınan ekran görüntüleri (2560×1440 fiziksel → 10240×5760 mantıksal px) LM Studio'ya gönderildiğinde `"Invalid image at index 0"` hatasına yol açıyordu.
+- `detail` alanı v5.0.1'de kaldırılmış olmasına rağmen görüntü boyutu sorun olmaya devam ediyordu.
+
+**Çözüm:**
+- `LMStudioProvider.cs`: `PrepareImageForVision(imagePath, maxDimension = 1024)` adlı yeni yardımcı metot eklendi.
+  - `System.Drawing` (net8.0-windows / WinForms yerleşik) kullanılarak görüntü yüklenir ve en-boy oranı korunarak max 1024px'e ölçeklenir.
+  - `HighQualityBicubic` interpolasyon ile yeniden örneklenir ve JPEG %85 kalitesinde kodlanır (~50–150 KB).
+  - Gönderim öncesinde `"📷 Görsel hazırlandı: XXkB JPEG → LM Studio"` logu yazılır.
+- Artık tüm görsel isteklerde ham PNG yerine her zaman küçültülmüş JPEG gönderilir.
+- Harici paket gerektirmez; `net8.0-windows` + `UseWindowsForms=true` yeterlidir.
+
+**Değişen Dosyalar:**
+- `Services/AI/LMStudioProvider.cs`

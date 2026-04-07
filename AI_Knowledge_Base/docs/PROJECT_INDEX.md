@@ -3,6 +3,9 @@
 > **Architecture:** Hybrid (C# WinForms + Python Selenium + WebView2 Bridge)
 > **Last Updated:** 2026-01-19
 
+> **Corpus Role:** Bu belge AI_Knowledge_Base içinde `Gold Training Data` olarak değerlendirilmelidir.
+> **Freshness Note:** Canlı repo ile birebir senkron kabul edilmemeli; tarihsel mimari referansı olarak kullanılmalıdır.
+
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
 ---

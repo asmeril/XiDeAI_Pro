@@ -16,9 +16,9 @@ namespace XiDeAI_Pro.Services
         private readonly SocialIntelService _socialIntel;
         private Microsoft.Web.WebView2.WinForms.WebView2? _webView;
 
-        public TwitterService()
+        public TwitterService(SocialIntelService? socialIntel = null)
         {
-            _socialIntel = new SocialIntelService();
+            _socialIntel = socialIntel ?? new SocialIntelService();
         }
 
         public void RegisterWebView(Microsoft.Web.WebView2.WinForms.WebView2 webView)
@@ -311,7 +311,7 @@ namespace XiDeAI_Pro.Services
             try
             {
                 string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs", $"Log_{DateTime.Now:yyyy-MM-dd}_Safety.txt");
-                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath) ?? ".");
                 File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
             }
             catch { }

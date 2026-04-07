@@ -21,7 +21,7 @@ namespace XiDeAI_Pro.Services.AI
         public string ProviderName => "Perplexity";
         public string ModelName { get; }
         public ModelTier Tier => ModelTier.Balanced;
-        
+        public string? LastError { get; private set; }
         /// <summary>
         /// Create Perplexity provider
         /// </summary>

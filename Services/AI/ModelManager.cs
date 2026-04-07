@@ -16,6 +16,11 @@ namespace XiDeAI_Pro.Services.AI
         private readonly Dictionary<TaskType, List<string>> _taskModelPreferences = new();
         private readonly Action<string> _logger;
         
+        /// <summary>
+        /// Last error message encountered during AI operations
+        /// </summary>
+        public string? LastError { get; private set; }
+
         public ModelManager(Action<string> logger)
         {
             _logger = logger;
@@ -33,114 +38,28 @@ namespace XiDeAI_Pro.Services.AI
         
         /// <summary>
         /// Initialize task-to-model preferences (priority order for fallback)
-        /// IMPORTANT: Use valid Gemini API model identifiers:
-        /// - gemini-2.0-flash (Fast, stable)
-        /// - gemini-2.5-flash (Fast, stable)
-        /// - gemini-2.5-pro (Balanced, high quality)
-        /// - gemini-exp-1206 (Experimental Pro)
+        /// v5.0.0: GEMMA 4 (Local) only. Gemini and Perplexity removed.
         /// </summary>
         private void InitializeTaskPreferences()
         {
-            // Deep Scan - v4.5.3: Flash-first for rate limit safety
-            _taskModelPreferences[TaskType.DeepScan] = new List<string> 
-            { 
-                "gemini-2.5-flash",      // 1st: Higher rate limit
-                "gemini-2.0-flash"       // 2nd: Fallback
-            };
-            
-            // News Analysis - v4.5.3: Flash-first to avoid rate limits
-            _taskModelPreferences[TaskType.NewsAnalysis] = new List<string> 
-            { 
-                "gemini-2.5-flash",      // 1st: Higher rate limit, stable
-                "gemini-2.0-flash"       // 2nd: Fallback
-            };
+            // All tasks redirected to local LM Studio (gemma4)
+            var localOnly = new List<string> { "lm-studio" };
 
-            // News Thread Generation - v4.5.3: Flash-first for stability
-            _taskModelPreferences[TaskType.NewsThreadGeneration] = new List<string>
-            {
-                "gemini-2.5-flash",      // 1st: Stable, good quality
-                "gemini-2.0-flash"       // 2nd: Fallback
-            };
-            
-            // Formation Analysis - Vision quality is critical
-            _taskModelPreferences[TaskType.FormationAnalysis] = new List<string> 
-            { 
-                "gemini-2.5-pro",        // 1st: Best vision
-                "gemini-2.5-flash",      // 2nd: Good vision
-                "gemini-2.0-flash"       // 3rd: Basic vision
-            };
-            
-            // Tweet Generation - v4.5.3: Pro-first for quality replies
-            _taskModelPreferences[TaskType.TweetGeneration] = new List<string> 
-            { 
-                "gemini-2.5-pro",        // 1st: Best creativity and tone
-                "gemini-2.5-flash"       // 2nd: Fallback
-            };
-            
-            // Smart Quote - Simple text processing
-            _taskModelPreferences[TaskType.SmartQuote] = new List<string> 
-            { 
-                "gemini-2.5-flash",      // 1st: Fast and sufficient
-                "gemini-2.5-pro"         // 2nd: Fallback
-            };
-            
-            // Influencer Reply - v4.5.3: Pro-first for quality interactions
-            _taskModelPreferences[TaskType.InfluencerReply] = new List<string> 
-            { 
-                "gemini-2.5-pro",        // 1st: Best context understanding
-                "gemini-2.5-flash"       // 2nd: Fallback
-            };
-            
-            // Symbol Research - Real-time info is important
-            _taskModelPreferences[TaskType.SymbolResearch] = new List<string> 
-            { 
-                "perplexity-sonar-pro",  // 1st: Most detailed research
-                "perplexity-sonar",      // 2nd: Good research
-                "gemini-2.5-flash"       // 3rd: Fallback
-            };
-            
-            // Trend Tracking - Real-time info is CRITICAL
-            _taskModelPreferences[TaskType.TrendTracking] = new List<string> 
-            { 
-                "perplexity-sonar",      // 1st: Real-time trends
-                "perplexity-sonar-pro",  // 2nd: More detailed
-                "gemini-2.0-flash"       // 3rd: Fallback
-            };
-            
-            // General Analysis - v4.5.3: Pro-first for Manuel Analiz quality
-            _taskModelPreferences[TaskType.GeneralAnalysis] = new List<string> 
-            { 
-                "gemini-2.5-pro",        // 1st: Best quality for analysis
-                "gemini-2.5-flash"       // 2nd: Fallback
-            };
-
-            // Meta-Teacher Analysis - v4.5.3: Pro-first for Üstat quality
-            _taskModelPreferences[TaskType.MetaTeacherAnalysis] = new List<string>
-            {
-                "gemini-2.5-pro",        // 1st: Best for technical analysis
-                "gemini-2.5-flash"       // 2nd: Fallback
-            };
-
-            // Potential Guru Analysis - v4.5.3: Pro-first for guru quality
-            _taskModelPreferences[TaskType.PotentialGuruAnalysis] = new List<string>
-            {
-                "gemini-2.5-pro",        // 1st: Best for analysis quality
-                "gemini-2.5-flash"       // 2nd: Fallback
-            };
-
-            // FanZone Reaction - creative but specific
-            _taskModelPreferences[TaskType.FanZoneReaction] = new List<string>
-            {
-                "gemini-2.5-flash",      // 1st: Fast and good tone
-                "gemini-2.0-flash"       // 2nd: Fallback
-            };
-
-            // Ar-Ge Analysis - Deep understanding
-            _taskModelPreferences[TaskType.ArGeAnalysis] = new List<string>
-            {
-                "gemini-2.5-pro",        // 1st: Best logic
-                "gemini-2.0-flash"       // 2nd: Fallback
-            };
+            _taskModelPreferences[TaskType.DeepScan] = localOnly;
+            _taskModelPreferences[TaskType.NewsAnalysis] = localOnly;
+            _taskModelPreferences[TaskType.NewsThreadGeneration] = localOnly;
+            _taskModelPreferences[TaskType.ShortThreadGeneration] = localOnly;
+            _taskModelPreferences[TaskType.FormationAnalysis] = localOnly;
+            _taskModelPreferences[TaskType.TweetGeneration] = localOnly;
+            _taskModelPreferences[TaskType.SmartQuote] = localOnly;
+            _taskModelPreferences[TaskType.InfluencerReply] = localOnly;
+            _taskModelPreferences[TaskType.SymbolResearch] = localOnly;
+            _taskModelPreferences[TaskType.TrendTracking] = localOnly;
+            _taskModelPreferences[TaskType.GeneralAnalysis] = localOnly;
+            _taskModelPreferences[TaskType.MetaTeacherAnalysis] = localOnly;
+            _taskModelPreferences[TaskType.PotentialGuruAnalysis] = localOnly;
+            _taskModelPreferences[TaskType.FanZoneReaction] = localOnly;
+            _taskModelPreferences[TaskType.ArGeAnalysis] = localOnly;
         }
         
         /// <summary>
@@ -151,6 +70,7 @@ namespace XiDeAI_Pro.Services.AI
             await _semaphore.WaitAsync(); // v3.5.2: Ensure sequential execution across all providers
             try
             {
+                LastError = null;
                 // v3.6.6: Increased delay for better rate limit protection
                 // Priority logic: Add extra delay for background tasks during business hours
                 await ApplyPriorityDelay(taskType);
@@ -194,12 +114,14 @@ namespace XiDeAI_Pro.Services.AI
                         }
                         else
                         {
-                            _logger($"⚠️ {provider.ModelName} returned empty response, trying fallback");
+                            LastError = provider.LastError ?? "Provider returned empty response";
+                            _logger($"⚠️ {provider.ModelName} failed: {LastError}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger($"❌ {provider.ModelName} failed: {ex.Message}, trying fallback");
+                        LastError = $"Exception: {ex.Message}";
+                        _logger($"❌ {provider.ModelName} fatal failure: {LastError}");
                     }
                 }
             }
@@ -208,7 +130,8 @@ namespace XiDeAI_Pro.Services.AI
                 _semaphore.Release();
             }
             
-            _logger($"❌ All models failed for task {taskType}");
+            if (string.IsNullOrEmpty(LastError)) LastError = $"Yerel modele ulaşılamıyor (LM Studio) - Görev: {taskType}";
+            _logger($"❌ {LastError}");
             return null;
         }
         
@@ -220,6 +143,7 @@ namespace XiDeAI_Pro.Services.AI
             await _semaphore.WaitAsync();
             try
             {
+                LastError = null;
                 // Small delay between requests to keep API keys healthy
                 await Task.Delay(300).ConfigureAwait(false);
 
@@ -246,10 +170,16 @@ namespace XiDeAI_Pro.Services.AI
                             _logger($"✅ {provider.ModelName} vision analysis successful");
                             return result;
                         }
+                        else
+                        {
+                            LastError = provider.LastError ?? "Provider returned empty vision response";
+                            _logger($"⚠️ {provider.ModelName} vision failed: {LastError}");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        _logger($"❌ {provider.ModelName} vision failed: {ex.Message}, trying fallback");
+                        LastError = $"Vision Exception: {ex.Message}";
+                        _logger($"❌ {provider.ModelName} vision fatal failure: {LastError}");
                     }
                 }
             }
@@ -258,7 +188,8 @@ namespace XiDeAI_Pro.Services.AI
                 _semaphore.Release();
             }
             
-            _logger($"❌ All vision models failed for task {taskType}");
+            if (string.IsNullOrEmpty(LastError)) LastError = $"All vision models failed for task {taskType}";
+            _logger($"❌ {LastError}");
             return null;
         }
         

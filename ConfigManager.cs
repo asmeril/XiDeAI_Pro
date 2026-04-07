@@ -149,6 +149,12 @@ namespace XiDeAI_Pro.Config
         public bool IsGuruAutomationEnabled { get; set; } = false; // Phase 4.1: Guru Automation Toggle
         public bool EnableMetaTeacher { get; set; } = false; // Phase 1 (Hive): Enables Meta-Teacher Analysis Logic
 
+        // LM Studio / Link Support
+        public bool LMStudioEnabled { get; set; } = true; // Default to true if user is asking for it
+        public string LMStudioUri { get; set; } = "http://localhost:1234/v1"; 
+        public string LMStudioModel { get; set; } = "gemma4"; // Labeled as 'gemma4' in your LM Studio
+        public string LMStudioApiKey { get; set; } = "3c668174111958f34bc7f4699322787c"; // The code provided by the user
+
         // FENERBAHÇE FAN ZONE
         public bool FanZoneEnabled { get; set; } = true;
         public List<string> FenerbahceAccounts { get; set; } = new List<string>
@@ -206,9 +212,9 @@ namespace XiDeAI_Pro.Config
 
     public class FenerbahceAthlete
     {
-        public string Name { get; set; }
-        public string Handle { get; set; } // @Dzeko, @EdiDzeko etc.
-        public string Sport { get; set; } // Futbol, Basketbol, Voleybol
+        public string Name { get; set; } = string.Empty;
+        public string Handle { get; set; } = string.Empty;
+        public string Sport { get; set; } = string.Empty;
         public DateTime LastInteraction { get; set; }
     }
 

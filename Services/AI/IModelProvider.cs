@@ -52,6 +52,11 @@ namespace XiDeAI_Pro.Services.AI
         /// </summary>
         /// <returns>Cost in USD per 1K tokens</returns>
         decimal GetCostPer1KTokens();
+
+        /// <summary>
+        /// Last error message from provider
+        /// </summary>
+        string? LastError { get; }
     }
 }
 

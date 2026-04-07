@@ -1,6 +1,6 @@
-﻿> **Version:** 4.9.8 (Live)
-> **Architecture:** Hybrid (C# WinForms + HTTP Daemon + Python Selenium + WebView2 Bridge)
-> **Last Updated:** 2026-04-01
+﻿> **Version:** 4.10.2 (Live)
+> **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
+> **Last Updated:** 2026-04-07
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -10,12 +10,24 @@ Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **ko
 
 Proje 4 ana katmandan oluşur:
 1.  **Orchestrator (C#):** Tüm mantığı yöneten, servisleri başlatan ve kararları veren katman. (`OperationManager`)
-2.  **🆕 Daemon Layer (Python HTTP):** Tek Chrome instance ile sürekli çalışan arka plan servisi. (`x_daemon.py` - localhost:5580)
+2.  **Publishing Engine (Python Playwright):** Thread gönderiminde ana motor. (`playwright_daemon.py`)
 3.  **Interaction Layer (Hybrid):**
-    *   **Daemon-First:** Tüm X işlemleri önce daemon'a gönderilir (hızlı yanıt).
+    *   **Playwright-First (Thread/Tweet):** Gönderim işlemleri Playwright motoru ile yürür.
     *   **WebView2 Fallback:** Kullanıcı görünürlüğü gerektiren işlemler için yedek.
-    *   **Python/Selenium Fallback:** Daemon kapalıysa subprocess moduna düşer.
+    *   **Python/Selenium Fallback:** Fenomen tarama/araştırma için halen aktif.
 4.  **Intelligence Layer (AI):** Gemini, Perplexity ve GPT modellerinin entegrasyonu.
+
+### ✅ Canonical Publishing Flow (Tek Gerçek Hat)
+1. `SocialIntelService.PostThreadAsync` payload üretir (`preserve_chunks=true`).
+2. `ThreadPipeline.cs` sinyal ve haber thread parçalarını normalize eder, lead tweet üretir.
+3. `playwright_daemon.py` ilk tweeti yayınlar, sonra reply-chain ile devam eder.
+4. URL yakalama kendi profile timeline/toast üzerinden yapılır (rastgele timeline linki engellenir).
+5. C# sonuç kontrolü yalnızca `result.status == success` ise başarı sayar/loglar.
+
+### ❌ Kaçınılacak Eski Davranışlar
+- Aynı işlemde hem fail hem success logu yazmak.
+- C# tarafından hazırlanmış thread parçalarını Python'da gereksiz yeniden parçalamak.
+- Thread sayaçlarını parça sayısı yerine sabit +1 artırmak.
 
 ---
 
@@ -28,13 +40,16 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | **`SocialIntelService.cs`** | **Ana X (Twitter) Köprüsü.** Daemon-first mimari ile işlem yapar. `StartDaemonAsync()`, `DaemonRequestAsync()` metodları. | `x_daemon.py`, `social_intel.py` |
 | **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır, daemon'ı başlatır, durdurur ve birbirine bağlar. | - |
 | `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. **v4.2.2:** Two-Step News metodları eklendi. | - |
-| `ModelBenchmarkService.cs` | **v3.7.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. | - |
+| `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi — benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak günceller. | - |
 | `NewsEngine.cs` | **v4.2.2:** Two-Step Logic (1-10 skor, 7 kategori, SON DAKIKA boost). Haber akışını kategorize eder ve işler. | `x_daemon.py` |
 | `NewsTrackerService.cs` | RSS ve Twitter'dan haber tarar. **v3.8.3:** `OnNewsDetected` eventini tetikler. | `x_daemon.py` |
 | `ThreadService.cs` | Zincir (Thread) oluşturma mantığını kurar. | - |
+| `ThreadPipeline.cs` | **Merkezi Thread Hazırlayıcı.** Lead tweet, parça normalizasyonu ve ortak split kurallarını tek yerde toplar. | - |
 | `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanını yönetir. | - |
 | `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
 | `SignalEngine.cs` | Sinyal işleme motoru. Sinyalleri filtreler, formatlar ve yayınlar. | - |
+| `ModelManager.cs` | **v4.10.0** AI provider yöneticisi. Aktif provider'ı seçer, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tüm provider'ları senkronize eder. | - |
+| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG'e dönüştürür (Gemma 4 vision fix). | - |
 
 > **Not (v4.0.0):** HIVE servisleri (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex) kaldırılmıştır. Yedek: `d:\Projects\HiveProjesi`
 
@@ -56,6 +71,11 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `AnalyzeNewsImpactTwoStep(title, source)`: **(v4.2.2)** Önce kategori, sonra 1-10 skor üretir.
 - `GenerateNewsCategoryAnalysis(category, title, source, link)`: **(v4.2.2)** Kategoriye özel analiz thread'i üretir.
 - `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
+
+#### `LMStudioProvider.cs`
+- `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat).
+- `SendRequestWithImage(prompt, imagePath)`: Görsel + metin isteği gönderir.
+- `PrepareImageForVision(imagePath, maxDimension)`: **(v4.10.2)** Görseli max 1024px'e küçültür ve JPEG 85% kalitesinde kodlar. 4K DPI ekran görüntülerinin LM Studio'da `Invalid image at index 0` hatasına yol açmasını önler.
 
 ---
 
@@ -194,6 +214,7 @@ Bu script "Standalone" (Tek başına) çalışabilen güçlü bir bottur.
 |-------|-------|--------|
 | `ModelBenchmarkService.cs` | 55-125 | `FetchAvailableModelsAsync()` |
 | `ModelBenchmarkService.cs` | 130-145 | `RunBenchmarkAsync()` |
+| `ModelBenchmarkService.cs` | 290-385 | `UpdateTaskPreferencesFromResults()` — benchmark→ModelManager dinamik güncelleme |
 | `ModelManager.cs` | 42-150 | `InitializeTaskPreferences()` |
 | `ModelManager.cs` | 155-220 | `SendRequest()` + fallback |
 | `GeminiService.cs` | ~580-720 | `SendRequest()` ana mantık |
@@ -242,6 +263,8 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
+
 
 
 

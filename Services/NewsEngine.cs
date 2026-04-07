@@ -234,14 +234,10 @@ namespace XiDeAI_Pro.Services
                 return (false, "AI thread içeriği üretemedi");
             }
 
-            // Post as Thread
-            string[] parts = threadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-
-            // v4.6.6: Safety Check - If AI returned a single block but it's too long, split it by logical sentences
-            if (parts.Length == 1 && parts[0].Length > 280)
+            var normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent);
+            if (normalizedParts.Count > 1 && !threadContent.Contains("|||"))
             {
                 OnLog?.Invoke("⚠️ AI thread separatoru (|||) kullanmadı. İçerik otomatik bölünüyor...", "NewsEngine");
-                parts = ThreadService.SplitText(parts[0], 275).ToArray();
             }
 
             
@@ -314,7 +310,7 @@ namespace XiDeAI_Pro.Services
             }
 
 
-            var result = await _socialIntel.PostThreadAsync(parts.ToList(), localImagePath);
+            var result = await _socialIntel.PostThreadAsync(normalizedParts, localImagePath);
 
             // Cleanup temp image
             if (!string.IsNullOrEmpty(localImagePath) && System.IO.File.Exists(localImagePath))
@@ -329,11 +325,11 @@ namespace XiDeAI_Pro.Services
                 OnLog?.Invoke($"✅ Haber Paylaşıldı: {item.Title}", "Twitter");
                 
                 // Record tweets in stats engine
-                int partCount = string.IsNullOrEmpty(threadContent) ? 1 : threadContent.Split(new[] { "|||" }, StringSplitOptions.None).Length;
-                _stats.RecordTweet("NewsEngine", partCount, item.Link, item.Title);
+                int partCount = normalizedParts.Count;
+                _stats.RecordTweet("NewsEngine", partCount, item.Link, item.Title ?? string.Empty);
                 
                 // Kalıcı hafızaya PUBLISHED olarak kaydet
-                _persistence.AddParsedNews(item.Title, item.Source, item.Link, 5, true);
+                _persistence.AddParsedNews(item.Title ?? string.Empty, item.Source ?? string.Empty, item.Link ?? string.Empty, 5, true);
                 
                 // Event tetikle (UI güncellemesi için)
                 OnNewsProcessed?.Invoke(item, summary, 5, "EKONOMI"); // Legacy: Fixed category

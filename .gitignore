@@ -51,3 +51,10 @@ Thumbs.db
 *.key
 *.pem
 appsettings.*.json
+.env
+.env.*
+!.env.example
+Config.json
+twitter_cookies.json
+twitter_cookies*.json
+tradingview_cookies*.json

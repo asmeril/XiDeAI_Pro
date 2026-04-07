@@ -160,35 +160,10 @@ namespace XiDeAI_Pro.Services
 
              try
              {
-                 var rawTweets = new List<string>();
-                 if (aiThreadContent.Contains("|||"))
-                 {
-                     var parts = aiThreadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-                     foreach (var p in parts)
-                     {
-                         string cleanP = SanitizeXContent(p);
-                         if (!string.IsNullOrWhiteSpace(cleanP))
-                             rawTweets.Add(cleanP);
-                     }
-                 }
-                 else
-                 {
-                     string cleanP = SanitizeXContent(aiThreadContent);
-                     if (!string.IsNullOrWhiteSpace(cleanP))
-                         rawTweets.Add(cleanP);
-                 }
-
-                 // v4.9.2: Merge suspiciously short tweets (single sentence) into previous
-                 for (int i = rawTweets.Count - 1; i >= 1; i--)
-                 {
-                     if (rawTweets[i].Trim().Length < 80)
-                     {
-                         rawTweets[i - 1] = rawTweets[i - 1].TrimEnd() + " " + rawTweets[i].Trim();
-                         rawTweets.RemoveAt(i);
-                     }
-                 }
-                 
-                 var tweets = rawTweets;
+                 var tweets = ThreadPipeline.BuildSignalThread(signal, aiThreadContent, ConfigManager.Current.XLoginUser)
+                     .Select(SanitizeXContent)
+                     .Where(x => !string.IsNullOrWhiteSpace(x))
+                     .ToList();
                  
                  // Fallback for single tweet if something went wrong
                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
@@ -199,8 +174,8 @@ namespace XiDeAI_Pro.Services
                  {
                     var cfg = ConfigManager.Current;
                     cfg.CheckReset();
-                    cfg.DailyTotalTweetCount++;
-                    cfg.MonthlyTotalTweetCount++;
+                          cfg.DailyTotalTweetCount += tweets.Count;
+                          cfg.MonthlyTotalTweetCount += tweets.Count;
                     ConfigManager.Save();
                     _stats?.RecordTweet("HybridEngine", tweets.Count, signal.Symbol, tweets[0]);
                     return (true, "");
@@ -279,27 +254,8 @@ namespace XiDeAI_Pro.Services
                     tweets.Add(tweet1);
                 }
                 
-                // v2.7:||| Ayırıcısına göre bölme desteği (Premium Thread Yapısı)
-                if (fullAnalysis.Contains("|||"))
-                {
-                    var steps = fullAnalysis.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var step in steps)
-                    {
-                        string cleanStep = step.Trim();
-                        if (!string.IsNullOrEmpty(cleanStep))
-                        {
-                            // Her parçayı kendi içinde 4000 limitine göre (Blue hesap) tekrar bölelim (güvenlik için)
-                            var subParts = SplitText(cleanStep, 4000);
-                            foreach (var sp in subParts) tweets.Add(sp);
-                        }
-                    }
-                }
-                else
-                {
-                    // Ayırıcı yoksa standart uzunluk bazlı bölme
-                    var analysisParts = SplitText(fullAnalysis, 4000);
-                    foreach (var p in analysisParts) tweets.Add(p);
-                }
+                // v2.7:||| Ayırıcısına göre bölme desteği (X 280 karakter sınırı)
+                tweets.AddRange(ThreadPipeline.ParseParts(fullAnalysis, 280));
 
                 // v3.5.4: Sanitize all tweets before finalizing
                 for (int i = tweets.Count - 1; i >= 0; i--)
@@ -356,8 +312,8 @@ namespace XiDeAI_Pro.Services
                     cfg.CheckReset();
                     // DailyTweetCount ve MonthlyTweetCount SADECE API için
                     // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
-                    cfg.DailyTotalTweetCount++;
-                    cfg.MonthlyTotalTweetCount++;
+                    cfg.DailyTotalTweetCount += tweets.Count;
+                    cfg.MonthlyTotalTweetCount += tweets.Count;
                     ConfigManager.Save();
                     
                     // Record in stats engine by module
@@ -641,8 +597,8 @@ namespace XiDeAI_Pro.Services
                     cfg.CheckReset();
                     // DailyTweetCount ve MonthlyTweetCount SADECE API için
                     // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
-                    cfg.DailyTotalTweetCount++;
-                    cfg.MonthlyTotalTweetCount++;
+                    cfg.DailyTotalTweetCount += tweets.Count;
+                    cfg.MonthlyTotalTweetCount += tweets.Count;
                     ConfigManager.Save();
                 }
 
@@ -667,17 +623,7 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
-                var tweets = new List<string>();
-                if (threadContent.Contains("|||"))
-                {
-                     var parts = threadContent.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries);
-                     foreach (var p in parts) tweets.Add(p.Trim());
-                }
-                else
-                {
-                    // Default generic split
-                    tweets = SplitText(threadContent, 280); 
-                }
+                var tweets = ThreadPipeline.ParseParts(threadContent, 280);
                 
                 for(int i=0; i<tweets.Count; i++) tweets[i] = SanitizeXContent(tweets[i]);
 

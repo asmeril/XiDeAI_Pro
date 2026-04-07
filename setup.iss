@@ -1,7 +1,7 @@
 ﻿; X'iDeAI Installer Script
 
 #define MyAppName "XiDeAI Pro"
-#define MyAppVersion "4.9.8"
+#define MyAppVersion "4.10.2"
 #define MyAppPublisher "iDeAI Labs"
 #define MyAppExeName "XiDeAI_Pro.exe"
 
@@ -20,7 +20,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
-; Uninstaller settings - ICO dosyasını kullan (EXE yerine daha güvenilir)
+; Uninstaller settings - ICO dosyas�n� kullan (EXE yerine daha g�venilir)
 UninstallDisplayIcon={app}\xideai_icon.ico
 UninstallDisplayName={#MyAppName}
 
@@ -48,14 +48,14 @@ begin
   sUnInstallString := GetUninstallString();
   if sUnInstallString <> '' then
   begin
-    V := MsgBox('Önceki sürüm tespit edildi. Temiz kurulum için kaldırılsın mı?' + #13#10 + '(Ayarlarınız korunacaktır)', mbInformation, MB_YESNO);
+    V := MsgBox('�nceki s�r�m tespit edildi. Temiz kurulum i�in kald�r�ls�n m�?' + #13#10 + '(Ayarlar�n�z korunacakt�r)', mbInformation, MB_YESNO);
     if V = IDYES then
     begin
       sUnInstallString := RemoveQuotes(sUnInstallString);
       if Exec(sUnInstallString, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, iResultCode) then
         Result := True
       else
-        MsgBox('Kaldırma başarısız oldu. Manuel kaldırmanız gerekebilir.', mbError, MB_OK);
+        MsgBox('Kald�rma ba�ar�s�z oldu. Manuel kald�rman�z gerekebilir.', mbError, MB_OK);
     end;
   end;
 end;
@@ -68,9 +68,9 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; .NET projesi publish edildiğinde oluşan dosyaları alır
+; .NET projesi publish edildi�inde olu�an dosyalar� al�r
 Source: "Dist\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Scripts\screenshots\*,Logs\*,*.log"
-; Icon dosyası (Windows Uygulamalar listesinde görünmesi için)
+; Icon dosyas� (Windows Uygulamalar listesinde g�r�nmesi i�in)
 Source: "xideai_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -79,6 +79,25 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

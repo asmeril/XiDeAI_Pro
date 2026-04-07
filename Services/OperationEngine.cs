@@ -119,10 +119,7 @@ namespace XiDeAI_Pro.Services
 
                 bool anySent = false;
 
-                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
-                                   .Select(x => x.Trim())
-                                   .Where(x => !string.IsNullOrEmpty(x))
-                                   .ToList();
+                var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
 
                 if (tweets.Count > 0)
                 {

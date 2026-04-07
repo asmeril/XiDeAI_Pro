@@ -439,12 +439,14 @@ namespace XiDeAI_Pro.Services
             }
             
             // Required packages
-            string[] requiredPackages = new[] { "selenium", "webdriver-manager", "pillow", "pyperclip" };
+            string[] requiredPackages = new[] { "selenium", "webdriver-manager", "pillow", "pyperclip", "playwright" };
             
             foreach (var package in requiredPackages)
             {
                 await EnsurePythonPackageAsync(package);
             }
+
+            await EnsurePlaywrightBrowserAsync();
             
             _log("✅ Python paketleri hazır.");
         }
@@ -540,6 +542,46 @@ namespace XiDeAI_Pro.Services
                 _log($"⚠️ {packageName} kontrol hatası: {ex.Message}");
             }
             
+            await Task.CompletedTask;
+        }
+
+        private async Task EnsurePlaywrightBrowserAsync()
+        {
+            try
+            {
+                _log("🎭 Playwright Chromium kurulumu kontrol ediliyor...");
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = "-m playwright install chromium",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc == null)
+                {
+                    _log("⚠️ Playwright Chromium kurulumu başlatılamadı.");
+                    return;
+                }
+
+                bool exited = proc.WaitForExit(180000);
+                if (!exited || !proc.HasExited || proc.ExitCode != 0)
+                {
+                    _log("⚠️ Playwright Chromium kurulumu tamamlanamadı.");
+                    return;
+                }
+
+                _log("✅ Playwright Chromium hazır.");
+            }
+            catch (Exception ex)
+            {
+                _log($"⚠️ Playwright Chromium kontrol hatası: {ex.Message}");
+            }
+
             await Task.CompletedTask;
         }
 

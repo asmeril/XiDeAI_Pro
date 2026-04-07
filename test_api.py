@@ -1,12 +1,15 @@
 ﻿import urllib.request
 import json
 import ssl
+import os
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
-api_key = 'AIzaSyA4vkeHvwn1EYje-ugf5Ss27VC6KFUYEWk'
+api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+if not api_key:
+    raise RuntimeError('GEMINI_API_KEY env var bulunamadi. Ornek: $env:GEMINI_API_KEY="..."')
 url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}'
 
 prompt = '''KİMLİK: Sen deneyimli ve profesyonel bir Baş Ekonomist ve Stratejistsin.

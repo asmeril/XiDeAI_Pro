@@ -64,7 +64,7 @@ namespace XiDeAI_Pro.Services
             foreach (var sig in _signals.Where(s => s.EntryTime.Date == DateTime.Now.Date && s.ClosingPrice == 0))
             {
                 // Try direct match OR symbol without .IS/.HE (BIST normalization)
-                string symbolKey = sig.Symbol;
+                string? symbolKey = sig.Symbol;
                 if (!closingPrices.ContainsKey(symbolKey))
                 {
                     // Fallback: Check if we have symbols like "THYAO.IS" in dictionary but "THYAO" in signal

@@ -2,8 +2,8 @@
 # Usage: .\release.ps1 -Version 3.8.0 -Changelog "HIVE Protocol Phase 1 & 2"
 
 param (
-    [string]$Version = "3.8.0",
-    [string]$Changelog = "HIVE Protocol Integration (OmniScout + Oracle), OperatorForm Enhancements, Sentinel History"
+    [string]$Version = "5.0.0",
+    [string]$Changelog = "v5.0.0: Full Local AI Transition (Gemma 4), Vision Analysis Fix, Improved Error Reporting, Build Optimization (~50MB)"
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,7 +13,7 @@ $CsprojFile = "$ProjectDir\XiDeAI_Pro.csproj"
 $ProgramFile = "$ProjectDir\Program.cs"
 $MainFormFile = "$ProjectDir\MainForm.cs"
 $DistDir = "$ProjectDir\Dist"
-$PublishDir = $DistDir
+$PublishDir = "$DistDir\publish"
 $SetupOutputDir = "$ProjectDir\Output"
 
 Write-Host "STARTING XiDeAI Release Process for v$Version..." -ForegroundColor Cyan
@@ -81,9 +81,16 @@ dotnet clean $CsprojFile -c Release
 if (Test-Path "$ProjectDir\obj") { Remove-Item "$ProjectDir\obj" -Recurse -Force -ErrorAction SilentlyContinue }
 if (Test-Path "$ProjectDir\bin") { Remove-Item "$ProjectDir\bin" -Recurse -Force -ErrorAction SilentlyContinue }
 
-Write-Host "Building project (Release)..."
-dotnet publish $CsprojFile -c Release -r win-x64 --self-contained true -o $PublishDir
+Write-Host "Building project (Release - Self-Contained, No Trimming)..."
+dotnet publish $CsprojFile -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -o $PublishDir
 if ($LASTEXITCODE -ne 0) { Write-Error "Build Failed!" }
+
+# CLEANUP BLOAT (v5.0.0 Optimization)
+Write-Host "Cleaning up build bloat (locales, pdb, xml)..." -ForegroundColor Yellow
+# Remove satellite assemblies (localizations we don't use, saving ~30MB)
+Get-ChildItem -Path $PublishDir -Directory | Where-Object { $_.Name.Length -eq 2 -or $_.Name -match "^[a-z]{2}-" } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# Remove debug and doc files
+Get-ChildItem -Path $PublishDir -Include *.pdb, *.xml, *.devlog -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
 
 Write-Host "Build Success!" -ForegroundColor Green
 

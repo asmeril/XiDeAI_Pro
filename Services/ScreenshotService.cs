@@ -54,7 +54,7 @@ namespace XiDeAI_Pro.Services
                     Path.Combine(appDir, "chromedriver.exe")                   // Priority 3: Root
                 };
 
-                string chromedriverPath = possiblePaths.FirstOrDefault(File.Exists);
+                string? chromedriverPath = possiblePaths.FirstOrDefault(File.Exists);
                 
                 // Fallback: If not found in specific paths, check if it's in PATH or try to find it recursively in likely places
                 if (string.IsNullOrEmpty(chromedriverPath))

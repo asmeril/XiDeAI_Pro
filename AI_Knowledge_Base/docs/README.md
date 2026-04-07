@@ -1,5 +1,13 @@
-# XiDeAI_Pro (v2.7.0)
-**AI Powered Algorithmic Trading Assistant**
+# XiDeAI_Pro Knowledge Base
+**Local AI Training and Reference Corpus**
+
+Bu klasör canlı uygulamanın çalışma dizini değil; XiDeAI Pro için yerel model eğitimi, RAG, retrieval ve davranış referansı amacıyla tutulan bilgi tabanıdır.
+
+Detaylı sınıflandırma ve kullanım kuralları için:
+- TRAINING_MANIFEST.md
+- DATASET_CATALOG.md
+- CHUNKING_SCHEMA.md
+- PROJECT_INDEX.md
 
 XiDeAI, iDeal platformundan gelen sinyalleri sadece iletmekle kalmaz; onları **görür**, **hatırlar** ve **yorumlar**.
 
@@ -25,10 +33,18 @@ XiDeAI, iDeal platformundan gelen sinyalleri sadece iletmekle kalmaz; onları **
 2.  İlk açılışta `Settings` sekmesinden **Gemini API Key** girin.
 3.  Twitter hesabınıza giriş yapmak için "Import Cookies" butonunu kullanın.
 
-## 📁 Proje Yapısı
+## 📁 Korpus Yapısı
 
-*   `Services/Engine/`: İş mantığını yöneten yeni beyin takımı (`SignalEngine`, `StatsEngine`...).
-*   `Scripts/social_intel.py`: X otomasyonunu sağlayan Python ajanı.
-*   `Logs/`: İşlem ve hata kayıtları.
+*   `docs/`: Gold training data ve kavramsal referans belgeleri.
+*   `codebase/`: Tarihsel kod snapshotları ve eğitim amaçlı kod referansı.
+*   `docs/TRAINING_MANIFEST.md`: Veri sınıfları, bakım politikası ve önerilen metadata.
+*   `docs/DATASET_CATALOG.md`: Dosya bazlı veri tier ve kullanım önerileri.
+*   `docs/CHUNKING_SCHEMA.md`: Fine-tuning ve RAG için parçalama şeması.
 
-**Detaylı bilgi için:** [TEKNIK_RAPOR.md](TEKNIK_RAPOR.md) dosyasını inceleyin.
+## 🏷️ Veri Sınıfları
+
+*   `Gold Training Data`: Rehberler, manifestler, indeksler, sembol listeleri.
+*   `Reference Code Snapshot`: C# ve Python kod snapshotları.
+*   `Auxiliary / Tooling Data`: RAG, temizleme ve debug scriptleri.
+
+Bu klasör otomatik temizlikte silinmemeli ve disposable backup olarak görülmemelidir.

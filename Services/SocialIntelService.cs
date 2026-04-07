@@ -761,6 +761,16 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostThreadAsync(List<string> tweets, string? mediaPath = null)
         {
+            tweets = (tweets ?? new List<string>())
+                .Select(t => t?.Trim() ?? string.Empty)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList();
+
+            if (tweets.Count == 0)
+            {
+                return new SocialIntelResult { status = "error", message = "Thread payload is empty after normalization." };
+            }
+
             // 1. Try Internal Bridge
             if (OnPostThreadRequested != null)
             {
@@ -816,7 +826,8 @@ namespace XiDeAI_Pro.Services
                 var payload = new 
                 { 
                     tweets = tweets,
-                    media = mediaPath 
+                    media = mediaPath,
+                    preserve_chunks = true
                 };
 
                 // Serialize to JSON and write to temp file
@@ -1679,7 +1690,7 @@ namespace XiDeAI_Pro.Services
                                         string content = item.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "";
                                         string url = item.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
                                         string postDateStr = item.TryGetProperty("postDate", out var pd) ? pd.GetString() ?? "" : "";
-                                        string imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : null;
+                                        string? imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : null;
                                         int engagement = item.TryGetProperty("engagement", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetInt32() : 0;
                                         
                                         if (string.IsNullOrWhiteSpace(content) || content.Length < 10) continue;
@@ -1799,7 +1810,7 @@ namespace XiDeAI_Pro.Services
                             postDate = parsed;
                         }
 
-                        string imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : (item.TryGetProperty("image", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null);
+                        string? imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : (item.TryGetProperty("image", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null);
 
                         if ((string.IsNullOrWhiteSpace(content) || content.Length < 10) && string.IsNullOrEmpty(imageUrl)) 
                         {

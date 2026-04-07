@@ -1,9 +1,11 @@
 {
-    "version": "4.3.0",
-    "build_number": 430,
-    "lastUpdate": "2026-01-20T19:15:00Z",
+    "version": "4.10.1",
+    "build_number": 4101,
+    "lastUpdate": "2026-04-07T05:08:00Z",
     "changelog": [
-        "v4.3.0: HYBRID SIGNAL: Two-Step Sinyal Zekası (Puanlama + Strateji Personası + Tier Sistemi)",
+        "v4.10.1: FIX: Gemma 4 isimlendirme düzeltmesi",
+        "v4.10.0: AI: LM Studio / LM Link Entegrasyonu (Yerel Gemma 4 Desteği)",
+        "v4.9.9: AI: Gemini 2.5 Flash / Pro stabilizasyonu",
         "v4.2.2: NEWS: Two-Step Logic - 1-10 skorlama, 7 kategori, SON DAKIKA boost",
         "v4.2.1: BOT: Round-Robin Category Search implementasyonu",
         "v4.2.0: BOT: Two-Step Bot Interaction Logic (Kategori tespiti + özel yanıt)",

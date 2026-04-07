@@ -62,11 +62,6 @@ namespace XiDeAI_Pro
             public DateTime Time { get; set; }
         }
         
-        // Analysis debounce (avoid repeated analysis/screenshot for same symbol within short window)
-        private readonly object _analysisLock = new object();
-        private readonly Dictionary<string, DateTime> _lastAnalysisAt = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        private static readonly TimeSpan AnalysisDebounceWindow = TimeSpan.FromSeconds(120);
-
         // Interaction processing handled by InteractionEngine
         
         // Delayed Queue handled by SignalEngine
@@ -87,6 +82,9 @@ namespace XiDeAI_Pro
         // Settings Controls
         private TextBox txtApiKey = null!, txtApiSecret = null!, txtAccessToken = null!, txtTokenSecret = null!, txtGeminiKey = null!, txtPerplexityKey = null!, txtTvChartId = null!, txtTvSymbol = null!;
         private TextBox txtTelToken = null!, txtTelChatId = null!;
+        // LM Studio Settings Controls
+        private TextBox txtLMStudioUri = null!, txtLMStudioModel = null!;
+        private CheckBox chkLMStudioEnabled = null!;
         
         // Bot Interaction Tab Controls
         private CheckBox chkBotEnabled = null!;
@@ -882,6 +880,53 @@ namespace XiDeAI_Pro
                  btnTestGemini.Enabled = true;
             };
             flowVariable.Controls.Add(btnTestGemini);
+
+            // --- LM Studio / Yerel AI ---
+            flowVariable.Controls.Add(new Label { Text = "🧩 LM Studio (Yerel AI)", ForeColor = Color.Orange, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,5) });
+            flowVariable.Controls.Add(new Label { Text = "LM Link veya yerel LM Studio API'nize bağlanır. Gemma 4 gibi modelleri ücretsiz kullanın.", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
+            
+            chkLMStudioEnabled = new CheckBox { Text = "LM Studio Etkin", ForeColor = Color.White, AutoSize = true, Margin = new Padding(0,5,0,0) };
+            flowVariable.Controls.Add(chkLMStudioEnabled);
+            
+            flowVariable.Controls.Add(new Label { Text = "LM Studio URI (örn: http://localhost:1234/v1):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
+            txtLMStudioUri = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
+            flowVariable.Controls.Add(txtLMStudioUri);
+            
+            flowVariable.Controls.Add(new Label { Text = "Model Adı (LM Studio'da görünen isim):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
+            txtLMStudioModel = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "gemma4" };
+            flowVariable.Controls.Add(txtLMStudioModel);
+
+            var btnTestLMStudio = new Button { Text = "🧩 LM Studio Bağlantısını Test Et", Width = 400, Height = 30, BackColor = Color.FromArgb(150, 80, 0), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
+            AttachHoverEffect(btnTestLMStudio, Color.DarkOrange, Color.FromArgb(150, 80, 0));
+            btnTestLMStudio.Click += async (s, ev) =>
+            {
+                string uri = txtLMStudioUri.Text.Trim();
+                string model = txtLMStudioModel.Text.Trim();
+                if (string.IsNullOrEmpty(uri)) { MessageBox.Show("URI boş olamaz."); return; }
+                btnTestLMStudio.Text = "⏳ Test ediliyor...";
+                btnTestLMStudio.Enabled = false;
+                await Task.Run(async () =>
+                {
+                    try {
+                        using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                        hc.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ConfigManager.Current.LMStudioApiKey);
+                        var payload = new System.Net.Http.StringContent(
+                            $"{{\"model\":\"{model}\",\"messages\":[{{\"role\":\"user\",\"content\":\"Merhaba! Bağlantı testi.\"}}],\"max_tokens\":50}}",
+                            System.Text.Encoding.UTF8, "application/json");
+                        var resp = await hc.PostAsync(uri.TrimEnd('/') + "/chat/completions", payload);
+                        string respBody = await resp.Content.ReadAsStringAsync();
+                        this.Invoke(() => MessageBox.Show(resp.IsSuccessStatusCode
+                            ? $"✅ Bağlantı başarılı!\nModel: {model}\nDurum: {(int)resp.StatusCode}"
+                            : $"❌ Hata: {(int)resp.StatusCode}\n{respBody}"));
+                    } catch (Exception ex) {
+                        this.Invoke(() => MessageBox.Show($"❌ Bağlanamadı: {ex.Message}\n\nLM Studio'da Local Server başlatıldı mı?"));
+                    }
+                });
+                btnTestLMStudio.Text = "🧩 LM Studio Bağlantısını Test Et";
+                btnTestLMStudio.Enabled = true;
+            };
+            flowVariable.Controls.Add(btnTestLMStudio);
+
 
             flowVariable.Controls.Add(new Label { Text = "TradingView Sembol (örn: NASDAQ:AAPL, BINANCE:BTCUSDT):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtTvSymbol = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle, PlaceholderText = "NASDAQ:AAPL" }; 
@@ -1809,7 +1854,7 @@ namespace XiDeAI_Pro
                         // Inspect what we got.
                         if (root.TryGetProperty("userAgent", out var uaProp))
                         {
-                            list.Add(new Dictionary<string, object> { { "meta_user_agent", uaProp.GetString() } });
+                            list.Add(new Dictionary<string, object> { { "meta_user_agent", uaProp.GetString() ?? "" } });
                         }
                         
                         if (root.TryGetProperty("meta_client_hints", out var hintsProp))
@@ -1817,7 +1862,7 @@ namespace XiDeAI_Pro
                             // We need to serialize the hints back to a string or object to store them
                             // Simplest is to store the raw object or a serialized string version
                             var hintsDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(hintsProp.GetRawText());
-                            list.Add(new Dictionary<string, object> { { "meta_client_hints", hintsDict } });
+                            list.Add(new Dictionary<string, object> { { "meta_client_hints", hintsDict ?? new Dictionary<string, object>() } });
                         }
                     }
                 } 
@@ -1926,7 +1971,7 @@ namespace XiDeAI_Pro
                 _telegramPollTimer.Tick += async (s, e) => await ProcessTelegramCommands();
                 
                 // v3.1 FIX: Better startup offset handling. Instead of skipping all, fetch 20 and process them if they are new.
-                Task.Run(async () => {
+                _ = Task.Run(async () => {
                     try
                     {
                         var lastUpdates = await _opManager.Telegram.GetUpdatesAsync(0); // Fetch pending
@@ -2030,6 +2075,11 @@ namespace XiDeAI_Pro
             }
             txtTvChartId.Text = cfg.TradingViewChartId;
             txtTvSymbol.Text = cfg.TradingViewSymbol;
+            
+            // Load LM Studio Settings
+            chkLMStudioEnabled.Checked = cfg.LMStudioEnabled;
+            txtLMStudioUri.Text = cfg.LMStudioUri ?? "http://localhost:1234/v1";
+            txtLMStudioModel.Text = cfg.LMStudioModel ?? "gemma4";
 
             chkAuto.Checked = cfg.AutoTweet;
             
@@ -2117,6 +2167,13 @@ namespace XiDeAI_Pro
             cfg.TelegramChatId = txtTelChatId.Text.Trim();
             cfg.TradingViewChartId = txtTvChartId.Text.Trim();
             cfg.TradingViewSymbol = txtTvSymbol.Text.Trim();
+
+            // Save LM Studio Settings
+            cfg.LMStudioEnabled = chkLMStudioEnabled.Checked;
+            cfg.LMStudioUri = txtLMStudioUri.Text.Trim();
+            cfg.LMStudioModel = txtLMStudioModel.Text.Trim();
+            // Re-register provider with new settings
+            _opManager.SyncLMStudioProviders();
 
             cfg.AutoTweet = chkAuto.Checked;
             
@@ -2343,10 +2400,7 @@ namespace XiDeAI_Pro
 
                 if (string.IsNullOrEmpty(tweetSet)) return;
 
-                var tweets = tweetSet.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
-                                   .Select(t => t.Trim())
-                                   .Where(t => !string.IsNullOrEmpty(t))
-                                   .ToList();
+                var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
 
                 if (tweets.Count > 0)
                 {
@@ -2357,14 +2411,13 @@ namespace XiDeAI_Pro
                     {
                         Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
                         for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
+                        Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
                     }
                     else
                     {
                         Log($"❌ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
                     }
                 }
-
-                Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
             }
             catch (Exception ex)
             {
@@ -3666,12 +3719,10 @@ namespace XiDeAI_Pro
                 {
                     // PREMIUM ACCOUNT: 2-Tweet Format
                     LogNews("💙 Premium hesap: 2-tweet formatı kullanılıyor...");
-                    
-                    var parts = analysis.Split(new[] { "|||" }, StringSplitOptions.TrimEntries);
-                    if (parts.Length == 2)
+
+                    var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
+                    if (tweets.Count >= 2)
                     {
-                        var tweets = new List<string> { parts[0], parts[1] };
-                        
                         result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                         if (result.status == "success")
                         {
@@ -3698,30 +3749,8 @@ namespace XiDeAI_Pro
                 {
                     // NON-PREMIUM: Long content = Thread Format
                     LogNews("🧵 Content long, converting to News Thread...");
-                    var tweets = new List<string>();
-                    
-                    // Tweet 1: Hook / Title
-                    tweets.Add($"🚨 SON DAKİKA: {news.Title}\n\nInvesting kaynaklı haberi analiz ettim. Önemi yüksek! 🔥\n🔗 Kaynak: {news.Link}\n\n#BIST100 #Haber #Borsa\n👇 Detaylar aşağıda...");
-                    
-                    // Tweet 2+: Split Analysis
-                    var newsWords = analysis.Split(' ');
-                    string currentTweet = "";
-                    foreach(var word in newsWords)
-                    {
-                        if ((currentTweet + word).Length > 250)
-                        {
-                            if (!string.IsNullOrWhiteSpace(currentTweet))
-                                tweets.Add(currentTweet.Trim());
-                            currentTweet = word + " ";
-                        }
-                        else
-                        {
-                            currentTweet += word + " ";
-                        }
-                    }
-                    if (!string.IsNullOrWhiteSpace(currentTweet)) 
-                        tweets.Add(currentTweet.Trim());
-                    
+                    var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
+
                     result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                     if (result.status == "success")
                     {
@@ -3844,143 +3873,6 @@ namespace XiDeAI_Pro
             }).ToList();
 
             return filtered;
-        }
-
-        private async void ProcessSignal(SignalData sig)
-        {
-            // Per-symbol debounce: skip if analyzed very recently
-            var nowUtc = DateTime.UtcNow;
-            lock (_analysisLock)
-            {
-                if (_lastAnalysisAt.TryGetValue(sig.Symbol, out var last) && (nowUtc - last) < AnalysisDebounceWindow)
-                {
-                    Log($"⏭️ Skipped (debounce): Recent analysis exists for {sig.Symbol}");
-                    return;
-                }
-                _lastAnalysisAt[sig.Symbol] = nowUtc;
-            }
-
-            string uniqueKey = $"{DateTime.Now:yyyy-MM-dd}|{sig.Symbol}|{sig.Strategy}|{sig.Period}";
-            if (_tweetedToday.Contains(uniqueKey))
-            {
-                Log($"⏭️ Skipped (already tweeted today): {sig.Symbol}");
-                return;
-            }
-
-            Log($"📢 SIGNAL: {sig.Symbol} ({sig.Strategy}) Period:{sig.Period} Score:{sig.Score}/{sig.MaxScore}");
-            
-            // Performans takibine kaydet
-            _opManager.Performance.RecordSignal(sig);
-
-            if (ConfigManager.Current.AutoTweet)
-            {
-                // Modül: Sinyal Tweetleri (per-module toggle)
-                if (ConfigManager.Current.SpamProtectSignals)
-                {
-                    if (!_opManager.Spam.CanTweet(sig.Symbol, sig.Strategy, out string reason))
-                    {
-                        Log($"🛡️ Spam protection (Sinyal): {reason}");
-                        LogActivity($"🚫 RED ({sig.Symbol}): Spam Koruması - {reason}");
-                        return;
-                    }
-                }
-                
-                LogActivity($"✅ ONAY ({sig.Symbol}): Spam kontrolü geçildi. İşlem başlıyor...");
-
-                
-                // Zamanlama/Gecikme KALDIRILDI (User Request: Gereksiz)
-
-                // Symbol Mapping for TradingView (VIP/Futures)
-        // User Request: VIP-THYAO -> THYAO1!, VIP-X030T -> XU030D1
-        string tvSymbol = sig.Symbol;
-        if (tvSymbol.StartsWith("VIP-"))
-        {
-             string core = tvSymbol.Replace("VIP-", "");
-             if (core == "X030T") tvSymbol = "XU030D1"; 
-             else tvSymbol = core + "1!";
-        }
-        
-        // SCREENSHOT (opsiyonel) 
-        string? screenshotPath = null;
-        string chartId = ConfigManager.Current.TradingViewChartId;
-        try
-        {
-            Log($"📸 Capturing chart screenshot ({tvSymbol})...");
-            // Pass the mapped TV symbol to ScreenshotService
-            screenshotPath = await _opManager.Screenshot.CaptureChart("BIST:" + tvSymbol, sig.Period, chartId);
-        }
-        catch { }
-
-        string trends = ConfigManager.Current.DailyTrends;
-        string symbolTag = _opManager.TrendService.GetSymbolHashtag(sig.Symbol);
-        
-        // TradingView link with Chart ID and interval
-        string interval = sig.Period == "G" ? "D" : sig.Period;
-        string finalTvLinkSymbol = "BIST:" + tvSymbol; // Ensure BIST prefix for URL
-        
-        string tvLink = string.IsNullOrEmpty(chartId) 
-            ? $"https://tr.tradingview.com/chart/?symbol={finalTvLinkSymbol}&interval={interval}"
-            : $"https://tr.tradingview.com/chart/{chartId}/?symbol={finalTvLinkSymbol}&interval={interval}";
-
-                // Yüksek skorlu sinyaller için Thread
-                int highScoreThreshold = sig.Source == "KING" ? 24 : sig.Source == "DIP" ? 13 : 28;
-                if (sig.Score >= highScoreThreshold && !string.IsNullOrEmpty(screenshotPath))
-                {
-                    Log($"🧵 High score signal - posting thread...");
-                    var (threadOk, _) = await _opManager.ThreadSvc.PostSignalThread(sig, screenshotPath, tvLink, trends);
-                    if (threadOk)
-                    {
-                        _tweetedToday.Add(uniqueKey);
-                        _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                        Log("✅ Thread posted successfully!");
-                        LogActivity($"🚀 YAYINLANDI ({sig.Symbol}): Thread olarak paylaşıldı (Skor: {sig.Score})");
-                        // Web usage update is handled inside ThreadService or here? 
-                        // It should be handled. If not, we will fix it in the next step.
-                        return;
-                    }
-                }
-
-                // Standart tweet
-                LogActivity($"📝 AI İçerik ({sig.Symbol}): Gemini tweet yazıyor...");
-                string? aiText = await _opManager.Gemini.GenerateTweetContent(sig.Symbol, sig.Price.ToString("0.00"), $"{sig.Score}/{sig.MaxScore}", sig.Strategy, trends);
-                
-                string finalTweet = aiText != null ? aiText.Replace("[LINK]", tvLink) :
-                    $"🚀 {symbolTag} Sinyali!\n📊 {sig.Strategy} | {sig.Period}dk\n💰 Fiyat: {sig.Price:0.00}\n🔥 Skor: {sig.Score}/{sig.MaxScore}\n📈 {tvLink}\n\n{trends}";
-                
-                // YASAL UYARI EKLE
-                finalTweet += "\n\n⚠️ Yatırım tavsiyesi değildir.";
-
-                LogSignal($"🐦 Tweeting: {finalTweet.Substring(0, Math.Min(50, finalTweet.Length))}...");
-                
-                // Web First Approach for Standard Tweet
-                bool sent = false;
-                var webResult = await _opManager.SocialIntel.PostTweet(finalTweet);
-                
-                if (webResult.status == "success")
-                {
-                    sent = true;
-                    LogSignal("✅ Tweet sent successfully (Web)!");
-                }
-                else
-                {
-                    LogSignal($"⚠️ Web tweet failed ({webResult.ErrorMessage}), trying API fallback...");
-                    sent = !string.IsNullOrEmpty(await _opManager.Twitter.SendTweetAsync(finalTweet));
-                }
-                
-                if (sent)
-                {
-                    _tweetedToday.Add(uniqueKey);
-                    _opManager.Spam.RecordTweet(sig.Symbol, sig.Strategy);
-                    if (!webResult.status.Equals("success")) LogSignal("✅ Tweet sent successfully (API Fallback)!");
-                    
-                    var stats = _opManager.Spam.GetStats();
-                    LogSignal($"📊 Stats: {stats.hourly}/hr, {stats.daily}/day, {stats.monthly}/month");
-                }
-                else
-                {
-                    LogSignal($"❌ Tweet failed: {_opManager.Twitter.LastError}");
-                }
-            }
         }
 
         private void UpdateStatus(string status)
@@ -4924,7 +4816,9 @@ namespace XiDeAI_Pro
                              btnTweetAnalysis.Text = "🧵 Thread Hazırlanıyor...";
                              Log("🧵 Thread modunda tweet gönderiliyor...", "Twitter");
                              
-                             var analysisText = rtbAnalysisResult.Text;
+                            var analysisText = !string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread)
+                                ? _lastAnalysisResult!.ShortThread
+                                : rtbAnalysisResult.Text;
                              var pInfo = _lastAnalysisResult?.PriceInfo;
                              var scrPath = _lastAnalysisResult?.ScreenshotPath;
                              // Ensure media exists; otherwise skip image to avoid upload failure
@@ -5273,9 +5167,8 @@ namespace XiDeAI_Pro
             if (string.IsNullOrEmpty(content)) return;
             
             // v4.1.1: BOT REPLY HANDLER
-            if (content.StartsWith("BOT_REPLY|||"))
+            if (ThreadPipeline.TryParseCommand(content, "BOT_REPLY|||", out var parts))
             {
-                var parts = content.Split(new[] { "|||" }, StringSplitOptions.None);
                 if (parts.Length >= 3) // PREFIX, URL, REPLY, HANDLE
                 {
                     string targetUrl = parts[1];
@@ -5303,9 +5196,7 @@ namespace XiDeAI_Pro
             Log("🧵 Thread onaylandı, yayınlanıyor...", "Twitter");
             
             // Post
-            var tweets = content.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
-                                .Select(x => x.Trim())
-                                .ToList();
+            var tweets = ThreadPipeline.ParseParts(content, 280);
                                 
             var result = await _opManager.SocialIntel.PostThreadAsync(tweets, imgPath);
             
@@ -5750,9 +5641,7 @@ namespace XiDeAI_Pro
                     if (ConfigManager.Current.IsGuruAutomationEnabled)
                     {
                         Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
-                        var tweets = thread.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
-                                           .Select(x => x.Trim())
-                                           .ToList();
+                        var tweets = ThreadPipeline.ParseParts(thread, 280);
                         await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
                     }
                     else

@@ -137,7 +137,8 @@ namespace XiDeAI_Pro.Services
             // 2. Base Utility Services (No dependencies)
             Stats = new StatsEngine(_logsDir);
             Spam = new SpamProtection(Path.Combine(_logsDir, "spam_log.json"));
-            Twitter = new TwitterService();
+            SocialIntel = new SocialIntelService();
+            Twitter = new TwitterService(SocialIntel);
             Telegram = new TelegramService();
             Performance = new PerformanceTracker(Path.Combine(_appDataDir, "performance_data.json"));
             PriceFetch = new PriceFetchService();
@@ -161,7 +162,6 @@ namespace XiDeAI_Pro.Services
             Gemini = new GeminiService(Memory, Stats);
             Gemini.ModelManager = ModelManager;
 
-            SocialIntel = new SocialIntelService();
             SocialIntel.SetMemoryEngine(Memory);
             SocialIntel.SetInfluencerControl(InfluencerControl);
             SocialIntel.SetStatsEngine(Stats);
@@ -225,6 +225,7 @@ namespace XiDeAI_Pro.Services
             // [HIVE REMOVED] OmniScout and Oracle services moved to HiveProjesi
 
             SyncGeminiProviders(); // v3.7.2: Ensure providers are registered on startup
+            SyncLMStudioProviders(); // v4.6.0: Local models / LM Studio
             LoadOperations();
         }
 
@@ -288,35 +289,30 @@ namespace XiDeAI_Pro.Services
             // Also sync Perplexity if key exists
             SyncPerplexityProviders();
         }
-
         public void SyncGeminiProviders()
+        {
+            // v5.0.0: Gemini and Perplexity removed. Only Local LM Studio.
+            SyncLMStudioProviders();
+        }
+
+        public void SyncLMStudioProviders()
         {
             if (ModelManager == null) return;
             var cfg = ConfigManager.Current;
             
-            // 1. Register Gemini
-            if (!string.IsNullOrEmpty(cfg.GeminiApiKey))
+            if (cfg.LMStudioEnabled && !string.IsNullOrEmpty(cfg.LMStudioUri))
             {
-                // Register default model from config
-                string defaultModel = cfg.GeminiModel ?? "gemini-2.5-flash";
-                var provider = new GeminiProvider(cfg.GeminiApiKey, defaultModel, (msg) => Console.WriteLine($"[AI-Gemini] {msg}"));
-                ModelManager.RegisterProvider(defaultModel, provider);
+                var provider = new LMStudioProvider(
+                    cfg.LMStudioUri, 
+                    cfg.LMStudioApiKey, 
+                    cfg.LMStudioModel, 
+                    (msg) => Logger.AI($"[AI-LMStudio] {msg}")
+                );
                 
-                // Also register potential hardcoded fallbacks for specific task preferences
-                var commonModels = new[] { 
-                    "gemini-2.0-flash",         // Fast, stable
-                    "gemini-2.5-flash",         // Fast, stable (PRODUCTION)
-                    "gemini-2.5-pro",           // Balanced (PRODUCTION)
-                    "gemini-exp-1206"           // Experimental Pro
-                };
-                foreach(var m in commonModels)
-                {
-                    ModelManager.RegisterProvider(m, new GeminiProvider(cfg.GeminiApiKey, m, (msg) => Logger.AI($"[{m}] {msg}")));
-                }
+                ModelManager.RegisterProvider(cfg.LMStudioModel, provider);
+                // Also register as "lm-studio" generic handle
+                ModelManager.RegisterProvider("lm-studio", provider);
             }
-
-            // 2. Register Perplexity
-            SyncPerplexityProviders();
         }
 
         private void SyncPerplexityProviders()
@@ -534,6 +530,13 @@ namespace XiDeAI_Pro.Services
                     Logger.AI($"[AutoBenchmark] 🔄 Aktif model güncelleniyor: {ConfigManager.Current.GeminiModel} → {recommended}");
                     ConfigManager.Current.GeminiModel = recommended;
                     ConfigManager.Save();
+                }
+                
+                // 5. Update ModelManager task preferences based on benchmark results
+                if (ModelManager != null)
+                {
+                    Logger.AI($"[AutoBenchmark] 🔧 ModelManager task preferences güncelleniyor...");
+                    ModelBenchmarkService.UpdateTaskPreferencesFromResults(results, ModelManager);
                 }
                 
                 _lastBenchmarkRun = DateTime.Now;

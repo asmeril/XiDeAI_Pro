@@ -114,7 +114,7 @@ Trend: [Yükseliş/Düşüş/Yatay]
 - Legend (sol üst) kısmındaki rakamlar her zaman en doğru kaynaktır.
 - Rakamları okurken ondalık basamaklara dikkat et.";
 
-                string response = await _gemini.SendMultimodalRequest(prompt, imageBase64);
+                string? response = await _gemini.SendMultimodalRequest(prompt, imageBase64);
                 
                 if (string.IsNullOrEmpty(response))
                 {

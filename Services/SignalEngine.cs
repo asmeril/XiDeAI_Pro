@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Text.Json;
 using XiDeAI_Pro.Config;
 
 using XiDeAI_Pro.Services.Core;
@@ -538,20 +537,11 @@ namespace XiDeAI_Pro.Services
 
         private async Task<bool> ExecutePost(string content, string mediaPath, SignalData sig)
         {
-            // Safety Check: If content is JSON thread, use PostThreadAsync
-            if (content.TrimStart().StartsWith("{") && content.Contains("\"tweets\""))
+            var threadTweets = ThreadPipeline.ParseThreadPayload(content, 280);
+            if (threadTweets.Count > 1)
             {
-                try 
-                {
-                    var threadData = JsonSerializer.Deserialize<JsonElement>(content);
-                    if (threadData.TryGetProperty("tweets", out var tweetsArr))
-                    {
-                        var tweets = tweetsArr.EnumerateArray().Select(x => x.GetString() ?? "").ToList();
-                        var res = await _socialIntel.PostThreadAsync(tweets, mediaPath);
-                        return res.status == "success";
-                    }
-                }
-                catch { /* Rollback to single tweet if parse fails */ }
+                var res = await _socialIntel.PostThreadAsync(threadTweets, mediaPath);
+                return res.status == "success";
             }
 
             // Web automation first

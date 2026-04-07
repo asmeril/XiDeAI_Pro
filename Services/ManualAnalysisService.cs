@@ -614,9 +614,9 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
-                string screenshotDir = Path.GetDirectoryName(screenshotPath);
+                string? screenshotDir = Path.GetDirectoryName(screenshotPath);
                 string dateStr = DateTime.Now.ToString("yyyyMMdd");
-                string pivotJsonPath = Path.Combine(screenshotDir, $"{symbol}_pivots_{dateStr}.json");
+                string pivotJsonPath = Path.Combine(screenshotDir ?? string.Empty, $"{symbol}_pivots_{dateStr}.json");
                 
                 if (!File.Exists(pivotJsonPath))
                 {

@@ -39,7 +39,7 @@ namespace XiDeAI_Pro.Services
             if (_symbolCache.ContainsKey(market))
                 return _symbolCache[market];
 
-            string filename = market switch
+            string? filename = market switch
             {
                 "BIST" => "symbols_bist.txt",
                 "Forex" => "symbols_forex.txt",

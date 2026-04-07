@@ -21,6 +21,7 @@ namespace XiDeAI_Pro.Services.AI
         public string ProviderName => "Gemini";
         public string ModelName { get; }
         public ModelTier Tier { get; }
+        public string? LastError { get; private set; }
         
         public GeminiProvider(string apiKey, string modelName, Action<string> logger)
         {

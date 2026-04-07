@@ -300,5 +300,79 @@ namespace XiDeAI_Pro.Services
             catch { }
             return "API Error";
         }
+
+        /// <summary>
+        /// Update ModelManager task preferences based on benchmark results
+        /// Maps successful models to optimal task types by speed
+        /// </summary>
+        public static void UpdateTaskPreferencesFromResults(List<BenchmarkResult> results, XiDeAI_Pro.Services.AI.ModelManager modelManager)
+        {
+            if (modelManager == null) return;
+            
+            // Filter successful models, exclude deprecated
+            var successful = results.FindAll(r => r.Success && !r.ModelName.Contains("2.0-flash"));
+            if (successful.Count == 0) return;
+            
+            // Categorize by speed
+            var ultraFast = successful.FindAll(r => r.ResponseTimeMs < 500);
+            var fast = successful.FindAll(r => r.ResponseTimeMs >= 500 && r.ResponseTimeMs < 1500);
+            var balanced = successful.FindAll(r => r.ResponseTimeMs >= 1500 && r.ResponseTimeMs < 2000);
+            
+            // Select best from each category
+            string? bestUltraFast = ultraFast.Count > 0 ? ultraFast[0].ModelName : null;
+            string? bestFast = fast.Count > 0 ? fast[0].ModelName : null;
+            string? bestBalanced = balanced.Count > 0 ? balanced[0].ModelName : null;
+            
+            // Vision models
+            var visionModels = successful.FindAll(r => r.ModelName.Contains("image"));
+            visionModels.Sort((a, b) => a.ResponseTimeMs.CompareTo(b.ResponseTimeMs));
+            string? bestVision = visionModels.Count > 0 ? visionModels[0].ModelName : null;
+            
+            // Apply ultra-fast operations
+            if (!string.IsNullOrEmpty(bestUltraFast))
+            {
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.TweetGeneration, 
+                    new List<string> { bestUltraFast, bestBalanced ?? "gemini-2.5-pro" }.Where(s => s != null).ToList());
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.SmartQuote,
+                    new List<string> { bestUltraFast, bestFast ?? "gemini-flash-latest" }.Where(s => s != null).ToList());
+            }
+            
+            // Apply fast operations
+            if (!string.IsNullOrEmpty(bestFast))
+            {
+                var fastList = new List<string> { bestUltraFast ?? bestFast, bestFast }.Where(s => s != null).Distinct().ToList();
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.DeepScan, fastList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, fastList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, fastList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.ShortThreadGeneration, fastList);
+            }
+            
+            // Apply balanced operations
+            if (!string.IsNullOrEmpty(bestBalanced))
+            {
+                var balancedList = new List<string> { bestBalanced, bestFast ?? "gemini-flash-latest" }.Where(s => s != null).Distinct().ToList();
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.InfluencerReply, balancedList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, balancedList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.MetaTeacherAnalysis, balancedList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.ArGeAnalysis, balancedList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.PotentialGuruAnalysis, balancedList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.FanZoneReaction, balancedList);
+            }
+            
+            // Symbol/Trend: Gemini Pro only
+            if (!string.IsNullOrEmpty(bestBalanced))
+            {
+                var researchList = new List<string> { bestBalanced, bestFast ?? "gemini-flash-latest" }.Where(s => s != null).Distinct().ToList();
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.SymbolResearch, researchList);
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.TrendTracking, researchList);
+            }
+            
+            // Vision operations
+            if (!string.IsNullOrEmpty(bestVision))
+            {
+                modelManager.SetTaskPreference(XiDeAI_Pro.Services.AI.TaskType.FormationAnalysis,
+                    new List<string> { bestVision, bestBalanced ?? "gemini-2.5-pro" }.Where(s => s != null).ToList());
+            }
+        }
     }
 }
