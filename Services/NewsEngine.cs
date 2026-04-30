@@ -51,8 +51,8 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
-                // v3.8.5: Rate Limiting - Prevent TooManyRequests when bulk processing
-                await Task.Delay(2000); // 2 second delay between news items
+                // v4.10.3: Increased delay to 5 seconds to reduce load on local Gemma AI
+                await Task.Delay(5000); // 5 second delay between news items
                 
                 _stats.RecordActivity("NewsEngine", $"Processing news: {item.Title}", true, item.Source);
                 
@@ -70,6 +70,13 @@ namespace XiDeAI_Pro.Services
                 {
                      OnLog?.Invoke($"⏭️ Haber atlandı ({dupReason})", "NewsEngine");
                      return;
+                }
+
+                // v5.0: Multi-Layer Filtering (Regex/Keyword -> Lightweight NLP)
+                if (!PerformLightweightNLPFilter(item.Title, item.Description))
+                {
+                    OnLog?.Invoke($"🛡️ Haber filtrelendi (Hafif NLP/Regex Reddi): {item.Title}", "NewsEngine");
+                    return;
                 }
 
                 OnLog?.Invoke($"🔍 [NewsEngine] Haber analiz ediliyor: {item.Title}", "News");
@@ -388,6 +395,36 @@ namespace XiDeAI_Pro.Services
             return (confidence, status, summary, symbols, category, reasoning);
         }
 
+
+        private bool PerformLightweightNLPFilter(string title, string? description)
+        {
+            string text = (title + " " + (description ?? "")).ToLower();
+
+            // 1. Regex/Keyword: Rapidly discard clearly irrelevant or spammy patterns
+            // Discarding common non-news/spam patterns found in RSS feeds
+            var spamPatterns = new[] { @"\b(magazin|şok iddia|tıkla|izle|video)\b", @"\b(reklam|sponsorlu)\b" };
+            foreach (var pattern in spamPatterns)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(text, pattern)) return false;
+            }
+
+            // 2. Lightweight NLP: Simple importance/sentiment indicators
+            // If the title is just a list of names or very short fragments without verbs, it's likely noise.
+            var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 4) return false;
+
+            // Check for "action" indicators in news (verbs/notions related to movement/change)
+            bool hasAction = words.Any(w => w.Contains("arttı") || w.Contains("düştü") || w.Contains("açıkladı") ||
+                                            w.Contains("belirledi") || w.Contains("yaptı") || w.Contains("başladı") ||
+                                            w.Contains("karar") || w.Contains("plan") || w.Contains("imza") ||
+                                            w.Contains("rekor") || w.Contains("çöküş") || w.Contains("patlama") ||
+                                            w.Contains("yükseliş") || w.Contains("düşüş") || w.Contains("kritik"));
+            
+            // If it's a very "dry" title without any action/event indicator, we treat it as low priority for AI processing
+            if (!hasAction && words.Length < 8) return false;
+
+            return true;
+        }
 
         private bool IsHighValueNews(string title)
         {

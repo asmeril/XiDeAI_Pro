@@ -506,6 +506,11 @@ namespace XiDeAI_Pro.Services
             {
                 psi.EnvironmentVariables["X_USER"] = user;
                 psi.EnvironmentVariables["X_PASS"] = pass;
+                psi.EnvironmentVariables["PYTHONUTF8"] = "1";
+            }
+            else
+            {
+                psi.EnvironmentVariables["PYTHONUTF8"] = "1";
             }
 
             using var process = Process.Start(psi);

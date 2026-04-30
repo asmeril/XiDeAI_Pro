@@ -12,8 +12,15 @@ import time
 import pickle
 import threading
 import traceback
+import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Ensure UTF-8 encoding for stdout/stderr to handle Turkish characters on Windows
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 

@@ -125,6 +125,8 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> AnalyzeNewsImpact(string title, string source)
         {
+            // Gemini requests are disabled as per user instruction.
+            // Only local model (via ModelManager) is used if enabled.
             string prompt = _prompts.GetNewsEditorPrompt(title, source);
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
@@ -132,7 +134,11 @@ namespace XiDeAI_Pro.Services
                 if (result == null) LastError = ModelManager.LastError;
                 return result;
             }
-            return await SendRequest(prompt);
+            
+            // If multi-model is disabled, we don't fall back to Gemini API directly here
+            // because the user explicitly said "Disable all Gemini requests".
+            // The system should rely on local model via ModelManager.
+            return null;
         }
 
         public async Task<(List<(string Symbol, string Period)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)

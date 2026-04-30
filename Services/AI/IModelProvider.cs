@@ -29,7 +29,7 @@ namespace XiDeAI_Pro.Services.AI
         /// <param name="prompt">The prompt text</param>
         /// <param name="maxTokens">Maximum tokens in response</param>
         /// <returns>Model response or null if failed</returns>
-        Task<string?> SendRequest(string prompt, int maxTokens = 1000);
+        Task<string?> SendRequest(string prompt, int maxTokens = 4096);
         
         /// <summary>
         /// Send a request with an image (for vision-capable models)
@@ -38,7 +38,7 @@ namespace XiDeAI_Pro.Services.AI
         /// <param name="imagePath">Path to the image file</param>
         /// <param name="maxTokens">Maximum tokens in response</param>
         /// <returns>Model response or null if failed</returns>
-        Task<string?> SendRequestWithImage(string prompt, string imagePath, int maxTokens = 1000);
+        Task<string?> SendRequestWithImage(string prompt, string imagePath, int maxTokens = 4096);
         
         /// <summary>
         /// Check if provider is available (API key exists, not rate-limited, etc.)

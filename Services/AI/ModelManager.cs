@@ -65,7 +65,7 @@ namespace XiDeAI_Pro.Services.AI
         /// <summary>
         /// Send a text-only request with automatic model selection and fallback
         /// </summary>
-        public async Task<string?> SendRequest(TaskType taskType, string prompt, int maxTokens = 1000)
+        public async Task<string?> SendRequest(TaskType taskType, string prompt, int maxTokens = 4096)
         {
             await _semaphore.WaitAsync(); // v3.5.2: Ensure sequential execution across all providers
             try
@@ -138,7 +138,7 @@ namespace XiDeAI_Pro.Services.AI
         /// <summary>
         /// Send a request with image (for vision-capable models)
         /// </summary>
-        public async Task<string?> SendRequestWithImage(TaskType taskType, string prompt, string imagePath, int maxTokens = 1000)
+        public async Task<string?> SendRequestWithImage(TaskType taskType, string prompt, string imagePath, int maxTokens = 4096)
         {
             await _semaphore.WaitAsync();
             try
@@ -217,12 +217,14 @@ namespace XiDeAI_Pro.Services.AI
 
             if (isBusinessHours)
             {
-                // Background tasks wait extra during business hours to favor Signals/News
+                // Background tasks wait extra during business hours to favor Signals/Manual Analysis
                 if (taskType == TaskType.MetaTeacherAnalysis || 
                     taskType == TaskType.ArGeAnalysis || 
-                    taskType == TaskType.PotentialGuruAnalysis)
+                    taskType == TaskType.PotentialGuruAnalysis ||
+                    taskType == TaskType.NewsAnalysis ||
+                    taskType == TaskType.NewsThreadGeneration)
                 {
-                    // Wait an extra 2 seconds for low priority tasks
+                    // v4.10.3: Extra delay for news and background tasks to favor UI responsiveness
                     await Task.Delay(2000).ConfigureAwait(false);
                 }
             }

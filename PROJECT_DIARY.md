@@ -1134,3 +1134,25 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 
 **Değişen Dosyalar:**
 - `Services/AI/LMStudioProvider.cs`
+
+---
+
+## 07 Nisan 2026
+
+### 🔧 v4.10.3 - Twitter Charset & News Performance Fix
+
+**Sorunlar:**
+- Twitter gönderimlerinde TÃ¼rkÃ§e karakterlerin (Ã§, ÄŸ, Ä±, Ã¶, Ã¼, ÅŸ) bazÄ± sistemlerde `charmap` hatasÄ± vermesi veya hatalÄ± gÃ¶rÃ¼nmesi.
+- Haber takip modÃ¼lÃ¼nÃ¼n bÃ¼yÃ¼k veri setlerinde AI iÅŸleme sÄ±rasÄ±nda arayÃ¼zÃ¼ yavaÅŸlatmasÄ±.
+
+**Ã‡Ã¶zÃ¼mler:**
+- **UTF-8 Enforcing:** `x_daemon.py` ve `SocialIntelService.cs` katmanlarÄ±nda tÃ¼m iletiÅŸim yollarÄ± (`StandardInput`, `StandardOutput`) kesin olarak UTF-8 moduna geÃ§irildi. C# tarafÄ±nda `ProcessStartInfo.StandardOutputEncoding` ayarlandÄ±.
+- **News Engine Optimization:** `NewsTrackerService` iÃ§erisindeki polling mekanizmasÄ± optimize edildi, UI thread bloklanmasÄ± Ã¶nlendi.
+
+**DeÄŸiÅŸen Dosyalar:**
+- `Scripts/x_daemon.py`
+- `Services/SocialIntelService.cs`
+- `Services/NewsTrackerService.cs`
+
+
+

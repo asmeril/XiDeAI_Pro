@@ -1,4 +1,4 @@
-﻿> **Version:** 4.10.2 (Live)
+﻿> **Version:** 4.10.3 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
 > **Last Updated:** 2026-04-07
 
@@ -263,6 +263,7 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
 
 
 

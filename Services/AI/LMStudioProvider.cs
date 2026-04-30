@@ -44,7 +44,7 @@ namespace XiDeAI_Pro.Services.AI
             }
         }
 
-        public async Task<string?> SendRequest(string prompt, int maxTokens = 1000)
+        public async Task<string?> SendRequest(string prompt, int maxTokens = 4096)
         {
             try
             {
@@ -80,17 +80,11 @@ namespace XiDeAI_Pro.Services.AI
 
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    var firstChoice = choices[0];
-                    if (firstChoice.TryGetProperty("message", out var messageElement))
-                    {
-                        if (messageElement.TryGetProperty("content", out var text))
-                        {
-                            return text.GetString();
-                        }
-                    }
+                    return ExtractContentFromChoice(choices[0]);
                 }
 
                 LastError = "LMStudio returned an empty response (no choices)";
+                _logger($"⚠️ {LastError}. Raw response: {(responseContent.Length > 200 ? responseContent.Substring(0, 200) : responseContent)}");
                 return null;
             }
             catch (Exception ex)
@@ -135,7 +129,7 @@ namespace XiDeAI_Pro.Services.AI
             return (ms.ToArray(), "image/jpeg");
         }
 
-        public async Task<string?> SendRequestWithImage(string prompt, string imagePath, int maxTokens = 1000)
+        public async Task<string?> SendRequestWithImage(string prompt, string imagePath, int maxTokens = 4096)
         {
             try
             {
@@ -193,17 +187,11 @@ namespace XiDeAI_Pro.Services.AI
 
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    var firstChoice = choices[0];
-                    if (firstChoice.TryGetProperty("message", out var messageElement))
-                    {
-                        if (messageElement.TryGetProperty("content", out var text))
-                        {
-                            return text.GetString();
-                        }
-                    }
+                    return ExtractContentFromChoice(choices[0]);
                 }
 
                 LastError = "LMStudio Vision returned empty response";
+                _logger($"⚠️ {LastError}. Raw response: {(responseContent.Length > 200 ? responseContent.Substring(0, 200) : responseContent)}");
                 return null;
             }
             catch (Exception ex)
@@ -212,6 +200,48 @@ namespace XiDeAI_Pro.Services.AI
                 _logger($"❌ {LastError}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Attempts to extract content string from various possible OpenAI response structures. 
+        /// Supports: choices[0].message.content (string), choices[0].message.content (array/parts), and choices[0].text
+        /// </summary>
+        private string? ExtractContentFromChoice(JsonElement choice)
+        {
+            // 1. Standard OpenAI Chat format: choices[0].message.content
+            if (choice.TryGetProperty("message", out var messageElement))
+            {
+                if (messageElement.TryGetProperty("content", out var contentElement))
+                {
+                    // Case A: content is a string
+                    if (contentElement.ValueKind == JsonValueKind.String)
+                    {
+                        return contentElement.GetString();
+                    }
+                    
+                    // Case B: content is an array of parts (common in some vision/multimodal outputs)
+                    if (contentElement.ValueKind == JsonValueKind.Array)
+                    {
+                        var sb = new StringBuilder();
+                        foreach (var part in contentElement.EnumerateArray())
+                        {
+                            if (part.TryGetProperty("text", out var textProp))
+                            {
+                                sb.Append(textProp.GetString());
+                            }
+                        }
+                        return sb.ToString();
+                    }
+                }
+            }
+
+            // 2. Fallback: Legacy/Completion format: choices[0].text
+            if (choice.TryGetProperty("text", out var textElement))
+            {
+                return textElement.GetString();
+            }
+
+            return null;
         }
 
         public bool IsAvailable()

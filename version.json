@@ -1,8 +1,10 @@
 {
-    "version": "4.10.1",
-    "build_number": 4101,
-    "lastUpdate": "2026-04-07T05:08:00Z",
+    "version": "4.10.3",
+    "build_number": 4103,
+    "lastUpdate": "2026-04-07T11:26:00Z",
     "changelog": [
+        "v4.10.3: FIX: Twitter charmap encoding hatası ve Haber modülü AI yavaşlatma",
+        "v4.10.2: FIX: Gemma 4 Vision Analiz hatası ve Token Limiti iyileştirmesi",
         "v4.10.1: FIX: Gemma 4 isimlendirme düzeltmesi",
         "v4.10.0: AI: LM Studio / LM Link Entegrasyonu (Yerel Gemma 4 Desteği)",
         "v4.9.9: AI: Gemini 2.5 Flash / Pro stabilizasyonu",

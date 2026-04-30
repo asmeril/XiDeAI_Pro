@@ -14,6 +14,8 @@ namespace XiDeAI_Pro.Services
                 BuildSignalLeadTweet(signal, accountHandle)
             };
 
+            // The AI content should already follow the "Hook -> Storytelling ->
+            // Engagement" structure as defined in PromptManager.cs.
             tweets.AddRange(ParseParts(aiThreadContent, 275));
             MergeShortTailParts(tweets, minimumLength: 80, preserveFirstTweet: true);
             return tweets.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
