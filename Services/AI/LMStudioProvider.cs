@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -18,7 +18,10 @@ namespace XiDeAI_Pro.Services.AI
     /// </summary>
     public class LMStudioProvider : IModelProvider
     {
+        // Text-only requests: 180s is sufficient for reasoning models on short prompts
         private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(180) };
+        // Vision requests: reasoning model + image processing needs more time (5 min)
+        private static readonly HttpClient _visionClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(300) };
         private readonly string _uri;
         private readonly string _apiKey;
         private readonly string _modelName;
@@ -41,6 +44,10 @@ namespace XiDeAI_Pro.Services.AI
             if (_client.DefaultRequestHeaders.Authorization == null && !string.IsNullOrEmpty(_apiKey))
             {
                 _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            }
+            if (_visionClient.DefaultRequestHeaders.Authorization == null && !string.IsNullOrEmpty(_apiKey))
+            {
+                _visionClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
             }
         }
 
@@ -172,7 +179,7 @@ namespace XiDeAI_Pro.Services.AI
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await _client.PostAsync(url, content);
+                var response = await _visionClient.PostAsync(url, content); // v4.10.5: 300s vision timeout
                 var responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
