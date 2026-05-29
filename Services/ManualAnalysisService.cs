@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Text.Json;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using XiDeAI_Pro.Config;
 
 namespace XiDeAI_Pro.Services
@@ -216,8 +217,12 @@ namespace XiDeAI_Pro.Services
                 catch (Exception ex) { Log($"⚠️ Sosyal medya tarama hatası: {ex.Message}"); }
 
                 // 4. EXTRACT INDICATORS FROM SCREENSHOT
+                // v4.10.7: Skip when local LM Studio is active — GenerateMarketAnalysisWithChart
+                // already sends the same image with the same 4-step prompt. Running IndicatorExtractor
+                // separately adds an extra 300s vision call with zero new information.
                 string indicatorContext = "";
-                if (screenshotPath != null && File.Exists(screenshotPath))
+                bool usingLocalModel = ConfigManager.Current?.EnableMultiModel == true;
+                if (!usingLocalModel && screenshotPath != null && File.Exists(screenshotPath))
                 {
                     try
                     {
@@ -236,6 +241,10 @@ namespace XiDeAI_Pro.Services
                     {
                         Log($"⚠️ Vision API hatası: {ex.Message}");
                     }
+                }
+                else if (usingLocalModel)
+                {
+                    Log("⚡ [OPT] Yerel model: IndicatorExtractor atlandı (ana analiz görsel zaten işleyecek).");
                 }
 
                 // 5. Generate AI Analysis
@@ -328,21 +337,38 @@ namespace XiDeAI_Pro.Services
                         Log($"📜 Geçmiş başarılı analiz bulundu, thread'e entegre edilecek.");
                     }
 
+                    // v4.10.7: When using local LM Studio, skip sending the screenshot again for the
+                    // short thread — the image was already processed by GenerateMarketAnalysisWithChart.
+                    // Instead, pass null so the method uses text-only mode with the rich analysis result.
+                    // This eliminates the 3rd sequential vision call and saves ~2-3 minutes.
+                    string? threadScreenshotPath = usingLocalModel ? null : screenshotPath;
+                    if (usingLocalModel)
+                    {
+                        Log("⚡ [OPT] Yerel model: Short thread için görsel tekrar gönderilmeyecek (ana analiz metni kullanılacak).");
+                    }
+
                     string? shortThread = await _geminiService.GenerateShortThreadWithHistory(
                         symbol,
                         marketType,
                         priceContext,
-                        indicatorContext,
+                        usingLocalModel ? analysis : indicatorContext, // local modelde ana analizi kullan
                         influencerContext,
                         timeFrame,
-                        screenshotPath,
+                        threadScreenshotPath,
                         lastWeekAnalysis
                     );
 
                     if (!string.IsNullOrEmpty(shortThread))
                     {
-                        result.ShortThread = shortThread;
-                        Log("✅ Short thread başarıyla oluşturuldu (4 tweet).");
+                        if (IsSuspiciousShortThread(shortThread))
+                        {
+                            Log("⚠️ Short thread prompt/düşünme sızıntısı içeriyor; paylaşım için kullanılmayacak, ReportText fallback devrede.");
+                        }
+                        else
+                        {
+                            result.ShortThread = shortThread;
+                            Log("✅ Short thread başarıyla oluşturuldu (4 tweet).");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -369,6 +395,53 @@ namespace XiDeAI_Pro.Services
                 result.ReportText = $"Analiz sırasında kritik hata oluştu: {ex.Message}";
                 return result;
             }
+        }
+
+        private static bool IsSuspiciousShortThread(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return true;
+
+            string normalized = content.Replace("\r\n", "\n").Trim();
+            string lower = normalized.ToLowerInvariant();
+
+            string[] markers =
+            {
+                "işte bir düşünme süreci",
+                "strict rules",
+                "output format",
+                "character count",
+                "count constraint",
+                "thread structure",
+                "first tweet (hook)",
+                "phenomenon tagging",
+                "let's count",
+                "need to trim",
+                "i'll use",
+                "i'll stick to",
+                "i will use",
+                "görev:",
+                "çıktı formatı"
+            };
+
+            if (markers.Any(lower.Contains))
+            {
+                return true;
+            }
+
+            var parts = ThreadPipeline.ParseParts(normalized, 280);
+            if (parts.Count == 0 || parts.Count > 6)
+            {
+                return true;
+            }
+
+            return parts.Any(part =>
+            {
+                string text = part.Trim().ToLowerInvariant();
+                return Regex.IsMatch(text, @"^(tweet\s*\d+|\d+\/\d+|\*?draft\s*\d+|\*?revised\s*\d+|count:|total:|data:)")
+                    || text.Contains("char count")
+                    || text.Contains("strict rules")
+                    || text.Contains("output format");
+            });
         }
 
         public void EnrichSignalWithResult(SignalData signal, ManualAnalysisResult result, string basis)

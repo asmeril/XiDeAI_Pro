@@ -1,6 +1,6 @@
-﻿> **Version:** 4.10.3 (Live)
+﻿> **Version:** 5.0.1 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
-> **Last Updated:** 2026-04-07
+> **Last Updated:** 2026-05-29
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -15,7 +15,7 @@ Proje 4 ana katmandan oluşur:
     *   **Playwright-First (Thread/Tweet):** Gönderim işlemleri Playwright motoru ile yürür.
     *   **WebView2 Fallback:** Kullanıcı görünürlüğü gerektiren işlemler için yedek.
     *   **Python/Selenium Fallback:** Fenomen tarama/araştırma için halen aktif.
-4.  **Intelligence Layer (AI):** Gemini, Perplexity ve GPT modellerinin entegrasyonu.
+4.  **Intelligence Layer (AI):** LM Studio (Yerel Model, Birincil) + Gemini/Perplexity (Yedek/Bulut) entegrasyonu.
 
 ### ✅ Canonical Publishing Flow (Tek Gerçek Hat)
 1. `SocialIntelService.PostThreadAsync` payload üretir (`preserve_chunks=true`).
@@ -49,7 +49,8 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
 | `SignalEngine.cs` | Sinyal işleme motoru. Sinyalleri filtreler, formatlar ve yayınlar. | - |
 | `ModelManager.cs` | **v4.10.0** AI provider yöneticisi. Aktif provider'ı seçer, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tüm provider'ları senkronize eder. | - |
-| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG'e dönüştürür (Gemma 4 vision fix). | - |
+| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG'e dönüştürür. **v5.0.0:** `/no_think` prefix (Qwen3 reasoning bastırma), vision timeout 600s, `reasoning_content` fallback. | - |
+| `ManualAnalysisService.cs` | **v4.10.8** Manuel analiz servisi. **Yerel model aktifken:** `IndicatorExtractor` atlanır, kısa thread için ekran görüntüsü tekrar gönderilmez, ana analiz metni indicator context olarak kullanılır. | - |
 
 > **Not (v4.0.0):** HIVE servisleri (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex) kaldırılmıştır. Yedek: `d:\Projects\HiveProjesi`
 
@@ -60,6 +61,12 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `PostTweet(text)` / `PostThreadAsync(tweets)`: Tweet atar. Önce dahili WebView2'yi dener, başarısız olursa Python'a düşer (Fallback).
 - `CheckSafety(actionType)`: **(v4.6.0)** Güvenlik kontrolü yapar (Hız limiti ve günlük kotalar).
 - `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
+
+#### `ThreadService.cs`
+- **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
+
+#### `PromptManager.cs`
+- **(v4.10.8)** Derin analiz prompt'una `### GÖRSEL OKUMA (GRAFİK)` bölümü eklendi — yerel modelin grafik okuma kalitesini artırır.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -73,9 +80,15 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
 
 #### `LMStudioProvider.cs`
-- `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat).
-- `SendRequestWithImage(prompt, imagePath)`: Görsel + metin isteği gönderir.
-- `PrepareImageForVision(imagePath, maxDimension)`: **(v4.10.2)** Görseli max 1024px'e küçültür ve JPEG 85% kalitesinde kodlar. 4K DPI ekran görüntülerinin LM Studio'da `Invalid image at index 0` hatasına yol açmasını önler.
+- `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat). **(v5.0.0)** Prompt başına `/no_think\n` prefix eklenir, timeout 300s.
+- `SendRequestWithImage(prompt, imagePath)`: Görsel + metin isteği gönderir. **(v5.0.0)** Timeout 600s, `max_tokens` minimum 8192.
+- `PrepareImageForVision(imagePath, maxDimension)`: **(v4.10.2)** Görseli max 1024px'e küçültür ve JPEG 85% kalitesinde kodlar.
+- `ExtractContentFromChoice(choice)`: **(v5.0.0)** `content` boşsa `reasoning_content`'e fallback yapar.
+
+#### `ManualAnalysisService.cs`
+- **(v4.10.8)** Yerel model aktifken `IndicatorExtractor` çağrısı atlanır (token tasarrufu).
+- **(v4.10.8)** Kısa thread üretiminde yerel model için ekran görüntüsü tekrar gönderilmez.
+- **(v4.10.8)** Yerel modele indicator context yerine ana analiz metni iletilir.
 
 ---
 

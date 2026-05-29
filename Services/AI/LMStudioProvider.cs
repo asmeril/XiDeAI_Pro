@@ -18,10 +18,10 @@ namespace XiDeAI_Pro.Services.AI
     /// </summary>
     public class LMStudioProvider : IModelProvider
     {
-        // Text-only requests: 180s is sufficient for reasoning models on short prompts
-        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(180) };
-        // Vision requests: reasoning model + image processing needs more time (5 min)
-        private static readonly HttpClient _visionClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(300) };
+        // Text-only requests: 300s for reasoning models on short prompts
+        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(300) };
+        // Vision requests: reasoning model + image processing needs more time (10 min)
+        private static readonly HttpClient _visionClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(600) };
         private readonly string _uri;
         private readonly string _apiKey;
         private readonly string _modelName;
@@ -58,15 +58,18 @@ namespace XiDeAI_Pro.Services.AI
                 LastError = null;
                 var url = $"{_uri}/chat/completions";
                 
+                // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
+                // LM Studio ignores the `thinking.budget_tokens` parameter, so this is the only
+                // reliable way to prevent the model from consuming all tokens on reasoning.
                 var requestBody = new
                 {
                     model = _modelName,
                     messages = new[]
                     {
-                        new { role = "user", content = prompt }
+                        new { role = "user", content = "/no_think\n" + prompt }
                     },
                     max_tokens = maxTokens,
-                    temperature = 0.2 // v5.0.0: Lower temperature for more consistent technical analysis
+                    temperature = 0.2
                 };
 
                 var json = JsonSerializer.Serialize(requestBody);
@@ -156,6 +159,10 @@ namespace XiDeAI_Pro.Services.AI
 
                 var url = $"{_uri}/chat/completions";
 
+                // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
+                // LM Studio ignores budget_tokens; /no_think is the only reliable suppression.
+                // Also raise max_tokens to 8192 minimum so output tokens aren't starved.
+                int effectiveMaxTokens = Math.Max(maxTokens, 8192);
                 var requestBody = new
                 {
                     model = _modelName,
@@ -166,15 +173,15 @@ namespace XiDeAI_Pro.Services.AI
                             role = "user",
                             content = new object[]
                             {
-                                new { type = "text", text = prompt },
-                                // v5.0.2: No 'detail' field. Image always resized + JPEG-encoded before sending.
+                                new { type = "text", text = "/no_think\n" + prompt },
                                 new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{base64Image}" } }
                             }
                         }
                     },
-                    max_tokens = maxTokens,
+                    max_tokens = effectiveMaxTokens,
                     temperature = 0.2
                 };
+                _logger($"🧠 [LMStudio Vision] max_tokens={effectiveMaxTokens}, /no_think aktif");
 
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -223,7 +230,9 @@ namespace XiDeAI_Pro.Services.AI
                     // Case A: content is a string
                     if (contentElement.ValueKind == JsonValueKind.String)
                     {
-                        return contentElement.GetString();
+                        var text = contentElement.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                            return text;
                     }
                     
                     // Case B: content is an array of parts (common in some vision/multimodal outputs)
@@ -237,7 +246,23 @@ namespace XiDeAI_Pro.Services.AI
                                 sb.Append(textProp.GetString());
                             }
                         }
-                        return sb.ToString();
+                        var arrayText = sb.ToString();
+                        if (!string.IsNullOrWhiteSpace(arrayText))
+                            return arrayText;
+                    }
+                }
+
+                // v4.10.9: Fallback — reasoning models (Qwen3 etc.) may return empty content
+                // when finish_reason=length and all tokens were consumed by thinking.
+                // In that case, return reasoning_content so the caller gets something useful.
+                if (messageElement.TryGetProperty("reasoning_content", out var reasoningElement)
+                    && reasoningElement.ValueKind == JsonValueKind.String)
+                {
+                    var reasoning = reasoningElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(reasoning))
+                    {
+                        _logger("⚠️ [LMStudio] content boş, reasoning_content fallback kullanılıyor (finish_reason=length?)");
+                        return reasoning;
                     }
                 }
             }

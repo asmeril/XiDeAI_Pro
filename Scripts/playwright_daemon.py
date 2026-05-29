@@ -358,57 +358,127 @@ class XDaemonPlaywright:
             try:
                 await self.page.goto(parent_url, wait_until="domcontentloaded", timeout=20000)
                 await asyncio.sleep(2.0)
-                
-                reply_box = None
-                selectors = ['div[data-testid="tweetTextarea_0"]', 'div[role="textbox"][contenteditable="true"]']
-                for sel in selectors:
+
+                parent_id = None
+                m = re.search(r'/status/(\d+)', parent_url)
+                if m:
+                    parent_id = m.group(1)
+
+                # 1) Reply butonunu dene
+                reply_btn = None
+                for sel in ['button[data-testid="reply"]', 'div[data-testid="reply"]', '[data-testid="reply"]']:
                     try:
                         cand = self.page.locator(sel).first
-                        await cand.wait_for(state="visible", timeout=5000)
-                        reply_box = cand
+                        await cand.wait_for(state="visible", timeout=4000)
+                        reply_btn = cand
                         break
-                    except: pass
-                
-                if not reply_box:
-                    reply_btn = self.page.locator('div[data-testid="reply"]').first
-                    if await reply_btn.count() > 0:
-                        await reply_btn.click()
-                        await asyncio.sleep(1)
-                        reply_box = self.page.locator('div[data-testid="tweetTextarea_0"]').first
-                        await reply_box.wait_for(state="visible", timeout=3000)
+                    except:
+                        pass
 
-                if not reply_box: raise PlaywrightTimeoutError("Reply box not found")
-
-                await reply_box.click()
-                await reply_box.fill("")
-                await reply_box.evaluate("""
-                    (element, text) => {
-                        element.focus();
-                        document.execCommand('insertText', false, text);
-                        element.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                """, text)
-                await asyncio.sleep(0.5)
-
-                post_btn = None
-                for sel in ["button[data-testid='tweetButtonInline']", "div[data-testid='tweetButton']", "button[data-testid='tweetButton']"]:
-                    cand = self.page.locator(sel).first
+                if reply_btn:
                     try:
-                        await cand.wait_for(state="visible", timeout=1500)
-                        if await cand.get_attribute("aria-disabled") != "true" and await cand.is_enabled():
-                            post_btn = cand
+                        await reply_btn.click(timeout=5000)
+                    except:
+                        await reply_btn.click(timeout=5000, force=True)
+                    await asyncio.sleep(1.0)
+                elif parent_id:
+                    # Fallback: compose/post?in_reply_to=
+                    compose_url = f"https://x.com/compose/post?in_reply_to={parent_id}"
+                    await self.page.goto(compose_url, wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(1.5)
+                else:
+                    raise PlaywrightTimeoutError("Reply button not found and tweet id could not be parsed")
+
+                # 2) Compose box'ı bul
+                compose_box = None
+                for sel in [
+                    'div[data-testid="tweetTextarea_0"]',
+                    'div[data-testid^="tweetTextarea_"]',
+                    'div[role="textbox"][contenteditable="true"]',
+                ]:
+                    try:
+                        cand = self.page.locator(sel).first
+                        await cand.wait_for(state="visible", timeout=6000)
+                        compose_box = cand
+                        break
+                    except:
+                        pass
+
+                if not compose_box and parent_id:
+                    # İkinci fallback: prefilled URL
+                    from urllib.parse import quote as urlquote
+                    prefilled = f"https://x.com/compose/post?in_reply_to={parent_id}&text={urlquote(text, safe='')}"
+                    await self.page.goto(prefilled, wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(1.5)
+                    for sel in ['div[data-testid="tweetTextarea_0"]', 'div[role="textbox"][contenteditable="true"]']:
+                        try:
+                            cand = self.page.locator(sel).first
+                            await cand.wait_for(state="visible", timeout=4000)
+                            compose_box = cand
                             break
-                    except: pass
-                
-                if not post_btn: raise PlaywrightTimeoutError("Reply button disabled")
-                
+                        except:
+                            pass
+
+                if not compose_box:
+                    raise PlaywrightTimeoutError("Reply compose box not found")
+
+                # 3) Metni yaz: önce fill(), olmadı type(delay=20)
+                try:
+                    await compose_box.click(timeout=3000)
+                except:
+                    await compose_box.evaluate("el => el.focus()")
+
+                text_inserted = False
+                try:
+                    await compose_box.fill(text)
+                    await asyncio.sleep(0.5)
+                    current = await compose_box.inner_text()
+                    if len(current.strip()) >= len(text.strip()) * 0.8:
+                        text_inserted = True
+                except:
+                    pass
+
+                if not text_inserted:
+                    # React state düzgün tetiklenmedi — karakter karakter yaz
+                    await compose_box.press("Control+a")
+                    await compose_box.press("Delete")
+                    await compose_box.type(text, delay=20)
+                    await asyncio.sleep(0.5)
+
+                # 4) Post butonunu bekle (max 5 sn)
+                post_btn = None
+                for _ in range(10):
+                    for sel in [
+                        "button[data-testid='tweetButton']",
+                        "div[data-testid='tweetButton']",
+                        "button[data-testid='tweetButtonInline']",
+                        "div[data-testid='tweetButtonInline']",
+                    ]:
+                        cand = self.page.locator(sel).first
+                        try:
+                            await cand.wait_for(state="visible", timeout=500)
+                            if await cand.get_attribute("aria-disabled") != "true" and await cand.is_enabled():
+                                post_btn = cand
+                                break
+                        except:
+                            pass
+                    if post_btn:
+                        break
+                    await asyncio.sleep(0.5)
+
+                if not post_btn:
+                    raise PlaywrightTimeoutError("Reply button disabled")
+
                 await post_btn.click(timeout=4000)
                 await asyncio.sleep(3)
 
                 tweet_url = await self._extract_latest_tweet_url()
                 return {"status": "success", "tweet_url": tweet_url}
+
             except PlaywrightTimeoutError as e:
-                if attempt == 3: return {"status": "error", "message": str(e)}
+                if attempt == 3:
+                    return {"status": "error", "message": str(e)}
+                await asyncio.sleep(3)
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 

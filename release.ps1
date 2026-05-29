@@ -59,12 +59,13 @@ Write-Host "Pre-Flight Checks Passed!" -ForegroundColor Green
 # ==========================================
 Write-Host "Updating version numbers..."
 
-# Update .csproj
-$csprojXml = [xml](Get-Content $CsprojFile)
-$csprojXml.Project.PropertyGroup.Version = $Version
-$csprojXml.Project.PropertyGroup.AssemblyVersion = "$Version.0"
-$csprojXml.Project.PropertyGroup.FileVersion = "$Version.0"
-$csprojXml.Save($CsprojFile)
+# Update .csproj — string replace yerine XML parser kullanmıyoruz.
+# [xml].Save() bazı PropertyGroup öğelerini (PublishSingleFile vb.) silebiliyordu.
+$csprojContent = [System.IO.File]::ReadAllText($CsprojFile)
+$csprojContent = $csprojContent -replace '<Version>[\d\.]+</Version>',         "<Version>$Version</Version>"
+$csprojContent = $csprojContent -replace '<AssemblyVersion>[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$Version.0</AssemblyVersion>"
+$csprojContent = $csprojContent -replace '<FileVersion>[\d\.]+</FileVersion>',  "<FileVersion>$Version.0</FileVersion>"
+[System.IO.File]::WriteAllText($CsprojFile, $csprojContent)
 
 # Update .iss (Inno Setup)
 $issContent = Get-Content $InstallerScript -Raw

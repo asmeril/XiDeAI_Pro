@@ -162,7 +162,7 @@ namespace XiDeAI_Pro.Services
              {
                  var tweets = ThreadPipeline.BuildSignalThread(signal, aiThreadContent, ConfigManager.Current.XLoginUser)
                      .Select(SanitizeXContent)
-                     .Where(x => !string.IsNullOrWhiteSpace(x))
+                     .Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5) // v4.10.7: Boş veya çok kısa parçaları filtrele (Reply disabled hatasını önler)
                      .ToList();
                  
                  // Fallback for single tweet if something went wrong

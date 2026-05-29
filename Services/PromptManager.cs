@@ -82,6 +82,13 @@ Her analizinde farklı bir imge, farklı bir sıfatla anlat. 'Yatay bantlandı' 
 {marketSection}
 {newsSection}
 
+### GÖRSEL OKUMA (GRAFİK):
+Grafik görseli ekte sunulmuştur. Lütfen analizine şu tespitleri dahil et:
+1. Fiyat Hareketi ve Mum Yapıları (Trend yönü, güçlü/zayıf mumlar)
+2. İndikatörler: RSI ve MACD değerleri/uyumsuzlukları
+3. Smart Money Bölgeleri: OB (Order Block) ve FVG (Fair Value Gap) varsa tespitleri
+4. Pivot/Destek-Direnç noktaları
+
 ### YAZI STRATEJİSİ:
 1. **Tweet 1 - KANCA:** 'Şimdi neden {symbol}?' sorusunu cevaplar cinsinden başla. Algoritma kelimeleri (Borsa, Teknik Analiz, Alım, Satım) metne doğal yedir.
 2. **Tweet 2-3 - DERİN BAKIŞ:** Grafik ne anlatıyor? Fenomen varsa @mention ile o bakışa değin, haber varsa tek cümleyle bağla.

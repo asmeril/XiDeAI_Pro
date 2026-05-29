@@ -1,7 +1,91 @@
-# ?? XiDeAI Pro - Proje Gelistirme G?nl?g?
+# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
 
-Bu g?nl?k, proje ?zerinde yapilan degisiklikleri, mimari kararlari ve g?nl?k ilerlemeyi takip etmek i?in tutulmaktadir.
+Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
+
+## 📅 29 Mayıs 2026
+
+### 🔧 v5.0.1 - Thread Reply Düzeltmesi (XHive compose/post Fallback)
+
+**Sorun:**
+- `_post_reply_in_thread`: Reply butonu `aria-disabled="true"` kalıyordu.
+- Root cause: `fill()` metodu React state'ini tetiklemiyordu → post butonu enabled olmuyordu.
+- Hata mesajı: "Thread part 2 failed: Reply button disabled"
+
+**Çözüm:**
+- **XHive yaklaşımı benimsendi:** `C:\Users\asmeril\AppData\Local\XHive\worker\x_daemon.py` incelendi.
+- **`compose/post?in_reply_to={tweet_id}` URL fallback:** Reply butonu yerine compose URL doğrudan açılıyor.
+- **`fill()` → başarısızsa `type(delay=20)` dual-write:** React state tetiklemek için klavye simülasyonu.
+- **10x0.5s post butonu retry döngüsü:** Buton gecikmeli enabled olsa bile yakalar.
+
+**Değişen Dosyalar:**
+- `Scripts/playwright_daemon.py` (`_post_reply_in_thread` tamamen yeniden yazıldı)
+- `XiDeAI_Pro.csproj` (Version: 5.0.1)
+- `setup.iss` (MyAppVersion: 5.0.1)
+
+
+
+**Sorunlar:**
+- LM Studio'da Qwen3.6-27B modeli `budget_tokens=1024` parametresini tamamen görmezden geliyordu.
+- Model tüm token bütçesini (`reasoning_tokens: 4358`) chain-of-thought düşünmeye harcıyor, `content` alanını boş bırakıyordu.
+- Vision isteği 300 saniyede timeout alıyordu — analiz hiç tamamlanamıyordu.
+
+**Çözümler:**
+- **`/no_think` Prefix:** `LMStudioProvider.cs` — hem metin hem vision isteklerinde prompt başına `/no_think\n` eklendi. Qwen3'ün reasoning modunu tamamen kapatan resmi token.
+- **`thinking` parametresi kaldırıldı:** LM Studio `budget_tokens`'ı zaten yok sayıyordu, gereksiz parametre temizlendi.
+- **Vision timeout 600s'e çıkarıldı:** 300s → 600s (Qwen3 vision analizi uzun sürüyor).
+- **Metin timeout 300s'e çıkarıldı:** 180s → 300s.
+- **`reasoning_content` fallback:** `ExtractContentFromChoice()` — `content` boşsa `reasoning_content`'i döndürür.
+
+**Değişen Dosyalar:**
+- `Services/AI/LMStudioProvider.cs`
+- `XiDeAI_Pro.csproj` (Version: 5.0.0)
+- `setup.iss` (MyAppVersion: 5.0.0)
+
+---
+
+## 📅 29 Mayıs 2026
+
+### 🚀 v4.10.9 - PublishSingleFile Bug Fix & Reasoning Token Starvation
+
+**Sorunlar:**
+- `release.ps1` içindeki `[xml]` parser csproj'u işlerken `PublishSingleFile=true` satırını sessizce siliyordu.
+- Setup boyutu 64MB yerine 49MB çıkıyordu (single-file compile olmuyordu).
+- `reasoning_content` fallback yoktu — Qwen3 tüm token'ı düşünmeye harcadığında `content` boş dönüyor, "empty vision response" hatası oluşuyordu.
+
+**Çözümler:**
+- **`release.ps1` fix:** `[xml]` parser → `[System.IO.File]::ReadAllText` + string-replace. PublishSingleFile artık asla silinmiyor.
+- **`reasoning_content` fallback eklendi:** `LMStudioProvider.ExtractContentFromChoice()`.
+- **`max_tokens=8192`:** Vision isteklerinde minimum 8192 token garanti altına alındı.
+- **`budget_tokens=1024`:** Reasoning bütçesi sınırlandırıldı (LM Studio bunu yok sayıyor — v5.0.0'da `/no_think` ile aşıldı).
+
+**Değişen Dosyalar:**
+- `release.ps1`
+- `Services/AI/LMStudioProvider.cs`
+
+---
+
+## 📅 29 Mayıs 2026
+
+### 🚀 v4.10.8 - Manuel Analiz Yerel Model Optimizasyonu
+
+**Sorunlar:**
+- Yerel model (LM Studio) ile analiz yaparken `IndicatorExtractor` çağrısı ekstra token harcıyor, yanıt süresini uzatıyordu.
+- Kısa thread üretiminde grafik ekran görüntüsü gereksiz yere tekrar gönderiliyordu.
+- Thread parçaları arasında çok kısa/boş maddeler tweet zincirini bozuyordu.
+- Derin analiz prompt'unda grafik okuma talimatı yoktu — model grafiği yorumlamıyordu.
+
+**Çözümler:**
+- **`ManualAnalysisService.cs`:** Yerel model aktifken (`usingLocalModel`) `IndicatorExtractor` atlanır; kısa thread için ekran görüntüsü tekrar gönderilmez; indicator context yerine ana analiz metni kullanılır.
+- **`ThreadService.cs`:** `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresi eklendi.
+- **`PromptManager.cs`:** Derin analiz prompt'una `### GÖRSEL OKUMA (GRAFİK)` bölümü eklendi.
+
+**Değişen Dosyalar:**
+- `Services/ManualAnalysisService.cs`
+- `Services/ThreadService.cs`
+- `Services/PromptManager.cs`
+
+---
 
 ## 📅 31 Mart 2026
 

@@ -8,7 +8,7 @@ XiDeAI Pro is an AI-powered trading assistant designed for iDeal platform. It au
 ## 2. Technical Stack
 - **Language**: C# (.NET 8.0, Windows Forms)
 - **Scripting**: Python 3.x (Selenium, yfinance, Pillow)
-- **AI**: Gemini Pro Vision (via GeminiService) & Perplexity (API)
+- **AI**: LM Studio (Yerel Model, Birincil — `EnableMultiModel=true` ile aktif) & Gemini/Perplexity (Yedek/Bulut)
 - **Infrastructure**: Service-oriented architecture (orchestrated by OperationManager)
 
 ## 3. Communication Standards
