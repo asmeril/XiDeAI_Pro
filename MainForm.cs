@@ -908,7 +908,7 @@ namespace XiDeAI_Pro
                 await Task.Run(async () =>
                 {
                     try {
-                        using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                        using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                         hc.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ConfigManager.Current.LMStudioApiKey);
                         var payload = new System.Net.Http.StringContent(
                             $"{{\"model\":\"{model}\",\"messages\":[{{\"role\":\"user\",\"content\":\"Merhaba! Bağlantı testi.\"}}],\"max_tokens\":50}}",

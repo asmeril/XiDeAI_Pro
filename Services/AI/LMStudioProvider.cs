@@ -18,7 +18,7 @@ namespace XiDeAI_Pro.Services.AI
     /// </summary>
     public class LMStudioProvider : IModelProvider
     {
-        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(60) };
+        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(180) };
         private readonly string _uri;
         private readonly string _apiKey;
         private readonly string _modelName;
