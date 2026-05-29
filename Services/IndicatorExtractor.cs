@@ -53,10 +53,7 @@ namespace XiDeAI_Pro.Services
 
             try
             {
-                Log("🔍 Analyzing indicators from screenshot...");
-
-                byte[] imageBytes = System.IO.File.ReadAllBytes(screenshotPath);
-                string imageBase64 = Convert.ToBase64String(imageBytes);
+                Log("🔍 Grafik görseli vision API'ye gönderiliyor...");
 
                 // Vision-based extraction prompt with Smart Money concepts (Improved v3.1)
                 string prompt = @"Bu bir TradingView finansal grafik görüntüsüdür. Görüntü yüksek çözünürlüklüdür.
@@ -114,7 +111,11 @@ Trend: [Yükseliş/Düşüş/Yatay]
 - Legend (sol üst) kısmındaki rakamlar her zaman en doğru kaynaktır.
 - Rakamları okurken ondalık basamaklara dikkat et.";
 
-                string? response = await _gemini.SendMultimodalRequest(prompt, imageBase64);
+                // v4.10.5 FIX: Directly pass screenshotPath (file path) to SendMultimodalRequest.
+                // Previously, imageBase64 string was passed — but SendMultimodalRequest expects a
+                // file path, not a base64 string. File.Exists(base64) → false → fell back to
+                // text-only SendRequest → model never saw the image → 2 wasted minutes.
+                string? response = await _gemini.SendMultimodalRequest(prompt, screenshotPath);
                 
                 if (string.IsNullOrEmpty(response))
                 {
