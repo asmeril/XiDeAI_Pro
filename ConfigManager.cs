@@ -63,6 +63,9 @@ namespace XiDeAI_Pro.Config
         public bool EnableZirve { get; set; } = true;
         public bool EnableAnka { get; set; } = true;
         public bool EnableMiner { get; set; } = true;
+        public bool EnableAlpha { get; set; } = true;
+        public bool EnablePreMove { get; set; } = true;
+        public int MinScoreAlpha { get; set; } = 12; // ALPHA için minimum skor (0-20 arası)
         public bool Period15 { get; set; } = true;
         public bool Period60 { get; set; } = true;
         public bool Period240 { get; set; } = true;

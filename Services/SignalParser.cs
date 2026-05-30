@@ -59,6 +59,9 @@ namespace XiDeAI_Pro.Services
                 if (strat.Contains("ANKA")) return 80;
                 if (strat.Contains("DIP")) return 75;
                 if (strat.Contains("ZIRVE")) return 70;
+                if (strat.Contains("ALPHA")) return 72;
+                if (strat.Contains("PREMOVE")) return 68;
+                if (strat.Contains("ZIRVE")) return 70;
                 return 50; // Varsayılan
             }
         }
@@ -127,7 +130,64 @@ namespace XiDeAI_Pro.Services
             if (source == "KING") return ParseKingFormat(content, DateTime.Now);
             if (source == "DIP") return ParseDipZirveFormat(content, DateTime.Now, "DIP");
             if (source == "ANKA") return ParseAnkaFormat(content, DateTime.Now);
+            if (source == "ALPHA") return ParseAlphaDbLine(content, "ALPHA");
+            if (source == "PREMOVE") return ParseAlphaDbLine(content, "PREMOVE");
             return new List<SignalData>();
+        }
+
+        /// <summary>
+        /// Alpha/PreMove DB satır formatı: SEMBOL|ALPHA|60|datetime_iso|fiyat|durum
+        /// Örnek: THYAO|ALPHA|60|2025-01-15T10:30:00.0000000|95.60|AKTIF
+        /// </summary>
+        public List<SignalData> ParseAlphaDbLine(string line, string strategyOverride = "")
+        {
+            var results = new List<SignalData>();
+            line = line.Trim();
+            if (string.IsNullOrEmpty(line)) return results;
+
+            var parts = line.Split('|');
+            if (parts.Length < 5) return results;
+
+            try
+            {
+                string symbol = parts[0].Trim();
+                string strategy = strategyOverride.Length > 0 ? strategyOverride : parts[1].Trim().ToUpperInvariant();
+                string period = parts[2].Trim(); // "60" veya "G"
+
+                // Sadece AKTIF sinyalleri al; PULLBACK_ADAY vs. de geçsin
+                string durum = parts.Length >= 6 ? parts[5].Trim().ToUpperInvariant() : "AKTIF";
+                // Tüm durumlar işlenir ama AKTIF olanlara daha yüksek skor verilir
+                int baseScore = durum == "AKTIF" ? 20 : 12;
+
+                decimal price = 0;
+                decimal.TryParse(parts[4].Trim().Replace(",", "."),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out price);
+
+                DateTime detectedAt = DateTime.Now;
+                if (parts.Length >= 4)
+                    DateTime.TryParse(parts[3].Trim(), out detectedAt);
+
+                var data = new SignalData
+                {
+                    Symbol = symbol,
+                    Strategy = strategy,
+                    Period = period,
+                    Price = price,
+                    Score = baseScore,
+                    MaxScore = 20,
+                    Source = strategy,
+                    DetectedAt = detectedAt,
+                    IsRepeat = false,
+                    Basis = "TL"
+                };
+
+                results.Add(data);
+            }
+            catch { }
+
+            return results;
         }
 
         /// <summary>

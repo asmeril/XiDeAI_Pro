@@ -25,6 +25,11 @@ namespace XiDeAI_Pro.Services
         private ConcurrentDictionary<string, System.Threading.CancellationTokenSource> _pendingReads = new();
         private ConcurrentDictionary<string, string> _lastContentFingerprint = new();
 
+        // --- Alpha/PreMove DB tail watcher ---
+        private FileSystemWatcher? _dbWatcher;
+        private long _dbLastPosition = 0;
+        private readonly object _dbLock = new object();
+
         public void Start(string[] folders)
         {
             Stop();
@@ -50,6 +55,84 @@ namespace XiDeAI_Pro.Services
             IsRunning = _watchers.Count > 0;
             IsPaused = false;
             OnLog?.Invoke($"📁 Toplam {validCount} klasör izleniyor.");
+
+            // Alpha/PreMove DB dosyasını da izle
+            WatchAlphaDb(@"C:\iDeal\Sinyal_Log_Database.txt");
+        }
+
+        /// <summary>
+        /// C:\iDeal\Sinyal_Log_Database.txt dosyasını tail-style izler.
+        /// Format: SEMBOL|ALPHA|60|datetime|fiyat|durum
+        /// </summary>
+        public void WatchAlphaDb(string dbPath)
+        {
+            if (!File.Exists(dbPath))
+            {
+                OnLog?.Invoke($"⚠️ Alpha/PreMove DB dosyası bulunamadı: {dbPath}");
+                return;
+            }
+
+            // Başlangıçta mevcut içeriği atla — sadece yeni eklenen satırları yakala
+            lock (_dbLock)
+            {
+                _dbLastPosition = new FileInfo(dbPath).Length;
+            }
+
+            string? dir = Path.GetDirectoryName(dbPath);
+            string? file = Path.GetFileName(dbPath);
+            if (dir == null || file == null) return;
+
+            _dbWatcher = new FileSystemWatcher(dir, file)
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size
+            };
+            _dbWatcher.Changed += (s, e) => ProcessDbFileSafe(e.FullPath);
+            _dbWatcher.EnableRaisingEvents = true;
+            IsRunning = true;
+            OnLog?.Invoke($"✅ Alpha/PreMove DB izleniyor: {dbPath}");
+        }
+
+        private void ProcessDbFileSafe(string path)
+        {
+            if (IsPaused) return;
+            Task.Run(() =>
+            {
+                try
+                {
+                    System.Threading.Thread.Sleep(500); // Kısa debounce
+                    lock (_dbLock)
+                    {
+                        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        if (fs.Length <= _dbLastPosition) return;
+
+                        fs.Seek(_dbLastPosition, SeekOrigin.Begin);
+                        using var sr = new StreamReader(fs);
+                        string? line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(line))
+                            {
+                                var parts = line.Split('|');
+                                if (parts.Length >= 2)
+                                {
+                                    string strategy = parts[1].Trim().ToUpperInvariant();
+                                    // source olarak strateji adını gönder: "ALPHA" veya "PREMOVE"
+                                    if (strategy == "ALPHA" || strategy == "PREMOVE")
+                                    {
+                                        OnLog?.Invoke($"📄 DB Sinyal: {line}");
+                                        OnSignalDetected?.Invoke(line, strategy);
+                                    }
+                                }
+                            }
+                        }
+                        _dbLastPosition = fs.Position;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnLog?.Invoke($"❌ DB Dosya Okuma Hatası: {ex.Message}");
+                }
+            });
         }
 
         public void Stop()
@@ -63,6 +146,8 @@ namespace XiDeAI_Pro.Services
                 catch { }
             }
             _pendingReads.Clear();
+            _dbWatcher?.Dispose();
+            _dbWatcher = null;
             IsRunning = false;
             IsPaused = false;
         }
@@ -74,6 +159,7 @@ namespace XiDeAI_Pro.Services
             {
                 w.EnableRaisingEvents = false;
             }
+            if (_dbWatcher != null) _dbWatcher.EnableRaisingEvents = false;
             IsPaused = true;
         }
         
@@ -84,6 +170,7 @@ namespace XiDeAI_Pro.Services
             {
                 w.EnableRaisingEvents = true;
             }
+            if (_dbWatcher != null) _dbWatcher.EnableRaisingEvents = true;
             IsPaused = false;
         }
 

@@ -499,6 +499,7 @@ namespace XiDeAI_Pro.Services
             if (sig.Source == "KING") threshold = cfg.MinScoreKing;
             else if (sig.Source == "DIP") threshold = cfg.MinScoreDip;
             else if (sig.Source == "ANKA") threshold = cfg.MinScoreAnka;
+            else if (sig.Source == "ALPHA" || sig.Source == "PREMOVE") threshold = cfg.MinScoreAlpha;
 
             // Step 1: Basic Score Filter
             bool ok = sig.Score >= threshold;

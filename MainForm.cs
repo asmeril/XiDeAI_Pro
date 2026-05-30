@@ -118,7 +118,7 @@ namespace XiDeAI_Pro
 
         
         // Filter Controls
-        private CheckBox chkKing = null!, chkBomba = null!, chkTeFo = null!, chkDip = null!, chkZirve = null!, chkAnka = null!, chkMiner = null!;
+        private CheckBox chkKing = null!, chkBomba = null!, chkTeFo = null!, chkDip = null!, chkZirve = null!, chkAnka = null!, chkMiner = null!, chkAlpha = null!, chkPreMove = null!;
         private CheckBox chkPer15 = null!, chkPer60 = null!, chkPer240 = null!, chkPerG = null!;
         private CheckBox chkOnlyCommon = null!;
         // Common Scan Checkboxes
@@ -612,6 +612,8 @@ namespace XiDeAI_Pro
             chkZirve = new CheckBox { Text = "Zirve", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkZirve);
             chkAnka = new CheckBox { Text = "🦅 ANKA (Puanlı)", ForeColor = Color.White, Checked = true, AutoSize = true }; flowScans.Controls.Add(chkAnka);
             chkMiner = new CheckBox { Text = "⛏️ WEEKLY MINER (Pazar)", ForeColor = Color.Gold, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkMiner);
+            chkAlpha = new CheckBox { Text = "⚡ ALPHA (60dk)", ForeColor = Color.LightGreen, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkAlpha);
+            chkPreMove = new CheckBox { Text = "🚀 PREMOVE (Günlük)", ForeColor = Color.LightSkyBlue, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkPreMove);
             panelFilter.Controls.Add(flowScans);
             
             // Periyotlar
@@ -2090,6 +2092,9 @@ namespace XiDeAI_Pro
             chkDip.Checked = cfg.EnableDip;
             chkZirve.Checked = cfg.EnableZirve;
             chkAnka.Checked = cfg.EnableAnka;
+            chkMiner.Checked = cfg.EnableMiner;
+            chkAlpha.Checked = cfg.EnableAlpha;
+            chkPreMove.Checked = cfg.EnablePreMove;
             chkPer15.Checked = cfg.Period15;
             chkPer60.Checked = cfg.Period60;
             chkPer240.Checked = cfg.Period240;
@@ -2185,6 +2190,8 @@ namespace XiDeAI_Pro
             cfg.EnableZirve = chkZirve.Checked;
             cfg.EnableAnka = chkAnka.Checked;
             cfg.EnableMiner = chkMiner.Checked;
+            cfg.EnableAlpha = chkAlpha.Checked;
+            cfg.EnablePreMove = chkPreMove.Checked;
             cfg.Period15 = chkPer15.Checked;
             cfg.Period60 = chkPer60.Checked;
             cfg.Period240 = chkPer240.Checked;
@@ -3857,6 +3864,8 @@ namespace XiDeAI_Pro
                 if (s.Strategy == "DIP" && !cfg.EnableDip) return false;
                 if (s.Strategy == "ZIRVE" && !cfg.EnableZirve) return false;
                 if (s.Strategy == "ANKA" && !cfg.EnableAnka) return false;
+                if (s.Strategy == "ALPHA" && !cfg.EnableAlpha) return false;
+                if (s.Strategy == "PREMOVE" && !cfg.EnablePreMove) return false;
 
                 // Period filter
                 if (s.Period == "15" && !cfg.Period15) return false;
