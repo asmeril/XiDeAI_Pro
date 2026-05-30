@@ -116,14 +116,10 @@ namespace XiDeAI_Pro
         private readonly string[] _searchCategories = { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" };
         private List<(NewsItem item, string? analysis, string status)> _newsBuffer = new List<(NewsItem item, string? analysis, string status)>();
 
-        
-        // Filter Controls
-        private CheckBox chkKing = null!, chkBomba = null!, chkTeFo = null!, chkDip = null!, chkZirve = null!, chkAnka = null!, chkMiner = null!, chkAlpha = null!, chkPreMove = null!;
-        private CheckBox chkPer15 = null!, chkPer60 = null!, chkPer240 = null!, chkPerG = null!;
-        private CheckBox chkOnlyCommon = null!;
-        // Common Scan Checkboxes
-        private CheckBox chkComKing = null!, chkComBomba = null!, chkComTeFo = null!, chkComDip = null!, chkComZirve = null!, chkComAnka = null!;
-        private NumericUpDown numThresholdKing = null!, numThresholdDip = null!, numThresholdAnka = null!;
+
+        // Filter Controls (Alpha/PreMove only)
+        private CheckBox chkAlpha = null!, chkPreMove = null!;
+        private CheckBox chkAlphaOnlyAktif = null!, chkPreMoveOnlyAktif = null!;
         private TextBox txtScanHours = null!;
 
         // Manual Analysis Controls
@@ -598,62 +594,25 @@ namespace XiDeAI_Pro
             InitializeTwitterWebView();
 
 
-            // ========== Tab 2: Filters (FİLTRELER) ==========
             // ========== Tab 2: Signal Center (SİNYAL MERKEZİ) ==========
             var panelFilter = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), FlowDirection = FlowDirection.TopDown, AutoScroll = true, BackColor = Color.FromArgb(40, 40, 40) };
             
-            // Tarama Türleri
-            panelFilter.Controls.Add(new Label { Text = "📊 Tarama Türleri", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold) });
-            var flowScans = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-            chkKing = new CheckBox { Text = "King", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkKing);
-            chkBomba = new CheckBox { Text = "Bomba", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkBomba);
-            chkTeFo = new CheckBox { Text = "TeFo", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkTeFo);
-            chkDip = new CheckBox { Text = "Dip", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkDip);
-            chkZirve = new CheckBox { Text = "Zirve", ForeColor = Color.White, Checked = true }; flowScans.Controls.Add(chkZirve);
-            chkAnka = new CheckBox { Text = "🦅 ANKA (Puanlı)", ForeColor = Color.White, Checked = true, AutoSize = true }; flowScans.Controls.Add(chkAnka);
-            chkMiner = new CheckBox { Text = "⛏️ WEEKLY MINER (Pazar)", ForeColor = Color.Gold, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkMiner);
-            chkAlpha = new CheckBox { Text = "⚡ ALPHA (60dk)", ForeColor = Color.LightGreen, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkAlpha);
-            chkPreMove = new CheckBox { Text = "🚀 PREMOVE (Günlük)", ForeColor = Color.LightSkyBlue, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold) }; flowScans.Controls.Add(chkPreMove);
+            // Sinyal Kaynakları
+            panelFilter.Controls.Add(new Label { Text = "📊 Sinyal Kaynakları", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold) });
+            panelFilter.Controls.Add(new Label { Text = "Tüm sinyaller C:\\iDeal\\Sinyal_Log_Database.txt dosyasından okunur.\nRobotlar kendi eşiklerini uygular: Alpha≥90p, PreMove≥75p", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
+
+            var flowScans = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 10, 0, 0) };
+            chkAlpha = new CheckBox { Text = "⚡ ALPHA (60dk)", ForeColor = Color.LightGreen, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkAlpha);
+            chkPreMove = new CheckBox { Text = "🚀 PREMOVE (Günlük)", ForeColor = Color.LightSkyBlue, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkPreMove);
             panelFilter.Controls.Add(flowScans);
-            
-            // Periyotlar
-            panelFilter.Controls.Add(new Label { Text = "⏱️ Periyotlar", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) });
-            var flowPer = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-            chkPer15 = new CheckBox { Text = "15dk", ForeColor = Color.White, Checked = true }; flowPer.Controls.Add(chkPer15);
-            chkPer60 = new CheckBox { Text = "60dk", ForeColor = Color.White, Checked = true }; flowPer.Controls.Add(chkPer60);
-            chkPer240 = new CheckBox { Text = "4sa", ForeColor = Color.White, Checked = true }; flowPer.Controls.Add(chkPer240);
-            chkPerG = new CheckBox { Text = "Günlük", ForeColor = Color.White, Checked = true }; flowPer.Controls.Add(chkPerG);
-            panelFilter.Controls.Add(flowPer);
-            
-            // Eşik Değerler
-            panelFilter.Controls.Add(new Label { Text = "🎯 Minimum Skorlar", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) });
-            var flowThresh = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-            flowThresh.Controls.Add(new Label { Text = "King/Bomba:", ForeColor = Color.White, AutoSize = true });
-            numThresholdKing = new NumericUpDown { Value = 24, Minimum = 1, Maximum = 30, Width = 50 }; flowThresh.Controls.Add(numThresholdKing);
-            flowThresh.Controls.Add(new Label { Text = "  Dip:", ForeColor = Color.White, AutoSize = true });
-            numThresholdDip = new NumericUpDown { Value = 12, Minimum = 1, Maximum = 20, Width = 50 }; flowThresh.Controls.Add(numThresholdDip);
-            flowThresh.Controls.Add(new Label { Text = "  ANKA:", ForeColor = Color.White, AutoSize = true });
-            numThresholdAnka = new NumericUpDown { Value = 27, Minimum = 1, Maximum = 35, Width = 50 }; flowThresh.Controls.Add(numThresholdAnka);
-            panelFilter.Controls.Add(flowThresh);
-            
-            // Özel Filtreler
-            panelFilter.Controls.Add(new Label { Text = "⚡ Ortak Tarama Seçimi:", ForeColor = Color.Cyan, AutoSize = true, Font = new Font("Segoe UI", 11, FontStyle.Bold), Margin = new Padding(0, 15, 0, 0) });
-            panelFilter.Controls.Add(new Label { Text = "Aşağıda seçtiğiniz robotların HEPSİNDE çıkan hisseler tweetlenir (Kesişim):", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
 
-            var flowCommon = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-            chkComKing = new CheckBox { Text = "King", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComKing);
-            chkComBomba = new CheckBox { Text = "Bomba", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComBomba);
-            chkComTeFo = new CheckBox { Text = "TeFo", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComTeFo);
-            chkComDip = new CheckBox { Text = "Dip", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComDip);
-            chkComZirve = new CheckBox { Text = "Zirve", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComZirve);
-            chkComAnka = new CheckBox { Text = "ANKA", ForeColor = Color.Orange, AutoSize = true }; flowCommon.Controls.Add(chkComAnka);
-            panelFilter.Controls.Add(flowCommon);
-            _toolTip.SetToolTip(flowCommon, "Sadece burada seçtiğiniz stratejilerin TAMAMINDA çıkan hisseler paylaşılacaktır.");
-
-            // Common Scan Toggle (Master Switch)
-            chkOnlyCommon = new CheckBox { Text = "Ortak Taramayı Aktif Et", ForeColor = Color.Cyan, Checked = false, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-            panelFilter.Controls.Add(chkOnlyCommon);
-            
+            // Durum Filtresi
+            panelFilter.Controls.Add(new Label { Text = "🎯 Durum Filtresi", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) });
+            panelFilter.Controls.Add(new Label { Text = "İşaretlenirse sadece AKTIF sinyaller alınır, PULLBACK_ADAY atlanır.", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
+            var flowDurum = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+            chkAlphaOnlyAktif = new CheckBox { Text = "Alpha: Sadece AKTIF", ForeColor = Color.LightGreen, AutoSize = true }; flowDurum.Controls.Add(chkAlphaOnlyAktif);
+            chkPreMoveOnlyAktif = new CheckBox { Text = "PreMove: Sadece AKTIF", ForeColor = Color.LightSkyBlue, AutoSize = true }; flowDurum.Controls.Add(chkPreMoveOnlyAktif);
+            panelFilter.Controls.Add(flowDurum);
             
             // Zamanlama (Scan Hours)
             panelFilter.Controls.Add(new Label { Text = "⏰ İzin Verilen Tarama Saatleri (Örn: 10:00, 14:00, 18:00):", ForeColor = Color.Yellow, AutoSize = true, Margin = new Padding(0, 15, 0, 0) });
@@ -2085,38 +2044,11 @@ namespace XiDeAI_Pro
 
             chkAuto.Checked = cfg.AutoTweet;
             
-            // Filter settings
-            chkKing.Checked = cfg.EnableKing;
-            chkBomba.Checked = cfg.EnableBomba;
-            chkTeFo.Checked = cfg.EnableTeFo;
-            chkDip.Checked = cfg.EnableDip;
-            chkZirve.Checked = cfg.EnableZirve;
-            chkAnka.Checked = cfg.EnableAnka;
-            chkMiner.Checked = cfg.EnableMiner;
+            // Sinyal kaynağı filtreleri (Alpha/PreMove)
             chkAlpha.Checked = cfg.EnableAlpha;
             chkPreMove.Checked = cfg.EnablePreMove;
-            chkPer15.Checked = cfg.Period15;
-            chkPer60.Checked = cfg.Period60;
-            chkPer240.Checked = cfg.Period240;
-            chkPerG.Checked = cfg.PeriodDaily;
-            chkOnlyCommon.Checked = cfg.OnlyCommonSignals;
-            
-            // Load Common Strategies
-            cfg.CommonStrategies ??= new List<string>();
-            var com = cfg.CommonStrategies;
-            chkComKing.Checked = com.Contains("KING");
-            chkComBomba.Checked = com.Contains("BOMBA");
-            chkComTeFo.Checked = com.Contains("TEFO");
-            chkComDip.Checked = com.Contains("DIP");
-            chkComZirve.Checked = com.Contains("ZIRVE");
-            if (chkComAnka.Checked && !cfg.CommonStrategies.Contains("ANKA")) cfg.CommonStrategies.Add("ANKA");
-            
-            // chkRespectSchedule.Checked = cfg.RespectSchedule;
-            numThresholdKing.Value = cfg.MinScoreKing;
-            numThresholdDip.Value = cfg.MinScoreDip;
-            numThresholdAnka.Value = cfg.MinScoreAnka;
-            // Miner has fixed threshold in robot code (60), no UI needed
-            chkMiner.Checked = cfg.EnableMiner;
+            chkAlphaOnlyAktif.Checked = cfg.AlphaOnlyAktif;
+            chkPreMoveOnlyAktif.Checked = cfg.PreMoveOnlyAktif;
             
             txtTelToken.Text = cfg.TelegramBotToken;
             txtTelChatId.Text = cfg.TelegramChatId;
@@ -2182,35 +2114,13 @@ namespace XiDeAI_Pro
 
             cfg.AutoTweet = chkAuto.Checked;
             
-            // Filters
-            cfg.EnableKing = chkKing.Checked;
-            cfg.EnableBomba = chkBomba.Checked;
-            cfg.EnableTeFo = chkTeFo.Checked;
-            cfg.EnableDip = chkDip.Checked;
-            cfg.EnableZirve = chkZirve.Checked;
-            cfg.EnableAnka = chkAnka.Checked;
-            cfg.EnableMiner = chkMiner.Checked;
+            // Sinyal kaynağı filtreleri (Alpha/PreMove)
             cfg.EnableAlpha = chkAlpha.Checked;
             cfg.EnablePreMove = chkPreMove.Checked;
-            cfg.Period15 = chkPer15.Checked;
-            cfg.Period60 = chkPer60.Checked;
-            cfg.Period240 = chkPer240.Checked;
-            cfg.PeriodDaily = chkPerG.Checked;
-            cfg.OnlyCommonSignals = chkOnlyCommon.Checked;
-            
-            // Save Common Strategies
-            cfg.CommonStrategies = new List<string>();
-            if (chkComKing.Checked) cfg.CommonStrategies.Add("KING");
-            if (chkComBomba.Checked) cfg.CommonStrategies.Add("BOMBA");
-            if (chkComTeFo.Checked) cfg.CommonStrategies.Add("TEFO");
-            if (chkComDip.Checked) cfg.CommonStrategies.Add("DIP");
-            if (chkComZirve.Checked) cfg.CommonStrategies.Add("ZIRVE");
-            if (chkComAnka.Checked) cfg.CommonStrategies.Add("ANKA");
+            cfg.AlphaOnlyAktif = chkAlphaOnlyAktif.Checked;
+            cfg.PreMoveOnlyAktif = chkPreMoveOnlyAktif.Checked;
             
             // cfg.RespectSchedule = chkRespectSchedule.Checked;
-            cfg.MinScoreKing = (int)numThresholdKing.Value;
-            cfg.MinScoreDip = (int)numThresholdDip.Value;
-            cfg.MinScoreAnka = (int)numThresholdAnka.Value;
             // cfg.TweetDelayMinutes = (int)numDelay.Value;
             
             // Scan Hours Parsing
@@ -2241,7 +2151,7 @@ namespace XiDeAI_Pro
         private void BtnStart_Click(object? sender, EventArgs e)
         {
             var cfg = ConfigManager.Current;
-            _watcher.Start(new[] { cfg.WatchFolderKing, cfg.WatchFolderDip, cfg.WatchFolderAnka, cfg.WatchFolderMiner });
+            _watcher.Start();
             // _scheduleTimer (removed).Start();
             
             // v3.0 Deep Scan - MOVED TO INFLUENCER PANEL
@@ -2254,7 +2164,7 @@ namespace XiDeAI_Pro
             */
 
             Log("🚀 Watcher Service Started...");
-            Log($"📁 Watching: {cfg.WatchFolderKing}, {cfg.WatchFolderDip}, {cfg.WatchFolderAnka}, {cfg.WatchFolderMiner}");
+            Log($"📁 İzleniyor: C:\\iDeal\\Sinyal_Log_Database.txt (Alpha/PreMove DB)");
             
             // v4.0 Bot Interaction Activation (DISABLED PER USER REQUEST)
             // if (_botTimer != null) {

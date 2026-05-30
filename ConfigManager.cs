@@ -22,14 +22,7 @@ namespace XiDeAI_Pro.Config
         public string TelegramBotToken { get; set; } = "";
         public string TelegramChatId { get; set; } = "";
         public string TargetAccounts { get; set; } = "";
-        public string WatchFolderKing { get; set; } = @"C:\iDeal\TARAMA_LOG\KING";
-        public string WatchFolderDip { get; set; } = @"C:\iDeal\TARAMA_LOG\DIP";
-        public string WatchFolderAnka { get; set; } = @"C:\iDeal\TARAMA_LOG\ANKA";
-        public string WatchFolderMiner { get; set; } = @"C:\iDeal\TARAMA_LOG\HAFTALIK";
         public bool AutoTweet { get; set; } = false;
-        public int MinScoreKing { get; set; } = 24;
-        public int MinScoreDip { get; set; } = 12;
-        public int MinScoreAnka { get; set; } = 27;
         public string DailyTrends { get; set; } = "#BIST100 #Borsa";
         public List<string> Influencers { get; set; } = new List<string> 
         { 
@@ -54,24 +47,14 @@ namespace XiDeAI_Pro.Config
         public int TwitterApiDailyLimit { get; set; } = 50; 
         public int TwitterApiMonthlyLimit { get; set; } = 1500;
 
-        // Filtre Ayarları
-        public int NewsCheckInterval { get; set; } = 15; // v4.5.3: Was 5, increased to reduce API load
-        public bool EnableKing { get; set; } = true;
-        public bool EnableBomba { get; set; } = true;
-        public bool EnableTeFo { get; set; } = true;
-        public bool EnableDip { get; set; } = true;
-        public bool EnableZirve { get; set; } = true;
-        public bool EnableAnka { get; set; } = true;
-        public bool EnableMiner { get; set; } = true;
+        // Sinyal Filtre Ayarları (Alpha/PreMove)
+        public int NewsCheckInterval { get; set; } = 15;
         public bool EnableAlpha { get; set; } = true;
         public bool EnablePreMove { get; set; } = true;
-        public int MinScoreAlpha { get; set; } = 12; // ALPHA için minimum skor (0-20 arası)
-        public bool Period15 { get; set; } = true;
-        public bool Period60 { get; set; } = true;
-        public bool Period240 { get; set; } = true;
-        public bool PeriodDaily { get; set; } = true;
-        public bool OnlyCommonSignals { get; set; } = false;
-        public List<string> CommonStrategies { get; set; } = new List<string>();
+        // DB'ye yazılan sinyaller zaten robotun eşiğinden geçti (Alpha≥90, PreMove≥75)
+        // Sadece AKTIF (Roket) sinyalleri mi işle, yoksa PULLBACK_ADAY dahil mi?
+        public bool AlphaOnlyAktif { get; set; } = false;
+        public bool PreMoveOnlyAktif { get; set; } = false;
 
         // Spam Protection Toggle
         public bool DisableSpamProtection { get; set; } = true; // Legacy/global toggle (deprecated)

@@ -493,23 +493,32 @@ namespace XiDeAI_Pro.Services
         private async Task<bool> CheckSignalQualityWithAI(SignalData sig)
         {
             var cfg = ConfigManager.Current;
-            int threshold = 3; // Varsayılan
 
-            // Stratejiye özel eşik kontrolü (Eski projeden geri getirildi)
-            if (sig.Source == "KING") threshold = cfg.MinScoreKing;
-            else if (sig.Source == "DIP") threshold = cfg.MinScoreDip;
-            else if (sig.Source == "ANKA") threshold = cfg.MinScoreAnka;
-            else if (sig.Source == "ALPHA" || sig.Source == "PREMOVE") threshold = cfg.MinScoreAlpha;
-
-            // Step 1: Basic Score Filter
-            bool ok = sig.Score >= threshold;
-            if (!ok) 
+            // Alpha ve PreMove robotları DB'ye sadece kendi eşiklerini geçen sinyalleri yazar.
+            // (Alpha≥90p, PreMove≥75p) — burada ek skor filtresi gereksiz.
+            // PULLBACK_ADAY dahil tüm DB satırları geçer; filtre sadece Enable bayrağı.
+            if (sig.Source == "ALPHA" && !cfg.EnableAlpha)
             {
-                OnLog?.Invoke($"🛡️ Skor Filtresi: {sig.Symbol} ({sig.Strategy}) skoru {sig.Score} < {threshold} (Eşik) olduğu için elendi.", "Engine");
+                OnLog?.Invoke($"⏭️ Alpha sinyali devre dışı: {sig.Symbol}", "Engine");
                 return false;
             }
-            
-            OnLog?.Invoke($"✅ Skor Doğrulandı: {sig.Symbol} ({sig.Score} >= {threshold})", "Engine");
+            if (sig.Source == "PREMOVE" && !cfg.EnablePreMove)
+            {
+                OnLog?.Invoke($"⏭️ PreMove sinyali devre dışı: {sig.Symbol}", "Engine");
+                return false;
+            }
+            if (cfg.AlphaOnlyAktif && sig.Source == "ALPHA" && sig.Durum != "AKTIF")
+            {
+                OnLog?.Invoke($"⏭️ Alpha PULLBACK_ADAY filtresiyle elendi: {sig.Symbol}", "Engine");
+                return false;
+            }
+            if (cfg.PreMoveOnlyAktif && sig.Source == "PREMOVE" && sig.Durum != "AKTIF")
+            {
+                OnLog?.Invoke($"⏭️ PreMove PULLBACK_ADAY filtresiyle elendi: {sig.Symbol}", "Engine");
+                return false;
+            }
+
+            OnLog?.Invoke($"✅ Sinyal Onaylandı: {sig.Symbol} ({sig.Strategy} | {sig.Durum}{(sig.IsRoket ? " 🚀" : "")})", "Engine");
 
             // Step 2: AI Deep Scan (Optional - Config controlled)
             // Phase 4: Deep Scan to save API quota

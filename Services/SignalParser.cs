@@ -1,13 +1,123 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace XiDeAI_Pro.Services
 {
-    // v4.3.0: Content Tier for Hybrid Signal Intelligence
+    // v5.1.0: Simplified for Alpha/PreMove only
     public enum ContentTier
     {
-        Premium,    // 85-100: 4-5 tweet, detaylı analiz
+        Premium,      // AKTIF (Roket) sinyalleri
+        Standard,     // AKTIF normal sinyaller
+        Summary,      // PULLBACK_ADAY sinyalleri
+        Notification  // Diğer
+    }
+
+    public class SignalData
+    {
+        public string Symbol { get; set; } = "";
+        public string Strategy { get; set; } = ""; // ALPHA, PREMOVE
+        public string Period { get; set; } = "";   // 60, G
+        public decimal Price { get; set; }
+        public string Durum { get; set; } = "";    // AKTIF, PULLBACK_ADAY
+        public bool IsRoket { get; set; } = false; // Alpha: volRatio≥3 + barSize≥1%
+        public string Source { get; set; } = "";   // ALPHA, PREMOVE
+        public DateTime DetectedAt { get; set; }
+        public bool IsRepeat { get; set; }
+        public string Basis { get; set; } = "TL";
+        public string? Analysis { get; set; }
+
+        /// <summary>
+        /// Tier: Robotun verdiği AKTIF/Roket/PULLBACK_ADAY durumuna göre
+        /// </summary>
+        public ContentTier Tier
+        {
+            get
+            {
+                if (IsRoket) return ContentTier.Premium;
+                if (Durum == "AKTIF") return ContentTier.Standard;
+                if (Durum == "PULLBACK_ADAY") return ContentTier.Summary;
+                return ContentTier.Notification;
+            }
+        }
+
+        public string Market
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Symbol)) return "BIST";
+                string upper = Symbol.ToUpperInvariant();
+                if (upper.Contains("USDT") || upper.Contains("BTC") || upper.Contains("ETH")) return "Kripto";
+                if (upper.Contains("XAU") || upper.Contains("EUR") || upper.Contains("GBP")) return "Forex";
+                return "BIST";
+            }
+        }
+    }
+
+    public class SignalParser
+    {
+        public List<SignalData> Parse(string line, string source)
+        {
+            if (source == "ALPHA" || source == "PREMOVE")
+                return ParseDbLine(line, source);
+            return new List<SignalData>();
+        }
+
+        /// <summary>
+        /// Alpha/PreMove DB satır formatı:
+        ///   SEMBOL|ALPHA|60|datetime_iso|fiyat|durum
+        ///   SEMBOL|PREMOVE|G|datetime_iso|fiyat|durum
+        /// Durum: AKTIF, AKTIF (Roket), PULLBACK_ADAY
+        /// Not: DB'ye yazılan satırlar robotun kendi eşiğinden (Alpha≥90, PreMove≥75) zaten geçmiştir.
+        /// </summary>
+        public List<SignalData> ParseDbLine(string line, string strategyOverride = "")
+        {
+            var results = new List<SignalData>();
+            line = line.Trim();
+            if (string.IsNullOrEmpty(line)) return results;
+
+            var parts = line.Split('|');
+            if (parts.Length < 5) return results;
+
+            try
+            {
+                string symbol = parts[0].Trim();
+                string strategy = strategyOverride.Length > 0 ? strategyOverride : parts[1].Trim().ToUpperInvariant();
+                string period = parts[2].Trim();
+                string rawDurum = parts.Length >= 6 ? parts[5].Trim().ToUpperInvariant() : "AKTIF";
+                bool isRoket = rawDurum.Contains("ROKET");
+                string durum = isRoket ? "AKTIF" : rawDurum;
+
+                decimal price = 0;
+                decimal.TryParse(parts[4].Trim().Replace(",", "."),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out price);
+
+                DateTime detectedAt = DateTime.Now;
+                if (parts.Length >= 4)
+                    DateTime.TryParse(parts[3].Trim(), out detectedAt);
+
+                results.Add(new SignalData
+                {
+                    Symbol = symbol,
+                    Strategy = strategy,
+                    Period = period,
+                    Price = price,
+                    Durum = durum,
+                    IsRoket = isRoket,
+                    Source = strategy,
+                    DetectedAt = detectedAt,
+                    IsRepeat = false,
+                    Basis = "TL"
+                });
+            }
+            catch { }
+
+            return results;
+        }
+    }
+}
+
         Standard,   // 70-84: 3 tweet, standart thread
         Summary,    // 55-69: 1-2 tweet, özet
         Notification // < 55: Sadece log/telegram bildirim
