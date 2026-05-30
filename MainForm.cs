@@ -151,6 +151,8 @@ namespace XiDeAI_Pro
         private Button btnNavFenerbahce = null!;
         private DataGridView dgvFenerbahce = null!;
         private bool _fenerbahceInitialized = false;
+        private bool _isGuruScanning = false;
+        private bool _isGuruAnalyzing = false;
 
         public MainForm()
         {
@@ -5288,11 +5290,41 @@ namespace XiDeAI_Pro
             tlpFeed.Controls.Add(dgvGuru, 0, 1);
             
             var btnScanHoca = new Button { Text = "🔍 Hocayı Şimdi Tara", Dock = DockStyle.Fill, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            btnScanHoca.Click += async (s, e) => await ScanGuruAccountAsync();
+            btnScanHoca.Click += async (s, e) => {
+                if (_isGuruScanning) return;
+                try {
+                    _isGuruScanning = true;
+                    btnScanHoca.Enabled = false;
+                    btnScanHoca.Text = "⏳ Taranıyor...";
+                    await ScanGuruAccountAsync();
+                } catch (Exception ex) { Log($"⚠️ Tarama hatası: {ex.Message}", "System"); }
+                finally {
+                    _isGuruScanning = false;
+                    if (!btnScanHoca.IsDisposed) {
+                        btnScanHoca.Enabled = true;
+                        btnScanHoca.Text = "🔍 Hocayı Şimdi Tara";
+                    }
+                }
+            };
             tlpFeed.Controls.Add(btnScanHoca, 0, 2);
             
             var btnAnalyzeSelected = new Button { Text = "🧠 Seçili Tabloyu Thread Yap", Dock = DockStyle.Fill, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            btnAnalyzeSelected.Click += async (s, e) => await AnalyzeSelectedGuruTableAsync();
+            btnAnalyzeSelected.Click += async (s, e) => {
+                if (_isGuruAnalyzing) return;
+                try {
+                    _isGuruAnalyzing = true;
+                    btnAnalyzeSelected.Enabled = false;
+                    btnAnalyzeSelected.Text = "⏳ Analiz Ediliyor...";
+                    await AnalyzeSelectedGuruTableAsync();
+                } catch (Exception ex) { Log($"⚠️ Analiz hatası: {ex.Message}", "System"); }
+                finally {
+                    _isGuruAnalyzing = false;
+                    if (!btnAnalyzeSelected.IsDisposed) {
+                        btnAnalyzeSelected.Enabled = true;
+                        btnAnalyzeSelected.Text = "🧠 Seçili Tabloyu Thread Yap";
+                    }
+                }
+            };
             tlpFeed.Controls.Add(btnAnalyzeSelected, 0, 3);
             
             split.Panel1.Controls.Add(tlpFeed);
@@ -5472,33 +5504,40 @@ namespace XiDeAI_Pro
                 }
                 catch { }
 
-                Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
-                string guruHandle = ConfigManager.Current.GuruHandle;
-                var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, post.Handle, post.Url, tableName, "Efelerin Efesi", techContext, chartPath);
-                
-                if (!string.IsNullOrEmpty(thread))
+                try
                 {
-                    if (ConfigManager.Current.IsGuruAutomationEnabled)
+                    Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
+                    string guruHandle = ConfigManager.Current.GuruHandle;
+                    var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, post.Handle, post.Url, tableName, guruHandle, techContext, chartPath);
+                    
+                    if (!string.IsNullOrEmpty(thread))
                     {
-                        Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
-                        var tweets = ThreadPipeline.ParseParts(thread, 280);
-                        await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
-                        // S9: Otomasyon sonrası temp dosyayı temizle
-                        if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
+                        if (ConfigManager.Current.IsGuruAutomationEnabled)
                         {
-                            try { File.Delete(chartPath); } catch { /* ignore cleanup error */ }
+                            Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
+                            var tweets = ThreadPipeline.ParseParts(thread, 280);
+                            await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
+                            // S9: Otomasyon sonrası temp dosyayı temizle
+                            if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
+                            {
+                                try { File.Delete(chartPath); } catch { /* ignore cleanup error */ }
+                            }
+                        }
+                        else
+                        {
+                            // Add to Approval Grid
+                            string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
+                            dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
+                            Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
+                            
+                            // S4: Üstat sekmesine yönlendir (Bot sekmesi değil)
+                            this.Invoke(new Action(() => ShowPanel(pnlGuruCenter, btnNavGuru)));
                         }
                     }
-                    else
-                    {
-                        // Add to Approval Grid
-                        string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
-                        dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
-                        Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
-                        
-                        // S4: Üstat sekmesine yönlendir (Bot sekmesi değil)
-                        this.Invoke(new Action(() => ShowPanel(pnlGuruCenter, btnNavGuru)));
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"⚠️ #{symbol} thread oluşturma hatası: {ex.Message}", "System");
                 }
             }
 
