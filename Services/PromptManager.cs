@@ -450,40 +450,49 @@ Sadece ""WORTHY"" veya ""SKIP"" yaz, baska bir sey yazma.
             return prompt;
         }
 
-        public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string pulseAnomalies = "")
+                public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string pulseAnomalies = "")
         {
-            return $@"Sen XiDeAI Pro'nun Basi Piyasa Stratejistisin.
+            string pulseSection = string.IsNullOrEmpty(pulseAnomalies)
+                ? ""
+                : $"\n\n🚨 BUGUNUN ANLIK HAREKETLER (PULSE KAYITLARI):\n{pulseAnomalies}\n" +
+                  "KURAL: Bu pulse kayitlarindaki hacimli kirilimlari mutlaka thread'e ekle. " +
+                  "'Market Maker likidite avi', 'Akilli Para ani pozisyon aldi', 'Retail panikle satti kurumsal topladi' gibi " +
+                  "hikaye diliyle anlat. Bu GUNDEMIN EN DRAMATIK ANLARI — okuyucu burada durmali.";
 
-GOREV: {marketType} piyasasi icin akilli ve hikayelestirilmis bir (FENOMEN DILLI) kapanis ozeti olustur.
-{(!string.IsNullOrEmpty(pulseAnomalies) ? $"\n\n🚨 BUGUNUN ANLIK KIRILIMLARI (PULSE ALARMLARI):\n{pulseAnomalies}\nKURAL: Gun icindeki bu anlik kirilimlari ve yukselisleri, Smart Money tuzaklari veya market maker likidite avlari seklinde mutlaka tweete ekle!" : "")}
+            return $@"### KIMLIK:
+Sen BIST'in en sert kalemini kullanan piyasa analistissin.
+Her gun kapanis saatinde X'te takipcilerini 'bugün ne oldu?' sorusuna muazzam bir thread ile cevaplarsin.
+Dilin sokak dilini profesyonellikle harmanlıyor — teknik ama anlasilir, keskin ama sik.
 
-PIYASA VERILERI:
+### GOREV:
+Bugunun {marketType} piyasasini; endeks hareketleri, hacimli kirilimlari, kazananlar/kaybedenler ve yarinki bakis ile
+X'te viral olacak bir KAPANIS THREAD'I olarak yaz.
+Tweet'leri ||| ile ayir (her tweet maks 280 karakter).
+
+### PIYASA VERILERI:
 {marketData}
 
-{(!string.IsNullOrEmpty(topPerformers) ? $"EN COK YÃœKSELENLER:\n{topPerformers}\n" : "")}
-{(!string.IsNullOrEmpty(bottomPerformers) ? $"EN COK DÃœÅžENLER:\n{bottomPerformers}\n" : "")}
+{(!string.IsNullOrEmpty(topPerformers) ? $"EN COK YUKSELENLER:\n{topPerformers}\n" : "")}{(!string.IsNullOrEmpty(bottomPerformers) ? $"EN COK DUSENLER:\n{bottomPerformers}\n" : "")}{pulseSection}
 
-=== FORMAT ===
-ðŸ“Š **{marketType} Piyasa Kapanisi**
+### X ALGORITMA VE FENOMEN KURALLARI (ZORUNLU):
+1. HOOK (1. TWEET): Bugunun en carpici anini veya Pulse alarmini kanca olarak kullan.
+   Ornek: 'Saat 14:23 — endeks 2 dakikada %1.2 dustu. Panigin arkasinda ne vardi? 🧵'
+2. FORMAT: Blok paragraf yasak. Cumleler kisa, satirlar arasi bosluklu.
+3. PULSE ANLARI: Gun icinde hacimli ani hareketler olduysa (pulse kayitlari) bunlari 'o an sahnesi' gibi anlat.
+   Saat, yuzde, hacim kati ve Smart Money yorumunu icerir.
+4. SON TWEET (CTA): 'Yarin hangi sinyali izliyorum?' sorusunu sor. 'Takip et, bildir ac, RT yap' cagrisi yap.
+5. Hashtag'leri SADECE son tweete ekle: #BIST100 #Borsa #BorsaKapanis
 
-ðŸ’¹ **Genel Gorunum:**
-(Piyasa nasil kapatti? Ornek: 'GÃ¼n iki yonlu islemlerle karisik gecti, endeks %0.3 dusus.')
-
-ðŸ“ˆ **Dikkat Cekenler:**
-â€¢ (En cok yukselen sektorler/hisseler ve sebepleri)
-â€¢ (En cok dusen sektorler/hisseler ve sebepleri)
-
-ðŸ”® **Yarinki Beklentiler:**
-(Kisa bir gorus. Ornek: 'Yarin FED aciklamasi onumuzde, volatil islemler beklenebilir.')
-
-#Borsa #{marketType} #PiyasaKapanisi
-
-KURALLAR:
-1. Profesyonel ama anlasilir dil kullan
-2. En fazla 280 karakter (hashtag'ler haric)
-3. Emoji kullan ama abarma
-4. Yatirim tavsiyesi verme";
+### THREAD YAPISI (6-7 tweet):
+Tweet 1: 🔥 HOOK — bugunun en carpici ani veya endeks ozeti (okuyucuyu durdur)
+Tweet 2: 📊 Endeksler — XU100/XU030/XU050 kapanis yorumu (hacimle birlikte)
+Tweet 3: 🚀 Gunun yildizlari — en cok yukselenler ve neden
+Tweet 4: 💀 Gunun kazazedeleri — en cok dusenler ve neden
+Tweet 5: 🚨 PULSE ANLARI — gun ici hacimli ani kirilimlari (varsa, Smart Money diliyle)
+Tweet 6: 🔮 Yarinki bakis — izlenecek seviyeler ve beklentiler
+Tweet 7: 📌 CTA — takip cagrisi, RT istegi, soru";
         }
+
 
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
         {
@@ -1400,6 +1409,7 @@ Sadece tweet metnini yaz, baÅŸka aÃ§Ä±klama yapma.";
         }
     }
 }
+
 
 
 
