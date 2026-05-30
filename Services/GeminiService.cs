@@ -351,9 +351,9 @@ namespace XiDeAI_Pro.Services
             return await SendRequest(prompt, maxOutputTokens: maxTokens);
         }
 
-        public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume)
+        public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume, string pulseAnomalies = "")
         {
-            return await SendRequest(_prompts.GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume));
+            return await SendRequest(_prompts.GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies));
         }
 
         private string CleanTweetContent(string raw, int maxLength = 200)
