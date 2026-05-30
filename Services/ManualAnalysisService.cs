@@ -420,7 +420,18 @@ namespace XiDeAI_Pro.Services
                 "i'll stick to",
                 "i will use",
                 "görev:",
-                "çıktı formatı"
+                "çıktı formatı",
+                // Model iç-düşünce (think tag) sızıntıları
+                "<think>",
+                "</think>",
+                "let me think",
+                "let me count",
+                "thinking:",
+                // Model kendi özet/sonuç bloğu ekleme
+                "✅ sonuç:",
+                "sonuç: teknik analiz tamamlandı",
+                "teknik analiz tamamlandı",
+                "thread tamamlandı"
             };
 
             if (markers.Any(lower.Contains))
@@ -429,7 +440,8 @@ namespace XiDeAI_Pro.Services
             }
 
             var parts = ThreadPipeline.ParseParts(normalized, 280);
-            if (parts.Count == 0 || parts.Count > 6)
+            // Kesinlikle 4 parça olmalı (ne az ne fazla)
+            if (parts.Count != 4)
             {
                 return true;
             }
