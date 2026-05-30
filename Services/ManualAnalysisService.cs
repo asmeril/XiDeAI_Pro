@@ -174,44 +174,50 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 3. Search for influencer posts
+                // Adım 1: VIP listesinden ara → bulamazsan genel X araması → bulamazsan fallback handle
                 var influencerPosts = new List<InfluencerPost>();
                 try
                 {
                     Log("🐦 Sosyal medya (X) fenomen yorumları taranıyor...");
                     if (_socialIntel != null)
                     {
-                        var vipHandles = _influencerControl?.GetTopInfluencers(symbol, 20);
-                        influencerPosts = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, vipHandles);
-                        
                         string currentUser = ConfigManager.Current.XLoginUser?.Replace("@", "").Trim() ?? "";
                         string symUpper = symbol.ToUpperInvariant();
 
-                        var cleanedPosts = influencerPosts
-                            .Where(p => p.Handle.Equals("EFELERiiNEFESi3", StringComparison.OrdinalIgnoreCase) || 
+                        Func<List<InfluencerPost>, List<InfluencerPost>> cleanFilter = (raw) => raw
+                            .Where(p => p.Handle.Equals("EFELERiiNEFESi3", StringComparison.OrdinalIgnoreCase) ||
                                        !ContentQualityGuard.ContainsPrivateLinks(p.Content))
                             .Where(p => {
                                 string h = p.Handle?.Replace("@", "").Trim() ?? "";
                                 if (!string.IsNullOrEmpty(currentUser) && h.Equals(currentUser, StringComparison.OrdinalIgnoreCase)) return false;
-
                                 string content = p.Content?.ToUpperInvariant() ?? "";
-                                
-                                // Anti-Noise: SMART vs Smart Money
                                 if (symUpper == "SMART")
                                 {
                                     if (content.Contains("SMART MONEY") && !content.Contains("#SMART") && !content.Contains("$SMART"))
                                         return false;
                                 }
-
-                                // Word boundary match to avoid partial matches
-                                return content.Contains($"#{symUpper}") || 
-                                       content.Contains($"${symUpper}") || 
+                                return content.Contains($"#{symUpper}") ||
+                                       content.Contains($"${symUpper}") ||
                                        System.Text.RegularExpressions.Regex.IsMatch(content, $@"\b{symUpper}\b");
                             })
                             .ToList();
-                        
-                        Log($"🔎 {cleanedPosts.Count} geçerli influencer yorumu bulundu.");
-                        result.InfluencerPosts = cleanedPosts;
-                        influencerPosts = cleanedPosts;
+
+                        // --- Adım 1: VIP (fenomen modülü) listesiyle ara ---
+                        var vipHandles = _influencerControl?.GetTopInfluencers(symbol, 20);
+                        var rawVip = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, vipHandles);
+                        influencerPosts = cleanFilter(rawVip);
+                        Log($"🔎 VIP arama: {influencerPosts.Count} geçerli fenomen yorumu.");
+
+                        // --- Adım 2: VIP'te bulunamazsa genel X araması yap ---
+                        if (influencerPosts.Count == 0)
+                        {
+                            Log("🔍 VIP listesinde bulunamadı, X'te genel arama yapılıyor...");
+                            var rawGeneral = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, null);
+                            influencerPosts = cleanFilter(rawGeneral);
+                            Log($"🔎 Genel X araması: {influencerPosts.Count} geçerli yorum.");
+                        }
+
+                        result.InfluencerPosts = influencerPosts;
                     }
                 }
                 catch (Exception ex) { Log($"⚠️ Sosyal medya tarama hatası: {ex.Message}"); }
@@ -293,15 +299,38 @@ namespace XiDeAI_Pro.Services
                 Log("🤖 Gemini AI: Nihai pazar analizi oluşturuluyor...");
                 if (_geminiService == null) throw new Exception("Gemini servisi başlatılamadı.");
 
+                // influencerContext: modele kimi mention edeceğini net olarak söyle
                 string influencerContext = "";
                 if (influencerPosts != null && influencerPosts.Count > 0)
                 {
+                    // En alakalı 3 postu al (içerik uzunluğuna göre önceliklendir)
+                    var topPosts = influencerPosts
+                        .OrderByDescending(p => p.Content?.Length ?? 0)
+                        .Take(3)
+                        .ToList();
+
                     var citationList = new List<string>();
-                    foreach (var post in influencerPosts)
+                    for (int i = 0; i < topPosts.Count; i++)
                     {
-                        citationList.Add($"• @{post.Handle}: {post.Content}");
+                        var post = topPosts[i];
+                        string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
+                        citationList.Add($"{prefix} @{post.Handle}: {post.Content?.Trim()}");
                     }
                     influencerContext = string.Join("\n", citationList);
+                    Log($"✅ influencerContext hazır: {topPosts.Count} fenomen, baş mention → @{topPosts[0].Handle}");
+                }
+                else
+                {
+                    // Adım 3: Hiç post bulunamazsa fenomen modülündeki top handle'ları öner
+                    var fallbackHandles = _influencerControl?.GetTopInfluencers(symbol, 3);
+                    if (fallbackHandles != null && fallbackHandles.Count > 0)
+                    {
+                        influencerContext = $"[X'te {symbol} için spesifik yorum bulunamadı. " +
+                            $"Bu sembol/piyasa için fenomen modülündeki analistler: " +
+                            string.Join(", ", fallbackHandles.Select(h => $"@{h}")) +
+                            $"]\nBu handle'lardan birini, kendi analizine en uygun olanı seçerek 3. tweet'te doğal şekilde mention et.";
+                        Log($"⚠️ Fallback mention: {string.Join(", ", fallbackHandles)}");
+                    }
                 }
 
                 if (screenshotPath != null && File.Exists(screenshotPath))
