@@ -1002,6 +1002,59 @@ CEVAP: Sadece kategori adını yaz (Örn: EKONOMI). Başka açıklama yapma.";
         }
 
         /// <summary>
+        /// v5.1.1: Unified News Scoring Prompt — category detection + 1-10 scoring in ONE call.
+        /// Replaces the 2-step flow (DetectNewsCategory → GetNewsEditorPromptV2) to halve LM requests.
+        /// Model outputs CATEGORY as the first line so ParseAnalysisData can extract it.
+        /// maxTokens=450 is sufficient for the full structured output.
+        /// </summary>
+        public string GetNewsUnifiedScoringPrompt(string title, string source)
+        {
+            return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin.
+
+HABER: {title}
+KAYNAK: {source}
+
+GÖREV: Haberi önce kategoriye ata, sonra 1-10 ölçeğinde puanla.
+
+ÇIKTI FORMATI (SADECE BU ETİKETLERİ KULLAN, sıralamayı koru):
+CATEGORY: [EKONOMI / SIYASET / TEKNOLOJI / GLOBAL / KRIPTO / SPOR / YASAM]
+CONFIDENCE: [1-10 puan]
+STATUS: [AUTO_POST_WITH_ANALYSIS / PENDING_WITH_ANALYSIS / PENDING_NEWS_ONLY / REJECT]
+SUMMARY: [280 karakteri geçmeyen çarpıcı X özeti. Emoji kullan.]
+SYMBOLS: [İlgili BIST veya kripto sembolleri. Yoksa BIST100 yaz.]
+REASONING: [1 cümle gerekçe]
+
+KATEGORİ TANIMLARI:
+- EKONOMI: Borsa, TCMB, faiz, enflasyon, döviz, BIST, şirket bilançoları
+- SIYASET: İç siyaset, seçimler, hükümet, meclis, parti kararları
+- TEKNOLOJI: AI, startup, siber güvenlik, yazılım, donanım
+- GLOBAL: Dış ilişkiler, savaşlar, AB, ABD, Rusya, jeopolitik
+- KRIPTO: Bitcoin, Ethereum, DeFi, blockchain, kripto borsaları
+- SPOR: Futbol finansalı, kulüp haberleri (özellikle Fenerbahçe)
+- YASAM: Sağlık, eğitim, sosyal konular, afet
+
+PUANLAMA REHBERİ:
+🔴 10 (OTOMATİK PAYLAŞ + ANALİZ) — ÇOK KATI:
+   Sadece: SAVAŞ BAŞLAMASI, LİDER İSTİFASI/SUİKASTİ, BÜYÜK ÇAPLI AFETLER, PANDEMİ, FED/TCMB SÜRPRİZ FAİZ.
+🟠 9 (ONAYLI + ANALİZ):
+   Dev şirket haberleri (THYAO, TUPRS net kâr), sektörel teşvikler, üst düzey atamalar, önemli kripto düzenlemeleri.
+🟡 7-8 (ONAYLI + SADECE HABER):
+   Şirket bazlı gelişmeler, analist notları (büyük kurumlar), orta ölçekli kripto.
+⚫ 1-6 (REDDET):
+   Magazin, PR, rutin açıklamalar, küçük hisse işlemleri, piyasaya etkisi belirsiz haberler.
+
+ÖNCELİK KURALLARI:
+1. Savaş, Pandemi, Önemli Lider Olayları (İstifa/Suikast), Tarihi Teknolojik Sıçramalar veya FED/TCMB şok kararları → SADECE bunlara 10 puan verebilirsin.
+2. Diğer tüm önemli ""SON DAKİKA"" ekonomi haberleri → En fazla 9 puan.
+3. Fenerbahçe finansal veya transfer haberleri → Minimum 7 puan (Fan Zone)
+
+KURALLAR:
+1. Türkçe profesyonel finans dili kullan.
+2. SUMMARY'de asla placeholder kullanma.
+3. CATEGORY satırı daima ilk satır olmalı.";
+        }
+
+        /// <summary>
         /// Gelişmiş Haber Editör Promptu - 1-10 Skala + Son Dakika Önceliği
         /// </summary>
         public string GetNewsEditorPromptV2(string title, string source, string category)

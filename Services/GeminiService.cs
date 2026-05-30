@@ -333,9 +333,27 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string> DetectNewsCategory(string title, string source)
         {
-            var response = await SendRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1);
+            // maxOutputTokens=20: response is a single word (e.g. "EKONOMI") — no need for 2048 default
+            var response = await SendRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1, maxOutputTokens: 20);
             string cleaned = response?.Trim().ToUpper().Split(' ')[0] ?? "EKONOMI";
             return (new[] { "EKONOMI", "SIYASET", "TEKNOLOJI", "GLOBAL", "KRIPTO", "SPOR", "YASAM" }).Contains(cleaned) ? cleaned : "EKONOMI";
+        }
+
+        /// <summary>
+        /// v5.1.1: Single-call unified analysis — category detection + scoring in ONE LM request.
+        /// Replaces AnalyzeNewsImpactTwoStep which made 2 serial LM calls per news item.
+        /// maxTokens=450: CATEGORY(1 word) + CONFIDENCE + STATUS + SUMMARY(~280 chars) + SYMBOLS + REASONING — fits easily.
+        /// </summary>
+        public async Task<string?> AnalyzeNewsUnified(string title, string source)
+        {
+            string prompt = _prompts.GetNewsUnifiedScoringPrompt(title, source);
+            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
+            {
+                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt, maxTokens: 450);
+                if (result == null) LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
+                return result;
+            }
+            return null;
         }
 
         public async Task<string?> AnalyzeNewsImpactTwoStep(string title, string source)

@@ -20,7 +20,7 @@ namespace XiDeAI_Pro.Services
         private readonly PromptManager _prompts;
         private readonly StatsEngine _stats;
         private readonly NewsPersistenceService _persistence;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(3, 3); // Max 3 eşzamanlı haber işlemi
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(2, 2); // Max 2 eşzamanlı haber işlemi (VRAM güvenliği)
         
         public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
 
@@ -93,8 +93,8 @@ namespace XiDeAI_Pro.Services
                 // v4.10.3: AI çağrısından önce gecikme — yalnızca filtreyi geçen haberler bekler (Gemini kota koruması)
                 await Task.Delay(5000);
 
-                // v4.2.2: Two-Step News Analysis (1-10 Scale)
-                string? analysisRaw = await _gemini.AnalyzeNewsImpactTwoStep(item.Title, item.Source);
+                // v5.1.1: Unified single-call analysis (1 LM request instead of 2 serial)
+                string? analysisRaw = await _gemini.AnalyzeNewsUnified(item.Title, item.Source);
                 
                 if (string.IsNullOrEmpty(analysisRaw))
                 {
@@ -187,8 +187,9 @@ namespace XiDeAI_Pro.Services
                         description: item.Description,
                         isFlash: item.IsFlash);
                     
-                    // v4.6.11: 10/10 haberler kritik olduğu için sessiz saatleri delip geçer (isCritical: true)
-                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols, isCritical: true, score: score, category: category);
+                    // v5.1.1: Pre-built analysisThread geçiliyor → PostNewsThreadToTwitter içindeki
+                    // AnalyzeNewsForThread çağrısı atlanacak (duplicate 3. LM çağrısı önlendi)
+                    var (success, msg) = await PostNewsThreadToTwitter(item, summary, symbols, isCritical: true, score: score, category: category, preBuiltThread: analysisThread);
                     if (!success)
                     {
                         OnLog?.Invoke($"⚠️ Otomatik paylaşım başarısız: {msg}", "NewsEngine");
@@ -212,10 +213,11 @@ namespace XiDeAI_Pro.Services
             string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(
                 category, item.Title, item.Source, item.Link,
                 description: item.Description, isFlash: item.IsFlash);
-            return await PostNewsThreadToTwitter(item, analysisThread ?? summary, "BIST100", isCritical: true, score: 8, category: category);
+            // v5.1.1: preBuiltThread geçiliyor → içeride duplicate AnalyzeNewsForThread çağrısı atlanır
+            return await PostNewsThreadToTwitter(item, summary, "BIST100", isCritical: true, score: 8, category: category, preBuiltThread: analysisThread);
         }
 
-        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols, bool isCritical = false, int score = 10, string category = "EKONOMI")
+        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols, bool isCritical = false, int score = 10, string category = "EKONOMI", string? preBuiltThread = null)
         {
             // Config: SpamProtectNews Check
             if (ConfigManager.Current.SpamProtectNews)
@@ -227,11 +229,16 @@ namespace XiDeAI_Pro.Services
                 }
             }
 
-            // Generate Thread Content (description + isFlash ile zenginleştirilmiş)
-            string? threadContent = await _gemini.AnalyzeNewsForThread(
-                item.Title, item.Source, summary, item.Link,
-                description: item.Description,
-                isFlash: item.IsFlash);
+            // v5.1.1: preBuiltThread varsa AnalyzeNewsForThread çağrısını atla (duplicate LM çağrısı önlenir)
+            string? threadContent = preBuiltThread;
+            if (string.IsNullOrEmpty(threadContent))
+            {
+                // Generate Thread Content (description + isFlash ile zenginleştirilmiş)
+                threadContent = await _gemini.AnalyzeNewsForThread(
+                    item.Title, item.Source, summary, item.Link,
+                    description: item.Description,
+                    isFlash: item.IsFlash);
+            }
             
             // v3.0: İçerik Kalite Kontrolü
             if (ContentQualityGuard.IsSpamOrLowQuality(threadContent ?? "", out string spamReason))
