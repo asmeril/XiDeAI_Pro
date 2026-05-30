@@ -123,24 +123,6 @@ namespace XiDeAI_Pro.Services
             return await SendMultimodalRequest(prompt, screenshotPath);
         }
 
-        public async Task<string?> AnalyzeNewsImpact(string title, string source)
-        {
-            // Gemini requests are disabled as per user instruction.
-            // Only local model (via ModelManager) is used if enabled.
-            string prompt = _prompts.GetNewsEditorPrompt(title, source);
-            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
-            {
-                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt);
-                if (result == null) LastError = ModelManager.LastError;
-                return result;
-            }
-            
-            // If multi-model is disabled, we don't fall back to Gemini API directly here
-            // because the user explicitly said "Disable all Gemini requests".
-            // The system should rely on local model via ModelManager.
-            return null;
-        }
-
         public async Task<(List<(string Symbol, string Period)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
         {
             var results = new List<(string Symbol, string Period)>();
@@ -234,7 +216,7 @@ namespace XiDeAI_Pro.Services
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
                 var res = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt);
-                if (res == null) this.LastError = ModelManager.LastError;
+                if (res == null) this.LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
                 return res;
             }
             LastError = "ModelManager not initialized or Local Model disabled.";
@@ -246,7 +228,7 @@ namespace XiDeAI_Pro.Services
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
                 var res = await ModelManager.SendRequest(taskType, prompt);
-                if (res == null) this.LastError = ModelManager.LastError;
+                if (res == null) this.LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
                 return res;
             }
             LastError = "ModelManager not initialized or Local Model disabled.";
@@ -258,7 +240,7 @@ namespace XiDeAI_Pro.Services
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
                 var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, maxTokens: maxOutputTokens);
-                if (result == null) LastError = ModelManager.LastError;
+                if (result == null) LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
                 if (!string.IsNullOrWhiteSpace(result)) LogTrainingData(prompt, result, "text_generation");
                 return result;
             }
@@ -273,7 +255,7 @@ namespace XiDeAI_Pro.Services
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
                 var result = await ModelManager.SendRequestWithImage(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, imagePath);
-                if (result == null) LastError = ModelManager.LastError;
+                if (result == null) LastError = ModelManager.LastError ?? "Yerel model görsel isteğe yanıt vermedi.";
                 if (!string.IsNullOrWhiteSpace(result)) LogTrainingData(prompt, result, "vision_analysis");
                 return result;
             }
@@ -354,13 +336,6 @@ namespace XiDeAI_Pro.Services
                 return result;
             }
             return null;
-        }
-
-        public async Task<string?> AnalyzeNewsImpactTwoStep(string title, string source)
-        {
-            string category = await DetectNewsCategory(title, source);
-            var config = _prompts.GetNewsCategoryConfig(category);
-            return await SendRequest(_prompts.GetNewsEditorPromptV2(title, source, category), config.Temp, config.TopP, config.TopK, config.MaxTokens);
         }
 
         public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)

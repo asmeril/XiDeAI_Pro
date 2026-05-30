@@ -545,35 +545,6 @@ KESIN YASAKLAR:
 - Giriş cümlen, seçilen stile ({selectedStyle}) uygun olmalı.";
         }
 
-        public string GetNewsEditorPrompt(string title, string source)
-        {
-            return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin. 
-Aşağıdaki haberi teknik ve temel açıdan analiz et:
-
-HABER: {title}
-KAYNAK: {source}
-
-GÖREV: Haberin Borsa İstanbul (BIST) ve global piyasalar üzerindeki etkisini değerlendir ve yapılandırılmış bir yanıt dön.
-
-ÇIKTI FORMATI (MUTLAKA BU ETİKETLERİ KULLAN):
-CONFIDENCE: [1-5 arası önem puanı. 5=Kritik/Piyasa Yapıcı, 1=Önemsiz/Gürültü]
-STATUS: [AUTO_POST (Skor 5 ise), PENDING (Skor 3-4 ise), REJECT (Skor 1-2 ise)]
-SUMMARY: [Haberin 280 karakteri geçmeyen, çarpıcı X (Twitter) özeti. Emoji kullan.]
-SYMBOLS: [Haberle doğrudan ilgili BIST sembolleri. Virgülle ayır. Örn: THYAO, PGSUS. Yoksa BIST100 yaz.]
-REASONING: [Neden bu skoru verdin? 1 cümlelik teknik gerekçe.]
-
-ANALİZ KRİTERLERİ:
-- 5 (KRİTİK): Faiz kararları, savaş/barış, dev halka arzlar, endeks ağırlığı yüksek (THYAO, TUPRS, EREGL) dev kap haberleri.
-- 4 (ÖNEMLİ): Büyük ihale kazanımları, üst düzey istifalar, sektörel teşvikler.
-- 3 (ORTA): Şirket bazlı iyi/kötü haberler, analist notları.
-- 2-1 (DÜŞÜK): Magazin, spor, küçük ölçekli hisse satışları, rutin açıklamalar.
-
-KURALLAR:
-1. Türkçe ve profesyonel finans dili kullan.
-2. SUMMARY kısmında asla placeholder kullanma.
-3. Yanıt sadece yukarıdaki etiketleri içermeli.";
-        }
-
         public string GetPerformanceReportPrompt(string reportData, string bestSymbol, string worstSymbol)
         {
             return $@"Sen XiDeAI Pro'nun Performans Analisti'sin.
@@ -1052,71 +1023,6 @@ KURALLAR:
 1. Türkçe profesyonel finans dili kullan.
 2. SUMMARY'de asla placeholder kullanma.
 3. CATEGORY satırı daima ilk satır olmalı.";
-        }
-
-        /// <summary>
-        /// Gelişmiş Haber Editör Promptu - 1-10 Skala + Son Dakika Önceliği
-        /// </summary>
-        public string GetNewsEditorPromptV2(string title, string source, string category)
-        {
-            string categoryContext = category.ToUpper() switch
-            {
-                "EKONOMI" => "Bu bir EKONOMİ haberi. BIST ve Türk ekonomisine etkisine odaklan.",
-                "SIYASET" => "Bu bir SİYASET haberi. Piyasaya olası etkilerini dengeli değerlendir.",
-                "TEKNOLOJI" => "Bu bir TEKNOLOJİ haberi. Türkiye teknoloji sektörüne etkisine odaklan.",
-                "GLOBAL" => "Bu bir GLOBAL haber. Türkiye ekonomisi ve jeopolitik etkilerine odaklan.",
-                "KRIPTO" => "Bu bir KRİPTO haberi. Kripto piyasası ve düzenleyici etkilerine odaklan.",
-                "SPOR" => "Bu bir SPOR haberi. Kulüp finansalları ve BIST etkisine odaklan.",
-                "YASAM" => "Bu bir YAŞAM haberi. Toplumsal ve ekonomik etkilerine odaklan.",
-                _ => "Haberi genel perspektiften değerlendir."
-            };
-
-            return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin.
-
-HABER: {title}
-KAYNAK: {source}
-KATEGORİ BAĞLAMI: {categoryContext}
-
-GÖREV: Haberi 1-10 ölçeğinde puanla ve karar ver.
-
-ÇIKTI FORMATI (MUTLAKA BU ETİKETLERİ KULLAN):
-CONFIDENCE: [1-10 arası önem puanı]
-STATUS: [AUTO_POST_WITH_ANALYSIS / PENDING_WITH_ANALYSIS / PENDING_NEWS_ONLY / REJECT]
-CATEGORY: [{category}]
-SUMMARY: [Haberin 280 karakteri geçmeyen, çarpıcı X (Twitter) özeti. Emoji kullan.]
-SYMBOLS: [İlgili semboller. Yoksa BIST100 veya BTC yaz.]
-REASONING: [Neden bu skoru verdin? 1 cümle.]
-
-PUANLAMA REHBERİ:
-🔴 10 (OTOMATİK PAYLAŞ + ANALİZ) - ÇOK KATI KURAL:
-   - SADECE ülkeyi, dünyayı veya piyasaları tümüyle sarsacak seviyedeki MAKRO olaylara 10 ver.
-   - Örnekler: SAVAŞ BAŞLAMASI, LİDER/BAKAN İSTİFASI VEYA SUİKASTİ, BÜYÜK ÇAPLI AFETLER, KÜRESEL SALGIN (PANDEMİ), DÜNYAYI DEĞİŞTİRECEK OLAĞANÜSTÜ BİR TEKNOLOJİK/BİLİMSEL GELİŞME, TCMB/FED SÜRPRİZ FAİZ KARARI.
-   - Her 'son dakika' veya 'sıradan şirket anlaşmasına' ASLA 10 verme; bu haberlerin dünyayı/ülkeyi derinden sarsma boyutu yoksa maksimum 9 verilebilir.
-
-🟠 9 (ONAYLI + ANALİZ):
-   - Büyükşirket haberleri (THYAO, TUPRS net kâr açıklaması, dev ihaleler)
-   - Sektörel teşvikler, düzenleyici değişiklikler, üst düzey bürokrat atamaları
-   - Önemli kripto düzenlemeleri, Bitcoin ETF haberleri
-
-🟡 7-8 (ONAYLI + SADECE HABER):
-   - Şirket bazlı iyi/kötü gelişmeler veya temettü kararları
-   - Analist notları, kredi derecelendirme değişiklikleri
-   - Orta ölçekli kripto haberleri
-
-⚫ 1-6 (REDDET):
-   - Magazin, rutin açıklamalar, PR haberleri
-   - Küçük ölçekli hisse işlemleri
-   - Ulusal/Global veya Piyasaya etkisi belirsiz veya sıfır olan gelişigüzel haberler
-
-ÖNCELİK KURALLARI:
-1. Savaş, Pandemi, Önemli Lider Olayları (İstifa/Suikast), Tarihi Teknolojik Sıçramalar veya FED/TCMB şok kararları → SADECE bunlara 10 puan verebilirsin.
-2. Diğer tüm önemli ""SON DAKİKA"" ekonomi haberleri → En fazla 9 puan.
-3. Fenerbahçe finansal veya transfer haberleri → Minimum 7 puan (Fan Zone)
-
-KURALLAR:
-1. Türkçe ve profesyonel finans dili kullan.
-2. SUMMARY kısmında asla placeholder kullanma.
-3. Yanıt sadece yukarıdaki etiketleri içermeli.";
         }
 
         /// <summary>

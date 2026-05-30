@@ -260,7 +260,7 @@ namespace XiDeAI_Pro.Services
                 
                 // v4.3.0: Fetch News & Market Context
                 string newsContext = "";
-                string marketOverview = ConfigManager.Current.DailyTrends ?? "BIST100 Pozitif"; // Fallback
+                string marketOverview = ConfigManager.Current?.DailyTrends ?? "BIST100 Pozitif"; // Fallback
                 
                 if (_newsEngine != null)
                 {
