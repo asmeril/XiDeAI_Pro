@@ -56,6 +56,7 @@ namespace XiDeAI_Pro.Services
         public event Action<NewsItem>? OnNewsDetected;
         
         private System.Timers.Timer? _timer;
+        private volatile bool _isChecking = false; // Eşzamanlı CheckFeeds çağrısını önler
 
         public void Start()
         {
@@ -155,49 +156,59 @@ namespace XiDeAI_Pro.Services
 
         public async Task CheckFeeds()
         {
-            LogAction?.Invoke("🔍 Haberler taranıyor...", "News");
-            var newsList = await FetchAllNews();
-            // v3.8.2: Extended to 48h to capture weekend flow
-            var threshold = DateTime.Now.AddHours(-48);
-
-            // Sort by date (newest first)
-            newsList = newsList.OrderByDescending(n => n.PubDate).ToList();
-
-            foreach (var news in newsList)
+            // Eşzamanlı çağrı koruması: Timer overlap durumunda ikinci çağrı atlanır
+            if (_isChecking) { LogAction?.Invoke("⏭️ Haber taraması zaten devam ediyor, atlandı.", "News"); return; }
+            _isChecking = true;
+            try
             {
-                // v3.6.4: Skip legacy news (Recency Filter)
-                if (news.PubDate < threshold) continue;
+                LogAction?.Invoke("🔍 Haberler taranıyor...", "News");
+                var newsList = await FetchAllNews();
+                // v3.8.2: Extended to 48h to capture weekend flow
+                var threshold = DateTime.Now.AddHours(-48);
 
-                string cleanTitle = NormalizeTitle(news.Title);
-                bool isNewLink = !_seenLinks.Contains(news.Link);
-                bool isNewTitle = !_seenTitles.Contains(cleanTitle);
+                // Sort by date (newest first)
+                newsList = newsList.OrderByDescending(n => n.PubDate).ToList();
 
-                // v4.7.2: Fuzzy (token-based) title deduplication
-                // Farklı kaynaklardan gelen aynı haberin farklı başlıklarını yakalar
-                bool isSimilarTitle = false;
-                if (isNewTitle)
+                foreach (var news in newsList)
                 {
-                    isSimilarTitle = IsSimilarToSeenTitle(cleanTitle);
-                    if (isSimilarTitle)
+                    // v3.6.4: Skip legacy news (Recency Filter)
+                    if (news.PubDate < threshold) continue;
+
+                    string cleanTitle = NormalizeTitle(news.Title);
+                    bool isNewLink = !_seenLinks.Contains(news.Link);
+                    bool isNewTitle = !_seenTitles.Contains(cleanTitle);
+
+                    // v4.7.2: Fuzzy (token-based) title deduplication
+                    // Farklı kaynaklardan gelen aynı haberin farklı başlıklarını yakalar
+                    bool isSimilarTitle = false;
+                    if (isNewTitle)
                     {
-                        LogAction?.Invoke($"⚠️ Benzer haber atlandı (fuzzy match): {news.Title.Substring(0, Math.Min(60, news.Title.Length))}", "News");
+                        isSimilarTitle = IsSimilarToSeenTitle(cleanTitle);
+                        if (isSimilarTitle)
+                        {
+                            LogAction?.Invoke($"⚠️ Benzer haber atlandı (fuzzy match): {news.Title.Substring(0, Math.Min(60, news.Title.Length))}", "News");
+                        }
+                    }
+
+                    if (isNewLink && isNewTitle && !isSimilarTitle)
+                    {
+                        _seenLinks.Add(news.Link);
+                        _seenTitles.Add(cleanTitle);
+
+                        // HashSet insertion sırası belirsiz — limit aşılınca cache sıfırla (disk geçmişi kaynak olmaya devam eder)
+                        if (_seenLinks.Count > 2000) { _seenLinks.Clear(); SaveHistory(); }
+                        if (_seenTitles.Count > 2000) _seenTitles.Clear();
+
+                        SaveHistory(); // Persist on change
+
+                        // Fire event directly - queue was never processed
+                        OnNewsDetected?.Invoke(news);
                     }
                 }
-
-                if (isNewLink && isNewTitle && !isSimilarTitle)
-                {
-                    _seenLinks.Add(news.Link);
-                    _seenTitles.Add(cleanTitle);
-                    
-                    // Keep cache size manageable
-                    if (_seenLinks.Count > 2000) _seenLinks.Remove(_seenLinks.First());
-                    if (_seenTitles.Count > 2000) _seenTitles.Remove(_seenTitles.First());
-                        
-                    SaveHistory(); // Persist on change
-
-                    // Fire event directly - queue was never processed
-                    OnNewsDetected?.Invoke(news);
-                }
+            }
+            finally
+            {
+                _isChecking = false;
             }
         }
 
@@ -327,8 +338,12 @@ namespace XiDeAI_Pro.Services
                         string cleanDesc = System.Text.RegularExpressions.Regex.Replace(rawDesc, "<.*?>", "").Trim();
                         if (cleanDesc.Length > 500) cleanDesc = cleanDesc.Substring(0, 497) + "...";
 
-                        // Flaş Haber bayrağını belirle
-                        bool isFlash = title.ToLower().Contains("son dakika") || title.ToLower().Contains("breaking") || title.ToLower().Contains("⚠");
+                        // Flaş Haber bayrağını belirle (genişletilmiş pattern — AA, Bloomberg, CNBC prefix'leri dahil)
+                        string titleLower = title.ToLower();
+                        bool isFlash = titleLower.Contains("son dakika") || titleLower.Contains("breaking") ||
+                                       titleLower.Contains("⚠") || titleLower.Contains("acil:") ||
+                                       titleLower.Contains("flaş:") || titleLower.Contains("urgent:") ||
+                                       titleLower.Contains("alert:") || title.StartsWith("⚡") || title.StartsWith("🚨");
 
                         items.Add(new NewsItem
                         {

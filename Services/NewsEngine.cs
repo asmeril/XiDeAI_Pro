@@ -20,7 +20,7 @@ namespace XiDeAI_Pro.Services
         private readonly PromptManager _prompts;
         private readonly StatsEngine _stats;
         private readonly NewsPersistenceService _persistence;
-        private readonly object _lock = new object();
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(3, 3); // Max 3 eşzamanlı haber işlemi
         
         public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
 
@@ -49,11 +49,9 @@ namespace XiDeAI_Pro.Services
 
         public async Task ProcessNews(NewsItem item)
         {
+            await _semaphore.WaitAsync();
             try
             {
-                // v4.10.3: Increased delay to 5 seconds to reduce load on local Gemma AI
-                await Task.Delay(5000); // 5 second delay between news items
-                
                 _stats.RecordActivity("NewsEngine", $"Processing news: {item.Title}", true, item.Source);
                 
                 // v3.6.4: Safety Recency Check (Max 48h - Extended for Weekends)
@@ -91,6 +89,9 @@ namespace XiDeAI_Pro.Services
                 
                 OnLog?.Invoke($"📰 Yeni Haber Analiz Ediliyor: {item.Title}", "NewsEngine");
                 OnStatusUpdate?.Invoke($"{item.Title} analiz ediliyor...");
+
+                // v4.10.3: AI çağrısından önce gecikme — yalnızca filtreyi geçen haberler bekler (Gemini kota koruması)
+                await Task.Delay(5000);
 
                 // v4.2.2: Two-Step News Analysis (1-10 Scale)
                 string? analysisRaw = await _gemini.AnalyzeNewsImpactTwoStep(item.Title, item.Source);
@@ -159,7 +160,7 @@ namespace XiDeAI_Pro.Services
 
                     // ONAY GEREKTİRİYOR - SADECE HABER
                     OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
                     OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, false); // false = no analysis
                     return;
                 }
@@ -170,7 +171,7 @@ namespace XiDeAI_Pro.Services
 
                     // ONAY GEREKTİRİYOR - HABER + ANALİZ
                     OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false);
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
                     OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, true); // true = with analysis
                     return;
                 }
@@ -187,12 +188,8 @@ namespace XiDeAI_Pro.Services
                         isFlash: item.IsFlash);
                     
                     // v4.6.11: 10/10 haberler kritik olduğu için sessiz saatleri delip geçer (isCritical: true)
-                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols, isCritical: true);
-                    if (success)
-                    {
-                        OnNewsProcessed?.Invoke(item, summary, score, category);
-                    }
-                    else
+                    var (success, msg) = await PostNewsThreadToTwitter(item, analysisThread ?? summary, symbols, isCritical: true, score: score, category: category);
+                    if (!success)
                     {
                         OnLog?.Invoke($"⚠️ Otomatik paylaşım başarısız: {msg}", "NewsEngine");
                     }
@@ -202,15 +199,23 @@ namespace XiDeAI_Pro.Services
             {
                 OnLog?.Invoke($"❌ NewsEngine Error: {ex.Message}", "System");
             }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
-        public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary)
+        public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary, string category = "EKONOMI")
         {
             OnLog?.Invoke($"👤 Kullanıcı Onayladı: {item.Title}", "NewsEngine");
-            return await PostNewsThreadToTwitter(item, summary, "BIST100", isCritical: true);
+            // Onay sonrası kategoriye özel analiz thread'i üret
+            string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(
+                category, item.Title, item.Source, item.Link,
+                description: item.Description, isFlash: item.IsFlash);
+            return await PostNewsThreadToTwitter(item, analysisThread ?? summary, "BIST100", isCritical: true, score: 8, category: category);
         }
 
-        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols, bool isCritical = false)
+        private async Task<(bool success, string message)> PostNewsThreadToTwitter(NewsItem item, string summary, string symbols, bool isCritical = false, int score = 10, string category = "EKONOMI")
         {
             // Config: SpamProtectNews Check
             if (ConfigManager.Current.SpamProtectNews)
@@ -335,19 +340,18 @@ namespace XiDeAI_Pro.Services
                 int partCount = normalizedParts.Count;
                 _stats.RecordTweet("NewsEngine", partCount, item.Link, item.Title ?? string.Empty);
                 
-                // Kalıcı hafızaya PUBLISHED olarak kaydet
-                _persistence.AddParsedNews(item.Title ?? string.Empty, item.Source ?? string.Empty, item.Link ?? string.Empty, 5, true);
+                // Kalıcı hafızaya PUBLISHED olarak kaydet (gerçek skor ve kategori ile)
+                _persistence.AddParsedNews(item.Title ?? string.Empty, item.Source ?? string.Empty, item.Link ?? string.Empty, score, true, "PUBLISHED");
                 
                 // Event tetikle (UI güncellemesi için)
-                OnNewsProcessed?.Invoke(item, summary, 5, "EKONOMI"); // Legacy: Fixed category
+                OnNewsProcessed?.Invoke(item, summary, score, category);
                 
                 return (true, "Haber başarıyla paylaşıldı!");
             }
             else
             {
                 OnLog?.Invoke($"❌ Paylaşım Başarısız: {result.message}", "Twitter");
-                // v4.6.15: Even on failure, record the attempt to trigger global rate limits
-                _spam.RecordTweet("NEWS_FAILED", symbols);
+                // v4.6.15: Başarısız paylaşımda spam kotası HARCANMAZ
                 return (false, $"Twitter hatası: {result.message}");
             }
         }
@@ -414,11 +418,21 @@ namespace XiDeAI_Pro.Services
             if (words.Length < 4) return false;
 
             // Check for "action" indicators in news (verbs/notions related to movement/change)
-            bool hasAction = words.Any(w => w.Contains("arttı") || w.Contains("düştü") || w.Contains("açıkladı") ||
-                                            w.Contains("belirledi") || w.Contains("yaptı") || w.Contains("başladı") ||
-                                            w.Contains("karar") || w.Contains("plan") || w.Contains("imza") ||
-                                            w.Contains("rekor") || w.Contains("çöküş") || w.Contains("patlama") ||
-                                            w.Contains("yükseliş") || w.Contains("düşüş") || w.Contains("kritik"));
+            bool hasAction = words.Any(w =>
+                // Türkçe eylem/hareket kelimeleri
+                w.Contains("arttı") || w.Contains("düştü") || w.Contains("açıkladı") ||
+                w.Contains("belirledi") || w.Contains("yaptı") || w.Contains("başladı") ||
+                w.Contains("karar") || w.Contains("plan") || w.Contains("imza") ||
+                w.Contains("rekor") || w.Contains("çöküş") || w.Contains("patlama") ||
+                w.Contains("yükseliş") || w.Contains("düşüş") || w.Contains("kritik") ||
+                // İngilizce eylem kelimeleri (BBC, WSJ, CNBC, TASS, Xinhua haberleri için)
+                w.Contains("raises") || w.Contains("cuts") || w.Contains("hikes") ||
+                w.Contains("falls") || w.Contains("rises") || w.Contains("drops") ||
+                w.Contains("surges") || w.Contains("crashes") || w.Contains("warns") ||
+                w.Contains("announces") || w.Contains("approves") || w.Contains("bans") ||
+                w.Contains("record") || w.Contains("crisis") || w.Contains("critical") ||
+                w.Contains("emergency") || w.Contains("sanctions") || w.Contains("rate") ||
+                w.Contains("attack") || w.Contains("strike") || w.Contains("collapse"));
             
             // If it's a very "dry" title without any action/event indicator, we treat it as low priority for AI processing
             if (!hasAction && words.Length < 8) return false;

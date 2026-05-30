@@ -88,7 +88,7 @@ namespace XiDeAI_Pro.Services
             lock (_lock)
             {
                 return _history
-                    .Where(x => x.ImportanceScore >= 4) // Score 4+ (Important)
+                    .Where(x => x.ImportanceScore >= 7) // Score 7+ (Önemli haberler — gerçek aralık 7-10)
                     .OrderByDescending(x => x.ProcessedAt)
                     .Take(count)
                     .ToList();
@@ -102,7 +102,9 @@ namespace XiDeAI_Pro.Services
             
             lock (_lock)
             {
-                foreach (var item in _history)
+                // Performans: Levenshtein O(m×n) için sadece son 24 saati tara (7 gün değil)
+                var recent = _history.Where(x => x.ProcessedAt >= DateTime.Now.AddHours(-24)).ToList();
+                foreach (var item in recent)
                 {
                     string storedTitle = NormalizeTitle(item.Title);
                     int distance = LevenshteinDistance(cleanTitle.ToLower(), storedTitle.ToLower());
@@ -122,7 +124,7 @@ namespace XiDeAI_Pro.Services
             return false;
         }
 
-        public void AddParsedNews(string title, string source, string url, int score, bool tweeted)
+        public void AddParsedNews(string title, string source, string url, int score, bool tweeted, string status = "PUBLISHED")
         {
             lock (_lock)
             {
@@ -134,7 +136,8 @@ namespace XiDeAI_Pro.Services
                     Url = url,
                     ProcessedAt = DateTime.Now,
                     ImportanceScore = score,
-                    WasTweeted = tweeted
+                    WasTweeted = tweeted,
+                    Status = status
                 };
                 
                 _history.Add(item);
