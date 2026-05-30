@@ -1,6 +1,6 @@
-﻿> **Version:** 5.1.0 (Live)
+﻿> **Version:** 5.1.1 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
-> **Last Updated:** 2026-05-30
+> **Last Updated:** 2026-05-31
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -67,6 +67,13 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 
 #### `PromptManager.cs`
 - **(v4.10.8)** Derin analiz prompt'una `### GÖRSEL OKUMA (GRAFİK)` bölümü eklendi — yerel modelin grafik okuma kalitesini artırır.
+- **(v5.1.1)** `GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: Yeniden yazıldı. Eski tek-tweet şablon → 6-7 tweet fenomen thread yapısı (Hook → XU100 yorum → Yıldızlar → Kazazedeler → Pulse anları → Yarına bakış → CTA).
+- **(v5.1.1)** Tüm `### GÖREV` bloklarına X Algoritma Fenomen Kuralları enjekte edildi: Hook (kanca ilk cümle), kısa/boşluklu format (dwell time), ELI5 hikayeleştirme, CTA (son tweette RT/takip).
+- **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` — AI hard data ile sosyal algı zıtlığını Smart Money tuzağı olarak yorumlar.
+
+#### `MainForm.cs`
+- **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
+- **(v5.1.1)** `PostMarketCloseSummary()`: `Market_Pulse_Alarm.txt` okunarak bugünün nabız alarmları `pulseAnomalies` string'ine toplanır ve `GenerateMarketCloseTableTweet` zincirine iletilir.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -78,6 +85,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `AnalyzeNewsImpactTwoStep(title, source)`: **(v4.2.2)** Önce kategori, sonra 1-10 skor üretir.
 - `GenerateNewsCategoryAnalysis(category, title, source, link)`: **(v4.2.2)** Kategoriye özel analiz thread'i üretir.
 - `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
+- `GenerateMarketCloseTableTweet(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: **(v5.1.1)** Gün sonu kapanış tweet thread'i üretir. `pulseAnomalies` parametresi ile gün içi nabız alarmlarını (Market_Pulse_Alarm.txt) fenomen thread formatına (6-7 tweet) dönüştürür.
 
 #### `LMStudioProvider.cs`
 - `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat). **(v5.0.0)** Prompt başına `/no_think\n` prefix eklenir, timeout 300s.

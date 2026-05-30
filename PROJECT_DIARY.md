@@ -3,6 +3,27 @@
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
 
+## 📅 31 Mayıs 2026
+
+### 🔧 v5.1.1 — iDeal Canlı Veri + Fenomen Thread + Robot Derleme Düzeltmeleri
+
+**iDeal Robot → XiDeAI Entegrasyonu:**
+- `Robot_XU100_Nabiz_Monitor.txt` yeni robot: 5 dk'da bir XU100/XU030/XU050 izler, `Market_Status.txt` ve `Market_Pulse_Alarm.txt` dosyalarını günceller.
+- `MainForm.RefreshTrendsAsync`: `Market_Status.txt` okunarak `[XU100_CANLI_VERI]` hard data ile Twitter trendleri birleştirildi.
+- `MainForm.PostMarketCloseSummary`: `Market_Pulse_Alarm.txt` pulse alarmları EOD thread zincirine besleniyor.
+
+**Fenomen Thread Formatı:**
+- `PromptManager.GetMarketClosePrompt`: Tek tweet → 6-7 tweet fenomen thread (Hook/Endeksler/Yıldızlar/Kazazedeler/Pulse/Yarına bakış/CTA).
+- `GeminiService.GenerateMarketCloseTableTweet`: `pulseAnomalies` parametresi eklendi.
+- Tüm prompt `### GÖREV` bloklarına X Algoritma Fenomen Kuralları enjekte edildi (Hook/Format/ELI5/CTA).
+- Contrarian Filter: Hard data vs sosyal algı zıtlığı Smart Money tuzağı olarak yorumlanıyor.
+
+**Robot Derleme Hataları (iDeal CSharpCodeProvider C#5 uyumu):**
+- `Robot_Alpha_Scanner`: CS1056 — `$"..."` interpolation → `+` birleştirme.
+- `Robot_PreMove_Scanner`: CS1056 — `bugunYukarı` identifier → `bugunYukari`; CS1012 — `new string('─',90)` → `new string('-',90)`.
+
+---
+
 ## 📅 29 Mayıs 2026
 
 ### 🔧 v5.0.1 - Thread Reply Düzeltmesi (XHive compose/post Fallback)
