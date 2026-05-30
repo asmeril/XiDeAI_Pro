@@ -151,6 +151,7 @@ namespace XiDeAI_Pro.Config
         public bool EnableMultiModel { get; set; } = true; // Enable intelligent model selection
         public bool EnableAutoFallback { get; set; } = true; // Auto-fallback to alternative models
         public bool IsGuruAutomationEnabled { get; set; } = false; // Phase 4.1: Guru Automation Toggle
+        public string GuruHandle { get; set; } = "@EFELERiiNEFESi3"; // Phase 4.1: Takip edilen üstat handle'ı
         public bool EnableMetaTeacher { get; set; } = false; // Phase 1 (Hive): Enables Meta-Teacher Analysis Logic
 
         // LM Studio / Link Support

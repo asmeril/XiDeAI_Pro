@@ -5210,113 +5210,7 @@ namespace XiDeAI_Pro
                 Log($"⚠️ Geçmiş sinyaller yüklenirken hata: {ex.Message}", "System");
             }
         }
-        private void InitializeGuruPanel_OLD()
-        {
-            /* DEPRECATED 
-            if (_guruPanelInitialized) return;
-            _guruPanelInitialized = true;
 
-            pnlGuruCenter.Padding = new Padding(15);
-            
-            var lblTitle = new Label { 
-                Text = "👑 ÜSTAT TAKİP MERKEZİ - @EFELERiiNEFESi3", 
-                Dock = DockStyle.Top, 
-                Height = 50, 
-                ForeColor = Color.Gold, 
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            pnlGuruCenter.Controls.Add(lblTitle);
-
-            var pnlActions = new Panel { Dock = DockStyle.Top, Height = 60, Padding = new Padding(0, 5, 0, 10) };
-            var btnScanHoca = new Button { 
-                Text = "🔍 Hocayı Şimdi Tara", 
-                Width = 180, 
-                Height = 40, 
-                BackColor = Color.SeaGreen, 
-                ForeColor = Color.White, 
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnScanHoca.Click += async (s, e) => await ScanGuruAccountAsync();
-            pnlActions.Controls.Add(btnScanHoca);
-
-            var btnAnalyzeSelected = new Button { 
-                Text = "🧠 Seçili Tabloyu Thread Yap", 
-                Width = 220, 
-                Height = 40, 
-                Location = new Point(190, 5),
-                BackColor = Color.FromArgb(0, 120, 215), 
-                ForeColor = Color.White, 
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnAnalyzeSelected.Click += async (s, e) => await AnalyzeSelectedGuruTableAsync();
-            pnlActions.Controls.Add(btnAnalyzeSelected);
-
-            var chkGuruAuto = new CheckBox { 
-                Text = "🤖 Otomatik Takip & Thread (3s)", 
-                Location = new Point(420, 15), 
-                AutoSize = true, 
-                ForeColor = Color.White, 
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Checked = ConfigManager.Current.IsGuruAutomationEnabled
-            };
-            chkGuruAuto.CheckedChanged += (s, e) => {
-                ConfigManager.Current.IsGuruAutomationEnabled = chkGuruAuto.Checked;
-                ConfigManager.Save();
-                Log($"🤖 Üstat Otomasyonu: {(chkGuruAuto.Checked ? "AKTİF" : "PASİF")}", "System");
-            };
-            pnlActions.Controls.Add(chkGuruAuto);
-
-            pnlGuruCenter.Controls.Add(pnlActions);
-
-            dgvGuru = new DataGridView {
-                // Dock = DockStyle.Fill, // REMOVED to fix overlap issue
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(15, 125), // Manually placed below Title(50) + Actions(60) + Padding
-                Size = new Size(pnlGuruCenter.Width - 30, pnlGuruCenter.Height - 140),
-                BackgroundColor = Color.FromArgb(25, 25, 25),
-                ForeColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                EnableHeadersVisualStyles = false,
-                ScrollBars = ScrollBars.Vertical, // FORCE SCROLLBAR
-                Font = new Font("Segoe UI", 9)
-            };
-            dgvGuru.BringToFront(); // Ensure it's on top
-            dgvGuru.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(45, 45, 48);
-            dgvGuru.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvGuru.ColumnHeadersHeight = 35;
-            dgvGuru.GridColor = Color.FromArgb(50, 50, 50);
-            dgvGuru.DefaultCellStyle.BackColor = Color.FromArgb(30, 30, 30);
-            dgvGuru.DefaultCellStyle.ForeColor = Color.White;
-            dgvGuru.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 122, 204);
-            dgvGuru.DefaultCellStyle.SelectionForeColor = Color.White;
-            
-            // FIX: Set Alternating colors to ensure odd rows are visible
-            dgvGuru.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(35, 35, 38);
-            dgvGuru.AlternatingRowsDefaultCellStyle.ForeColor = Color.White;
-            dgvGuru.RowTemplate.Height = 40;
-
-            dgvGuru.Columns.Add("Date", "Tarih");
-            dgvGuru.Columns.Add("Content", "İçerik (Özet)");
-            dgvGuru.Columns.Add("Image", "Görsel Var mı?");
-            dgvGuru.Columns.Add("Url", "Link");
-
-            pnlGuruCenter.Controls.Add(dgvGuru);
-            
-            // Bring actions to front
-            pnlActions.BringToFront();
-            lblTitle.BringToFront();
-        } */
-        } // END InitializeGuruPanel_OLD
 
         private void InitializeGuruPanel()
         {
@@ -5328,7 +5222,7 @@ namespace XiDeAI_Pro
             
             // Header
             var lblTitle = new Label { 
-                Text = "👑 ÜSTAT TAKİP MERKEZİ - @EFELERiiNEFESi3", 
+                Text = $"👑 ÜSTAT TAKİP MERKEZİ - {ConfigManager.Current.GuruHandle}", 
                 Dock = DockStyle.Top, 
                 Height = 40, 
                 ForeColor = Color.Gold, 
@@ -5342,14 +5236,15 @@ namespace XiDeAI_Pro
             // --- TOP: Live Feed (Guru Tweets) ---
             var tlpFeed = new TableLayoutPanel {
                 Dock = DockStyle.Fill,
-                RowCount = 3,
+                RowCount = 4,
                 ColumnCount = 1,
                 BackColor = Color.FromArgb(40,40,40),
                 Padding = new Padding(0)
             };
             tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F)); // Header
             tlpFeed.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Grid
-            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F)); // Button
+            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F)); // Tara butonu
+            tlpFeed.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F)); // Analiz butonu
 
             // Header Label
             var lblFeedHeader = new Label { 
@@ -5386,6 +5281,8 @@ namespace XiDeAI_Pro
 
             dgvGuru.Columns.Add("Date", "Saat"); dgvGuru.Columns[0].Width = 60;
             dgvGuru.Columns.Add("Text", "İçerik");
+            dgvGuru.Columns.Add("Image", "Görsel"); dgvGuru.Columns["Image"].Width = 70;
+            dgvGuru.Columns.Add("Url", "Link"); dgvGuru.Columns["Url"].Visible = false;
             dgvGuru.RowTemplate.Height = 40;
             
             tlpFeed.Controls.Add(dgvGuru, 0, 1);
@@ -5393,6 +5290,10 @@ namespace XiDeAI_Pro
             var btnScanHoca = new Button { Text = "🔍 Hocayı Şimdi Tara", Dock = DockStyle.Fill, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnScanHoca.Click += async (s, e) => await ScanGuruAccountAsync();
             tlpFeed.Controls.Add(btnScanHoca, 0, 2);
+            
+            var btnAnalyzeSelected = new Button { Text = "🧠 Seçili Tabloyu Thread Yap", Dock = DockStyle.Fill, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnAnalyzeSelected.Click += async (s, e) => await AnalyzeSelectedGuruTableAsync();
+            tlpFeed.Controls.Add(btnAnalyzeSelected, 0, 3);
             
             split.Panel1.Controls.Add(tlpFeed);
 
@@ -5471,9 +5372,10 @@ namespace XiDeAI_Pro
 
         private async Task ScanGuruAccountAsync()
         {
-            Log("📡 @EFELERiiNEFESi3 taranıyor...", "System");
+            string guruHandle = ConfigManager.Current.GuruHandle;
+            Log($"📡 {guruHandle} taranıyor...", "System");
             // Pass empty symbol to SocialIntelService to fetch timeline WITHOUT symbol filtering
-            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { "@EFELERiiNEFESi3" });
+            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle });
             
             _guruPosts.Clear();
             _guruPosts.AddRange(res);
@@ -5482,9 +5384,15 @@ namespace XiDeAI_Pro
             foreach (var post in _guruPosts)
             {
                 bool hasImage = !string.IsNullOrEmpty(post.ImageUrl);
-                dgvGuru.Rows.Add(post.PostDate.ToString("dd.MM HH:mm"), post.Content, hasImage ? "✅ EVET" : "❌ HAYIR", post.Url);
+                int idx = dgvGuru.Rows.Add(
+                    post.PostDate.ToString("dd.MM HH:mm"),
+                    post.Content,
+                    hasImage ? "✅ EVET" : "❌ HAYIR",
+                    post.Url);
+                // S3: Tag ile güvenli eşleşme
+                dgvGuru.Rows[idx].Tag = post;
             }
-            Log($"✅ @EFELERiiNEFESi3 tarandı, {res.Count} tweet verisi alındı. Grid Satır Sayısı: {dgvGuru.Rows.Count}", "System");
+            Log($"✅ {guruHandle} tarandı, {res.Count} tweet verisi alındı. Grid Satır Sayısı: {dgvGuru.Rows.Count}", "System");
             
             if (dgvGuru.Rows.Count > 0)
             {
@@ -5497,23 +5405,43 @@ namespace XiDeAI_Pro
         {
             if (dgvGuru.SelectedRows.Count == 0) return;
             
-            var selectedIdx = dgvGuru.SelectedRows[0].Index;
-            var post = _guruPosts[selectedIdx];
-
-            if (string.IsNullOrEmpty(post.ImageUrl))
+            // S3: Tag ile IndexOutOfRange riskini ortadan kaldır
+            var post = dgvGuru.SelectedRows[0].Tag as InfluencerPost;
+            if (post == null)
             {
-                MessageBox.Show("Bu paylaşımda tablo (görsel) bulunamadı.");
+                Log("⚠️ Seçili satır için post verisi bulunamadı.", "System");
                 return;
             }
 
-            Log($"🎨 @EFELERiiNEFESi3 tablosu AI ile analiz ediliyor: {post.Url}", "System");
+            // S10: Daha önce işlendi mi kontrol et
+            if (!string.IsNullOrEmpty(post.Url) && _opManager.GuruPersistence.IsProcessed(post.Url))
+            {
+                var ans = MessageBox.Show($"Bu tweet daha önce işlendi:\n{post.Url}\n\nYeniden analiz etmek istiyor musunuz?",
+                    "Tekrar Analiz", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (ans != DialogResult.Yes) return;
+            }
+
+            // S6: ImageUrl güvenli kontrol
+            var imageUrls = post.ImageUrl?.Split(',') ?? Array.Empty<string>();
+            string? firstImageUrl = imageUrls.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
+
+            if (string.IsNullOrEmpty(firstImageUrl))
+            {
+                MessageBox.Show("Bu paylaşımda tablo görseli bulunamadı. Lütfen görsel içeren bir tweet seçin.");
+                return;
+            }
+
+            Log($"🎨 {ConfigManager.Current.GuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
             
-            // 1. Ekran bas bas bağırsın
-            var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(post.ImageUrl.Split(',')[0]);
+            var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(firstImageUrl);
             
+            // S8: Vision model kapalıysa açıklayıcı mesaj
             if (items.Count == 0)
             {
-                Log("⚠️ Görselde tablo veya hisse sembolü tespit edilemedi.", "System");
+                string hint = ConfigManager.Current.EnableMultiModel
+                    ? "Görselde tablo veya hisse sembolü tespit edilemedi. Görselin net bir tablo içerdiğinden emin olun."
+                    : "Görselde tablo tespit edilemedi. Görsel analiz için Ayarlar > Çoklu Model seçeneğinin aktif olması gerekir.";
+                Log($"⚠️ {hint}", "System");
                 return;
             }
 
@@ -5545,6 +5473,7 @@ namespace XiDeAI_Pro
                 catch { }
 
                 Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
+                string guruHandle = ConfigManager.Current.GuruHandle;
                 var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, post.Handle, post.Url, tableName, "Efelerin Efesi", techContext, chartPath);
                 
                 if (!string.IsNullOrEmpty(thread))
@@ -5554,19 +5483,28 @@ namespace XiDeAI_Pro
                         Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
                         var tweets = ThreadPipeline.ParseParts(thread, 280);
                         await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
+                        // S9: Otomasyon sonrası temp dosyayı temizle
+                        if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
+                        {
+                            try { File.Delete(chartPath); } catch { /* ignore cleanup error */ }
+                        }
                     }
                     else
                     {
                         // Add to Approval Grid
                         string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
                         dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
-                        Log($"💾 #{symbol} threadi 'Bot Etkileşim -> Onay Bekleyenler' listesine eklendi.", "Social");
+                        Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
                         
-                        // Switch to Bot tab to show result
-                        this.Invoke(new Action(() => ShowPanel(pnlBot, btnNavBot)));
+                        // S4: Üstat sekmesine yönlendir (Bot sekmesi değil)
+                        this.Invoke(new Action(() => ShowPanel(pnlGuruCenter, btnNavGuru)));
                     }
                 }
             }
+
+            // S10: Başarılı işlem sonrası URL'yi işlenmiş olarak kaydet
+            if (!string.IsNullOrEmpty(post.Url))
+                _opManager.GuruPersistence.MarkAsProcessed(post.Url);
         }
         private void InitializeFenerbahcePanel()
         {

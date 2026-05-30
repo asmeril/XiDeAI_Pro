@@ -1732,7 +1732,7 @@ namespace XiDeAI_Pro.Services
 
                 // Fallback to subprocess (or for deep scans)
                 // FIX: If symbol already contains "from:", it's a full query - don't duplicate
-                string query = symbol.Contains("from:") ? symbol : (string.IsNullOrWhiteSpace(cleanHandle) ? symbol : $"from:{cleanHandle} {symbol}");
+                string query = symbol.Contains("from:") ? symbol : (string.IsNullOrWhiteSpace(cleanHandle) ? symbol : (string.IsNullOrWhiteSpace(symbol) ? $"from:{cleanHandle}" : $"from:{cleanHandle} {symbol}"));
                 string base64Query = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
                 
