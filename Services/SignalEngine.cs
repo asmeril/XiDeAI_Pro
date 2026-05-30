@@ -459,8 +459,9 @@ namespace XiDeAI_Pro.Services
 
                 // GENERATE HYBRID CONTENT
                 OnLog?.Invoke($"🧠 AI Analiz Üretiliyor (Tier: {sig.Tier})...", "HybridEngine");
-                string? aiContent = await _gemini.GenerateStrategySpecificAnalysis(sig, priceContext, influencerCitations);
-                
+                string htfContext = ConfigManager.Current?.DailyTrends ?? "";
+                string? aiContent = await _gemini.GenerateStrategySpecificAnalysis(sig, priceContext, influencerCitations, htfContext);
+
                 if (string.IsNullOrEmpty(aiContent))
                 {
                     OnLog?.Invoke("❌ AI İçerik Üretemedi.", "Engine");

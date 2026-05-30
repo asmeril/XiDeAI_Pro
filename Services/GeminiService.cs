@@ -168,9 +168,9 @@ namespace XiDeAI_Pro.Services
             return (results, tableName);
         }
 
-        public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, string visualContext = "", string priceContext = "")
+        public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, string visualContext = "", string priceContext = "", string marketOverview = "", string newsContext = "")
         {
-            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, technicalContext, guruName, guruHandle, $"{guruName} (@{guruHandle}) - {tableName}", visualContext);
+            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, technicalContext, guruName, guruHandle, $"{guruName} (@{guruHandle}) - {tableName}", visualContext, marketOverview, newsContext);
             return await SendMultimodalRequest(prompt, imagePath);
         }
 
@@ -344,9 +344,9 @@ namespace XiDeAI_Pro.Services
             return await SendRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash), config.Temp, config.TopP, config.TopK, config.MaxTokens);
         }
 
-        public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations)
+        public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
         {
-            string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext, influencerCitations);
+            string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext, influencerCitations, htfContext);
             int maxTokens = sig.Tier switch { ContentTier.Premium => 1500, ContentTier.Standard => 1000, ContentTier.Summary => 600, _ => 300 };
             return await SendRequest(prompt, maxOutputTokens: maxTokens);
         }

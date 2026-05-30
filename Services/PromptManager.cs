@@ -53,11 +53,10 @@ FORMAT KURALLARI:
 
         public string GetDeepManualAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext, string influencerCitations, string newsContext = "", string marketOverview = "")
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) 
-                ? "" 
-                : $"\n\nFENOMEN RADARI:\n{influencerCitations}\n" +
-                  "KURAL: Bu fenomenleri analizine doğal @kullaniciadı olarak entegre et. " +
-                  "('@thyaydin da bu seviyeyi kritik buluyordu' gibi.) Hem saygı hem görünürlük.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations)
+                ? ""
+                : $"\n\nFENOMENLERİN DURUMU (SENTİMENT):\n{influencerCitations}\n" +
+                  "KURAL: Bu fenomenleri analizine doğal @kullaniciadi olarak entegre et. Eğer bu fenomenler aşırı Bullish (pozitif) ise sen risklerden bahset ve Contrarian (aykırı) ol, Bearish ise fırsatları grafik üzerinden göstererek onlara meydan oku veya destekle. Hikayeyi zenginleştir.";
 
             string marketSection = string.IsNullOrEmpty(marketOverview)
                 ? ""
@@ -489,7 +488,7 @@ KURALLAR:
 4. Yatirim tavsiyesi verme";
         }
 
-        public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "")
+        public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
         {
             // v3.9.2: Tweet giriş çeşitliliği (Randomizasyon + Hoca Handle + Tarama Adı)
             // guruHandle zaten başında @ ile gelir.
@@ -504,20 +503,23 @@ KURALLAR:
             
             string selectedStyle = introStyles[new Random().Next(introStyles.Length)];
 
-            return $@"### KIMLIK: Sen 'Efelerin Efesi' ekolüne saygı duyan, teknik analizi sanat gibi işleyen bir üstatsın. 
+            string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPİYASA GENEL DURUMU:\n{marketOverview}\nKURAL: Bu üstadın sinyalini mevcut piyasa trendiyle kıyasla.";
+            string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}";
+
+            return $@"### KİMLİK: Sen 'Efelerin Efesi' ekolüne saygı duyan, teknik analizi sanat gibi işleyen bir üstatsın.
 @{guruHandle} hocamızın vizyonuna hayranlık duyuyorsun ama analizin kalbini 'Smart Money' kavramlarıyla dolduruyorsun.
 Giriş tarzın, hocanın handle'ını ({guruHandle}) ve tarama tablosunun adını ({strategy}) MUTLAKA içermeli.
 
-### GOREV: #{symbol} için {guruHandle} hocamızın taramasını referans alarak, muazzam kalitede bir teknik analiz threadi yaz.
+### GÖREV: #{symbol} için {guruHandle} hocamızın taramasını referans alarak, muazzam kalitede bir teknik analiz threadi yaz.
 Giriş tarzın: {selectedStyle}
 
-### ANALIZ-VERILERI:
+### ANALİZ-VERİLERİ:
 - Sembol: #{symbol}
 - Güncel Fiyat: {price}
 - Strateji/Tarama: {strategy}
-- Teknik Göstergeler: {indicatorContext}
+- Teknik Göstergeler: {indicatorContext}{marketSection}{newsSection}
 
-### GORSEL-ANALIZ:
+### GÖRSEL-ANALİZ:
 {visualContext}
 
 ### REFERANS-GURU:
@@ -744,7 +746,7 @@ MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
 4. FENOMEN ETİKETLEME — 3. TWEET'TE ZORUNLU:
    - 3. tweet mutlaka en az 1 fenomenin @kullaniciadi'nı GERÇEK cümle içinde barındırmalı.
    - Fenomen verisi verilmişse onu kullan; yoksa piyasada bilinen analistlerden birini seç (@thyaydin, @EFELERiiNEFESi3 vb.).
-   - DOĞRU örnek: @thyaydin bu hareketi bekliyordu, grafiğe bakarsan neden görürsün.
+   - DOĞRU örnek: @thyaydin bu hareketi bekliyordu, grafige bakarsan neden görürsün.
    - Etiket sona yapıştırılmış gibi değil — cümle içine doğal yerleştirilmeli.
    - @mention olmayan bir 3. tweet GEÇERSİZ sayılır.
 
@@ -797,54 +799,55 @@ KESİN YASAKLAR:
         /// <summary>
         /// Strateji ve tier'a göre uygun promptu seçer
         /// </summary>
-        public string GetStrategySpecificPrompt(SignalData sig, string priceContext = "", string influencerCitations = "")
+        public string GetStrategySpecificPrompt(SignalData sig, string priceContext = "", string influencerCitations = "", string htfContext = "")
         {
             string strategy = sig.Strategy.ToUpperInvariant();
-            
+
             if (strategy == "ALPHA")
-                return GetAlphaSignalPrompt(sig, priceContext, influencerCitations);
+                return GetAlphaSignalPrompt(sig, priceContext, influencerCitations, htfContext);
             if (strategy == "PREMOVE")
-                return GetPreMoveSignalPrompt(sig, priceContext, influencerCitations);
-            
+                return GetPreMoveSignalPrompt(sig, priceContext, influencerCitations, htfContext);
+
             // Eski stratejiler artık kullanılmıyor — fallback
-            return GetAlphaSignalPrompt(sig, priceContext, influencerCitations);
+            return GetAlphaSignalPrompt(sig, priceContext, influencerCitations, htfContext);
         }
 
-        private string GetAlphaSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
+        private string GetAlphaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ:\n{influencerCitations}";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT):\n{influencerCitations}\nKURAL: Fenomenlerin hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
-            
-            return $@"### KİMLİK: Momentum + EMA ustası, 60 dakikalık bant yaklaşımı, Smart Money hareketi izleyen analist.
+
+            return $@"### KİMLİK: Momentum + EMA ustası, Çoklu Zaman Dilimi (Top-Down Analysis) kullanan, Smart Money hareketi izleyen analist.
 ### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
 ### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: 60dk
 ### VERİLER: {priceContext}
-### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi.{citationSection}
+### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi.{htfSection}{citationSection}
 ### TON: Enerjik ama disiplinli. EMA/ADX/Squeeze kavramlarını kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CÜMLE.
+- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
         }
 
-        private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
+        private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ:\n{influencerCitations}";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT):\n{influencerCitations}\nKURAL: Fenomenlerin hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
-            string roketBadge = sig.IsRoket ? "🚀 GÜÇLÜ ADAY — " : "";
-            
-            return $@"### KİMLİK: Günlük bant uzmanı, VCP/Pocket Pivot avcısı, Up Volume oranı takipçisi.
-### GÖREV: #{sig.Symbol} için 📈 PREMOVE sinyal thread'i yaz.
-### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: Günlük (G)
+
+            return $@"### KİMLİK: Fiyat hareketini hissetmeden önce gören, akıllı paranın ayak izlerini süren erken uyarı sistemi uzmanı.
+### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
+### SİNYAL: Durum: {sig.Durum}, Periyot: 60dk
 ### VERİLER: {priceContext}
-### PREMOVE BAĞLAMI: Yukarı Hacim Oranı (uvRatio) güçlü, EMA dizilimi (9-21-50-200) sağlam, VCP/NR7 daralması ve Pocket Pivot kriterleri karşılandı.{citationSection}
-### TON: Temkinli iyimser, ""zemin kuruluyor"" hissi. VCP/PP/EMA kavramlarını kullan. {tierInstruction}
+### PREMOVE BAĞLAMI: Fiyat yatayda, hacim kurumuş (drying) ama diplerde ufak alış baskıları var. Büyük hareket öncesi sessizlik.{htfSection}{citationSection}
+### TON: Gizemli, fısıldayan ama emin konuşan borsa kurdu. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CÜMLE.
-- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
+- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
+- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
         }
 
@@ -1100,7 +1103,7 @@ FORMAT (||| ile ayır) - MAKS 4 TWEET:
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Siyasi yorum yapma, sadece ekonomik etki.
-- Son tweet'te kaynak ve link zorunlu.";
+- Son tweet kaynak ve link zorunlu.";
         }
 
         private string GetTeknolojiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
@@ -1146,7 +1149,7 @@ LİNK: {link}
 - Stratejik ve geniş perspektifli ol.
 - ""Bu Türkiye ekonomisini nasıl etkiler?"" sorusuna cevap ver.
 - ABD, AB, Rusya, Çin ilişkilerini bağlamında değerlendir.
-- Korkutma değil, bilgilendiri.
+- Korkutma değil, bilgilendir.
 
 FORMAT (||| ile ayır) - MAKS 4 TWEET:
 [Tweet 1: 🌍 Global haber + Stratejik özet + {link}]
@@ -1155,11 +1158,11 @@ FORMAT (||| ile ayır) - MAKS 4 TWEET:
 |||
 [Tweet 3: 📊 Piyasa perspektifi + İlgili sektörler]
 |||
-[Tweet 4: ⚠️ Yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
+[Tweet 4: ⚠️ Bu bir haber özetidir, yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
 
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- Savunma, enerji, turizm sektörlerini değerlendir.
+- Türkiye bağlantısı aramak zorunda değilsin, ancak varsa belirtebilirsin.
 - Son tweet kaynak ve link zorunlu.";
         }
 
