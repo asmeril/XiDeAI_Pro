@@ -146,7 +146,7 @@ namespace XiDeAI_Pro
         private CheckBox chkSpamReports = null!;
         private CheckBox chkSpamMotivation = null!;
         
-        // FenerbahÃ§e Fan Modu
+        // Fenerbahçe Fan Modu
         private Panel pnlFenerbahce = null!;
         private Button btnNavFenerbahce = null!;
         private DataGridView dgvFenerbahce = null!;
@@ -161,7 +161,7 @@ namespace XiDeAI_Pro
             this.Text = $"X'iDeAI Pro v{version} - STABLE";
             InitializeServices();
             
-            // v4.9.2: HistoryPanel'Ä± erken init et â€” sekmeye girmeden Ã¶nce de log buffer'Ä± Ã§alÄ±ÅŸsÄ±n
+            // v4.9.2: HistoryPanel'ı erken init et — sekmeye girmeden önce de log buffer'ı çalışsın
             InitializeHistoryPanel();
             
             // v3.0 Link Memory to Intelligence
@@ -260,7 +260,7 @@ namespace XiDeAI_Pro
             
             // Theme Toggle (Bottom of Navigation section, before Settings)
             var btnThemeToggle = new Button {
-                Text = ConfigManager.Current.IsDarkTheme ? "  â˜€ï¸  AÃ§Ä±k Tema" : "  ðŸŒ™  Koyu Tema",
+                Text = ConfigManager.Current.IsDarkTheme ? "  ☀️  Açık Tema" : "  🌙  Koyu Tema",
                 Dock = DockStyle.Top,
                 Height = 45,
                 FlatStyle = FlatStyle.Flat,
@@ -274,65 +274,65 @@ namespace XiDeAI_Pro
             btnThemeToggle.FlatAppearance.BorderSize = 0;
             btnThemeToggle.Click += (s, e) => {
                 ThemeManager.ToggleTheme();
-                btnThemeToggle.Text = ConfigManager.Current.IsDarkTheme ? "  â˜€ï¸  AÃ§Ä±k Tema" : "  ðŸŒ™  Koyu Tema";
+                btnThemeToggle.Text = ConfigManager.Current.IsDarkTheme ? "  ☀️  Açık Tema" : "  🌙  Koyu Tema";
                 ThemeManager.ApplyTheme(this);
             };
             pnlSidebar.Controls.Add(btnThemeToggle);
 
             // Settings
-            btnNavSettings = CreateNavBtn("Ayarlar", "âš™ï¸");
+            btnNavSettings = CreateNavBtn("Ayarlar", "⚙️");
             btnNavSettings.Click += (s,e) => ShowPanel(pnlSettings, btnNavSettings);
             pnlSidebar.Controls.Add(btnNavSettings);
 
-            // History (GeÃ§miÅŸ)
-            btnNavHistory = CreateNavBtn("GeÃ§miÅŸ", "ðŸ“œ");
+            // History (Geçmiş)
+            btnNavHistory = CreateNavBtn("Geçmiş", "📜");
             btnNavHistory.Click += (s,e) => { LoadActivityHistory(); ShowPanel(pnlHistory, btnNavHistory); };
             pnlSidebar.Controls.Add(btnNavHistory);
 
             // Influencers (Fenomenler)
-            btnNavInfluencers = CreateNavBtn("Fenomenler", "ðŸ‘¥");
+            btnNavInfluencers = CreateNavBtn("Fenomenler", "👥");
             btnNavInfluencers.Click += (s,e) => { InitializeInfluencerPanel(); ShowPanel(pnlInfluencers, btnNavInfluencers); };
             pnlSidebar.Controls.Add(btnNavInfluencers);
 
-            // Guru Center (Ãœstat Paneli)
-            btnNavGuru = CreateNavBtn("Ãœstat Paneli", "ðŸ‘‘");
+            // Guru Center (Üstat Paneli)
+            btnNavGuru = CreateNavBtn("Üstat Paneli", "👑");
             btnNavGuru.Click += (s,e) => { InitializeGuruPanel(); ShowPanel(pnlGuruCenter, btnNavGuru); };
             pnlSidebar.Controls.Add(btnNavGuru);
 
             // News (Haberler)
-            btnNavNews = CreateNavBtn("Haberler", "ðŸ“°");
+            btnNavNews = CreateNavBtn("Haberler", "📰");
             btnNavNews.Click += (s,e) => { InitializeNewsPanel(); ShowPanel(pnlNews, btnNavNews); };
             pnlSidebar.Controls.Add(btnNavNews);
 
             // Bot
-            btnNavBot = CreateNavBtn("Bot EtkileÅŸim", "ðŸ¤–");
+            btnNavBot = CreateNavBtn("Bot Etkileşim", "🤖");
             btnNavBot.Click += (s,e) => ShowPanel(pnlBot, btnNavBot);
             pnlSidebar.Controls.Add(btnNavBot);
 
             // Analysis
-            btnNavAnalysis = CreateNavBtn("Manuel Analiz", "ðŸ“ˆ");
+            btnNavAnalysis = CreateNavBtn("Manuel Analiz", "📈");
             btnNavAnalysis.Click += (s,e) => ShowPanel(pnlAnalysis, btnNavAnalysis);
             pnlSidebar.Controls.Add(btnNavAnalysis);
 
             // Signals
-            btnNavSignals = CreateNavBtn("Sinyal Merkezi", "ðŸ“¡");
+            btnNavSignals = CreateNavBtn("Sinyal Merkezi", "📡");
             btnNavSignals.Click += (s,e) => ShowPanel(pnlSignals, btnNavSignals);
             pnlSidebar.Controls.Add(btnNavSignals);
 
-            // FenerbahÃ§e (Force Enabled for this version)
+            // Fenerbahçe (Force Enabled for this version)
             if (!ConfigManager.Current.FanZoneEnabled)
             {
                 ConfigManager.Current.FanZoneEnabled = true;
                 ConfigManager.Save(); // Migrate old config
             }
 
-            btnNavFenerbahce = CreateNavBtn("FenerbahÃ§e", "ðŸ’™ðŸ’›");
+            btnNavFenerbahce = CreateNavBtn("Fenerbahçe", "💙💛");
             btnNavFenerbahce.ForeColor = Color.Yellow; // Special
             btnNavFenerbahce.Click += (s,e) => { InitializeFenerbahcePanel(); ShowPanel(pnlFenerbahce, btnNavFenerbahce); };
             pnlSidebar.Controls.Add(btnNavFenerbahce);
 
             // Dashboard
-            btnNavDash = CreateNavBtn("Ana Ekran", "ðŸ ");
+            btnNavDash = CreateNavBtn("Ana Ekran", "🏠");
             btnNavDash.Click += (s,e) => ShowPanel(pnlDashboard, btnNavDash);
             pnlSidebar.Controls.Add(btnNavDash);
             
@@ -344,7 +344,7 @@ namespace XiDeAI_Pro
             // ========== Tab 1: Dashboard (ULTRA GLOW V5.1) ==========
             pnlDashboard.BackColor = Color.FromArgb(11, 14, 17); // Deep terminal background
             
-            // Helper: 2x2 Grid Mini Stat BloÄŸu
+            // Helper: 2x2 Grid Mini Stat Bloğu
             Panel CreateMiniStat(string title, Color accent) {
                 var p = new Panel { Width = 95, Height = 42, BackColor = Color.Transparent, Margin = new Padding(2) };
                 p.Paint += (s, ev) => {
@@ -396,11 +396,11 @@ namespace XiDeAI_Pro
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30)); // Action Buttons
             pnlDashHeader.Controls.Add(tblHeader);
 
-            // A. Dairesel SayaÃ§lar -> 2x2 Grid (Logic Based)
+            // A. Dairesel Sayaçlar -> 2x2 Grid (Logic Based)
             var flowContainer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
             
             var tblGrid = new TableLayoutPanel { Width = 280, Height = 125, ColumnCount = 3, RowCount = 3, BackColor = Color.Transparent, Margin = new Padding(0, 0, 0, 0) };
-            tblGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70)); // Labels (GÃœNLÃœK, AYLIK)
+            tblGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70)); // Labels (GÜNLÜK, AYLIK)
             tblGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); // API
             tblGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); // WEB
             
@@ -410,7 +410,7 @@ namespace XiDeAI_Pro
             tblGrid.Controls.Add(lblAPI, 1, 0); tblGrid.Controls.Add(lblWEB, 2, 0);
 
             // Row 1 Title
-            var lblDay = new Label { Text = "GÃœNLÃœK", ForeColor = Color.Gray, Font = new Font("Segoe UI Bold", 7), TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill };
+            var lblDay = new Label { Text = "GÜNLÜK", ForeColor = Color.Gray, Font = new Font("Segoe UI Bold", 7), TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill };
             tblGrid.Controls.Add(lblDay, 0, 1);
             
             // Row 2 Title
@@ -426,14 +426,14 @@ namespace XiDeAI_Pro
             tblGrid.Controls.Add(pApiMon, 1, 2); tblGrid.Controls.Add(pWebMon, 2, 2);
 
             // Follower Count (Styled separate)
-            lblFollowers = new Label { Text = $"{ConfigManager.Current.FollowersCount}\nTAKÄ°PÃ‡Ä°", ForeColor = Color.White, Font = new Font("Segoe UI Black", 9), TextAlign = ContentAlignment.MiddleCenter, Width = 85, Height = 90, Margin = new Padding(10, 10, 0, 0), Tag = "accent" };
+            lblFollowers = new Label { Text = $"{ConfigManager.Current.FollowersCount}\nTAKİPÇİ", ForeColor = Color.White, Font = new Font("Segoe UI Black", 9), TextAlign = ContentAlignment.MiddleCenter, Width = 85, Height = 90, Margin = new Padding(10, 10, 0, 0), Tag = "accent" };
             
             flowContainer.Controls.AddRange(new Control[] { tblGrid, lblFollowers });
             tblHeader.Controls.Add(flowContainer, 0, 0);
 
             // B. Ticker (Center)
             var pnlTickerBox = new Panel { Dock = DockStyle.Fill, Margin = new Padding(15, 5, 15, 5), Padding = new Padding(0, 5, 0, 5) };
-            var lblTickerTitle = new Label { Text = "ANLIK PÄ°YASA TRENDLERÄ°", Dock = DockStyle.Top, Height = 20, ForeColor = Color.FromArgb(100, 100, 110), Font = new Font("Segoe UI Bold", 8), TextAlign = ContentAlignment.MiddleCenter };
+            var lblTickerTitle = new Label { Text = "ANLIK PİYASA TRENDLERİ", Dock = DockStyle.Top, Height = 20, ForeColor = Color.FromArgb(100, 100, 110), Font = new Font("Segoe UI Bold", 8), TextAlign = ContentAlignment.MiddleCenter };
             txtTrends = new TextBox { Dock = DockStyle.Fill, Text = ConfigManager.Current.DailyTrends, Font = new Font("Consolas", 10, FontStyle.Bold), BackColor = Color.FromArgb(15, 16, 20), ForeColor = Color.FromArgb(0, 212, 255), BorderStyle = BorderStyle.None, TextAlign = HorizontalAlignment.Center, Multiline = true };
             txtTrends.TextChanged += (s, ev) => { ConfigManager.Current.DailyTrends = txtTrends.Text; };
             pnlTickerBox.Controls.Add(txtTrends); pnlTickerBox.Controls.Add(lblTickerTitle);
@@ -467,7 +467,7 @@ namespace XiDeAI_Pro
             // Row 2: Navigation Controls
             var flowNav = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 60, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(0, 0, 0, 0), WrapContents = false };
             
-            var btnGoChart = CreateNeonBtn("GRAFÄ°K", Color.Cyan, 110);
+            var btnGoChart = CreateNeonBtn("GRAFİK", Color.Cyan, 110);
             var btnGoX = CreateNeonBtn("SOSYAL", Color.DimGray, 110);
             var btnGoLog = CreateNeonBtn("LOG", Color.DimGray, 110);
             
@@ -527,7 +527,7 @@ namespace XiDeAI_Pro
             };
 
             var pnlChartHeader = new Panel { BackColor = Color.FromArgb(20, 24, 28), Tag = "IGNORE_THEME" }; 
-            pnlChartHeader.Controls.Add(new Label { Text = "ðŸ“Š PÄ°YASA ANALÄ°Z TERMÄ°NALÄ°", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(0, 212, 255), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
+            pnlChartHeader.Controls.Add(new Label { Text = "📊 PİYASA ANALİZ TERMİNALİ", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(0, 212, 255), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
             _webViewChart = new WebView2 { BackColor = Color.FromArgb(11, 14, 17), DefaultBackgroundColor = Color.FromArgb(11, 14, 17), Tag = "IGNORE_THEME" };
              SetupManualLayout(pnlChartContainer, pnlChartHeader, _webViewChart);
             tpChart.Controls.Add(pnlChartContainer);
@@ -548,7 +548,7 @@ namespace XiDeAI_Pro
             };
 
             var pnlTwitterHeader = new Panel { BackColor = Color.FromArgb(20, 24, 28), Tag = "IGNORE_THEME" };
-            pnlTwitterHeader.Controls.Add(new Label { Text = "ðŸ¦ SOSYAL MEDYA AKIÅžI", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(255, 160, 0), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
+            pnlTwitterHeader.Controls.Add(new Label { Text = "🐦 SOSYAL MEDYA AKIŞI", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(255, 160, 0), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
             _webViewTwitter = new WebView2 { BackColor = Color.FromArgb(11, 14, 17), DefaultBackgroundColor = Color.FromArgb(11, 14, 17), Tag = "IGNORE_THEME" };
             SetupManualLayout(pnlTwitterContainer, pnlTwitterHeader, _webViewTwitter);
             tpTwitter.Controls.Add(pnlTwitterContainer);
@@ -569,7 +569,7 @@ namespace XiDeAI_Pro
             };
 
             var pnlLogHeader = new Panel { BackColor = Color.FromArgb(20, 24, 28), Tag = "IGNORE_THEME" };
-            pnlLogHeader.Controls.Add(new Label { Text = "ðŸ“Ÿ TERMÄ°NAL LOG", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(0, 200, 83), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
+            pnlLogHeader.Controls.Add(new Label { Text = "📟 TERMİNAL LOG", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(0, 200, 83), Font = new Font("Segoe UI", 10, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(15, 0, 0, 0) });
             txtLog = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, ReadOnly = true, BackColor = Color.FromArgb(11, 14, 17), ForeColor = Color.FromArgb(0, 255, 100), Font = new Font("Consolas", 8), BorderStyle = BorderStyle.None, Tag="IGNORE_THEME" };
             SetupManualLayout(pnlLogContainer, pnlLogHeader, txtLog);
             tpLog.Controls.Add(pnlLogContainer);
@@ -596,40 +596,40 @@ namespace XiDeAI_Pro
             InitializeTwitterWebView();
 
 
-            // ========== Tab 2: Signal Center (SÄ°NYAL MERKEZÄ°) ==========
+            // ========== Tab 2: Signal Center (SİNYAL MERKEZİ) ==========
             var panelFilter = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), FlowDirection = FlowDirection.TopDown, AutoScroll = true, BackColor = Color.FromArgb(40, 40, 40) };
             
-            // Sinyal KaynaklarÄ±
-            panelFilter.Controls.Add(new Label { Text = "ðŸ“Š Sinyal KaynaklarÄ±", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold) });
-            panelFilter.Controls.Add(new Label { Text = "TÃ¼m sinyaller C:\\iDeal\\Sinyal_Log_Database.txt dosyasÄ±ndan okunur.\nRobotlar kendi eÅŸiklerini uygular: Alphaâ‰¥90p, PreMoveâ‰¥75p", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
+            // Sinyal Kaynakları
+            panelFilter.Controls.Add(new Label { Text = "📊 Sinyal Kaynakları", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 14, FontStyle.Bold) });
+            panelFilter.Controls.Add(new Label { Text = "Tüm sinyaller C:\\iDeal\\Sinyal_Log_Database.txt dosyasından okunur.\nRobotlar kendi eşiklerini uygular: Alpha≥90p, PreMove≥75p", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
 
             var flowScans = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 10, 0, 0) };
-            chkAlpha = new CheckBox { Text = "âš¡ ALPHA (60dk)", ForeColor = Color.LightGreen, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkAlpha);
-            chkPreMove = new CheckBox { Text = "ðŸš€ PREMOVE (GÃ¼nlÃ¼k)", ForeColor = Color.LightSkyBlue, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkPreMove);
+            chkAlpha = new CheckBox { Text = "⚡ ALPHA (60dk)", ForeColor = Color.LightGreen, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkAlpha);
+            chkPreMove = new CheckBox { Text = "🚀 PREMOVE (Günlük)", ForeColor = Color.LightSkyBlue, Checked = true, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold) }; flowScans.Controls.Add(chkPreMove);
             panelFilter.Controls.Add(flowScans);
 
             // Durum Filtresi
-            panelFilter.Controls.Add(new Label { Text = "ðŸŽ¯ Durum Filtresi", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) });
-            panelFilter.Controls.Add(new Label { Text = "Ä°ÅŸaretlenirse sadece AKTIF sinyaller alÄ±nÄ±r, PULLBACK_ADAY atlanÄ±r.", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
+            panelFilter.Controls.Add(new Label { Text = "🎯 Durum Filtresi", ForeColor = Color.DeepSkyBlue, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 20, 0, 0) });
+            panelFilter.Controls.Add(new Label { Text = "İşaretlenirse sadece AKTIF sinyaller alınır, PULLBACK_ADAY atlanır.", ForeColor = Color.Silver, AutoSize = true, Font = new Font("Segoe UI", 9) });
             var flowDurum = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
             chkAlphaOnlyAktif = new CheckBox { Text = "Alpha: Sadece AKTIF", ForeColor = Color.LightGreen, AutoSize = true }; flowDurum.Controls.Add(chkAlphaOnlyAktif);
             chkPreMoveOnlyAktif = new CheckBox { Text = "PreMove: Sadece AKTIF", ForeColor = Color.LightSkyBlue, AutoSize = true }; flowDurum.Controls.Add(chkPreMoveOnlyAktif);
             panelFilter.Controls.Add(flowDurum);
             
             // Zamanlama (Scan Hours)
-            panelFilter.Controls.Add(new Label { Text = "â° Ä°zin Verilen Tarama Saatleri (Ã–rn: 10:00, 14:00, 18:00):", ForeColor = Color.Yellow, AutoSize = true, Margin = new Padding(0, 15, 0, 0) });
-            panelFilter.Controls.Add(new Label { Text = "BoÅŸ bÄ±rakÄ±rsanÄ±z tÃ¼m saatler kabul edilir. Doluysa sadece +/- 60dk iÃ§indekiler alÄ±nÄ±r.", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
+            panelFilter.Controls.Add(new Label { Text = "⏰ İzin Verilen Tarama Saatleri (Örn: 10:00, 14:00, 18:00):", ForeColor = Color.Yellow, AutoSize = true, Margin = new Padding(0, 15, 0, 0) });
+            panelFilter.Controls.Add(new Label { Text = "Boş bırakırsanız tüm saatler kabul edilir. Doluysa sadece +/- 60dk içindekiler alınır.", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
             txtScanHours = new TextBox { Width = 800, Text = "" }; // Loaded later
             panelFilter.Controls.Add(txtScanHours);
 
             // Save Button for Filters Tab
-            var btnSaveFilters = new Button { Text = "ðŸ’¾ Filtreleri Kaydet", Width = 200, Height = 40, Margin = new Padding(0, 20, 0, 0), BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnSaveFilters = new Button { Text = "💾 Filtreleri Kaydet", Width = 200, Height = 40, Margin = new Padding(0, 20, 0, 0), BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), Cursor = Cursors.Hand };
             btnSaveFilters.FlatAppearance.BorderSize = 0;
             btnSaveFilters.Click += BtnSave_Click; // Revert to same handler
             panelFilter.Controls.Add(btnSaveFilters);
 
             // Signal Grid Section
-            panelFilter.Controls.Add(new Label { Text = "ðŸ“‹ Sinyal Takip Tablosu", ForeColor = Color.LightGreen, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 30, 0, 5) });
+            panelFilter.Controls.Add(new Label { Text = "📋 Sinyal Takip Tablosu", ForeColor = Color.LightGreen, AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), Margin = new Padding(0, 30, 0, 5) });
             
             dgvSignals = new DataGridView { 
                 Width = 950, 
@@ -673,7 +673,7 @@ namespace XiDeAI_Pro
             panelFilter.Controls.Add(dgvSignals);
 
             // Activity Log Section
-            panelFilter.Controls.Add(new Label { Text = "ðŸ“ Aktivite Logu", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold), Margin = new Padding(0, 20, 0, 5) });
+            panelFilter.Controls.Add(new Label { Text = "📝 Aktivite Logu", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 10, FontStyle.Bold), Margin = new Padding(0, 20, 0, 5) });
             rtbSignalLog = new RichTextBox { Width = 950, Height = 150, BackColor = Color.FromArgb(30,30,30), ForeColor = Color.Lime, Font = new Font("Consolas", 9), ReadOnly = true, BorderStyle = BorderStyle.None };
             panelFilter.Controls.Add(rtbSignalLog);
 
@@ -682,14 +682,14 @@ namespace XiDeAI_Pro
 
             // ========== Tab 3: Settings (AYARLAR) - Modern Tabbed View ==========
             var tabSettings = new TabControl { Dock = DockStyle.Fill, Appearance = TabAppearance.Buttons };
-            var tpPermanent = new TabPage("âš™ï¸ KalÄ±cÄ± Ayarlar") { BackColor = Color.FromArgb(40, 40, 40) };
-            var tpVariable = new TabPage("ðŸ”„ DeÄŸiÅŸken Ayarlar") { BackColor = Color.FromArgb(40, 40, 40) };
+            var tpPermanent = new TabPage("⚙️ Kalıcı Ayarlar") { BackColor = Color.FromArgb(40, 40, 40) };
+            var tpVariable = new TabPage("🔄 Değişken Ayarlar") { BackColor = Color.FromArgb(40, 40, 40) };
 
             var flowPermanent = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), FlowDirection = FlowDirection.TopDown, AutoScroll = true };
             var flowVariable = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), FlowDirection = FlowDirection.TopDown, AutoScroll = true };
 
             // --- Tab 1: Permanent Settings ---
-            flowPermanent.Controls.Add(new Label { Text = "ðŸ¦ Twitter API", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,0,0,10) });
+            flowPermanent.Controls.Add(new Label { Text = "🐦 Twitter API", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,0,0,10) });
             flowPermanent.Controls.Add(new Label { Text = "API Key:", ForeColor = Color.Silver, AutoSize = true });
             txtApiKey = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowPermanent.Controls.Add(txtApiKey);
             flowPermanent.Controls.Add(new Label { Text = "API Secret:", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
@@ -699,110 +699,110 @@ namespace XiDeAI_Pro
             flowPermanent.Controls.Add(new Label { Text = "Token Secret:", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtTokenSecret = new TextBox { Width = 400, PasswordChar='*', BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowPermanent.Controls.Add(txtTokenSecret);
             
-            btnTestTwitter = new Button { Text = "ðŸ¦ X BaÄŸlantÄ±sÄ±nÄ± Test Et", Width = 400, Height = 35, BackColor = Color.FromArgb(29, 161, 242), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,15,0,0) };
+            btnTestTwitter = new Button { Text = "🐦 X Bağlantısını Test Et", Width = 400, Height = 35, BackColor = Color.FromArgb(29, 161, 242), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,15,0,0) };
             AttachHoverEffect(btnTestTwitter, Color.DeepSkyBlue, Color.FromArgb(29, 161, 242));
             btnTestTwitter.Click += async (s, ev) => { 
                 ConfigManager.Current.TwitterApiKey = txtApiKey.Text; ConfigManager.Current.TwitterApiSecret = txtApiSecret.Text; ConfigManager.Current.TwitterAccessToken = txtAccessToken.Text; ConfigManager.Current.TwitterTokenSecret = txtTokenSecret.Text;
-                btnTestTwitter.Text = "â³ ..."; await Task.Run(() => { var (ok, msg) = _opManager.Twitter.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTwitter.Text = "ðŸ¦ X BaÄŸlantÄ±sÄ±nÄ± Test Et";
+                btnTestTwitter.Text = "⏳ ..."; await Task.Run(() => { var (ok, msg) = _opManager.Twitter.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTwitter.Text = "🐦 X Bağlantısını Test Et";
             };
             flowPermanent.Controls.Add(btnTestTwitter);
 
-            flowPermanent.Controls.Add(new Label { Text = "ðŸ“± Telegram", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
+            flowPermanent.Controls.Add(new Label { Text = "📱 Telegram", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
             flowPermanent.Controls.Add(new Label { Text = "Bot Token:", ForeColor = Color.Silver, AutoSize = true });
             txtTelToken = new TextBox { Width = 400, PasswordChar='*', BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowPermanent.Controls.Add(txtTelToken);
             flowPermanent.Controls.Add(new Label { Text = "Chat ID:", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtTelChatId = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowPermanent.Controls.Add(txtTelChatId);
 
-            var btnTestTelegram = new Button { Text = "ðŸ“± Telegram Test", Width = 400, Height = 35, BackColor = Color.FromArgb(0, 136, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,10,0,0) };
+            var btnTestTelegram = new Button { Text = "📱 Telegram Test", Width = 400, Height = 35, BackColor = Color.FromArgb(0, 136, 204), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,10,0,0) };
             AttachHoverEffect(btnTestTelegram, Color.DeepSkyBlue, Color.FromArgb(0, 136, 204));
             btnTestTelegram.Click += async (s, ev) => {
                  ConfigManager.Current.TelegramBotToken = txtTelToken.Text; ConfigManager.Current.TelegramChatId = txtTelChatId.Text;
-                 btnTestTelegram.Text = "â³ ..."; await Task.Run(async () => { var (ok, msg) = await _opManager.Telegram.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTelegram.Text = "ðŸ“± Telegram Test";
+                 btnTestTelegram.Text = "⏳ ..."; await Task.Run(async () => { var (ok, msg) = await _opManager.Telegram.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTelegram.Text = "📱 Telegram Test";
             };
             flowPermanent.Controls.Add(btnTestTelegram);
 
-            flowPermanent.Controls.Add(new Label { Text = "ðŸª Ã‡erez YÃ¶netimi", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
+            flowPermanent.Controls.Add(new Label { Text = "🍪 Çerez Yönetimi", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
             var flowCookies = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-            var btnImportCookies = new Button { Text = "ðŸ¦ X Ã‡erezleri (.json)", Width = 195, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Margin = new Padding(0,0,5,0) };
+            var btnImportCookies = new Button { Text = "🐦 X Çerezleri (.json)", Width = 195, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Margin = new Padding(0,0,5,0) };
             AttachHoverEffect(btnImportCookies, Color.Gray, Color.DimGray);
             btnImportCookies.Click += async (s, ev) => {
                  using (var ofd = new OpenFileDialog { Filter = "JSON Files|*.json" }) if (ofd.ShowDialog() == DialogResult.OK) {
                      var res = await _opManager.SocialIntel.ImportCookiesAsync(File.ReadAllText(ofd.FileName)); MessageBox.Show(res.Message);
                  }
             };
-            var btnImportTvCookies = new Button { Text = "ðŸ“ˆ TV Ã‡erezleri (.json)", Width = 195, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnImportTvCookies = new Button { Text = "📈 TV Çerezleri (.json)", Width = 195, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             AttachHoverEffect(btnImportTvCookies, Color.Gray, Color.DimGray);
             btnImportTvCookies.Click += (s, ev) => {
                  using (var ofd = new OpenFileDialog { Filter = "JSON Files|*.json" }) if (ofd.ShowDialog() == DialogResult.OK) {
                      string dest = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "tradingview_cookies.json");
                      string? dir = Path.GetDirectoryName(dest);
                      if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                     File.Copy(ofd.FileName, dest, true); MessageBox.Show("âœ… TradingView Ã§erezleri baÅŸarÄ±yla yÃ¼klendi.\nGrafiklerde artÄ±k kayÄ±tlÄ± ayarlarÄ±nÄ±z kullanÄ±lacak.");
+                     File.Copy(ofd.FileName, dest, true); MessageBox.Show("✅ TradingView çerezleri başarıyla yüklendi.\nGrafiklerde artık kayıtlı ayarlarınız kullanılacak.");
                  }
             };
             flowCookies.Controls.Add(btnImportCookies); flowCookies.Controls.Add(btnImportTvCookies);
             flowPermanent.Controls.Add(flowCookies);
 
             // --- Tab 2: Variable Settings ---
-            flowVariable.Controls.Add(new Label { Text = "ðŸŽ¯ Hedef Hesaplar", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,0,0,10) });
-            flowVariable.Controls.Add(new Label { Text = "VirgÃ¼lle ayÄ±rÄ±n (Ã¶rn: elonmusk, trader1):", ForeColor = Color.Silver, AutoSize = true });
+            flowVariable.Controls.Add(new Label { Text = "🎯 Hedef Hesaplar", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,0,0,10) });
+            flowVariable.Controls.Add(new Label { Text = "Virgülle ayırın (örn: elonmusk, trader1):", ForeColor = Color.Silver, AutoSize = true });
             txtTargetAccounts = new TextBox { Width = 600, Height = 80, Multiline = true, Text = ConfigManager.Current.TargetAccounts, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle };
             flowVariable.Controls.Add(txtTargetAccounts);
             
-            var btnTestTargets = new Button { Text = "âš¡ Hedef EtkileÅŸim Testi", Width = 300, Height = 35, BackColor = Color.DarkOrange, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
+            var btnTestTargets = new Button { Text = "⚡ Hedef Etkileşim Testi", Width = 300, Height = 35, BackColor = Color.DarkOrange, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
             AttachHoverEffect(btnTestTargets, Color.Orange, Color.DarkOrange);
             btnTestTargets.Click += async (s, ev) => {
                 ConfigManager.Current.TargetAccounts = txtTargetAccounts.Text;
-                btnTestTargets.Text = "â³ Kontrol Ediliyor...";
+                btnTestTargets.Text = "⏳ Kontrol Ediliyor...";
                 btnTestTargets.Enabled = false;
                 await Task.Run(async () => {
                    var result = await _opManager.SocialIntel.InteractWithTargets(ConfigManager.Current.TargetAccounts);
                    this.Invoke(() => {
                        var msg = string.Join("\n", result.data.Select(x => $"{x.Key}: {x.Value}"));
-                       MessageBox.Show($"SonuÃ§:\n{msg}", "EtkileÅŸim Raporu");
+                       MessageBox.Show($"Sonuç:\n{msg}", "Etkileşim Raporu");
                    });
                 });
-                btnTestTargets.Text = "âš¡ Hedef EtkileÅŸim Testi";
+                btnTestTargets.Text = "⚡ Hedef Etkileşim Testi";
                 btnTestTargets.Enabled = true;
             };
             flowVariable.Controls.Add(btnTestTargets);
 
-            flowVariable.Controls.Add(new Label { Text = "ðŸ›¡ï¸ Spam KorumasÄ± (ModÃ¼l BazlÄ±)", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
+            flowVariable.Controls.Add(new Label { Text = "🛡️ Spam Koruması (Modül Bazlı)", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
             var grpSpamControls = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
             chkSpamSignals = new CheckBox { Text = "Sinyal Tweetleri", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamSignals);
             chkSpamBatches = new CheckBox { Text = "Toplu (Batch) Thread", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamBatches);
-            chkSpamManual = new CheckBox { Text = "Manuel Analiz PaylaÅŸÄ±mlarÄ±", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamManual);
-            chkSpamNews = new CheckBox { Text = "Haber PaylaÅŸÄ±mlarÄ±", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamNews);
-            chkSpamReports = new CheckBox { Text = "Raporlar (GÃ¼nlÃ¼k/HaftalÄ±k/KapanÄ±ÅŸ)", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamReports);
-            chkSpamMotivation = new CheckBox { Text = "GÃ¼naydÄ±n/Motivasyon Tweetleri", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamMotivation);
+            chkSpamManual = new CheckBox { Text = "Manuel Analiz Paylaşımları", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamManual);
+            chkSpamNews = new CheckBox { Text = "Haber Paylaşımları", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamNews);
+            chkSpamReports = new CheckBox { Text = "Raporlar (Günlük/Haftalık/Kapanış)", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamReports);
+            chkSpamMotivation = new CheckBox { Text = "Günaydın/Motivasyon Tweetleri", ForeColor = Color.White, AutoSize = true }; grpSpamControls.Controls.Add(chkSpamMotivation);
             flowVariable.Controls.Add(grpSpamControls);
 
-            var btnSpamSim = new Button { Text = "ðŸ§ª Spam SimÃ¼lasyon Testi", Width = 350, Height = 35, BackColor = Color.MediumSeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,10,0,0) };
+            var btnSpamSim = new Button { Text = "🧪 Spam Simülasyon Testi", Width = 350, Height = 35, BackColor = Color.MediumSeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,10,0,0) };
             AttachHoverEffect(btnSpamSim, Color.SeaGreen, Color.MediumSeaGreen);
             btnSpamSim.Click += async (s, ev) => await RunSpamSimulation();
             flowVariable.Controls.Add(btnSpamSim);
 
-            flowVariable.Controls.Add(new Label { Text = "ðŸ¤– Gemini AI & TradingView", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
+            flowVariable.Controls.Add(new Label { Text = "🤖 Gemini AI & TradingView", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
             flowVariable.Controls.Add(new Label { Text = "Gemini API Key:", ForeColor = Color.Silver, AutoSize = true });
             txtGeminiKey = new TextBox { Width = 400, PasswordChar='*', BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowVariable.Controls.Add(txtGeminiKey);
             
             // Perplexity API Key (v3.1+ Multi-Model AI)
             flowVariable.Controls.Add(new Label { Text = "Perplexity API Key (Opsiyonel):", ForeColor = Color.LightGreen, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtPerplexityKey = new TextBox { Width = 400, PasswordChar='*', BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; flowVariable.Controls.Add(txtPerplexityKey);
-            flowVariable.Controls.Add(new Label { Text = "  â†’ GerÃ§ek zamanlÄ± haber analizi iÃ§in (https://www.perplexity.ai/)", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
+            flowVariable.Controls.Add(new Label { Text = "  → Gerçek zamanlı haber analizi için (https://www.perplexity.ai/)", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
             
             flowVariable.Controls.Add(new Label { Text = "Gemini Model:", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             cmbGeminiModel = new ComboBox { Width = 400, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             cmbGeminiModel.Items.Add("gemini-2.5-flash"); cmbGeminiModel.SelectedIndex = 0;
             flowVariable.Controls.Add(cmbGeminiModel);
-            var btnTestGemini = new Button { Text = "ðŸ¤– AI Test / Model Bul", Width = 400, Height = 30, BackColor = Color.MediumPurple, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
+            var btnTestGemini = new Button { Text = "🤖 AI Test / Model Bul", Width = 400, Height = 30, BackColor = Color.MediumPurple, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
             AttachHoverEffect(btnTestGemini, Color.MediumOrchid, Color.MediumPurple);
             btnTestGemini.Click += async (s, ev) => {
                  var key = txtGeminiKey.Text.Trim();
-                 if (string.IsNullOrEmpty(key)) { MessageBox.Show("LÃ¼tfen API Key giriniz."); return; }
+                 if (string.IsNullOrEmpty(key)) { MessageBox.Show("Lütfen API Key giriniz."); return; }
                  
                  ConfigManager.Current.GeminiApiKey = key;
-                 btnTestGemini.Text = "â³ Modeller AranÄ±yor...";
+                 btnTestGemini.Text = "⏳ Modeller Aranıyor...";
                  btnTestGemini.Enabled = false;
 
                  try {
@@ -818,7 +818,7 @@ namespace XiDeAI_Pro
                              if (!string.IsNullOrEmpty(ConfigManager.Current.GeminiModel) && cmbGeminiModel.Items.Contains(ConfigManager.Current.GeminiModel))
                                  cmbGeminiModel.SelectedItem = ConfigManager.Current.GeminiModel;
                                  
-                             MessageBox.Show($"âœ… {models.Count} model bulundu ve listeye eklendi!");
+                             MessageBox.Show($"✅ {models.Count} model bulundu ve listeye eklendi!");
                          });
                          
                          // Test standard connection with selected model
@@ -831,40 +831,40 @@ namespace XiDeAI_Pro
                      }
                      else
                      {
-                         this.Invoke(() => MessageBox.Show($"âš ï¸ Model bulunamadÄ± veya hata oluÅŸtu.\nHata: {_opManager.Gemini.LastError}"));
+                         this.Invoke(() => MessageBox.Show($"⚠️ Model bulunamadı veya hata oluştu.\nHata: {_opManager.Gemini.LastError}"));
                      }
                  } catch (Exception ex) {
                      this.Invoke(() => MessageBox.Show($"Hata: {ex.Message}"));
                  }
                  
-                 btnTestGemini.Text = "ðŸ¤– AI Test / Model Bul";
+                 btnTestGemini.Text = "🤖 AI Test / Model Bul";
                  btnTestGemini.Enabled = true;
             };
             flowVariable.Controls.Add(btnTestGemini);
 
             // --- LM Studio / Yerel AI ---
-            flowVariable.Controls.Add(new Label { Text = "ðŸ§© LM Studio (Yerel AI)", ForeColor = Color.Orange, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,5) });
-            flowVariable.Controls.Add(new Label { Text = "LM Link veya yerel LM Studio API'nize baÄŸlanÄ±r. Gemma 4 gibi modelleri Ã¼cretsiz kullanÄ±n.", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
+            flowVariable.Controls.Add(new Label { Text = "🧩 LM Studio (Yerel AI)", ForeColor = Color.Orange, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,5) });
+            flowVariable.Controls.Add(new Label { Text = "LM Link veya yerel LM Studio API'nize bağlanır. Gemma 4 gibi modelleri ücretsiz kullanın.", ForeColor = Color.Gray, AutoSize = true, Font = new Font("Segoe UI", 8) });
             
             chkLMStudioEnabled = new CheckBox { Text = "LM Studio Etkin", ForeColor = Color.White, AutoSize = true, Margin = new Padding(0,5,0,0) };
             flowVariable.Controls.Add(chkLMStudioEnabled);
             
-            flowVariable.Controls.Add(new Label { Text = "LM Studio URI (Ã¶rn: http://localhost:1234/v1):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
+            flowVariable.Controls.Add(new Label { Text = "LM Studio URI (örn: http://localhost:1234/v1):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
             txtLMStudioUri = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
             flowVariable.Controls.Add(txtLMStudioUri);
             
-            flowVariable.Controls.Add(new Label { Text = "Model AdÄ± (LM Studio'da gÃ¶rÃ¼nen isim):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
+            flowVariable.Controls.Add(new Label { Text = "Model Adı (LM Studio'da görünen isim):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,8,0,0) });
             txtLMStudioModel = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "gemma4" };
             flowVariable.Controls.Add(txtLMStudioModel);
 
-            var btnTestLMStudio = new Button { Text = "ðŸ§© LM Studio BaÄŸlantÄ±sÄ±nÄ± Test Et", Width = 400, Height = 30, BackColor = Color.FromArgb(150, 80, 0), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
+            var btnTestLMStudio = new Button { Text = "🧩 LM Studio Bağlantısını Test Et", Width = 400, Height = 30, BackColor = Color.FromArgb(150, 80, 0), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Margin = new Padding(0,5,0,0) };
             AttachHoverEffect(btnTestLMStudio, Color.DarkOrange, Color.FromArgb(150, 80, 0));
             btnTestLMStudio.Click += async (s, ev) =>
             {
                 string uri = txtLMStudioUri.Text.Trim();
                 string model = txtLMStudioModel.Text.Trim();
-                if (string.IsNullOrEmpty(uri)) { MessageBox.Show("URI boÅŸ olamaz."); return; }
-                btnTestLMStudio.Text = "â³ Test ediliyor...";
+                if (string.IsNullOrEmpty(uri)) { MessageBox.Show("URI boş olamaz."); return; }
+                btnTestLMStudio.Text = "⏳ Test ediliyor...";
                 btnTestLMStudio.Enabled = false;
                 await Task.Run(async () =>
                 {
@@ -872,33 +872,33 @@ namespace XiDeAI_Pro
                         using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                         hc.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ConfigManager.Current.LMStudioApiKey);
                         var payload = new System.Net.Http.StringContent(
-                            $"{{\"model\":\"{model}\",\"messages\":[{{\"role\":\"user\",\"content\":\"Merhaba! BaÄŸlantÄ± testi.\"}}],\"max_tokens\":50}}",
+                            $"{{\"model\":\"{model}\",\"messages\":[{{\"role\":\"user\",\"content\":\"Merhaba! Bağlantı testi.\"}}],\"max_tokens\":50}}",
                             System.Text.Encoding.UTF8, "application/json");
                         var resp = await hc.PostAsync(uri.TrimEnd('/') + "/chat/completions", payload);
                         string respBody = await resp.Content.ReadAsStringAsync();
                         this.Invoke(() => MessageBox.Show(resp.IsSuccessStatusCode
-                            ? $"âœ… BaÄŸlantÄ± baÅŸarÄ±lÄ±!\nModel: {model}\nDurum: {(int)resp.StatusCode}"
-                            : $"âŒ Hata: {(int)resp.StatusCode}\n{respBody}"));
+                            ? $"✅ Bağlantı başarılı!\nModel: {model}\nDurum: {(int)resp.StatusCode}"
+                            : $"❌ Hata: {(int)resp.StatusCode}\n{respBody}"));
                     } catch (Exception ex) {
-                        this.Invoke(() => MessageBox.Show($"âŒ BaÄŸlanamadÄ±: {ex.Message}\n\nLM Studio'da Local Server baÅŸlatÄ±ldÄ± mÄ±?"));
+                        this.Invoke(() => MessageBox.Show($"❌ Bağlanamadı: {ex.Message}\n\nLM Studio'da Local Server başlatıldı mı?"));
                     }
                 });
-                btnTestLMStudio.Text = "ðŸ§© LM Studio BaÄŸlantÄ±sÄ±nÄ± Test Et";
+                btnTestLMStudio.Text = "🧩 LM Studio Bağlantısını Test Et";
                 btnTestLMStudio.Enabled = true;
             };
             flowVariable.Controls.Add(btnTestLMStudio);
 
 
-            flowVariable.Controls.Add(new Label { Text = "TradingView Sembol (Ã¶rn: NASDAQ:AAPL, BINANCE:BTCUSDT):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
+            flowVariable.Controls.Add(new Label { Text = "TradingView Sembol (örn: NASDAQ:AAPL, BINANCE:BTCUSDT):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtTvSymbol = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle, PlaceholderText = "NASDAQ:AAPL" }; 
             flowVariable.Controls.Add(txtTvSymbol);
-            flowVariable.Controls.Add(new Label { Text = "TradingView Chart ID (isteÄŸe baÄŸlÄ±):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
+            flowVariable.Controls.Add(new Label { Text = "TradingView Chart ID (isteğe bağlı):", ForeColor = Color.Silver, AutoSize = true, Margin = new Padding(0,10,0,0) });
             txtTvChartId = new TextBox { Width = 400, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, BorderStyle=BorderStyle.FixedSingle }; 
             flowVariable.Controls.Add(txtTvChartId);
 
-            flowVariable.Controls.Add(new Label { Text = "ðŸ§  Fenomen Veri Havuzu", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
+            flowVariable.Controls.Add(new Label { Text = "🧠 Fenomen Veri Havuzu", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 12, FontStyle.Bold), AutoSize = true, Margin = new Padding(0,30,0,10) });
             var lblInfluencerNote = new Label { 
-                Text = "Fenomen yÃ¶netimi artÄ±k sidebar'daki\n'ðŸ‘¥ Fenomenler' menÃ¼sÃ¼nden yapÄ±lÄ±r.", 
+                Text = "Fenomen yönetimi artık sidebar'daki\n'👥 Fenomenler' menüsünden yapılır.", 
                 ForeColor = Color.Gray, 
                 Font = new Font("Segoe UI", 10), 
                 AutoSize = true,
@@ -907,7 +907,7 @@ namespace XiDeAI_Pro
             flowVariable.Controls.Add(lblInfluencerNote);
             
             var btnGoToInfluencers = new Button { 
-                Text = "ðŸ‘¥ Fenomenler Paneline Git", 
+                Text = "👥 Fenomenler Paneline Git", 
                 Width = 250, 
                 Height = 40, 
                 BackColor = Color.MediumPurple, 
@@ -928,7 +928,7 @@ namespace XiDeAI_Pro
             pnlSettings.Controls.Add(tabSettings);
 
             // SAVE BUTTON - Fixed at bottom of pnlSettings
-            btnSave = new Button { Text = "ðŸ’¾ TÃœM AYARLARI KAYDET", Dock = DockStyle.Bottom, Height = 60, BackColor = Color.DodgerBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12, FontStyle.Bold), Cursor = Cursors.Hand };
+            btnSave = new Button { Text = "💾 TÜM AYARLARI KAYDET", Dock = DockStyle.Bottom, Height = 60, BackColor = Color.DodgerBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12, FontStyle.Bold), Cursor = Cursors.Hand };
             AttachHoverEffect(btnSave, Color.RoyalBlue, Color.DodgerBlue);
             btnSave.Click += BtnSave_Click;
             pnlSettings.Controls.Add(btnSave);
@@ -936,7 +936,7 @@ namespace XiDeAI_Pro
             // ========== Tab 4: Manuel Analiz (Renamed from AI Analysis) ==========
             InitializeManualAnalysisTab(pnlAnalysis);
 
-            // ========== Tab 5: Bot EtkileÅŸim ==========
+            // ========== Tab 5: Bot Etkileşim ==========
             InitializeBotInteractionTab(pnlBot);
         }
 
@@ -980,15 +980,15 @@ namespace XiDeAI_Pro
             _influencerPanelInitialized = true;
 
             var tabInfluencer = new TabControl { Dock = DockStyle.Fill };
-            var tpList = new TabPage("ðŸ‘¥ Fenomen Listesi") { BackColor = Color.FromArgb(30, 30, 30) };
-            var tpKB = new TabPage("ðŸ§  Bilgi TabanÄ± (Database)") { BackColor = Color.FromArgb(30,30,30) };
+            var tpList = new TabPage("👥 Fenomen Listesi") { BackColor = Color.FromArgb(30, 30, 30) };
+            var tpKB = new TabPage("🧠 Bilgi Tabanı (Database)") { BackColor = Color.FromArgb(30,30,30) };
             tabInfluencer.TabPages.Add(tpList);
             tabInfluencer.TabPages.Add(tpKB);
 
             // --- TAB 1: Influencer List ---
             // Top Panel
             var topPanel = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(45, 45, 48), Padding = new Padding(15) };
-            var lblTitle = new Label { Text = "ðŸ‘¥ Fenomen VeritabanÄ±", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
+            var lblTitle = new Label { Text = "👥 Fenomen Veritabanı", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
             topPanel.Controls.Add(lblTitle);
 
             var lblFilter = new Label { Text = "Kategori:", ForeColor = Color.White, Font = new Font("Segoe UI", 10), Location = new Point(280, 18), AutoSize = true };
@@ -1001,44 +1001,44 @@ namespace XiDeAI_Pro
                 BackColor = Color.FromArgb(60, 60, 60), 
                 ForeColor = Color.White 
             };
-            _influencerCategoryFilter.Items.AddRange(new object[] { "TÃ¼mÃ¼", "BIST", "CRYPTO", "FOREX" });
+            _influencerCategoryFilter.Items.AddRange(new object[] { "Tümü", "BIST", "CRYPTO", "FOREX" });
             _influencerCategoryFilter.SelectedIndex = 0;
             _influencerCategoryFilter.SelectedIndexChanged += (s, e) => RefreshInfluencerListView();
             topPanel.Controls.Add(_influencerCategoryFilter);
 
-            var btnRefresh = new Button { Text = "ðŸ”„", Location = new Point(480, 12), Width = 40, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnRefresh = new Button { Text = "🔄", Location = new Point(480, 12), Width = 40, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnRefresh.FlatAppearance.BorderSize = 0;
             btnRefresh.Click += (s, e) => RefreshInfluencerListView();
             topPanel.Controls.Add(btnRefresh);
 
             // Deep Scan Controls (Independent)
-            var btnStartScan = new Button { Text = "â–¶ TaramayÄ± BaÅŸlat", Location = new Point(540, 12), Width = 140, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnStartScan = new Button { Text = "▶ Taramayı Başlat", Location = new Point(540, 12), Width = 140, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStartScan.Click += (s, e) => {
                 // _deepScanTimer (removed).Start();
-                _lblDeepScanStatus.Text = "ðŸ“¡ TARAMA AKTÄ°F (Her 45dk)";
+                _lblDeepScanStatus.Text = "📡 TARAMA AKTİF (Her 45dk)";
                 _lblDeepScanStatus.ForeColor = Color.Lime;
-                Log("ðŸ§  HafÄ±za TaramasÄ± (Deep Scan) manuel olarak BAÅžLATILDI.", "System");
+                Log("🧠 Hafıza Taraması (Deep Scan) manuel olarak BAŞLATILDI.", "System");
                 // Run once immediately
                 Task.Run(() => _opManager.SocialIntel.PerformDeepScanAsync((msg) => Log(msg, "Social")));
             };
             topPanel.Controls.Add(btnStartScan);
 
-            var btnStopScan = new Button { Text = "â¹ Durdur", Location = new Point(690, 12), Width = 80, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnStopScan = new Button { Text = "⏹ Durdur", Location = new Point(690, 12), Width = 80, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStopScan.Click += (s, e) => {
                 // _deepScanTimer (removed).Stop();
-                _lblDeepScanStatus.Text = "â¸ TARAMA DURDURULDU";
+                _lblDeepScanStatus.Text = "⏸ TARAMA DURDURULDU";
                 _lblDeepScanStatus.ForeColor = Color.Orange;
-                Log("ðŸ§  HafÄ±za TaramasÄ± (Deep Scan) DURDURULDU.", "System");
+                Log("🧠 Hafıza Taraması (Deep Scan) DURDURULDU.", "System");
             };
             topPanel.Controls.Add(btnStopScan);
 
-            _lblDeepScanStatus = new Label { Text = "â¸ TARAMA DURDURULDU", Location = new Point(780, 18), AutoSize = true, ForeColor = Color.Orange, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+            _lblDeepScanStatus = new Label { Text = "⏸ TARAMA DURDURULDU", Location = new Point(780, 18), AutoSize = true, ForeColor = Color.Orange, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
             topPanel.Controls.Add(_lblDeepScanStatus);
 
             // Bottom Action Panel
             var actionPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(40, 40, 45), Padding = new Padding(15) };
 
-            var txtNewHandle = new TextBox { Location = new Point(15, 15), Width = 150, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, PlaceholderText = "@kullanÄ±cÄ±_adÄ±" };
+            var txtNewHandle = new TextBox { Location = new Point(15, 15), Width = 150, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, PlaceholderText = "@kullanıcı_adı" };
             actionPanel.Controls.Add(txtNewHandle);
 
             var cmbNewCategory = new ComboBox { Location = new Point(175, 15), Width = 100, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White };
@@ -1046,7 +1046,7 @@ namespace XiDeAI_Pro
             cmbNewCategory.SelectedIndex = 0;
             actionPanel.Controls.Add(cmbNewCategory);
 
-            var btnAdd = new Button { Text = "âž• Ekle", Location = new Point(290, 12), Width = 80, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnAdd = new Button { Text = "➕ Ekle", Location = new Point(290, 12), Width = 80, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnAdd.FlatAppearance.BorderSize = 0;
             btnAdd.Click += (s, e) => {
                 if (string.IsNullOrWhiteSpace(txtNewHandle.Text)) return;
@@ -1057,7 +1057,7 @@ namespace XiDeAI_Pro
             };
             actionPanel.Controls.Add(btnAdd);
 
-            var btnDelete = new Button { Text = "ðŸ—‘ï¸ Sil", Location = new Point(380, 12), Width = 80, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnDelete = new Button { Text = "🗑️ Sil", Location = new Point(380, 12), Width = 80, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnDelete.FlatAppearance.BorderSize = 0;
             btnDelete.Click += (s, e) => {
                 if (_influencerListView.SelectedItems.Count == 0) return;
@@ -1070,10 +1070,10 @@ namespace XiDeAI_Pro
             };
             actionPanel.Controls.Add(btnDelete);
 
-            var btnReset = new Button { Text = "ðŸ” VarsayÄ±lana DÃ¶n", Location = new Point(480, 12), Width = 140, Height = 35, BackColor = Color.DarkGoldenrod, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnReset = new Button { Text = "🔁 Varsayılana Dön", Location = new Point(480, 12), Width = 140, Height = 35, BackColor = Color.DarkGoldenrod, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnReset.FlatAppearance.BorderSize = 0;
             btnReset.Click += (s, e) => { 
-                if (MessageBox.Show("TÃ¼m fenomenler silinip varsayÄ±lan liste yÃ¼klenecek. Emin misiniz?", "Onay", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("Tüm fenomenler silinip varsayılan liste yüklenecek. Emin misiniz?", "Onay", MessageBoxButtons.YesNo) == DialogResult.Yes)
                 { _opManager.InfluencerControl.ResetDatabase(); RefreshInfluencerListView(); }
             };
             actionPanel.Controls.Add(btnReset);
@@ -1088,7 +1088,7 @@ namespace XiDeAI_Pro
                 Font = new Font("Segoe UI", 10)
             };
             _influencerListView.Columns.Add("Kategori", 100);
-            _influencerListView.Columns.Add("KullanÄ±cÄ±", 200);
+            _influencerListView.Columns.Add("Kullanıcı", 200);
             _influencerListView.Columns.Add("Skor", 80);
             _influencerListView.Columns.Add("Eklenme Tarihi", 150);
 
@@ -1098,7 +1098,7 @@ namespace XiDeAI_Pro
 
             // --- TAB 2: Knowledge Base ---
             var pnlKBAction = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(45, 45, 48), Padding = new Padding(10) };
-            var btnRefreshKB = new Button { Text = "ðŸ”„ VeritabanÄ±nÄ± Yenile", Dock = DockStyle.Left, Width = 180, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnRefreshKB = new Button { Text = "🔄 Veritabanını Yenile", Dock = DockStyle.Left, Width = 180, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnRefreshKB.Click += (s, e) => RefreshKnowledgeBaseListView();
             pnlKBAction.Controls.Add(btnRefreshKB);
 
@@ -1112,8 +1112,8 @@ namespace XiDeAI_Pro
             };
             _kbListView.Columns.Add("Tarih", 130);
             _kbListView.Columns.Add("Yazar", 120);
-            _kbListView.Columns.Add("Ä°Ã§erik", 450);
-            _kbListView.Columns.Add("Ä°lgili Semboller", 150);
+            _kbListView.Columns.Add("İçerik", 450);
+            _kbListView.Columns.Add("İlgili Semboller", 150);
             _kbListView.Columns.Add("Skor", 50);
 
             tpKB.Controls.Add(_kbListView);
@@ -1150,8 +1150,8 @@ namespace XiDeAI_Pro
             if (_influencerListView == null) return;
             _influencerListView.Items.Clear();
 
-            string filter = _influencerCategoryFilter?.SelectedItem?.ToString() ?? "TÃ¼mÃ¼";
-            var categories = filter == "TÃ¼mÃ¼" ? new[] { "BIST", "CRYPTO", "FOREX" } : new[] { filter };
+            string filter = _influencerCategoryFilter?.SelectedItem?.ToString() ?? "Tümü";
+            var categories = filter == "Tümü" ? new[] { "BIST", "CRYPTO", "FOREX" } : new[] { filter };
 
             foreach (var cat in categories)
             {
@@ -1176,10 +1176,10 @@ namespace XiDeAI_Pro
             _historyInitialized = true;
 
             var topPanel = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(45, 45, 48), Padding = new Padding(15) };
-            var lblTitle = new Label { Text = "ðŸ“œ Aktivite GeÃ§miÅŸi", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
+            var lblTitle = new Label { Text = "📜 Aktivite Geçmişi", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
             topPanel.Controls.Add(lblTitle);
 
-            var lblFilter = new Label { Text = "ModÃ¼l:", ForeColor = Color.White, Font = new Font("Segoe UI", 10), Location = new Point(250, 18), AutoSize = true };
+            var lblFilter = new Label { Text = "Modül:", ForeColor = Color.White, Font = new Font("Segoe UI", 10), Location = new Point(250, 18), AutoSize = true };
             topPanel.Controls.Add(lblFilter);
 
             _historyModuleFilter = new ComboBox { 
@@ -1189,13 +1189,13 @@ namespace XiDeAI_Pro
                 BackColor = Color.FromArgb(60, 60, 60), 
                 ForeColor = Color.White 
             };
-            _historyModuleFilter.Items.AddRange(new object[] { "TÃ¼mÃ¼", "System", "Twitter", "Social", "AI", "Telegram", "News", "Signal" });
+            _historyModuleFilter.Items.AddRange(new object[] { "Tümü", "System", "Twitter", "Social", "AI", "Telegram", "News", "Signal" });
             _historyModuleFilter.SelectedIndex = 0;
             _historyModuleFilter.SelectedIndexChanged += (s, e) => LoadActivityHistory();
             topPanel.Controls.Add(_historyModuleFilter);
 
             var btnRefresh = new Button { 
-                Text = "ðŸ”„ Yenile", 
+                Text = "🔄 Yenile", 
                 Location = new Point(480, 12), 
                 Width = 100, 
                 Height = 35, 
@@ -1226,28 +1226,28 @@ namespace XiDeAI_Pro
             _newsInitialized = true;
 
             var topPanel = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(40, 44, 52), Padding = new Padding(15) };
-            var lblTitle = new Label { Text = "ðŸ“° Haber EditÃ¶rÃ¼", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
+            var lblTitle = new Label { Text = "📰 Haber Editörü", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 14, FontStyle.Bold), AutoSize = true, Location = new Point(15, 15) };
             topPanel.Controls.Add(lblTitle);
 
-            btnNewsStart = new Button { Text = "â–¶ TAKÄ°BÄ° BAÅžLAT", Location = new Point(220, 12), Width = 140, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8, FontStyle.Bold) };
+            btnNewsStart = new Button { Text = "▶ TAKİBİ BAŞLAT", Location = new Point(220, 12), Width = 140, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8, FontStyle.Bold) };
             btnNewsStart.FlatAppearance.BorderSize = 0;
             btnNewsStart.Click += (s, e) => { 
                 _isNewsTrackerRunning = true; 
                 btnNewsStart.Enabled = false; 
                 btnNewsStop.Enabled = true; 
                 _opManager.NewsTracker.Start(); // Fix: Actually start the service
-                Log("ðŸ“° Haber takibi aktif.", "News"); 
+                Log("📰 Haber takibi aktif.", "News"); 
             };
             topPanel.Controls.Add(btnNewsStart);
 
-            btnNewsStop = new Button { Text = "â¹ DURDUR", Location = new Point(370, 12), Width = 100, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8, FontStyle.Bold), Enabled = false };
+            btnNewsStop = new Button { Text = "⏹ DURDUR", Location = new Point(370, 12), Width = 100, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 8, FontStyle.Bold), Enabled = false };
             btnNewsStop.FlatAppearance.BorderSize = 0;
             btnNewsStop.Click += (s, e) => { 
                 _isNewsTrackerRunning = false; 
                 btnNewsStart.Enabled = true; 
                 btnNewsStop.Enabled = false; 
                 _opManager.NewsTracker.Stop(); // Fix: Actually stop the service
-                Log("ðŸ›‘ Haber takibi durduruldu.", "News"); 
+                Log("🛑 Haber takibi durduruldu.", "News"); 
             };
             topPanel.Controls.Add(btnNewsStop);
 
@@ -1258,23 +1258,23 @@ namespace XiDeAI_Pro
             tabNews.SizeMode = TabSizeMode.Normal;
 
             // Tab 1: PENDING
-            var pgPending = new TabPage("âš ï¸ Onay Bekleyenler");
+            var pgPending = new TabPage("⚠️ Onay Bekleyenler");
             pgPending.BackColor = Color.FromArgb(30,30,30);
             pnlNewsPending = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(10), BackColor = Color.FromArgb(35,35,40) };
-            pnlNewsPending.Controls.Add(new Label { Text = "âŒ› Onay bekleyen haber bulunmuyor.", ForeColor = Color.Gray, AutoSize = true });
+            pnlNewsPending.Controls.Add(new Label { Text = "⌛ Onay bekleyen haber bulunmuyor.", ForeColor = Color.Gray, AutoSize = true });
             pgPending.Controls.Add(pnlNewsPending);
             tabNews.TabPages.Add(pgPending);
 
             // Tab 2: PUBLISHED
-            var pgPublished = new TabPage("âœ… YayÄ±nlananlar");
+            var pgPublished = new TabPage("✅ Yayınlananlar");
             pgPublished.BackColor = Color.FromArgb(30,30,30);
             pnlNewsCards = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(10), BackColor = Color.FromArgb(30,30,30) };
-            pnlNewsCards.Controls.Add(new Label { Text = "âœ… YayÄ±nlanan haber bulunmuyor.", ForeColor = Color.Gray, AutoSize = true });
+            pnlNewsCards.Controls.Add(new Label { Text = "✅ Yayınlanan haber bulunmuyor.", ForeColor = Color.Gray, AutoSize = true });
             pgPublished.Controls.Add(pnlNewsCards);
             tabNews.TabPages.Add(pgPublished);
 
             // Tab 3: LIVE FEED
-            var pgLive = new TabPage("ðŸ“¡ CanlÄ± AkÄ±ÅŸ");
+            var pgLive = new TabPage("📡 Canlı Akış");
             pgLive.BackColor = Color.FromArgb(30,30,30);
             pnlNewsLive = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(10), BackColor = Color.Black };
             pgLive.Controls.Add(pnlNewsLive);
@@ -1332,7 +1332,7 @@ namespace XiDeAI_Pro
             {
                 var pnlBtns = new Panel { Dock = DockStyle.Bottom, Height = 35 };
                 
-                var btnApprove = new Button { Text = "âœ… ONAYLA", Dock = DockStyle.Right, Width = 80, BackColor = Color.Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold) };
+                var btnApprove = new Button { Text = "✅ ONAYLA", Dock = DockStyle.Right, Width = 80, BackColor = Color.Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold) };
                 btnApprove.FlatAppearance.BorderSize = 0;
                 btnApprove.Click += async (s, e) => {
                     targetPanel.Controls.Remove(card);
@@ -1340,11 +1340,11 @@ namespace XiDeAI_Pro
                     // Moved to published automatically by NewsEngine event, but we can double check
                 };
                 
-                var btnReject = new Button { Text = "ðŸ—‘ï¸ REDDET", Dock = DockStyle.Right, Width = 80, BackColor = Color.Red, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold), Margin = new Padding(0,0,5,0) };
+                var btnReject = new Button { Text = "🗑️ REDDET", Dock = DockStyle.Right, Width = 80, BackColor = Color.Red, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold), Margin = new Padding(0,0,5,0) };
                 btnReject.FlatAppearance.BorderSize = 0;
                 btnReject.Click += (s, e) => {
                     targetPanel.Controls.Remove(card);
-                    Log($"Haber kullanÄ±cÄ± tarafÄ±ndan reddedildi: {news.Title}", "News");
+                    Log($"Haber kullanıcı tarafından reddedildi: {news.Title}", "News");
                 };
 
                 pnlBtns.Controls.Add(btnApprove);
@@ -1371,10 +1371,10 @@ namespace XiDeAI_Pro
 
             // Clear immediately to show feedback
             _historyLogView.Clear();
-            _historyLogView.Text = "Loglar yÃ¼kleniyor, lÃ¼tfen bekleyin...";
+            _historyLogView.Text = "Loglar yükleniyor, lütfen bekleyin...";
 
             // Capture filter value on UI Thread BEFORE running background task
-            string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "TÃ¼mÃ¼";
+            string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "Tümü";
 
             try
             {
@@ -1382,7 +1382,7 @@ namespace XiDeAI_Pro
                 var historyText = await Task.Run(() => 
                 {
                     string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "Logs");
-                    if (!Directory.Exists(logDir)) return "HenÃ¼z log kaydÄ± bulunamadÄ±.";
+                    if (!Directory.Exists(logDir)) return "Henüz log kaydı bulunamadı.";
 
                     var allLines = new List<(DateTime time, string module, string line)>();
 
@@ -1395,7 +1395,7 @@ namespace XiDeAI_Pro
                         string moduleName = parts[parts.Length - 1]; // e.g. "System" from "Log_2024-01-01_System"
                         
                         // Apply filter
-                        if (filter != "TÃ¼mÃ¼" && !string.Equals(moduleName, filter, StringComparison.OrdinalIgnoreCase))
+                        if (filter != "Tümü" && !string.Equals(moduleName, filter, StringComparison.OrdinalIgnoreCase))
                             continue;
 
                         try
@@ -1426,7 +1426,7 @@ namespace XiDeAI_Pro
                         catch { /* Skip corrupted files */ }
                     }
 
-                    if (allLines.Count == 0) return "SeÃ§ili modÃ¼l iÃ§in log kaydÄ± bulunamadÄ±.";
+                    if (allLines.Count == 0) return "Seçili modül için log kaydı bulunamadı.";
 
                     // Sort: Newest first
                     var sb = new StringBuilder();
@@ -1460,12 +1460,12 @@ namespace XiDeAI_Pro
             bool success = await SaveTradingViewCookiesAsync();
             if (success)
             {
-                Log("âœ… TradingView oturumu senkronize edildi", "System");
-                MessageBox.Show("TradingView Ã§erezleri baÅŸarÄ±yla kaydedildi.\nGrafikleriniz artÄ±k bu oturumla aÃ§Ä±lacak.");
+                Log("✅ TradingView oturumu senkronize edildi", "System");
+                MessageBox.Show("TradingView çerezleri başarıyla kaydedildi.\nGrafikleriniz artık bu oturumla açılacak.");
             }
             else
             {
-                Log("âŒ TradingView oturumu kaydedilemedi", "Error");
+                Log("❌ TradingView oturumu kaydedilemedi", "Error");
             }
             
             if (btn != null) btn.Enabled = true;
@@ -1519,7 +1519,7 @@ namespace XiDeAI_Pro
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 await _webViewChart.EnsureCoreWebView2Async(env);
 
-                // TradingView Ã‡erez Enjeksiyonu
+                // TradingView Çerez Enjeksiyonu
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
                 string cookieJsonPath = Path.Combine(appDataDir, "tradingview_cookies.json");
 
@@ -1546,7 +1546,7 @@ namespace XiDeAI_Pro
                                     cookieManager.AddOrUpdateCookie(cookie);
                                 }
                             }
-                            Log("âœ… TradingView oturum Ã§erezleri enjekte edildi", "System");
+                            Log("✅ TradingView oturum çerezleri enjekte edildi", "System");
                         }
                     }
                     catch (Exception ex)
@@ -1571,12 +1571,12 @@ namespace XiDeAI_Pro
             bool success = await SaveTwitterCookiesAsync();
             if (success)
             {
-                Log("âœ… X Oturumu senkronize edildi (WebView2 -> Pickle)", "System");
-                MessageBox.Show("X oturum Ã§erezleri baÅŸarÄ±yla kaydedildi.\nSinyal botu artÄ±k bu yeni oturumu kullanacak.");
+                Log("✅ X Oturumu senkronize edildi (WebView2 -> Pickle)", "System");
+                MessageBox.Show("X oturum çerezleri başarıyla kaydedildi.\nSinyal botu artık bu yeni oturumu kullanacak.");
             }
             else
             {
-                Log("âŒ X Oturumu senkronize edilemedi", "Error");
+                Log("❌ X Oturumu senkronize edilemedi", "Error");
             }
             
             if (btn != null) btn.Enabled = true;
@@ -1692,11 +1692,11 @@ namespace XiDeAI_Pro
                                 }
                             }
                         }
-                        Log($"ðŸª {addedCount} Ã§erez enjekte edildi (Twitter -> X Migration Active).", "System");
+                        Log($"🍪 {addedCount} çerez enjekte edildi (Twitter -> X Migration Active).", "System");
                     }
                     else
                     {
-                        Log("âš ï¸ Ã‡erez dosyasÄ± okundu ama iÃ§i boÅŸ veya geÃ§ersiz.", "Warning");
+                        Log("⚠️ Çerez dosyası okundu ama içi boş veya geçersiz.", "Warning");
                     }
                 }
             }
@@ -1736,12 +1736,12 @@ namespace XiDeAI_Pro
                 };
                 syncTimer.Start();
                 
-                Log("âœ… X (Twitter) oturum ve otomatik senkronizasyon (30sn) baÅŸlatÄ±ldÄ±", "System");
+                Log("✅ X (Twitter) oturum ve otomatik senkronizasyon (30sn) başlatıldı", "System");
                 _webViewTwitter.Source = new Uri("https://x.com/home");
             }
             catch (Exception ex)
             {
-                Log("âŒ Twitter WebView Init Failed (CRITICAL): " + ex.Message, "Error");
+                Log("❌ Twitter WebView Init Failed (CRITICAL): " + ex.Message, "Error");
                 Debug.WriteLine("Twitter WebView Init Failed: " + ex.Message);
             }
         }
@@ -1837,7 +1837,7 @@ namespace XiDeAI_Pro
                 var json = System.Text.Json.JsonSerializer.Serialize(list);
                 await File.WriteAllTextAsync(jsonPath, json);
                 // Log only if significant change or debug? Too spammy for main log.
-                // Log("ðŸª Cookies synced to JSON for Python", "System"); 
+                // Log("🍪 Cookies synced to JSON for Python", "System"); 
             }
             catch (Exception ex)
             {
@@ -1864,7 +1864,7 @@ namespace XiDeAI_Pro
                 _opManager.SignalEng.OnSignalProcessed += (sig) => this.Invoke((MethodInvoker)(() => AddSignalToGrid(sig)));
 
                 _opManager.NewsEng.OnNewsProcessed += (news, summary, importance, category) => {
-                    UpdateBotStatus($"ðŸ“° [{category}] Haber YayÄ±nlandÄ±: {news.Title}");
+                    UpdateBotStatus($"📰 [{category}] Haber Yayınlandı: {news.Title}");
                     if (_newsInitialized) AddNewsCard(news, summary, "PUBLISHED");
                 };
 
@@ -1872,17 +1872,17 @@ namespace XiDeAI_Pro
                     int id = Interlocked.Increment(ref _newsIdCounter);
                     _pendingNewsDict[id] = (news, summary);
                     string analysisText = includesAnalysis ? "+ Analiz" : "Sadece Haber";
-                    UpdateBotStatus($"âš ï¸ [{category}] Onay Bekliyor [ID: {id}] ({analysisText}): {news.Title}");
+                    UpdateBotStatus($"⚠️ [{category}] Onay Bekliyor [ID: {id}] ({analysisText}): {news.Title}");
                     if (_newsInitialized) AddNewsCard(news, summary, "PENDING");
                     
-                    string msg = $"âš ï¸ *ONAY BEKLÄ°YOR [ID: {id}] ({score}/10)*\n\n" +
-                                 $"ðŸ“‚ *Kategori:* {category}\n" +
-                                 $"ðŸ“° *{news.Title}*\n" +
-                                 $"ðŸ“ *Ä°Ã§erik:* {analysisText}\n" +
-                                 $"ðŸ”Ž *Analiz:* {reasoning}\n" +
-                                 $"ðŸ“ *Ã–zet:* {summary}\n\n" +
-                                 $"âœ… Onay: `/ONAYHABER {id}`\n" +
-                                 $"âŒ Red: `/REDHABER {id}`";
+                    string msg = $"⚠️ *ONAY BEKLİYOR [ID: {id}] ({score}/10)*\n\n" +
+                                 $"📂 *Kategori:* {category}\n" +
+                                 $"📰 *{news.Title}*\n" +
+                                 $"📝 *İçerik:* {analysisText}\n" +
+                                 $"🔎 *Analiz:* {reasoning}\n" +
+                                 $"📝 *Özet:* {summary}\n\n" +
+                                 $"✅ Onay: `/ONAYHABER {id}`\n" +
+                                 $"❌ Red: `/REDHABER {id}`";
                     _ = _opManager.Telegram.SendMessageAsync(msg);
                 };
 
@@ -1893,18 +1893,18 @@ namespace XiDeAI_Pro
                 // v4.0.1 CRITICAL FIX: Connect NewsTracker to NewsEngine for processing
                 _opManager.NewsTracker.OnNewsDetected += OnNewsReceived;
 
-                // v3.0.7 FB FanZone UI Binding (v4.5.3: Updated to 6 columns, added EtkileÅŸim)
+                // v3.0.7 FB FanZone UI Binding (v4.5.3: Updated to 6 columns, added Etkileşim)
                 _opManager.FanZone.OnNewFanContent += (fanTweet) => {
                     this.Invoke((MethodInvoker)(() => {
                         if (dgvFenerbahce != null && !this.IsDisposed)
                         {
                             // v4.5.3: 6 columns: Time, Source, Interaction, Tweet, Reaction, Status
-                            string status = "âœ… Tamam";
-                            if (string.IsNullOrEmpty(fanTweet.AIReaction)) status = "âš ï¸ AtlandÄ±";
+                            string status = "✅ Tamam";
+                            if (string.IsNullOrEmpty(fanTweet.AIReaction)) status = "⚠️ Atlandı";
 
                             dgvFenerbahce.Rows.Insert(0, 
                                 fanTweet.DetectedAt.ToString("HH:mm"), 
-                                fanTweet.Handle + (fanTweet.Source == "GÃ¼ndem" ? " (GÃ¼ndem)" : ""), 
+                                fanTweet.Handle + (fanTweet.Source == "Gündem" ? " (Gündem)" : ""), 
                                 fanTweet.InteractionIcons,  // New column
                                 fanTweet.Text, 
                                 fanTweet.AIReaction,
@@ -1941,22 +1941,22 @@ namespace XiDeAI_Pro
                             // We don't want to process old commands from hours ago on every restart, 
                             // so we still set the offset to the latest, but we log the catch-up.
                             _lastProcessedUpdateId = lastUpdates.Max(u => u.UpdateId);
-                            Logger.Telegram($"ðŸ“¡ Telegram polling baÅŸlatÄ±lÄ±yor. Bekleyen {lastUpdates.Count} mesaj sisteme tanÄ±tÄ±ldÄ±. Son ID: {_lastProcessedUpdateId}");
+                            Logger.Telegram($"📡 Telegram polling başlatılıyor. Bekleyen {lastUpdates.Count} mesaj sisteme tanıtıldı. Son ID: {_lastProcessedUpdateId}");
                         }
                         else
                         {
-                            Logger.Telegram("ðŸ“¡ Telegram polling baÅŸlatÄ±lÄ±yor (Bekleyen mesaj yok).");
+                            Logger.Telegram("📡 Telegram polling başlatılıyor (Bekleyen mesaj yok).");
                         }
                     }
                     catch (Exception tex)
                     {
-                        Logger.Telegram($"âš ï¸ Telegram baÅŸlangÄ±Ã§ offset alma hatasÄ±: {tex.Message}");
+                        Logger.Telegram($"⚠️ Telegram başlangıç offset alma hatası: {tex.Message}");
                     }
                     finally
                     {
                         this.Invoke((MethodInvoker)(() => {
                             _telegramPollTimer.Start();
-                            Logger.Telegram("âœ… Telegram polling timer aktif (UI Thread).");
+                            Logger.Telegram("✅ Telegram polling timer aktif (UI Thread).");
                         }));
                     }
                 });
@@ -1980,14 +1980,14 @@ namespace XiDeAI_Pro
                 _botTimer = new System.Windows.Forms.Timer();
                 _botTimer.Interval = 1000 * 60 * 15; // 15 Minutes (Adjustable)
                 _botTimer.Tick += async (s, e) => {
-                     try { await CheckForInteractions(); } catch (Exception ex) { Log($"Bot HatasÄ±: {ex.Message}", "System"); }
+                     try { await CheckForInteractions(); } catch (Exception ex) { Log($"Bot Hatası: {ex.Message}", "System"); }
                 };
 
-                Log("ðŸš€ XiDeAI Pro: TÃ¼m sistemler nominal. (OperationManager Active)", "System");
+                Log("🚀 XiDeAI Pro: Tüm sistemler nominal. (OperationManager Active)", "System");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Servis baÅŸlatma hatasÄ±: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Servis başlatma hatası: {ex.Message}", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -2008,11 +2008,11 @@ namespace XiDeAI_Pro
             txtGeminiKey.Text = geminiKey;
             if (!string.IsNullOrEmpty(geminiKey))
             {
-                Log($"âœ… Gemini API Key yÃ¼klendi (uzunluk: {geminiKey.Length} karakter)", "System");
+                Log($"✅ Gemini API Key yüklendi (uzunluk: {geminiKey.Length} karakter)", "System");
             }
             else
             {
-                Log("âš ï¸ Gemini API Key bulunamadÄ± - lÃ¼tfen Ayarlar'dan giriniz", "System");
+                Log("⚠️ Gemini API Key bulunamadı - lütfen Ayarlar'dan giriniz", "System");
             }
             
             // Load Perplexity Key (v3.1+)
@@ -2021,10 +2021,10 @@ namespace XiDeAI_Pro
             
             // v3.1.1: Force Update Telegram Token in Service after loading
             _opManager.Telegram.UpdateConfig();
-            Logger.Telegram("ðŸ”„ Telegram AyarlarÄ± Senkronize Edildi.");
+            Logger.Telegram("🔄 Telegram Ayarları Senkronize Edildi.");
             if (!string.IsNullOrEmpty(cfg.PerplexityApiKey))
             {
-                Log($"âœ… Perplexity API Key yÃ¼klendi (uzunluk: {cfg.PerplexityApiKey.Length} karakter)", "System");
+                Log($"✅ Perplexity API Key yüklendi (uzunluk: {cfg.PerplexityApiKey.Length} karakter)", "System");
             }
             
             // Load Gemini Model
@@ -2044,7 +2044,7 @@ namespace XiDeAI_Pro
 
             chkAuto.Checked = cfg.AutoTweet;
             
-            // Sinyal kaynaÄŸÄ± filtreleri (Alpha/PreMove)
+            // Sinyal kaynağı filtreleri (Alpha/PreMove)
             chkAlpha.Checked = cfg.EnableAlpha;
             chkPreMove.Checked = cfg.EnablePreMove;
             chkAlphaOnlyAktif.Checked = cfg.AlphaOnlyAktif;
@@ -2087,7 +2087,7 @@ namespace XiDeAI_Pro
             string newGeminiKey = txtGeminiKey.Text.Trim();
             if (!string.IsNullOrEmpty(newGeminiKey) && newGeminiKey != cfg.GeminiApiKey)
             {
-                Log($"ðŸ”‘ Gemini API Key gÃ¼ncelleniyor... (uzunluk: {newGeminiKey.Length} karakter)", "System");
+                Log($"🔑 Gemini API Key güncelleniyor... (uzunluk: {newGeminiKey.Length} karakter)", "System");
             }
             cfg.GeminiApiKey = newGeminiKey;
             
@@ -2095,7 +2095,7 @@ namespace XiDeAI_Pro
             string newPerplexityKey = txtPerplexityKey.Text.Trim();
             if (!string.IsNullOrEmpty(newPerplexityKey) && newPerplexityKey != cfg.PerplexityApiKey)
             {
-                Log($"ðŸ”‘ Perplexity API Key gÃ¼ncelleniyor... (uzunluk: {newPerplexityKey.Length} karakter)", "System");
+                Log($"🔑 Perplexity API Key güncelleniyor... (uzunluk: {newPerplexityKey.Length} karakter)", "System");
             }
             cfg.PerplexityApiKey = newPerplexityKey;
             
@@ -2114,7 +2114,7 @@ namespace XiDeAI_Pro
 
             cfg.AutoTweet = chkAuto.Checked;
             
-            // Sinyal kaynaÄŸÄ± filtreleri (Alpha/PreMove)
+            // Sinyal kaynağı filtreleri (Alpha/PreMove)
             cfg.EnableAlpha = chkAlpha.Checked;
             cfg.EnablePreMove = chkPreMove.Checked;
             cfg.AlphaOnlyAktif = chkAlphaOnlyAktif.Checked;
@@ -2142,10 +2142,10 @@ namespace XiDeAI_Pro
             cfg.TargetAccounts = txtTargetAccounts?.Text?.Trim() ?? "";
 
             ConfigManager.Save();
-            Log("âœ… Ayarlar kaydedildi.", "System");
+            Log("✅ Ayarlar kaydedildi.", "System");
             
             // Show confirmation message box
-            MessageBox.Show("âœ… Ayarlar baÅŸarÄ±yla kaydedildi!\n\nGemini API Key aktif edildi.", "BaÅŸarÄ±lÄ±", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("✅ Ayarlar başarıyla kaydedildi!\n\nGemini API Key aktif edildi.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void BtnStart_Click(object? sender, EventArgs e)
@@ -2159,39 +2159,39 @@ namespace XiDeAI_Pro
             if (cfg.AutoTweet) 
             {
                // _deepScanTimer (removed).Start();
-               Log("ðŸ§  HafÄ±za TaramasÄ± (Deep Scan) Aktif.", "System");
+               Log("🧠 Hafıza Taraması (Deep Scan) Aktif.", "System");
             }
             */
 
-            Log("ðŸš€ Watcher Service Started...");
-            Log($"ðŸ“ Ä°zleniyor: C:\\iDeal\\Sinyal_Log_Database.txt (Alpha/PreMove DB)");
+            Log("🚀 Watcher Service Started...");
+            Log($"📁 İzleniyor: C:\\iDeal\\Sinyal_Log_Database.txt (Alpha/PreMove DB)");
             
             // v4.0 Bot Interaction Activation (DISABLED PER USER REQUEST)
             // if (_botTimer != null) {
             //     _botTimer.Start();
-            //     Log("ðŸ¤– Bot Interaction Timer Started (15 min interval).", "System");
+            //     Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
             //     // Run immediate check
             //     Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
             // }
 
             // --- MANUAL START FOR X MODULES ---
             Task.Run(async () => {
-                Log("ðŸš€ BaÅŸlatma tuÅŸuna basÄ±ldÄ±, X modÃ¼lleri ayaÄŸa kaldÄ±rÄ±lÄ±yor...", "System");
+                Log("🚀 Başlatma tuşuna basıldı, X modülleri ayağa kaldırılıyor...", "System");
                 try { await _opManager.SocialIntel.StartDaemonAsync(); } catch (Exception ex) { Log($"[Daemon] Starter Error: {ex.Message}", "System"); }
             });
-            // _opManager.NewsTracker.Start(); // v4.6.21 FIX: KaldÄ±rÄ±ldÄ±. Haber takibi kendi baÅŸlat butonu (btnNewsStart) ile Ã§alÄ±ÅŸacak.
+            // _opManager.NewsTracker.Start(); // v4.6.21 FIX: Kaldırıldı. Haber takibi kendi başlat butonu (btnNewsStart) ile çalışacak.
             // _opManager.FanZone.Start(); // DISABLED PER USER REQUEST
             // _deepScanTimer.Start(); // Removed per user request, keep manual for now
             // _trendEngagementTimer.Start(); // Removed per user request
             // ----------------------------------
 
             btnStart.Enabled = false;
-            btnStart.Text = "â³ Running...";
+            btnStart.Text = "⏳ Running...";
             btnStart.BackColor = Color.Gray;
             // Enable Stop and Pause buttons
             btnStopWatcher.Enabled = true;
             btnPauseWatcher.Enabled = true;
-            btnPauseWatcher.Text = "â¸ï¸ Pause";
+            btnPauseWatcher.Text = "⏸️ Pause";
             UpdateStatus("Watching...");
         }
 
@@ -2203,12 +2203,12 @@ namespace XiDeAI_Pro
             
             if (_botTimer != null) {
                 _botTimer.Stop();
-                Log("ðŸ¤– Bot Interaction Timer Stopped.", "System");
+                Log("🤖 Bot Interaction Timer Stopped.", "System");
             }
 
-            Log("â¹ï¸ Watcher Service Stopped.");
+            Log("⏹️ Watcher Service Stopped.");
             btnStart.Enabled = true;
-            btnStart.Text = "â–¶ Start";
+            btnStart.Text = "▶ Start";
             btnStart.BackColor = Color.FromArgb(0, 120, 212);
             btnStopWatcher.Enabled = false;
             btnPauseWatcher.Enabled = false;
@@ -2220,15 +2220,15 @@ namespace XiDeAI_Pro
             if (_watcher.IsPaused)
             {
                 _watcher.Resume();
-                Log("â–¶ï¸ Watcher Service Resumed.");
-                btnPauseWatcher.Text = "â¸ï¸ Pause";
+                Log("▶️ Watcher Service Resumed.");
+                btnPauseWatcher.Text = "⏸️ Pause";
                 UpdateStatus("Watching...");
             }
             else
             {
                 _watcher.Pause();
-                Log("â¸ï¸ Watcher Service Paused.");
-                btnPauseWatcher.Text = "â–¶ï¸ Resume";
+                Log("⏸️ Watcher Service Paused.");
+                btnPauseWatcher.Text = "▶️ Resume";
                 UpdateStatus("Paused");
             }
         }
@@ -2237,18 +2237,18 @@ namespace XiDeAI_Pro
         {
             if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
             {
-                Log($"ðŸ›¡ï¸ Spam protection (Motivation): {reason}", "Twitter");
+                Log($"🛡️ Spam protection (Motivation): {reason}", "Twitter");
                 return;
             }
-            Log("â˜€ï¸ Posting Morning Motivation...", "Twitter");
-            UpdateBotStatus("ðŸ“Š GÃ¼nlÃ¼k Motivasyon PaylaÅŸÄ±lÄ±yor...");
+            Log("☀️ Posting Morning Motivation...", "Twitter");
+            UpdateBotStatus("📊 Günlük Motivasyon Paylaşılıyor...");
             
             string? tweet = await _opManager.Gemini.GenerateMotivationTweet();
             
             // Fallback if AI fails
             if (string.IsNullOrEmpty(tweet))
             {
-                tweet = "â˜€ï¸ GÃ¼naydÄ±n!\n\n\"BaÅŸarÄ±, son deÄŸil; baÅŸarÄ±sÄ±zlÄ±k, Ã¶lÃ¼mcÃ¼l deÄŸil. Ã–nemli olan devam etme cesareti.\"\n- Winston Churchill\n\nðŸ’¡ Her dÃ¼ÅŸÃ¼ÅŸ yeni bir yÃ¼kseliÅŸ fÄ±rsatÄ±dÄ±r. VazgeÃ§meyin!\n\n#Motivasyon #Finans";
+                tweet = "☀️ Günaydın!\n\n\"Başarı, son değil; başarısızlık, ölümcül değil. Önemli olan devam etme cesareti.\"\n- Winston Churchill\n\n💡 Her düşüş yeni bir yükseliş fırsatıdır. Vazgeçmeyin!\n\n#Motivasyon #Finans";
             }
 
             if (ConfigManager.Current.AutoTweet)
@@ -2256,7 +2256,7 @@ namespace XiDeAI_Pro
                 var webResult = await _opManager.SocialIntel.PostTweet(tweet);
                 if (webResult.status == "success")
                 {
-                    Log("âœ… Motivation tweet sent (WebView)!", "Twitter");
+                    Log("✅ Motivation tweet sent (WebView)!", "Twitter");
                     _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION");
                 }
             }
@@ -2265,10 +2265,10 @@ namespace XiDeAI_Pro
                 string? sentUrl = await _opManager.Twitter.SendTweetAsync(tweet);
                 if (!string.IsNullOrEmpty(sentUrl)) 
                 { 
-                    Log("âœ… Motivation tweet sent (API)!", "Twitter"); 
+                    Log("✅ Motivation tweet sent (API)!", "Twitter"); 
                     _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION"); 
                 }
-                else Log($"âŒ Motivation tweet failed: {_opManager.Twitter.LastError}", "Twitter");
+                else Log($"❌ Motivation tweet failed: {_opManager.Twitter.LastError}", "Twitter");
             }
             UpdateBotStatus("IDLE");
         }
@@ -2277,10 +2277,10 @@ namespace XiDeAI_Pro
         {
             if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
             {
-                Log($"ðŸ›¡ï¸ Spam protection (KapanÄ±ÅŸ Ã–zeti): {reason}", "Twitter");
+                Log($"🛡️ Spam protection (Kapanış Özeti): {reason}", "Twitter");
                 return;
             }
-            Log("ðŸŒ† Posting Market Close Summary with Tables...", "Twitter");
+            Log("🌆 Posting Market Close Summary with Tables...", "Twitter");
             
             try
             {
@@ -2295,7 +2295,7 @@ namespace XiDeAI_Pro
                     var usd = financials.GetValueOrDefault("USD", "?");
                     
                     indicesData = $"XU100: {xu100}, ALTIN: {gold}, USD: {usd}";
-                    Log($"ðŸ“Š Endeksler Ã§ekildi: {indicesData}", "Twitter");
+                    Log($"📊 Endeksler çekildi: {indicesData}", "Twitter");
                 }
                 else
                 {
@@ -2312,7 +2312,7 @@ namespace XiDeAI_Pro
                 string topVolumeData = BuildStockTable(topVolume, "Top Volume");
 
                 // 3. AI Generation
-                Log("ðŸ¤– AI Piyasa KapanÄ±ÅŸ Ã–zeti HazÄ±rlanÄ±yor...", "System");
+                Log("🤖 AI Piyasa Kapanış Özeti Hazırlanıyor...", "System");
                 string pulseAnomalies = "";
 try {
     string pulseFile = @"C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt";
@@ -2333,24 +2333,24 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
                 if (tweets.Count > 0)
                 {
-                    Log($"ðŸš€ Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
+                    Log($"🚀 Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
                     var result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                     
                     if (result != null && result.status == "success")
                     {
-                        Log($"âœ… Market Close Summary thread sent successfully!", "Twitter");
+                        Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
                         for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
-                        Log($"âœ… Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
+                        Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
                     }
                     else
                     {
-                        Log($"âŒ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
+                        Log($"❌ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log($"âŒ Market Close Summary Error: {ex.Message}", "Twitter");
+                Log($"❌ Market Close Summary Error: {ex.Message}", "Twitter");
             }
         }
 
@@ -2408,20 +2408,20 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
 
             // ... (rest of method)
-            // Gece yarÄ±sÄ± reset
+            // Gece yarısı reset
             if (DateTime.Now.Hour == 0 && DateTime.Now.Minute == 0)
             {
                 _tweetedToday.Clear();
                 lock(_memoryLock) { _signalMemory.Clear(); }
                 lock(_newsLock) { _postedNewsToday.Clear(); }
-                Log("ðŸ”„ Daily tweet/news log cleared.");
+                Log("🔄 Daily tweet/news log cleared.");
             }
             
             // v4.0.1 FIX: Morning Motivation Tweet (09:30)
             if (now.Hour == 9 && now.Minute >= 30 && now.Minute < 35 && !_tweetedToday.Contains("MORNING_MOTIVATION"))
             {
                 _tweetedToday.Add("MORNING_MOTIVATION");
-                Log("â˜€ï¸ Sabah motivasyon tweeti zamanÄ±...", "System");
+                Log("☀️ Sabah motivasyon tweeti zamanı...", "System");
                 _ = PostMorningMotivation();
             }
             
@@ -2431,14 +2431,14 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 !_tweetedToday.Contains("CLOSE_REPORT"))
             {
                 _tweetedToday.Add("CLOSE_REPORT");
-                Log("ðŸ“Š GÃ¼n sonu raporu zamanÄ±...", "System");
+                Log("📊 Gün sonu raporu zamanı...", "System");
                 _ = PostMarketCloseSummary();
             }
         }
 
         private async Task UpdateProfileStats()
         {
-            UpdateBotStatus("ðŸ“Š Profil istatistikleri gÃ¼ncelleniyor...");
+            UpdateBotStatus("📊 Profil istatistikleri güncelleniyor...");
             try 
             {
                 var stats = await _opManager.SocialIntel.GetProfileStatsAsync();
@@ -2471,14 +2471,14 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
             catch (Exception ex)
             {
-                Logger.Twitter($"âš ï¸ Profil istatistik gÃ¼ncelleme hatasÄ±: {ex.Message}");
+                Logger.Twitter($"⚠️ Profil istatistik güncelleme hatası: {ex.Message}");
             }
             UpdateBotStatus("IDLE");
         }
         
         private async Task RefreshTrendsAsync()
         {
-            Log("ðŸ” Sinyal havuzundan ve X'ten Trendler oluÅŸturuluyor...");
+            Log("🔍 Sinyal havuzundan ve X'ten Trendler oluşturuluyor...");
 
             var activeTags = new HashSet<string>();
             string hardDataInfo = "";
@@ -2497,18 +2497,18 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         string direction = statData[2];
                         string percent = statData[3];
                         
-                        // Sadece aynÄ± gÃ¼nÃ¼n verisiyse kabul et (bayat veriyi engelle)
+                        // Sadece aynı günün verisiyse kabul et (bayat veriyi engelle)
                         if (DateTime.TryParse(date, out DateTime parsedDate) && parsedDate.Date == DateTime.Today)
                         {
                             hardDataInfo = $"[XU100_CANLI_VERI: MOD={mode}, TREND={direction}({percent})]";
-                            Log($"âœ… CanlÄ± Borsa Verisi Okundu: {hardDataInfo}");
+                            Log($"✅ Canlı Borsa Verisi Okundu: {hardDataInfo}");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log($"âš ï¸ Hard Data Okuma HatasÄ±: {ex.Message}");
+                Log($"⚠️ Hard Data Okuma Hatası: {ex.Message}");
             }
 
             // 1. Get Real X Trends (Filtered)
@@ -2537,7 +2537,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
 
             // 2. Add General Market Tags (Defaults)
-            var defaults = new[] { "#BIST100", "#Borsa", "#XU100", "#Hisse", "#AltÄ±n", "#Dolar" };
+            var defaults = new[] { "#BIST100", "#Borsa", "#XU100", "#Hisse", "#Altın", "#Dolar" };
             foreach(var d in defaults) activeTags.Add(d);
             
             // 3. Select subset
@@ -2552,13 +2552,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             // Update UI
             txtTrends.Text = trendsStr;
             ConfigManager.Current.DailyTrends = txtTrends.Text;
-            Log($"âœ… Trendler gÃ¼ncellendi: {txtTrends.Text}");
+            Log($"✅ Trendler güncellendi: {txtTrends.Text}");
 
             await Task.CompletedTask;
         
         }
 
-        #region Dahili X Otomasyon KÃ¶prÃ¼sÃ¼ (WebView2 Bridge)
+        #region Dahili X Otomasyon Köprüsü (WebView2 Bridge)
 
         private void InitializeInternalXBridge()
         {
@@ -2572,7 +2572,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             _opManager.SocialIntel.OnReplyRequested += (url, text) => PerformInternalReplyAsync(url, text);
             _opManager.SocialIntel.OnInteractTargetsRequested += (users) => PerformInternalInteractionAsync(users);
             
-            Log("ðŸ”— Internal Automation Bridge initialized (WebView2 Helper).", "System");
+            Log("🔗 Internal Automation Bridge initialized (WebView2 Helper).", "System");
         }
 
         private async Task InitializeBackgroundWebView()
@@ -2581,16 +2581,16 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             {
                 await _webViewTwitterBg.EnsureCoreWebView2Async();
                 
-                // Arkaplan WebView iÃ§in de Ã§erezleri enjekte et
+                // Arkaplan WebView için de çerezleri enjekte et
                 await InjectTwitterCookiesAsync(_webViewTwitterBg.CoreWebView2);
                 
                 // CoreWebView2 will use default profile usually, but injection ensures it's fresh.
                 _webViewTwitterBg.Source = new Uri("https://x.com/");
-                Log("ðŸŒ Arkaplan X servisi hazÄ±rlandÄ±.", "System");
+                Log("🌐 Arkaplan X servisi hazırlandı.", "System");
             }
             catch (Exception ex)
             {
-                Log($"âš ï¸ Background WebView Init Error: {ex.Message}", "System");
+                Log($"⚠️ Background WebView Init Error: {ex.Message}", "System");
             }
         }
 
@@ -2598,7 +2598,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             try
             {
-                LogAI("ðŸ¦ Dahili X ekranÄ± Ã¼zerinden paylaÅŸÄ±m baÅŸlatÄ±lÄ±yor...");
+                LogAI("🐦 Dahili X ekranı üzerinden paylaşım başlatılıyor...");
                 
                 // Bring Twitter tab to front
                 if (tabDashViews != null)
@@ -2622,7 +2622,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         try {
                             using var img = Image.FromFile(mediaPath!);
                             Clipboard.SetImage(img);
-                        } catch(Exception ex) { LogAI($"âš ï¸ Medya panoya kopyalanamadÄ±: {ex.Message}"); }
+                        } catch(Exception ex) { LogAI($"⚠️ Medya panoya kopyalanamadı: {ex.Message}"); }
                     }));
                 }
 
@@ -2634,7 +2634,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         // Open Composer
                         let btn = document.querySelector('[data-testid=""SideNav_NewTweet_Button""]') || 
                                   document.querySelector('[aria-label=""Post""]') ||
-                                  document.querySelector('[aria-label=""GÃ¶nder""]');
+                                  document.querySelector('[aria-label=""Gönder""]');
                         if (btn) btn.click();
                         await wait(1500);
 
@@ -2687,9 +2687,9 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 var sent = await sentTask;
                 
                 if (sent == "true")
-                    return new SocialIntelResult { status = "success", message = "Dahili olarak paylaÅŸÄ±ldÄ±." };
+                    return new SocialIntelResult { status = "success", message = "Dahili olarak paylaşıldı." };
                 else
-                    return new SocialIntelResult { status = "error", message = "GÃ¶nder butonu bulunamadÄ± veya pasif." };
+                    return new SocialIntelResult { status = "error", message = "Gönder butonu bulunamadı veya pasif." };
             }
             catch (Exception ex)
             {
@@ -2701,19 +2701,19 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             try
             {
-                LogAI($"ðŸ§µ Dahili X ekranÄ± Ã¼zerinden {tweets.Count} parÃ§alÄ±k zincir baÅŸlatÄ±lÄ±yor (v2 Engine)...");
+                LogAI($"🧵 Dahili X ekranı üzerinden {tweets.Count} parçalık zincir başlatılıyor (v2 Engine)...");
 
                 bool hasMedia = !string.IsNullOrEmpty(mediaPath) && File.Exists(mediaPath);
                 
                 // 0. FIRST: Dismiss any existing draft/confirmation dialogs
-                LogAI("   > Varsa eski taslak dialoglarÄ± kapatÄ±lÄ±yor...");
+                LogAI("   > Varsa eski taslak dialogları kapatılıyor...");
                 var dismissTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitter.ExecuteScriptAsync(@"
                     (function() {
-                        // Look for 'VazgeÃ§' (Cancel) or 'Discard' buttons in confirmation dialogs
+                        // Look for 'Vazgeç' (Cancel) or 'Discard' buttons in confirmation dialogs
                         var buttons = Array.from(document.querySelectorAll('button, [role=""button""]'));
                         var dismissBtn = buttons.find(b => {
                             var text = (b.innerText || b.textContent || '').toLowerCase().trim();
-                            return text === 'vazgeÃ§' || text === 'discard' || text === 'iptal' || 
+                            return text === 'vazgeç' || text === 'discard' || text === 'iptal' || 
                                    text === 'cancel' || text === 'kapat';
                         });
                         if (dismissBtn) {
@@ -2746,7 +2746,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                             var buttons = Array.from(document.querySelectorAll('button, [role=""button""]'));
                             var dismissBtn = buttons.find(b => {
                                 var text = (b.innerText || b.textContent || '').toLowerCase().trim();
-                                return text === 'vazgeÃ§' || text === 'discard';
+                                return text === 'vazgeç' || text === 'discard';
                             });
                             if (dismissBtn) { dismissBtn.click(); return 'dismissed_again'; }
                             return 'clear';
@@ -2757,7 +2757,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 }
                 
                 // 1. Navigate to X home and open composer
-                LogAI("   > X ana sayfasÄ±na gidiliyor ve composer aÃ§Ä±lÄ±yor...");
+                LogAI("   > X ana sayfasına gidiliyor ve composer açılıyor...");
                 var navTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitter.ExecuteScriptAsync(@"
                     (async function() {
                         const wait = (ms) => new Promise(r => setTimeout(r, ms));
@@ -2771,7 +2771,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         // Click compose button
                         var btn = document.querySelector('[data-testid=""SideNav_NewTweet_Button""]') || 
                                   document.querySelector('[aria-label=""Post""]') ||
-                                  document.querySelector('[aria-label=""GÃ¶nder""]') ||
+                                  document.querySelector('[aria-label=""Gönder""]') ||
                                   document.querySelector('a[href=""/compose/tweet""]');
                         if (btn) {
                             btn.click();
@@ -2817,7 +2817,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         })();
                     ")));
                     var checkRes = await checkTask;
-                    LogAI($"   > Kutu kontrolÃ¼ ({wait+1}/10): {checkRes}");
+                    LogAI($"   > Kutu kontrolü ({wait+1}/10): {checkRes}");
                     if (checkRes != null && checkRes.Contains("found"))
                     {
                         boxFound = true;
@@ -2834,12 +2834,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 // 3. Handle media first (if exists)
                 if (hasMedia)
                 {
-                    LogAI("   > GÃ¶rsel panoya alÄ±nÄ±p yapÄ±ÅŸtÄ±rÄ±lÄ±yor...");
+                    LogAI("   > Görsel panoya alınıp yapıştırılıyor...");
                     this.Invoke(new Action(() => {
                         try {
                             using var img = Image.FromFile(mediaPath!);
                             Clipboard.SetImage(img);
-                        } catch(Exception ex) { LogAI($"   âš ï¸ Clipboard hatasÄ±: {ex.Message}"); }
+                        } catch(Exception ex) { LogAI($"   ⚠️ Clipboard hatası: {ex.Message}"); }
                     }));
                     await Task.Delay(1000);
                     
@@ -2866,7 +2866,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 // 4. Type each tweet - SELENIUM-STYLE with execCommand insertText
                 for (int i = 0; i < tweets.Count; i++)
                 {
-                    LogAI($"   > Tweet {i + 1}/{tweets.Count} yazÄ±lÄ±yor ({tweets[i].Length} karakter)...");
+                    LogAI($"   > Tweet {i + 1}/{tweets.Count} yazılıyor ({tweets[i].Length} karakter)...");
                     
                     bool typeSuccess = false;
                     for (int attempt = 1; attempt <= 5; attempt++)
@@ -2933,7 +2933,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         
                         var typeTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitter.ExecuteScriptAsync(typeJs)));
                         var typeRes = await typeTask;
-                        LogAI($"   > YazÄ±m sonucu (deneme {attempt}): {typeRes}");
+                        LogAI($"   > Yazım sonucu (deneme {attempt}): {typeRes}");
                         
                         if (typeRes != null && typeRes.Contains("ok"))
                         {
@@ -2944,7 +2944,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         // If insertText failed, try clipboard paste as fallback
                         if (attempt == 3)
                         {
-                            LogAI("   > insertText baÅŸarÄ±sÄ±z, clipboard fallback deneniyor...");
+                            LogAI("   > insertText başarısız, clipboard fallback deneniyor...");
                             this.Invoke(new Action(() => {
                                 try { Clipboard.SetText(tweets[i]); } catch { }
                             }));
@@ -2969,7 +2969,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                             await Task.Delay(500);
                         }
                         
-                        LogAI($"   âš ï¸ Tweet {i + 1} deneme {attempt} baÅŸarÄ±sÄ±z, tekrar deneniyor...");
+                        LogAI($"   ⚠️ Tweet {i + 1} deneme {attempt} başarısız, tekrar deneniyor...");
                         await Task.Delay(1500);
                     }
                     
@@ -3018,7 +3018,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         if (addRes == null || !addRes.Contains("added"))
                         {
                             // Try keyboard shortcut as fallback
-                            LogAI("   > Klavye kÄ±sayolu deneniyor (Ctrl+Enter)...");
+                            LogAI("   > Klavye kısayolu deneniyor (Ctrl+Enter)...");
                             this.Invoke(new Action(() => {
                                 _webViewTwitter.Focus();
                                 SendKeys.SendWait("^{ENTER}");
@@ -3033,7 +3033,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 }
 
                 // 6. Click Post button
-                LogAI("   > TÃ¼m tweetler hazÄ±r. PaylaÅŸÄ±lÄ±yor...");
+                LogAI("   > Tüm tweetler hazır. Paylaşılıyor...");
                 var postTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitter.ExecuteScriptAsync(@"
                     (function() {
                         var btn = document.querySelector('[data-testid=""tweetButton""]') || 
@@ -3047,7 +3047,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     })();
                 ")));
                 var postRes = await postTask;
-                LogAI($"   > GÃ¶nder butonu: {postRes}");
+                LogAI($"   > Gönder butonu: {postRes}");
 
                 // 7. Verify success (modal closes)
                 await Task.Delay(2000);
@@ -3071,20 +3071,20 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
                 if (success)
                 {
-                    LogAI("   âœ… Thread baÅŸarÄ±yla yayÄ±nlandÄ±!");
+                    LogAI("   ✅ Thread başarıyla yayınlandı!");
                     return new SocialIntelResult { status = "success", message = "Thread posted via WebView2" };
                 }
                 else
                 {
-                    LogAI("   âš ï¸ Modal kapanmadÄ±, gÃ¶nderim baÅŸarÄ±sÄ±z kabul ediliyor.");
-                    // Ã–nceki kod (v4.7.5): "status": "success" dÃ¶nÃ¼yordu (unverified mantÄ±ÄŸÄ±) ve OperationEngine yanÄ±lÄ±yordu.
-                    // Yeni Kod (v4.7.6): "error" dÃ¶ner, bÃ¶ylece Ã¼st katmanlar fallback'e (x_daemon.py) yÃ¶nelir veya tekrar dener.
+                    LogAI("   ⚠️ Modal kapanmadı, gönderim başarısız kabul ediliyor.");
+                    // Önceki kod (v4.7.5): "status": "success" dönüyordu (unverified mantığı) ve OperationEngine yanılıyordu.
+                    // Yeni Kod (v4.7.6): "error" döner, böylece üst katmanlar fallback'e (x_daemon.py) yönelir veya tekrar dener.
                     return new SocialIntelResult { status = "error", message = "Thread sent verification failed (modal stuck)" };
                 }
             }
             catch (Exception ex)
             {
-                LogAI($"âŒ Dahili Thread HatasÄ±: {ex.Message}");
+                LogAI($"❌ Dahili Thread Hatası: {ex.Message}");
                 return new SocialIntelResult { status = "error", message = ex.Message };
             }
         }
@@ -3093,7 +3093,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             try
             {
-                LogSocial($"ðŸ” Dahili arama (Background): {query} (Filtre: {symbol})");
+                LogSocial($"🔍 Dahili arama (Background): {query} (Filtre: {symbol})");
 
                 // Check memory for historical analysis
                 if (_opManager.Memory != null && !string.IsNullOrWhiteSpace(symbol))
@@ -3101,7 +3101,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     var memories = _opManager.Memory.Recall(symbol, maxAgeHours: 4);
                     if (memories.Any())
                     {
-                        Log($"ðŸ§  Memory: {symbol} iÃ§in son 4 saatte paylaÅŸÄ±m yapÄ±ldÄ±. AtlanÄ±yor.", "Signal");
+                        Log($"🧠 Memory: {symbol} için son 4 saatte paylaşım yapıldı. Atlanıyor.", "Signal");
                         return new List<InfluencerPost>();
                     }
                 }
@@ -3206,27 +3206,27 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                     if (parsed.Count > 0)
                                     {
                                         collected.AddRange(parsed);
-                                        LogSocial($"ðŸ“Š @{cleanHandle}: {parsed.Count} post bulundu (Toplam: {collected.Count})");
+                                        LogSocial($"📊 @{cleanHandle}: {parsed.Count} post bulundu (Toplam: {collected.Count})");
                                     }
                                 }
                             }
                             catch (JsonException jex)
                             {
-                                LogSocial($"âš ï¸ Timeline JSON parse hatasÄ±: {jex.Message}");
+                                LogSocial($"⚠️ Timeline JSON parse hatası: {jex.Message}");
                             }
                         }
 
                         // INCREASED LIMIT v2.8.9: 100 items (was 30) for better deep analysis
                         if (collected.Count >= 100) 
                         {
-                            LogSocial($"âœ… Yeterli analiz bulundu ({collected.Count} post), {scannedCount}/{handles.Count} fenomen tarandÄ±.");
+                            LogSocial($"✅ Yeterli analiz bulundu ({collected.Count} post), {scannedCount}/{handles.Count} fenomen tarandı.");
                             break;
                         }
                     }
 
                     if (collected.Count > 0)
                     {
-                        LogSocial($"ðŸ“Š VIP aramasÄ±nda {collected.Count} post bulundu, global arama ile harmanlanacak.");
+                        LogSocial($"📊 VIP aramasında {collected.Count} post bulundu, global arama ile harmanlanacak.");
                     }
                 }
 
@@ -3234,7 +3234,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 string encodedQuery = Uri.EscapeDataString(query);
                 string searchUrl = $"https://x.com/search?q={encodedQuery}&src=typed_query&f=live";
                 _webViewTwitterBg.Invoke(new Action(() => _webViewTwitterBg.Source = new Uri(searchUrl)));
-                await Task.Delay(6000); // Arama sonuÃ§larÄ±nÄ±n yÃ¼klenmesi iÃ§in daha fazla sÃ¼re (4s yetersiz kalabiliyor)
+                await Task.Delay(6000); // Arama sonuçlarının yüklenmesi için daha fazla süre (4s yetersiz kalabiliyor)
 
                 // 1. Initial Scroll (C# side)
                 var scroll1Task = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitterBg.ExecuteScriptAsync("window.scrollBy(0, 800)")));
@@ -3344,11 +3344,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 string countJs = "document.querySelectorAll('article[data-testid=\"tweet\"]').length";
                 var artCountTask = (Task<string>)this.Invoke(new Func<Task<string>>(() => _webViewTwitterBg.ExecuteScriptAsync(countJs)));
                 var artCount = await artCountTask;
-                LogSocial($"ðŸ” Sayfada {artCount} makale (article) tespit edildi.");
+                LogSocial($"🔍 Sayfada {artCount} makale (article) tespit edildi.");
 
                 if (string.IsNullOrWhiteSpace(json) || json == "null")
                 {
-                    LogSocial("âš ï¸ Arama sonucu boÅŸ.");
+                    LogSocial("⚠️ Arama sonucu boş.");
                     return new List<InfluencerPost>();
                 }
 
@@ -3357,7 +3357,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     // WebView2 sometimes returns the string literal with escaped quotes or null as a string "null"
                     if (string.IsNullOrWhiteSpace(json) || json == "null" || json == "{}")
                     {
-                        LogSocial("âš ï¸ Arama sonucu boÅŸ veya geÃ§ersiz format (Raw: " + (json ?? "null") + ")");
+                        LogSocial("⚠️ Arama sonucu boş veya geçersiz format (Raw: " + (json ?? "null") + ")");
                         return new List<InfluencerPost>();
                     }
 
@@ -3369,31 +3369,31 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     
                     if (string.IsNullOrWhiteSpace(jsonData) || jsonData == "null" || jsonData == "[]" || jsonData == "{}")
                     {
-                        LogSocial("âš ï¸ Global arama iÃ§ JSON boÅŸ.");
+                        LogSocial("⚠️ Global arama iç JSON boş.");
                         var memory = _opManager?.Memory;
                         if (memory != null)
                         {
                             foreach (var p in collected.Where(x => x != null)) memory.Learn(p!);
                         }
-                        return collected; // VIP sonuÃ§larÄ±nÄ± koru
+                        return collected; // VIP sonuçlarını koru
                     }
 
                     var globalParsed = JsonSerializer.Deserialize<List<InfluencerPost>>(jsonData, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<InfluencerPost>();
                     if (globalParsed.Count > 0)
                     {
                         collected.AddRange(globalParsed);
-                        LogSocial($"âœ… Global arama tamamlandÄ±: {globalParsed.Count} sonuÃ§ eklendi.");
+                        LogSocial($"✅ Global arama tamamlandı: {globalParsed.Count} sonuç eklendi.");
                     }
                 }
                 catch (JsonException jex)
                 {
-                    LogSocial($"âš ï¸ Global arama JSON parse hatasÄ±: {jex.Message}");
+                    LogSocial($"⚠️ Global arama JSON parse hatası: {jex.Message}");
                     var memory = _opManager?.Memory;
                     if (memory != null)
                     {
                         foreach (var p in collected.Where(x => x != null)) memory.Learn(p!);
                     }
-                    return collected; // VIP sonuÃ§larÄ±nÄ± koru
+                    return collected; // VIP sonuçlarını koru
                 }
                 var memCache = _opManager?.Memory;
                 if (memCache != null)
@@ -3417,7 +3417,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
             catch (Exception ex)
             {
-                LogSocial($"âš ï¸ Dahili arama hatasÄ±: {ex.Message}");
+                LogSocial($"⚠️ Dahili arama hatası: {ex.Message}");
                 return new List<InfluencerPost>();
             }
         }
@@ -3505,7 +3505,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             try
             {
-                LogSocial($"ðŸ¤ Dahili etkileÅŸim baÅŸlatÄ±lÄ±yor ({users.Length} hesap)...");
+                LogSocial($"🤝 Dahili etkileşim başlatılıyor ({users.Length} hesap)...");
                 int followed = 0;
 
                 foreach (var user in users)
@@ -3538,7 +3538,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
                 return new SocialIntelInteractResult { 
                     status = "success", 
-                    message = $"{followed} hesap baÅŸarÄ±yla takip edildi." 
+                    message = $"{followed} hesap başarıyla takip edildi." 
                 };
             }
             catch (Exception ex)
@@ -3565,15 +3565,15 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             await _opManager.NewsEng.ProcessNews(news);
         }    
-        // v2.3: NewsEngine'den gelen sonuÃ§larÄ± kuyruÄŸa atÄ±p Twitter'a gÃ¶nderen handler
+        // v2.3: NewsEngine'den gelen sonuçları kuyruğa atıp Twitter'a gönderen handler
         private void OnNewsEngineProcessed(NewsItem news, string analysis, int importance)
         {
-            // v2.8: Twitter Dispatch Threshold artÄ±k ayarlardan okunuyor
+            // v2.8: Twitter Dispatch Threshold artık ayarlardan okunuyor
             if (importance >= ConfigManager.Current.MinNewsImportance && ConfigManager.Current.AutoPostBreakingNews)
             {
                 lock (_newsLock)
                 {
-                    LogNews($"â³ Haber X kuyruÄŸuna eklendi: {news.Title} (Ã–nem: {importance}/5)");
+                    LogNews($"⏳ Haber X kuyruğuna eklendi: {news.Title} (Önem: {importance}/5)");
                     _newsQueue.Enqueue((news, analysis));
                 }
 
@@ -3587,67 +3587,67 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         private async Task ProcessNewsQueue()
         {
             _isNewsQueueProcessing = true;
-            LogNews("ðŸ“° Haber kuyruÄŸu iÅŸleniyor...");
+            LogNews("📰 Haber kuyruğu işleniyor...");
             bool isPremium = ConfigManager.Current?.IsVerifiedAccount ?? false;
             
             while (_newsQueue.Count > 0)
             {
                 var (news, analysis) = _newsQueue.Dequeue();
-                LogNews($"ðŸ“° Sending: {news.Title}");
+                LogNews($"📰 Sending: {news.Title}");
                 
-                // v3.0: GELÄ°ÅžMÄ°Åž Ä°Ã‡ERÄ°K KALÄ°TE KONTROLÃœ - Bozuk Gemini yanÄ±tlarÄ±nÄ± engelle
-                // 1. BoÅŸ veya Ã§ok kÄ±sa iÃ§erik kontrolÃ¼
+                // v3.0: GELİŞMİŞ İÇERİK KALİTE KONTROLÜ - Bozuk Gemini yanıtlarını engelle
+                // 1. Boş veya çok kısa içerik kontrolü
                 if (string.IsNullOrWhiteSpace(analysis) || analysis.Length < 50)
                 {
-                    LogNews($"âš ï¸ Ä°Ã§erik Ã§ok kÄ±sa veya boÅŸ, atlanÄ±yor: {news.Title}");
+                    LogNews($"⚠️ İçerik çok kısa veya boş, atlanıyor: {news.Title}");
                     continue;
                 }
                 
-                // 2. Hashtag oranÄ± kontrolÃ¼
+                // 2. Hashtag oranı kontrolü
                 int hashtagCount = System.Text.RegularExpressions.Regex.Matches(analysis, @"#\w+").Count;
                 var words = analysis.Split(new[] { ' ', '\n', '.', ',', ':', ';' }, StringSplitOptions.RemoveEmptyEntries);
                 int wordCount = words.Length;
                 if (wordCount > 0 && (double)hashtagCount / wordCount > 0.5)
                 {
-                    LogNews($"âš ï¸ Ä°Ã§erik Ã§oÄŸunlukla hashtaglerden oluÅŸuyor (bozuk Gemini yanÄ±tÄ±), atlanÄ±yor: {news.Title}");
+                    LogNews($"⚠️ İçerik çoğunlukla hashtaglerden oluşuyor (bozuk Gemini yanıtı), atlanıyor: {news.Title}");
                     continue;
                 }
                 
-                // 3. LOOP/TEKRAR TESPÄ°TÄ° - AynÄ± kelime veya ifade sÃ¼rekli tekrarlanÄ±yorsa SPAM
+                // 3. LOOP/TEKRAR TESPİTİ - Aynı kelime veya ifade sürekli tekrarlanıyorsa SPAM
                 bool isLoopContent = false;
                 var wordFrequency = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 foreach (var word in words)
                 {
-                    if (word.Length < 3) continue; // Ã‡ok kÄ±sa kelimeleri atla
+                    if (word.Length < 3) continue; // Çok kısa kelimeleri atla
                     if (wordFrequency.ContainsKey(word))
                         wordFrequency[word]++;
                     else
                         wordFrequency[word] = 1;
                 }
                 
-                // Bir kelime 5+ kez tekrarlanÄ±yorsa SPAM
+                // Bir kelime 5+ kez tekrarlanıyorsa SPAM
                 var topRepeated = wordFrequency.OrderByDescending(kv => kv.Value).FirstOrDefault();
                 if (topRepeated.Value >= 5 && wordCount > 10)
                 {
                     isLoopContent = true;
-                    LogNews($"âš ï¸ LOOP TESPÄ°T: '{topRepeated.Key}' kelimesi {topRepeated.Value} kez tekrarlanÄ±yor. Ä°Ã§erik atlanÄ±yor: {news.Title}");
+                    LogNews($"⚠️ LOOP TESPİT: '{topRepeated.Key}' kelimesi {topRepeated.Value} kez tekrarlanıyor. İçerik atlanıyor: {news.Title}");
                 }
                 
-                // Benzersiz kelime oranÄ± %30'un altÄ±ndaysa SPAM (Ã§ok fazla tekrar var)
+                // Benzersiz kelime oranı %30'un altındaysa SPAM (çok fazla tekrar var)
                 if (!isLoopContent && wordCount > 20)
                 {
                     double uniqueRatio = (double)wordFrequency.Count / wordCount;
                     if (uniqueRatio < 0.30)
                     {
                         isLoopContent = true;
-                        LogNews($"âš ï¸ LOOP TESPÄ°T: Benzersiz kelime oranÄ± Ã§ok dÃ¼ÅŸÃ¼k ({uniqueRatio:P0}). Ä°Ã§erik atlanÄ±yor: {news.Title}");
+                        LogNews($"⚠️ LOOP TESPİT: Benzersiz kelime oranı çok düşük ({uniqueRatio:P0}). İçerik atlanıyor: {news.Title}");
                     }
                 }
                 
-                // 4. ArdÄ±ÅŸÄ±k tekrar tespiti (aynÄ± cÃ¼mle/parÃ§a art arda tekrarlanÄ±yor mu?)
+                // 4. Ardışık tekrar tespiti (aynı cümle/parça art arda tekrarlanıyor mu?)
                 if (!isLoopContent)
                 {
-                    // 20 karakterlik parÃ§alarÄ± kontrol et
+                    // 20 karakterlik parçaları kontrol et
                     var chunks = new List<string>();
                     for (int i = 0; i < analysis.Length - 20; i += 10)
                     {
@@ -3657,7 +3657,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     if (chunkFreq != null)
                     {
                         isLoopContent = true;
-                        LogNews($"âš ï¸ LOOP TESPÄ°T: '{chunkFreq.Key.Substring(0, Math.Min(15, chunkFreq.Key.Length))}...' parÃ§asÄ± {chunkFreq.Count()} kez tekrarlanÄ±yor. Ä°Ã§erik atlanÄ±yor: {news.Title}");
+                        LogNews($"⚠️ LOOP TESPİT: '{chunkFreq.Key.Substring(0, Math.Min(15, chunkFreq.Key.Length))}...' parçası {chunkFreq.Count()} kez tekrarlanıyor. İçerik atlanıyor: {news.Title}");
                     }
                 }
                 
@@ -3668,12 +3668,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 
                 SocialIntelResult result;
 
-                // ModÃ¼l: Haber (per-module spam check)
+                // Modül: Haber (per-module spam check)
                 if (ConfigManager.Current?.SpamProtectNews ?? false)
                 {
                     if (!_opManager.Spam.CanPostGeneral(out string reason))
                     {
-                        LogNews($"ðŸ›¡ï¸ Spam protection (Haber): {reason}");
+                        LogNews($"🛡️ Spam protection (Haber): {reason}");
                         continue;
                     }
                 }
@@ -3681,7 +3681,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 if (isPremium && analysis.Contains("|||"))
                 {
                     // PREMIUM ACCOUNT: 2-Tweet Format
-                    LogNews("ðŸ’™ Premium hesap: 2-tweet formatÄ± kullanÄ±lÄ±yor...");
+                    LogNews("💙 Premium hesap: 2-tweet formatı kullanılıyor...");
 
                     var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
                     if (tweets.Count >= 2)
@@ -3689,21 +3689,21 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                         if (result.status == "success")
                         {
-                            LogNews("âœ… Premium News Thread (2-tweet) sent!");
+                            LogNews("✅ Premium News Thread (2-tweet) sent!");
                             _opManager.Spam.RecordTweet("NEWS", "NEWS");
                         }
                         else
                         {
-                            LogNews($"âŒ Thread failed: {result.ErrorMessage}");
+                            LogNews($"❌ Thread failed: {result.ErrorMessage}");
                         }
                     }
                     else
                     {
-                        LogNews("âš ï¸ Premium format parse failed, fallback to single tweet");
+                        LogNews("⚠️ Premium format parse failed, fallback to single tweet");
                         result = await _opManager.SocialIntel.PostTweet(analysis);
                         if (result.status == "success")
                         {
-                            LogNews("âœ… News Tweet sent!");
+                            LogNews("✅ News Tweet sent!");
                             _opManager.Spam.RecordTweet("NEWS", "NEWS");
                         }
                     }
@@ -3711,18 +3711,18 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 else if (analysis.Length > 260 && !isPremium)
                 {
                     // NON-PREMIUM: Long content = Thread Format
-                    LogNews("ðŸ§µ Content long, converting to News Thread...");
+                    LogNews("🧵 Content long, converting to News Thread...");
                     var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
 
                     result = await _opManager.SocialIntel.PostThreadAsync(tweets);
                     if (result.status == "success")
                     {
-                        LogNews("âœ… News Thread sent!");
+                        LogNews("✅ News Thread sent!");
                         _opManager.Spam.RecordTweet("NEWS", "NEWS");
                     }
                     else
                     {
-                        LogNews($"âŒ Thread failed: {result.ErrorMessage}");
+                        LogNews($"❌ Thread failed: {result.ErrorMessage}");
                     }
                 }
                 else
@@ -3735,22 +3735,22 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     result = await _opManager.SocialIntel.PostTweet(content);
                     if (result.status == "success")
                     {
-                        LogNews("âœ… News Tweet sent!");
+                        LogNews("✅ News Tweet sent!");
                         _opManager.Spam.RecordTweet("NEWS", "NEWS");
                     }
                     else
                     {
-                        LogNews($"âŒ Tweet failed: {result.ErrorMessage}");
+                        LogNews($"❌ Tweet failed: {result.ErrorMessage}");
                     }
                 }
                 
                 // ADAPTIVE QUEUE CONTROL (v2.8)
                 if (_newsQueue.Count > 0)
                 {
-                    // 1. Queue Cleanup: EÄŸer kuyruk Ã§ok ÅŸiÅŸmiÅŸse (Ã–rn: 50+), en eski haberleri temizle (gÃ¼ncelliÄŸi korumak iÃ§in)
+                    // 1. Queue Cleanup: Eğer kuyruk çok şişmişse (Örn: 50+), en eski haberleri temizle (güncelliği korumak için)
                     if (_newsQueue.Count > 50)
                     {
-                        LogNews($"ðŸ§¹ Kuyruk Ã§ok yoÄŸun ({_newsQueue.Count}), en eski 10 haber temizleniyor...");
+                        LogNews($"🧹 Kuyruk çok yoğun ({_newsQueue.Count}), en eski 10 haber temizleniyor...");
                         lock (_newsLock)
                         {
                             for (int i = 0; i < 10 && _newsQueue.Count > 0; i++) 
@@ -3758,23 +3758,23 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         }
                     }
 
-                    // 2. Delay: KullanÄ±cÄ± isteÄŸi Ã¼zerine her zaman 3 dakika bekle (Hesap gÃ¼venliÄŸi iÃ§in)
+                    // 2. Delay: Kullanıcı isteği üzerine her zaman 3 dakika bekle (Hesap güvenliği için)
                     int delayMinutes = 3;
                     
-                    LogNews($"â³ Kuyrukta {_newsQueue.Count} haber kaldÄ±. {delayMinutes} dk bekleniyor...");
+                    LogNews($"⏳ Kuyrukta {_newsQueue.Count} haber kaldı. {delayMinutes} dk bekleniyor...");
                     await Task.Delay(TimeSpan.FromMinutes(delayMinutes));
                 }
             }
             
             _isNewsQueueProcessing = false;
-            Log("âœ… Haber kuyruÄŸu tamamlandÄ±.");
+            Log("✅ Haber kuyruğu tamamlandı.");
         }
 
         private async Task UpdateSocialStats()
         {
             try
             {
-                Log("ðŸ” Sosyal medya etkileÅŸim verileri gÃ¼ncelleniyor...", "Stats");
+                Log("🔍 Sosyal medya etkileşim verileri güncelleniyor...", "Stats");
                 var engagementData = await _opManager.SocialIntel.GetRecentEngagementAsync();
                 
                 foreach (var eng in engagementData)
@@ -3793,11 +3793,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     // _opManager.Stats.RecordSocialEngagement(symbol, eng.likes, eng.retweets, eng.replies, eng.text);
                 }
                 
-                Log($"âœ… {engagementData.Count} post iÃ§in etkileÅŸim verileri gÃ¼ncellendi.", "Stats");
+                Log($"✅ {engagementData.Count} post için etkileşim verileri güncellendi.", "Stats");
             }
             catch (Exception ex)
             {
-                Log($"âŒ EtkileÅŸim verisi gÃ¼ncellenirken hata: {ex.Message}", "Stats");
+                Log($"❌ Etkileşim verisi güncellenirken hata: {ex.Message}", "Stats");
             }
         }
 
@@ -3858,9 +3858,9 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 };
 
                 var sb = new StringBuilder();
-                sb.AppendLine("ðŸ§ª Spam KorumasÄ± SimÃ¼lasyonu BaÅŸladÄ±\n");
+                sb.AppendLine("🧪 Spam Koruması Simülasyonu Başladı\n");
 
-                // ModÃ¼l toggle state'lerini oku
+                // Modül toggle state'lerini oku
                 bool moduleBatches = chkSpamBatches?.Checked ?? ConfigManager.Current.SpamProtectBatches;
                 bool moduleManual = chkSpamManual?.Checked ?? ConfigManager.Current.SpamProtectManual;
                 bool moduleSignals = chkSpamSignals?.Checked ?? ConfigManager.Current.SpamProtectSignals;
@@ -3873,14 +3873,14 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     if (simSP.CanPostGeneral(out var reason))
                     {
                         bool ok = true; // simulate success
-                        if (ok) { simSP.RecordTweet("BATCH", "BATCH"); sb.AppendLine("âœ… Batch SUCCESS -> sayaÃ§ arttÄ±"); }
+                        if (ok) { simSP.RecordTweet("BATCH", "BATCH"); sb.AppendLine("✅ Batch SUCCESS -> sayaç arttı"); }
                     }
-                    else sb.AppendLine($"ðŸš« Batch engellendi: {reason}");
+                    else sb.AppendLine($"🚫 Batch engellendi: {reason}");
                 }
-                else sb.AppendLine("â„¹ï¸ Batch korumasÄ± kapalÄ± (sim: gate atlandÄ±, sayaÃ§ yok)");
+                else sb.AppendLine("ℹ️ Batch koruması kapalı (sim: gate atlandı, sayaç yok)");
 
                 // BATCH - FAIL (no increment)
-                sb.AppendLine("âŒ Batch FAIL (simÃ¼le) -> sayaÃ§ artmadÄ±");
+                sb.AppendLine("❌ Batch FAIL (simüle) -> sayaç artmadı");
 
                 // MANUAL - SUCCESS
                 if (moduleManual)
@@ -3888,11 +3888,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     if (simSP.CanPostGeneral(out var reason))
                     {
                         simSP.RecordTweet("MANUAL", "MANUAL");
-                        sb.AppendLine("âœ… Manuel SUCCESS -> sayaÃ§ arttÄ±");
+                        sb.AppendLine("✅ Manuel SUCCESS -> sayaç arttı");
                     }
-                    else sb.AppendLine($"ðŸš« Manuel engellendi: {reason}");
+                    else sb.AppendLine($"🚫 Manuel engellendi: {reason}");
                 }
-                else sb.AppendLine("â„¹ï¸ Manuel korumasÄ± kapalÄ± (sim: gate atlandÄ±, sayaÃ§ yok)");
+                else sb.AppendLine("ℹ️ Manuel koruması kapalı (sim: gate atlandı, sayaç yok)");
 
                 // SIGNAL (THYAO) - SUCCESS then COOL-DOWN BLOCK
                 if (moduleSignals)
@@ -3900,24 +3900,24 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     if (simSP.CanTweet("THYAO", "KING", out var rs))
                     {
                         simSP.RecordTweet("THYAO", "KING");
-                        sb.AppendLine("âœ… Sinyal THYAO 1. deneme -> sayaÃ§ arttÄ±");
+                        sb.AppendLine("✅ Sinyal THYAO 1. deneme -> sayaç arttı");
                     }
-                    else sb.AppendLine($"ðŸš« Sinyal THYAO engellendi: {rs}");
+                    else sb.AppendLine($"🚫 Sinyal THYAO engellendi: {rs}");
 
                     if (simSP.CanTweet("THYAO", "KING", out rs))
-                        sb.AppendLine("âš ï¸ Beklenmedik: THYAO 2. deneme izin aldÄ± (cooldown bekleniyordu)");
-                    else sb.AppendLine($"ðŸ‘ THYAO 2. deneme engellendi (cooldown): {rs}");
+                        sb.AppendLine("⚠️ Beklenmedik: THYAO 2. deneme izin aldı (cooldown bekleniyordu)");
+                    else sb.AppendLine($"👍 THYAO 2. deneme engellendi (cooldown): {rs}");
                 }
-                else sb.AppendLine("â„¹ï¸ Sinyal korumasÄ± kapalÄ± (sim: gate atlandÄ±, sayaÃ§ yok)");
+                else sb.AppendLine("ℹ️ Sinyal koruması kapalı (sim: gate atlandı, sayaç yok)");
 
                 var stats = simSP.GetStats();
-                sb.AppendLine($"\nðŸ“Š SonuÃ§ SayaÃ§larÄ±: {stats.hourly}/saat, {stats.daily}/gÃ¼n, {stats.monthly}/ay");
+                sb.AppendLine($"\n📊 Sonuç Sayaçları: {stats.hourly}/saat, {stats.daily}/gün, {stats.monthly}/ay");
 
-                MessageBox.Show(sb.ToString(), "ðŸ§ª Spam SimÃ¼lasyon SonuÃ§larÄ±");
+                MessageBox.Show(sb.ToString(), "🧪 Spam Simülasyon Sonuçları");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("SimÃ¼lasyon hatasÄ±: " + ex.Message);
+                MessageBox.Show("Simülasyon hatası: " + ex.Message);
             }
 
             await Task.CompletedTask;
@@ -3931,29 +3931,29 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             
             if (string.IsNullOrWhiteSpace(symbol))
             {
-                MessageBox.Show("LÃ¼tfen bir sembol giriniz.");
+                MessageBox.Show("Lütfen bir sembol giriniz.");
                 return;
             }
 
             string market = cmbMarket.SelectedItem?.ToString() ?? "BIST";
             string period = cmbTimeframe.SelectedItem?.ToString() ?? "60";
 
-            btnAnalyze.Text = "â³ Analiz Ediliyor...";
+            btnAnalyze.Text = "⏳ Analiz Ediliyor...";
             btnAnalyze.Enabled = false;
-            rtbAnalysisResult.Text = "AI veri topluyor ve analiz ediyor (Period: " + period + ")... LÃ¼tfen bekleyin.";
+            rtbAnalysisResult.Text = "AI veri topluyor ve analiz ediyor (Period: " + period + ")... Lütfen bekleyin.";
 
             try
             {
-                string periodDisplay = (period == "G" || period == "Daily") ? "GÃ¼nlÃ¼k" : $"{period}dk";
-                LogAI($"ðŸ” Manuel Analiz BaÅŸlatÄ±ldÄ±: {symbol} ({market}, {periodDisplay})");
+                string periodDisplay = (period == "G" || period == "Daily") ? "Günlük" : $"{period}dk";
+                LogAI($"🔍 Manuel Analiz Başlatıldı: {symbol} ({market}, {periodDisplay})");
 
                 // Run in background to avoid freezing UI
                 // Read directly from TextBox to ensure latest value is used even if not saved
                 string chartId = txtTvChartId.Text.Trim(); 
                 string basis = cmbBasis.SelectedItem?.ToString() ?? "TL";
-                LogAI("ðŸš€ Manuel Analiz BAÅžLATILDI...");
+                LogAI("🚀 Manuel Analiz BAŞLATILDI...");
                 _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, market, period, chartId, basis);
-                LogAI("âœ… Manuel Analiz TAMAMLANDI.");
+                LogAI("✅ Manuel Analiz TAMAMLANDI.");
                 
                 if (_lastAnalysisResult != null)
                 {
@@ -3972,23 +3972,23 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                             {
                                 picScreenshot.Image = Image.FromStream(stream);
                             }
-                            LogAI("ðŸ“· Grafik gÃ¶rsel analizi yapÄ±ldÄ± (Multimodal AI)");
+                            LogAI("📷 Grafik görsel analizi yapıldı (Multimodal AI)");
                         }
                         catch (Exception imgEx)
                         {
-                            LogAI($"âš ï¸ GÃ¶rÃ¼ntÃ¼ yÃ¼klenemedi: {imgEx.Message}");
+                            LogAI($"⚠️ Görüntü yüklenemedi: {imgEx.Message}");
                             picScreenshot.Image = null;
                         }
                     }
                     else
                     {
                         picScreenshot.Image = null;
-                        LogAI("â„¹ï¸ Grafik gÃ¶rÃ¼ntÃ¼sÃ¼ alÄ±namadÄ±, sadece metin analizi yapÄ±ldÄ±.");
+                        LogAI("ℹ️ Grafik görüntüsü alınamadı, sadece metin analizi yapıldı.");
                     }
                 }
                 else
                 {
-                    rtbAnalysisResult.Text = "Analiz baÅŸarÄ±sÄ±z (Null).";
+                    rtbAnalysisResult.Text = "Analiz başarısız (Null).";
                     picScreenshot.Image = null;
                 }
                 
@@ -4000,7 +4000,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
             finally
             {
-                btnAnalyze.Text = "ðŸ¤– ANALÄ°Z ET";
+                btnAnalyze.Text = "🤖 ANALİZ ET";
                 btnAnalyze.Enabled = true;
             }
         }
@@ -4018,7 +4018,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             
             // Update Follower Label
             if (lblFollowers != null)
-                lblFollowers.Text = $"{cfg.FollowersCount}\nTAKÄ°PÃ‡Ä°";
+                lblFollowers.Text = $"{cfg.FollowersCount}\nTAKİPÇİ";
 
             // Find panels in header to invalidate paints
             foreach (Control c in pnlDashHeader.Controls) {
@@ -4056,11 +4056,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     case "System": default: Logger.Sys(msg); break;
                 }
 
-                // v4.9.2 Live History Update â€” Visible kontrolÃ¼ kaldÄ±rÄ±ldÄ±, panel gizliyken de buffer'a yazar
+                // v4.9.2 Live History Update — Visible kontrolü kaldırıldı, panel gizliyken de buffer'a yazar
                 if (pnlHistory != null && _historyLogView != null)
                 {
-                     string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "TÃ¼mÃ¼";
-                     if (filter == "TÃ¼mÃ¼" || filter.Equals(category, StringComparison.OrdinalIgnoreCase))
+                     string filter = _historyModuleFilter?.SelectedItem?.ToString() ?? "Tümü";
+                     if (filter == "Tümü" || filter.Equals(category, StringComparison.OrdinalIgnoreCase))
                      {
                          var logLine = $"[{category}] [{DateTime.Now:HH:mm:ss}] {msg}\n";
                          try 
@@ -4112,7 +4112,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             if (_opManager.Interaction != null)
             {
-                UpdateBotStatus("ðŸŽ¯ Hedef kitle etkileÅŸimi...");
+                UpdateBotStatus("🎯 Hedef kitle etkileşimi...");
                 await _opManager.Interaction.RunTargetedCheck("BIST");
                 await Task.Delay(1000 * 30);
                 await _opManager.Interaction.RunTargetedCheck("CRYPTO");
@@ -4122,7 +4122,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             var cfg = ConfigManager.Current;
             if (!cfg.BotInteractionEnabled)
             {
-                UpdateBotStatus("â¸ï¸ Bot devre dÄ±ÅŸÄ±");
+                UpdateBotStatus("⏸️ Bot devre dışı");
                 return;
             }
 
@@ -4132,8 +4132,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 string currentCategory = _searchCategories[_currentSearchCategoryIndex];
                 _currentSearchCategoryIndex = (_currentSearchCategoryIndex + 1) % _searchCategories.Length;
                 
-                UpdateBotStatus($"ðŸ” [{currentCategory}] TaranÄ±yor...");
-                LogSocial($"ðŸŽ¯ Round-Robin Tarama: {currentCategory} (SÄ±ra: {_currentSearchCategoryIndex + 1}/{_searchCategories.Length})");
+                UpdateBotStatus($"🔍 [{currentCategory}] Taranıyor...");
+                LogSocial($"🎯 Round-Robin Tarama: {currentCategory} (Sıra: {_currentSearchCategoryIndex + 1}/{_searchCategories.Length})");
                 
                 // Get category-specific keywords
                 List<string> categoryKeywords;
@@ -4143,16 +4143,16 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 }
                 else
                 {
-                    LogSocial($"âš ï¸ {currentCategory} iÃ§in anahtar kelime tanÄ±mlÄ± deÄŸil, GUNLUK_MIZAH fallback.");
-                    categoryKeywords = cfg.CategorySearchKeywords.GetValueOrDefault("GUNLUK_MIZAH", new List<string> { "gÃ¼ndem" });
+                    LogSocial($"⚠️ {currentCategory} için anahtar kelime tanımlı değil, GUNLUK_MIZAH fallback.");
+                    categoryKeywords = cfg.CategorySearchKeywords.GetValueOrDefault("GUNLUK_MIZAH", new List<string> { "gündem" });
                 }
                 
                 // Select a random keyword from current category for this scan
                 var random = new Random();
                 string searchTopic = categoryKeywords[random.Next(categoryKeywords.Count)];
                 
-                LogSocial($"ðŸ“Œ Arama Kelimesi: {searchTopic}");
-                UpdateBotStatus($"ðŸ” [{currentCategory}] {searchTopic}");
+                LogSocial($"📌 Arama Kelimesi: {searchTopic}");
+                UpdateBotStatus($"🔍 [{currentCategory}] {searchTopic}");
                 
                 // 2. Find viral tweet with filters (Web scraping - not API)
                 var posts = await _opManager.SocialIntel.FindInfluencerAnalyses(searchTopic + $" min_faves:{cfg.BotMinFavorites}", SocialIntelService.DetectMarket(searchTopic));
@@ -4168,13 +4168,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 
                 if (filteredPosts.Count == 0)
                 {
-                    LogSocial($"âš ï¸ Filtrelere uygun tweet bulunamadÄ± (â‰¥{cfg.BotMinFollowers} takipÃ§i, <{cfg.BotMaxTweetAgeHours}h).");
-                    UpdateBotStatus("âš ï¸ Filtre uyumsuz");
+                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı (≥{cfg.BotMinFollowers} takipçi, <{cfg.BotMaxTweetAgeHours}h).");
+                    UpdateBotStatus("⚠️ Filtre uyumsuz");
                     return;
                 }
                 
                 var post = filteredPosts[0];
-                UpdateBotStatus($"ðŸ’¡ AI yanÄ±t Ã¼retiyor (Two-Step)...");
+                UpdateBotStatus($"💡 AI yanıt üretiyor (Two-Step)...");
                 
                 // v4.2.0: Two-Step Logic (Category Detection + Categorized Reply)
                 var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, post.Handle);
@@ -4184,15 +4184,15 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         int id = Interlocked.Increment(ref _interactionIdCounter);
                         _pendingInteractionDict[id] = new InteractionState { Url = post.Url, Text = reply, Time = DateTime.Now };
                         _tweetedToday.Add(post.Url); // Mark as proposed
-                        UpdateBotStatus($"â³ Telegram/UI onayÄ± bekleniyor [ID: {id}] ({category}: @{post.Handle})");
+                        UpdateBotStatus($"⏳ Telegram/UI onayı bekleniyor [ID: {id}] ({category}: @{post.Handle})");
                         
                         string safeContent = post.Content.Replace("\"", "'");
                         string displayContent = safeContent.Length > 200 ? safeContent.Substring(0, 197) + "..." : safeContent;
 
                         // 1. Send Telegram Msg
-                        string msg = $"ðŸ¤– *FIRSAT BULUNDU!*\n\nðŸ‘¤ KullanÄ±cÄ±: {post.Handle} ({post.FollowerCount:N0} takipÃ§i)\n\uD83D\uDD17 [Tweeti GÃ¶rÃ¼ntÃ¼le]({post.Url})\n\nðŸ“ *Tweet Ä°Ã§eriÄŸi:*\n_{displayContent}_\n\nðŸ’¡ *Ã–NERÄ°LEN YANIT:*\n\"{reply}\"\n\nâœï¸ YanÄ±tÄ± dÃ¼zenlemek iÃ§in yeni metni yazÄ±n\nâœ… Onaylamak iÃ§in */ONAY {id}*\nâŒ Ä°ptal iÃ§in */RED {id}*";
+                        string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {post.Handle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
                         await _opManager.Telegram.SendMessageAsync(msg);
-                        LogSocial($"ðŸ¤– @{post.Handle} iÃ§in Ã¶neri gÃ¶nderildi (Telegram & UI)");
+                        LogSocial($"🤖 @{post.Handle} için öneri gönderildi (Telegram & UI)");
 
                         // 2. Add to UI Grid (Bot Approval Panel)
                         if (dgvBotApproval != null && !dgvBotApproval.IsDisposed)
@@ -4213,7 +4213,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                      }
                      else
                      {
-                         UpdateBotStatus("âš ï¸ AI yanÄ±t Ã¼retelemedi");
+                         UpdateBotStatus("⚠️ AI yanıt üretelemedi");
                      }
                  }
                  catch (Exception ex) { LogSocial($"Bot Loop Hata: {ex.Message}"); }
@@ -4229,7 +4229,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 // v3.1.1: Check if token is available
                 if (string.IsNullOrEmpty(ConfigManager.Current.TelegramBotToken))
                 {
-                    Logger.Telegram("âš ï¸ Telegram Token eksik, polling atlanÄ±yor.");
+                    Logger.Telegram("⚠️ Telegram Token eksik, polling atlanıyor.");
                     _isTelegramProcessing = false;
                     return;
                 }
@@ -4255,10 +4255,10 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     _lastProcessedUpdateId = update.UpdateId;
 
                     // Log to dedicated Telegram Log
-                    Logger.Telegram($"ðŸ“¥ Mesaj AlÄ±ndÄ± (ID: {update.UpdateId}): {update.Text}");
+                    Logger.Telegram($"📥 Mesaj Alındı (ID: {update.UpdateId}): {update.Text}");
                     
                     // v3.1: Heartbeat to System log every command to ensure it's alive
-                    Log($"ðŸ“¥ Telegram: {update.Text}", "System");
+                    Log($"📥 Telegram: {update.Text}", "System");
 
                     string msgText = update.Text.Trim();
                     if (string.IsNullOrEmpty(msgText)) continue;
@@ -4273,7 +4273,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     string command = parts[0].ToUpper();
                     string args = parts.Length > 1 ? parts[1] : "";
 
-                    Logger.Telegram($"âŒ¨ï¸ Komut Ã‡alÄ±ÅŸtÄ±rÄ±lÄ±yor: {command} {args}");
+                    Logger.Telegram($"⌨️ Komut Çalıştırılıyor: {command} {args}");
 
                     try 
                     {
@@ -4282,7 +4282,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         case "/ANALIZ":
                             if (string.IsNullOrEmpty(args))
                             {
-                                 await _opManager.Telegram.SendMessageAsync("âš ï¸ KullanÄ±m: `/analiz [SEMBOL]`\nÃ–rn: `/analiz THYAO`");
+                                 await _opManager.Telegram.SendMessageAsync("⚠️ Kullanım: `/analiz [SEMBOL]`\nÖrn: `/analiz THYAO`");
                                  return;
                             }
                             
@@ -4291,22 +4291,22 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                             if (period == "G") period = "Daily";
 
                             string market = SymbolData.DetectMarket(symbol);
-                            Logger.Telegram($"ðŸ” {symbol} analizi isteniyor... (Pazar: {market})");
-                            await _opManager.Telegram.SendMessageAsync($"ðŸ” *{symbol.ToUpper()}* analizi baÅŸlatÄ±lÄ±yor [{market} - {period}dk]...");
+                            Logger.Telegram($"🔍 {symbol} analizi isteniyor... (Pazar: {market})");
+                            await _opManager.Telegram.SendMessageAsync($"🔍 *{symbol.ToUpper()}* analizi başlatılıyor [{market} - {period}dk]...");
                             
                             _lastAnalysisSymbol = symbol.ToUpper();
                             _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, market, period, "", "TL");
                             
                             if (_lastAnalysisResult.Success)
                             {
-                                Logger.Telegram($"âœ… {symbol} analizi tamamlandÄ±.");
-                                string report = $"ðŸ“Š *ANALÄ°Z RAPORU: {symbol.ToUpper()}*\n\n{_lastAnalysisResult.ReportText}\n\nðŸ”— Grafik: {_lastAnalysisResult.TvLink}\n\nðŸ¦ PaylaÅŸmak iÃ§in: */TWEETLE*";
+                                Logger.Telegram($"✅ {symbol} analizi tamamlandı.");
+                                string report = $"📊 *ANALİZ RAPORU: {symbol.ToUpper()}*\n\n{_lastAnalysisResult.ReportText}\n\n🔗 Grafik: {_lastAnalysisResult.TvLink}\n\n🐦 Paylaşmak için: */TWEETLE*";
                                 await _opManager.Telegram.SendMessageAsync(report);
                             }
                             else
                             {
-                                Logger.Telegram($"âŒ {symbol} analizi baÅŸarÄ±sÄ±z: {_lastAnalysisResult.ReportText}");
-                                 await _opManager.Telegram.SendMessageAsync($"âŒ Analiz hatasÄ±: {_lastAnalysisResult.ReportText}");
+                                Logger.Telegram($"❌ {symbol} analizi başarısız: {_lastAnalysisResult.ReportText}");
+                                 await _opManager.Telegram.SendMessageAsync($"❌ Analiz hatası: {_lastAnalysisResult.ReportText}");
                             }
                             break;
 
@@ -4314,21 +4314,21 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         case "/PAYLAS":
                         case "/THREAD":
                             // CRITICAL: Log BEFORE try block to ensure we see execution
-                            Logger.Telegram($"ðŸŽ¯ /TWEETLE Komutu AlÄ±ndÄ± (Update ID: {update.UpdateId})");
-                            Logger.Sys($"ðŸŽ¯ /TWEETLE Komutu BaÅŸlatÄ±lÄ±yor...");
+                            Logger.Telegram($"🎯 /TWEETLE Komutu Alındı (Update ID: {update.UpdateId})");
+                            Logger.Sys($"🎯 /TWEETLE Komutu Başlatılıyor...");
                             
                             try {
-                                Logger.Sys($"ðŸš€ /TWEETLE Try BloÄŸu Ä°Ã§inde. LastAnalysisSuccess: {_lastAnalysisResult?.Success ?? false}");
+                                Logger.Sys($"🚀 /TWEETLE Try Bloğu İçinde. LastAnalysisSuccess: {_lastAnalysisResult?.Success ?? false}");
                                 
                                 if (_lastAnalysisResult == null || !_lastAnalysisResult.Success)
                                 {
-                                     Logger.Sys("âš ï¸ /TWEETLE: GeÃ§erli analiz yok.");
-                                     await _opManager.Telegram.SendMessageAsync("âš ï¸ Ã–nce geÃ§erli bir analiz yapmalÄ±sÄ±nÄ±z!");
-                                     break; // âœ… FIX: 'return' yerine 'break' kullan
+                                     Logger.Sys("⚠️ /TWEETLE: Geçerli analiz yok.");
+                                     await _opManager.Telegram.SendMessageAsync("⚠️ Önce geçerli bir analiz yapmalısınız!");
+                                     break; // ✅ FIX: 'return' yerine 'break' kullan
                                 }
 
-                                Logger.Sys($"ðŸ§µ /TWEETLE: {_lastAnalysisSymbol} iÃ§in Thread hazÄ±rlanÄ±yor...");
-                                await _opManager.Telegram.SendMessageAsync($"ðŸ§µ *{_lastAnalysisSymbol}* paylaÅŸÄ±lÄ±yor...");
+                                Logger.Sys($"🧵 /TWEETLE: {_lastAnalysisSymbol} için Thread hazırlanıyor...");
+                                await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* paylaşılıyor...");
                                 
                                 var sig = new SignalData 
                                 { 
@@ -4345,7 +4345,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 // Enrich
                                  _opManager.ManualAnalysis.EnrichSignalWithResult(sig, _lastAnalysisResult, "TL");
                                 
-                                Logger.Sys("ðŸ§µ /TWEETLE: PostSignalThread Ã§aÄŸrÄ±lÄ±yor...");
+                                Logger.Sys("🧵 /TWEETLE: PostSignalThread çağrılıyor...");
                                 var (sent, errorMsg) = await _opManager.ThreadSvc.PostSignalThread(
                                     sig, 
                                     _lastAnalysisResult.ScreenshotPath ?? "", 
@@ -4355,34 +4355,34 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                     influencerPosts: _lastAnalysisResult.InfluencerPosts
                                 );
                                 
-                                Logger.Sys($"ðŸ§µ /TWEETLE: PostSignalThread Sonucu - Sent: {sent}, Error: {errorMsg ?? "YOK"}");
+                                Logger.Sys($"🧵 /TWEETLE: PostSignalThread Sonucu - Sent: {sent}, Error: {errorMsg ?? "YOK"}");
                                 
                                 if (sent)
                                 {
-                                     Logger.Sys("âœ… /TWEETLE: BaÅŸarÄ±yla gÃ¶nderildi.");
-                                     await _opManager.Telegram.SendMessageAsync($"âœ… *PAYLAÅžILDI!*");
+                                     Logger.Sys("✅ /TWEETLE: Başarıyla gönderildi.");
+                                     await _opManager.Telegram.SendMessageAsync($"✅ *PAYLAŞILDI!*");
                                      _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
                                 }
                                 else
                                 {
-                                     Logger.Sys($"âŒ /TWEETLE: GÃ¶nderim hatasÄ±: {errorMsg}");
-                                     await _opManager.Telegram.SendMessageAsync($"âŒ Hata: {errorMsg}");
-                                     Logger.Telegram($"âŒ PaylaÅŸÄ±m HatasÄ±: {errorMsg}");
+                                     Logger.Sys($"❌ /TWEETLE: Gönderim hatası: {errorMsg}");
+                                     await _opManager.Telegram.SendMessageAsync($"❌ Hata: {errorMsg}");
+                                     Logger.Telegram($"❌ Paylaşım Hatası: {errorMsg}");
                                 }
                             }
                             catch (Exception tEx)
                             {
-                                Logger.Sys($"âŒ /TWEETLE KRÄ°TÄ°K HATA: {tEx}");
-                                await _opManager.Telegram.SendMessageAsync($"âŒ KRÄ°TÄ°K HATA: {tEx.Message}");
+                                Logger.Sys($"❌ /TWEETLE KRİTİK HATA: {tEx}");
+                                await _opManager.Telegram.SendMessageAsync($"❌ KRİTİK HATA: {tEx.Message}");
                             }
                             break;
 
                         case "/DURUM":
                         case "/STATUS":
-                            var statusMsg = $"ðŸ¤– *SÄ°STEM DURUMU*\n\n" +
-                                            $"ðŸ•’ Uptime: {(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm")}\n" +
-                                            $"ðŸ“… Tweetler: {_tweetedToday.Count}\n" +
-                                            $"ðŸ“¥ Son Update ID: {_lastProcessedUpdateId}";
+                            var statusMsg = $"🤖 *SİSTEM DURUMU*\n\n" +
+                                            $"🕒 Uptime: {(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm")}\n" +
+                                            $"📅 Tweetler: {_tweetedToday.Count}\n" +
+                                            $"📥 Son Update ID: {_lastProcessedUpdateId}";
                             await _opManager.Telegram.SendMessageAsync(statusMsg);
                             break;
 
@@ -4397,55 +4397,55 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 {
                                     if (_pendingNewsDict.TryRemove(id, out var pending))
                                     {
-                                        await _opManager.Telegram.SendMessageAsync($"â³ {id} onaylandÄ±. YayÄ±nlanÄ±yor...");
+                                        await _opManager.Telegram.SendMessageAsync($"⏳ {id} onaylandı. Yayınlanıyor...");
                                         try
                                         {
                                             var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
                                             if (success)
                                             {
-                                                await _opManager.Telegram.SendMessageAsync($"âœ… BAÅžARILI! {pending.item.Title}");
-                                                Logger.News($"âœ… Haber baÅŸarÄ±yla yayÄ±nlandÄ±: {pending.item.Title}");
+                                                await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI! {pending.item.Title}");
+                                                Logger.News($"✅ Haber başarıyla yayınlandı: {pending.item.Title}");
                                             }
                                             else
                                             {
-                                                await _opManager.Telegram.SendMessageAsync($"âŒ HATA: {message}");
-                                                Logger.News($"âŒ Haber yayÄ±nlama hatasÄ±: {message}");
+                                                await _opManager.Telegram.SendMessageAsync($"❌ HATA: {message}");
+                                                Logger.News($"❌ Haber yayınlama hatası: {message}");
                                             }
                                         }
                                         catch (Exception pEx)
                                         {
-                                            Logger.News($"âŒ ForcePostNews HatasÄ±: {pEx.Message}");
-                                            await _opManager.Telegram.SendMessageAsync($"âŒ Kritik Hata: {pEx.Message}");
+                                            Logger.News($"❌ ForcePostNews Hatası: {pEx.Message}");
+                                            await _opManager.Telegram.SendMessageAsync($"❌ Kritik Hata: {pEx.Message}");
                                         }
                                     }
-                                    else await _opManager.Telegram.SendMessageAsync($"âš ï¸ ID:{id} geÃ§ersiz.");
+                                    else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} geçersiz.");
                                 }
                                 else if (_pendingNewsDict.Count == 1)
                                 {
                                     var first = _pendingNewsDict.ElementAt(0);
                                     if (_pendingNewsDict.TryRemove(first.Key, out var pending))
                                     {
-                                        await _opManager.Telegram.SendMessageAsync($"â³ OnaylandÄ±: {pending.item.Title}");
+                                        await _opManager.Telegram.SendMessageAsync($"⏳ Onaylandı: {pending.item.Title}");
                                         try
                                         {
                                             var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
                                             if (success)
                                             {
-                                                await _opManager.Telegram.SendMessageAsync($"âœ… BAÅžARILI!");
+                                                await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI!");
                                             }
                                             else
                                             {
-                                                await _opManager.Telegram.SendMessageAsync($"âŒ HATA: {message}");
+                                                await _opManager.Telegram.SendMessageAsync($"❌ HATA: {message}");
                                             }
                                         }
                                         catch (Exception pEx)
                                         {
-                                            Logger.News($"âŒ ForcePostNews HatasÄ±: {pEx.Message}");
-                                            await _opManager.Telegram.SendMessageAsync($"âŒ Kritik Hata: {pEx.Message}");
+                                            Logger.News($"❌ ForcePostNews Hatası: {pEx.Message}");
+                                            await _opManager.Telegram.SendMessageAsync($"❌ Kritik Hata: {pEx.Message}");
                                         }
                                     }
                                 }
-                                else await _opManager.Telegram.SendMessageAsync("âš ï¸ ID belirtin.");
+                                else await _opManager.Telegram.SendMessageAsync("⚠️ ID belirtin.");
                             }
                             break;
 
@@ -4456,7 +4456,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 var cmdParts = msgText.Split(' ');
                                 if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
                                 if (id > 0 && _pendingNewsDict.TryRemove(id, out _))
-                                    await _opManager.Telegram.SendMessageAsync($"âŒ {id} reddedildi.");
+                                    await _opManager.Telegram.SendMessageAsync($"❌ {id} reddedildi.");
                                 else if (id <=0) _pendingNewsDict.Clear();
                             }
                             break;
@@ -4471,10 +4471,10 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 {
                                     if (_pendingInteractionDict.TryRemove(id, out var pending))
                                     {
-                                        await _opManager.Telegram.SendMessageAsync($"âœ… {id} onaylandÄ±. YanÄ±tlanÄ±yor...");
+                                        await _opManager.Telegram.SendMessageAsync($"✅ {id} onaylandı. Yanıtlanıyor...");
                                         await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
                                     }
-                                    else await _opManager.Telegram.SendMessageAsync($"âš ï¸ ID:{id} yok.");
+                                    else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} yok.");
                                 }
                              }
                              break;
@@ -4487,7 +4487,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
                                 if (id > 0 && _pendingInteractionDict.TryRemove(id, out var p))
                                 {
-                                     await _opManager.Telegram.SendMessageAsync($"âŒ {id} iptal.");
+                                     await _opManager.Telegram.SendMessageAsync($"❌ {id} iptal.");
                                      _tweetedToday.Remove(p.Url);
                                 }
                              }
@@ -4496,14 +4496,14 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     }
                     catch (Exception commandEx)
                     {
-                        Logger.Telegram($"âŒ Komut HatasÄ± ({command}): {commandEx.Message}");
-                        await _opManager.Telegram.SendMessageAsync($"âŒ Komut iÅŸlenirken hata oluÅŸtu: {commandEx.Message}");
+                        Logger.Telegram($"❌ Komut Hatası ({command}): {commandEx.Message}");
+                        await _opManager.Telegram.SendMessageAsync($"❌ Komut işlenirken hata oluştu: {commandEx.Message}");
                     }
                 } 
             }
             catch (Exception ex)
             {
-                Logger.Telegram($"âŒ ProcessTelegramCommands HatasÄ±: {ex.Message}");
+                Logger.Telegram($"❌ ProcessTelegramCommands Hatası: {ex.Message}");
             }
             finally
             {
@@ -4525,13 +4525,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                          {
                              _knownDMs.Add(dm);
                              // Forward to Telegram
-                             await _opManager.Telegram.SendMessageAsync($"ðŸ“© *YENÄ° DM GELDÄ°*\n\n{dm}");
-                             Log("ðŸ“© Yeni DM Telegram'a iletildi.");
+                             await _opManager.Telegram.SendMessageAsync($"📩 *YENİ DM GELDİ*\n\n{dm}");
+                             Log("📩 Yeni DM Telegram'a iletildi.");
                          }
                      }
                  }
              }
-             catch (Exception ex) { Log($"âš ï¸ DM Kontrol HatasÄ±: {ex.Message}"); }
+             catch (Exception ex) { Log($"⚠️ DM Kontrol Hatası: {ex.Message}"); }
         }
 
         private async Task ProcessTargetedEngagement()
@@ -4539,13 +4539,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             var accounts = ConfigManager.Current.TargetAccounts;
             if (string.IsNullOrWhiteSpace(accounts)) return;
             
-            Log("ðŸŽ¯ Hedef hesap etkileÅŸimleri kontrol ediliyor...");
+            Log("🎯 Hedef hesap etkileşimleri kontrol ediliyor...");
             var users = accounts.Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             
             var results = await _opManager.SocialIntel.InteractTargetsAsync(users);
             foreach(var kvp in results.data)
             {
-                Log($"ðŸŽ¯ {kvp.Key}: {kvp.Value}");
+                Log($"🎯 {kvp.Key}: {kvp.Value}");
             }
         }
         private void AttachHoverEffect(Button btn, Color hoverColor, Color normalColor)
@@ -4564,7 +4564,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 }
                 if (learned > 0)
                 {
-                    Log($"ðŸ§  HafÄ±za: {learned} yeni veri Ã¶ÄŸrenildi.", "System");
+                    Log($"🧠 Hafıza: {learned} yeni veri öğrenildi.", "System");
                     _opManager.Memory.Save();
                 }
             }
@@ -4573,12 +4573,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         private void InitializeDeepScanTimer()
         {
             _deepScanTimer = new System.Windows.Forms.Timer();
-            _deepScanTimer.Interval = 1000 * 60 * 45; // 45 dk (Deep Scan uzun sÃ¼rer, Ã§ok sÄ±k yapma)
+            _deepScanTimer.Interval = 1000 * 60 * 45; // 45 dk (Deep Scan uzun sürer, çok sık yapma)
             _deepScanTimer.Tick += async (s, e) => 
             {
                if (_opManager.SocialIntel != null) 
                {
-                   Log("ðŸ§  HafÄ±za TaramasÄ± (Deep Scan) tetiklendi...", "System");
+                   Log("🧠 Hafıza Taraması (Deep Scan) tetiklendi...", "System");
                    await _opManager.SocialIntel.PerformDeepScanAsync((msg) => Log(msg, "Social"));
                    
                    // Refresh DB view if visible
@@ -4619,16 +4619,16 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 }
                 catch (Exception ex)
                 {
-                    Log($"âŒ TrendEngagement Timer Error: {ex.Message}", "System");
+                    Log($"❌ TrendEngagement Timer Error: {ex.Message}", "System");
                 }
             };
             // _trendEngagementTimer.Start(); // DISABLED AUTO-START for safety
-            Log("ðŸ”¥ Dinamik Trend Engagement hazÄ±r (OTOMATÄ°K BAÅžLAMASI KAPATILDI)", "System");
+            Log("🔥 Dinamik Trend Engagement hazır (OTOMATİK BAŞLAMASI KAPATILDI)", "System");
         }
 
         private void ShowAboutDialog()
         {
-            string versionContent = "SÃ¼rÃ¼m bilgisi yÃ¼klenemedi.";
+            string versionContent = "Sürüm bilgisi yüklenemedi.";
             try
             {
                 string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
@@ -4643,9 +4643,9 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         var log = root.GetProperty("changelog"); // Array
 
                         StringBuilder sb = new StringBuilder();
-                        sb.AppendLine($"ðŸš€ X'iDeAI v{v}");
-                        sb.AppendLine($"ðŸ“… Tarih: {d}");
-                        sb.AppendLine("\nðŸ“ DEÄžÄ°ÅžÄ°KLÄ°KLER:");
+                        sb.AppendLine($"🚀 X'iDeAI v{v}");
+                        sb.AppendLine($"📅 Tarih: {d}");
+                        sb.AppendLine("\n📝 DEĞİŞİKLİKLER:");
                         foreach (var item in log.EnumerateArray())
                         {
                             sb.AppendLine(item.GetString());
@@ -4660,7 +4660,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 versionContent = $"Hata: {ex.Message}";
             }
 
-            MessageBox.Show(versionContent, "X'iDeAI - HakkÄ±nda", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(versionContent, "X'iDeAI - Hakkında", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         // Helper for Signal Activity Log
@@ -4687,7 +4687,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
              var leftPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, Padding = new Padding(20) };
              
              // Market Selection
-             leftPanel.Controls.Add(new Label { Text = "ðŸŒ PÄ°YASA SEÃ‡Ä°MÄ°:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
+             leftPanel.Controls.Add(new Label { Text = "🌍 PİYASA SEÇİMİ:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
              cmbMarket = new ComboBox { Width = 200, BackColor = Color.White, DropDownStyle = ComboBoxStyle.DropDownList };
              cmbMarket.Items.AddRange(new object[] { "BIST", "Kripto", "Forex", "Emtia", "Endeks", "ABD" });
              cmbMarket.SelectedIndex = 0;
@@ -4712,29 +4712,29 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
              leftPanel.Controls.Add(cmbMarket);
              
              // Timeframe Selection
-             leftPanel.Controls.Add(new Label { Text = "â° PERÄ°YOT:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0,10,0,0) });
+             leftPanel.Controls.Add(new Label { Text = "⏰ PERİYOT:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0,10,0,0) });
              cmbTimeframe = new ComboBox { Width = 200, BackColor = Color.White, DropDownStyle = ComboBoxStyle.DropDownList };
              cmbTimeframe.Items.AddRange(new object[] { "15", "60", "240", "G", "H", "A", "Y" });
              cmbTimeframe.SelectedIndex = 3; // Default Daily (G)
              leftPanel.Controls.Add(cmbTimeframe);
 
              // Basis Selection
-             leftPanel.Controls.Add(new Label { Text = "ðŸ’µ ANALÄ°Z BAZI:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0, 10, 0, 0) });
+             leftPanel.Controls.Add(new Label { Text = "💵 ANALİZ BAZI:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0, 10, 0, 0) });
              cmbBasis = new ComboBox { Width = 200, BackColor = Color.White, DropDownStyle = ComboBoxStyle.DropDownList };
              cmbBasis.Items.AddRange(new object[] { "TL", "USD", "EUR", "XU100" });
              cmbBasis.SelectedIndex = 0; // Default TL
              leftPanel.Controls.Add(cmbBasis);
 
              // Symbol Input Label & Add
-             leftPanel.Controls.Add(new Label { Text = "ðŸ” SEMBOL:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0,10,0,0) });
+             leftPanel.Controls.Add(new Label { Text = "🔍 SEMBOL:", ForeColor = Color.Cyan, Font = new Font("Segoe UI", 9, FontStyle.Bold), Margin = new Padding(0,10,0,0) });
              leftPanel.Controls.Add(txtAnalysisSymbol);
 
              // Analyze Button
-             btnAnalyze = new Button { Text = "ðŸ“ˆ ANALÄ°Z BAÅžLAT", Width = 200, Height = 40, BackColor = Color.DarkOrchid, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0,20,0,0) };
+             btnAnalyze = new Button { Text = "📈 ANALİZ BAŞLAT", Width = 200, Height = 40, BackColor = Color.DarkOrchid, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Margin = new Padding(0,20,0,0) };
              btnAnalyze.Click += async (s, e) => {
                  if (!btnAnalyze.Enabled) return;
                  btnAnalyze.Enabled = false;
-                 btnAnalyze.Text = "â³ ANALÄ°Z YAPILIYOR...";
+                 btnAnalyze.Text = "⏳ ANALİZ YAPILIYOR...";
                  try
                  {
                      await PerformManualAnalysis();
@@ -4742,7 +4742,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                  finally
                  {
                      btnAnalyze.Enabled = true;
-                     btnAnalyze.Text = "ðŸ“ˆ ANALÄ°Z BAÅžLAT";
+                     btnAnalyze.Text = "📈 ANALİZ BAŞLAT";
                  }
              };
              leftPanel.Controls.Add(btnAnalyze);
@@ -4752,19 +4752,19 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
              leftPanel.Controls.Add(rtbAnalysisResult);
 
              // Tweet Controls
-             chkPostAsThread = new CheckBox { Text = "ðŸ§µ Zincir (Thread) Olarak PaylaÅŸ", ForeColor = Color.Cyan, AutoSize = true, Margin = new Padding(0,10,0,0) };
+             chkPostAsThread = new CheckBox { Text = "🧵 Zincir (Thread) Olarak Paylaş", ForeColor = Color.Cyan, AutoSize = true, Margin = new Padding(0,10,0,0) };
              leftPanel.Controls.Add(chkPostAsThread);
              
-             btnTweetAnalysis = new Button { Text = "ðŸ¦ TWEET OLARAK PAYLAÅž", Width = 350, Height = 40, BackColor = Color.DodgerBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Enabled = false, Margin = new Padding(0,10,0,0) };
+             btnTweetAnalysis = new Button { Text = "🐦 TWEET OLARAK PAYLAŞ", Width = 350, Height = 40, BackColor = Color.DodgerBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand, Enabled = false, Margin = new Padding(0,10,0,0) };
              btnTweetAnalysis.Click += async (s, e) => {
                  if (!string.IsNullOrEmpty(rtbAnalysisResult.Text)) {
-                    // ModÃ¼l: Manuel Analiz (per-module spam check)
+                    // Modül: Manuel Analiz (per-module spam check)
                     if (ConfigManager.Current.SpamProtectManual)
                     {
                         if (!_opManager.Spam.CanPostGeneral(out string reason))
                         {
-                            Log($"ðŸ›¡ï¸ Spam protection (Manuel): {reason}", "Twitter");
-                            MessageBox.Show($"Spam KorumasÄ±: {reason}");
+                            Log($"🛡️ Spam protection (Manuel): {reason}", "Twitter");
+                            MessageBox.Show($"Spam Koruması: {reason}");
                             return;
                         }
                     }
@@ -4773,8 +4773,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                          if (chkPostAsThread.Checked)
                          {
                              btnTweetAnalysis.Enabled = false;
-                             btnTweetAnalysis.Text = "ðŸ§µ Thread HazÄ±rlanÄ±yor...";
-                             Log("ðŸ§µ Thread modunda tweet gÃ¶nderiliyor...", "Twitter");
+                             btnTweetAnalysis.Text = "🧵 Thread Hazırlanıyor...";
+                             Log("🧵 Thread modunda tweet gönderiliyor...", "Twitter");
                              
                             var analysisText = !string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread)
                                 ? _lastAnalysisResult!.ShortThread
@@ -4784,7 +4784,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                              // Ensure media exists; otherwise skip image to avoid upload failure
                              if (string.IsNullOrEmpty(scrPath) || !File.Exists(scrPath))
                              {
-                                 Log("âš ï¸ Screenshot bulunamadÄ± veya silinmiÅŸ, gÃ¶rselsiz gÃ¶nderiliyor.", "Twitter");
+                                 Log("⚠️ Screenshot bulunamadı veya silinmiş, görselsiz gönderiliyor.", "Twitter");
                                  scrPath = null;
                              }
                              var tvLink = _lastAnalysisResult?.TvLink ?? "";
@@ -4812,69 +4812,69 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                               
                               if(sent)
                               {
-                                  Log("âœ… Thread baÅŸarÄ±yla yayÄ±nlandÄ±!", "Twitter");
+                                  Log("✅ Thread başarıyla yayınlandı!", "Twitter");
                                   _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                                  MessageBox.Show("Thread yayÄ±nlandÄ±!");
+                                  MessageBox.Show("Thread yayınlandı!");
                               }
                               else
                               {
-                                  Log($"âŒ Thread hatasÄ±: {errorMsg}", "Twitter");
-                                  MessageBox.Show("Hata oluÅŸtu: " + errorMsg);
+                                  Log($"❌ Thread hatası: {errorMsg}", "Twitter");
+                                  MessageBox.Show("Hata oluştu: " + errorMsg);
                               }
                          }
                          else
                          {
                              btnTweetAnalysis.Enabled = false;
-                             btnTweetAnalysis.Text = "â³ Web Ã¼zerinden gÃ¶nderiliyor...";
-                             Log("ðŸ¦ Tek tweet gÃ¶nderiliyor (Web/Selenium)...", "Twitter");
+                             btnTweetAnalysis.Text = "⏳ Web üzerinden gönderiliyor...";
+                             Log("🐦 Tek tweet gönderiliyor (Web/Selenium)...", "Twitter");
                              
                              // Web/Selenium First
                              // Pass media path explicitly (only if file exists)
                              var mediaPath = _lastAnalysisResult?.ScreenshotPath;
                              if (!string.IsNullOrEmpty(mediaPath) && !File.Exists(mediaPath))
                              {
-                                 Log($"âš ï¸ Medya dosyasÄ± bulunamadÄ±, medyasÄ±z gÃ¶nderilecek: {mediaPath}", "Twitter");
+                                 Log($"⚠️ Medya dosyası bulunamadı, medyasız gönderilecek: {mediaPath}", "Twitter");
                                  mediaPath = null;
                              }
-                             Log($"ðŸ“¸ Medya yolu: {mediaPath ?? "YOK"}", "Twitter");
+                             Log($"📸 Medya yolu: {mediaPath ?? "YOK"}", "Twitter");
                              
                              var res = await _opManager.SocialIntel.PostTweet(rtbAnalysisResult.Text, mediaPath);
                              
                              if (res.status == "success")
                              {
-                                 Log("âœ… Tweet gÃ¶nderildi (Web)!", "Twitter");
+                                 Log("✅ Tweet gönderildi (Web)!", "Twitter");
                                  _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                                 MessageBox.Show("âœ… Tweet gÃ¶nderildi (Web)!");
+                                 MessageBox.Show("✅ Tweet gönderildi (Web)!");
                              }
                              else
                              {
-                                 Log($"âš ï¸ Web baÅŸarÄ±sÄ±z: {res.ErrorMessage}. API fallback deneniyor...", "Twitter");
+                                 Log($"⚠️ Web başarısız: {res.ErrorMessage}. API fallback deneniyor...", "Twitter");
                                  // Fallback to API
-                                 btnTweetAnalysis.Text = "âš ï¸ API ile deneniyor...";
+                                 btnTweetAnalysis.Text = "⚠️ API ile deneniyor...";
                                  string? sentUrl = await _opManager.Twitter.SendTweetAsync(rtbAnalysisResult.Text);
                                  if(!string.IsNullOrEmpty(sentUrl))
                                  {
-                                     Log("âœ… Tweet gÃ¶nderildi (API Fallback)!", "Twitter");
+                                     Log("✅ Tweet gönderildi (API Fallback)!", "Twitter");
                                      _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                                     MessageBox.Show("âœ… Tweet gÃ¶nderildi (API - MedyasÄ±z)!");
+                                     MessageBox.Show("✅ Tweet gönderildi (API - Medyasız)!");
                                  }
                                  else
                                  {
-                                     Log($"âŒ Her iki yÃ¶ntem de baÅŸarÄ±sÄ±z! Web: {res.ErrorMessage} | API: {_opManager.Twitter.LastError}", "Twitter");
-                                     MessageBox.Show($"âŒ BaÅŸarÄ±sÄ±z!\nWeb: {res.ErrorMessage}\nAPI: {_opManager.Twitter.LastError}");
+                                     Log($"❌ Her iki yöntem de başarısız! Web: {res.ErrorMessage} | API: {_opManager.Twitter.LastError}", "Twitter");
+                                     MessageBox.Show($"❌ Başarısız!\nWeb: {res.ErrorMessage}\nAPI: {_opManager.Twitter.LastError}");
                                  }
                              }
                          }
                      }
                      catch (Exception ex)
                      {
-                         Log($"âŒ Tweet gÃ¶nderme sÄ±rasÄ±nda kritik hata: {ex.Message}", "Twitter");
-                         MessageBox.Show($"âŒ Kritik Hata: {ex.Message}");
+                         Log($"❌ Tweet gönderme sırasında kritik hata: {ex.Message}", "Twitter");
+                         MessageBox.Show($"❌ Kritik Hata: {ex.Message}");
                      }
                      finally
                      {
                          btnTweetAnalysis.Enabled = true;
-                         btnTweetAnalysis.Text = "ðŸ¦ TWEET OLARAK PAYLAÅž";
+                         btnTweetAnalysis.Text = "🐦 TWEET OLARAK PAYLAŞ";
                      }
                  }
              };
@@ -4882,7 +4882,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
              // Right Side (Screenshot - ENLARGED)
              var rightPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10), BackColor = Color.Black };
-             rightPanel.Controls.Add(new Label { Text = "ðŸ“¸ Grafik GÃ¶rÃ¼ntÃ¼sÃ¼", ForeColor = Color.Yellow, Dock = DockStyle.Top });
+             rightPanel.Controls.Add(new Label { Text = "📸 Grafik Görüntüsü", ForeColor = Color.Yellow, Dock = DockStyle.Top });
              picScreenshot = new PictureBox { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle };
              rightPanel.Controls.Add(picScreenshot);
 
@@ -4919,7 +4919,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                                 _tweetedToday.Add(tweetUrl);
                         }
                     }
-                    Log($"âœ… {_tweetedToday.Count} yorum yapÄ±lan tweet yÃ¼klendi.");
+                    Log($"✅ {_tweetedToday.Count} yorum yapılan tweet yüklendi.");
                 }
             }
             catch { /* Silent fail */ }
@@ -4947,17 +4947,17 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             int y = 10;
 
             // Header
-            pnlSettings.Controls.Add(new Label { Text = "ðŸ¤– BOT ETKÄ°LEÅžÄ°M MERKEZÄ°", Location = new Point(10, y), AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = Color.Gold });
+            pnlSettings.Controls.Add(new Label { Text = "🤖 BOT ETKİLEŞİM MERKEZİ", Location = new Point(10, y), AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold), ForeColor = Color.Gold });
             y += 35;
 
             // CheckBox
-            chkBotEnabled = new CheckBox { Text = "âœ… Bot EtkileÅŸimi Aktif (Durdurmak iÃ§in tiki kaldÄ±rÄ±n)", Location = new Point(10, y), Width = 400, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Checked = ConfigManager.Current.BotInteractionEnabled };
+            chkBotEnabled = new CheckBox { Text = "✅ Bot Etkileşimi Aktif (Durdurmak için tiki kaldırın)", Location = new Point(10, y), Width = 400, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Checked = ConfigManager.Current.BotInteractionEnabled };
             chkBotEnabled.CheckedChanged += (s, e) => { ConfigManager.Current.BotInteractionEnabled = chkBotEnabled.Checked; ConfigManager.Save(); };
             pnlSettings.Controls.Add(chkBotEnabled);
             y += 30;
 
             // Keywords
-            pnlSettings.Controls.Add(new Label { Text = "ðŸ“Œ Konular (VirgÃ¼lle ayÄ±rÄ±n):", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Cyan });
+            pnlSettings.Controls.Add(new Label { Text = "📌 Konular (Virgülle ayırın):", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Cyan });
             y += 20;
             txtBotKeywords = new TextBox { Location = new Point(10, y), Width = 600, Height = 60, Multiline = true, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotTopicKeywords };
             txtBotKeywords.TextChanged += (s, e) => { ConfigManager.Current.BotTopicKeywords = txtBotKeywords.Text; ConfigManager.Save(); };
@@ -4966,7 +4966,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             // v4.3.2 Fix: Initialize missing Bot Controls
             // Min Followers
-            pnlSettings.Controls.Add(new Label { Text = "Min TakipÃ§i:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
+            pnlSettings.Controls.Add(new Label { Text = "Min Takipçi:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
             txtBotMinFollowers = new TextBox { Location = new Point(120, y-3), Width = 80, BackColor = Color.FromArgb(60,60,60), ForeColor = Color.White, Text = ConfigManager.Current.BotMinFollowers.ToString() };
             txtBotMinFollowers.TextChanged += (s, e) => { if (int.TryParse(txtBotMinFollowers.Text, out int v)) { ConfigManager.Current.BotMinFollowers = v; ConfigManager.Save(); } };
             pnlSettings.Controls.Add(txtBotMinFollowers);
@@ -4986,12 +4986,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             y += 35;
             
             // Status
-            lblBotStatus = new Label { Text = "â³ Bekleniyor...", Location = new Point(10, y), Width = 600, ForeColor = Color.Gray, Font = new Font("Segoe UI", 9, FontStyle.Italic) };
+            lblBotStatus = new Label { Text = "⏳ Bekleniyor...", Location = new Point(10, y), Width = 600, ForeColor = Color.Gray, Font = new Font("Segoe UI", 9, FontStyle.Italic) };
             pnlSettings.Controls.Add(lblBotStatus);
             y += 25;
 
             // Log
-            pnlSettings.Controls.Add(new Label { Text = "ðŸ“œ Ä°ÅŸlem Logu:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
+            pnlSettings.Controls.Add(new Label { Text = "📜 İşlem Logu:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
             y += 20;
             rtbBotLog = new RichTextBox { Location = new Point(10, y), Width = 800, Height = 250, BackColor = Color.Black, ForeColor = Color.Lime, ReadOnly = true, Font = new Font("Consolas", 9) };
             pnlSettings.Controls.Add(rtbBotLog);
@@ -5002,8 +5002,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             var pnlApprovals = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
             
             var pnlAppHeader = new Panel { Dock = DockStyle.Top, Height = 30 };
-            pnlAppHeader.Controls.Add(new Label { Text = "â³ Onay Bekleyen Bot YanÄ±tlarÄ±", Dock = DockStyle.Left, ForeColor = Color.Orange, Font = new Font("Segoe UI", 10, FontStyle.Bold), AutoSize = true });
-            pnlAppHeader.Controls.Add(new Label { Text = "âœï¸ YanÄ±tÄ± dÃ¼zenlemek iÃ§in seÃ§in ve aÅŸaÄŸÄ±ya yazÄ±n:", Dock = DockStyle.Right, ForeColor = Color.LightGray, AutoSize = true });
+            pnlAppHeader.Controls.Add(new Label { Text = "⏳ Onay Bekleyen Bot Yanıtları", Dock = DockStyle.Left, ForeColor = Color.Orange, Font = new Font("Segoe UI", 10, FontStyle.Bold), AutoSize = true });
+            pnlAppHeader.Controls.Add(new Label { Text = "✏️ Yanıtı düzenlemek için seçin ve aşağıya yazın:", Dock = DockStyle.Right, ForeColor = Color.LightGray, AutoSize = true });
             pnlApprovals.Controls.Add(pnlAppHeader);
 
             var subSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 200, BackColor = Color.FromArgb(40,40,40) };
@@ -5029,8 +5029,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             dgvBotApproval.DefaultCellStyle.SelectionBackColor = Color.Teal;
 
             dgvBotApproval.Columns.Add("Time", "Zaman");
-            dgvBotApproval.Columns.Add("User", "KullanÄ±cÄ±");
-            dgvBotApproval.Columns.Add("Reply", "Ã–nerilen YanÄ±t");
+            dgvBotApproval.Columns.Add("User", "Kullanıcı");
+            dgvBotApproval.Columns.Add("Reply", "Önerilen Yanıt");
             dgvBotApproval.Columns.Add("Status", "Durum");
             dgvBotApproval.Columns.Add("Url", "Url"); 
             dgvBotApproval.Columns.Add("FullReply", "FullReply");
@@ -5046,7 +5046,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             // Editor
             var pnlEditor = new Panel { Dock = DockStyle.Fill };
             rtbBotPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(25,25,25), ForeColor = Color.White, BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10) };
-            var btnApprove = new Button { Text = "âœ… DÃœZENLENMÄ°Åž YANITI GÃ–NDER", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
+            var btnApprove = new Button { Text = "✅ DÜZENLENMİŞ YANITI GÖNDER", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
             btnApprove.Click += async (s,e) => await ApproveBotInteraction();
             
             pnlEditor.Controls.Add(rtbBotPreview);
@@ -5088,24 +5088,24 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             if (string.IsNullOrEmpty(replyText))
             {
-                 MessageBox.Show("YanÄ±t verisi bulunamadÄ±.");
+                 MessageBox.Show("Yanıt verisi bulunamadı.");
                  return;
             }
 
             // Post Reply
-            Log("ðŸ¤– Bot yanÄ±tÄ± gÃ¶nderiliyor...", "Bot");
+            Log("🤖 Bot yanıtı gönderiliyor...", "Bot");
             var res = await _opManager.SocialIntel.ReplyToTweetAsync(url, replyText);
             
             if (res.status == "success")
             {
-                Log($"âœ… Bot yanÄ±tÄ± gÃ¶nderildi!", "Bot");
+                Log($"✅ Bot yanıtı gönderildi!", "Bot");
                 if (dgvBotApproval != null) dgvBotApproval.Rows.Remove(row);
                 
                 // Remove from dict
                 var kvp = _pendingInteractionDict.FirstOrDefault(x => x.Value.Url == url);
                 if (kvp.Value != null) _pendingInteractionDict.TryRemove(kvp.Key, out _);
                 
-                MessageBox.Show("YanÄ±t BaÅŸarÄ±yla GÃ¶nderildi!");
+                MessageBox.Show("Yanıt Başarıyla Gönderildi!");
             }
             else
             {
@@ -5134,14 +5134,14 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     string targetUrl = parts[1];
                     string replyText = parts[2];
                     
-                    Log("ðŸ¤– Bot yanÄ±tÄ± onaylandÄ±, gÃ¶nderiliyor...", "Social");
+                    Log("🤖 Bot yanıtı onaylandı, gönderiliyor...", "Social");
                     var res = await _opManager.SocialIntel.ReplyToTweetAsync(targetUrl, replyText);
                     
                     if (res.status == "success")
                     {
-                        Log("âœ… Bot yanÄ±tÄ± gÃ¶nderildi!", "Social");
+                        Log("✅ Bot yanıtı gönderildi!", "Social");
                         dgvGuruApproval.Rows.Remove(row);
-                        MessageBox.Show("YanÄ±t baÅŸarÄ±yla gÃ¶nderildi.");
+                        MessageBox.Show("Yanıt başarıyla gönderildi.");
                         return;
                     }
                     else
@@ -5153,7 +5153,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             }
 
             // Disable UI
-            Log("ðŸ§µ Thread onaylandÄ±, yayÄ±nlanÄ±yor...", "Twitter");
+            Log("🧵 Thread onaylandı, yayınlanıyor...", "Twitter");
             
             // Post
             var tweets = ThreadPipeline.ParseParts(content, 280);
@@ -5162,13 +5162,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             
             if (result != null && result.status == "success")
             {
-                Log("âœ… Thread baÅŸarÄ±yla yayÄ±nlandÄ±!", "Twitter");
+                Log("✅ Thread başarıyla yayınlandı!", "Twitter");
                 // SAFETY FIX: Check if row still exists and belongs to grid
                 if (dgvGuruApproval != null && !row.IsNewRow && dgvGuruApproval.Rows.Contains(row))
                 {
                     dgvGuruApproval.Rows.Remove(row);
                 }
-                MessageBox.Show("Thread yayÄ±nlandÄ±!");
+                MessageBox.Show("Thread yayınlandı!");
             }
             else
             {
@@ -5180,7 +5180,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             if (dgvGuruApproval.SelectedRows.Count == 0) return;
             var row = dgvGuruApproval.SelectedRows[0];
-            if (MessageBox.Show("Bu taslaÄŸÄ± silmek istediÄŸinize emin misiniz?", "Onay", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show("Bu taslağı silmek istediğinize emin misiniz?", "Onay", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 dgvGuruApproval.Rows.Remove(row);
             }
@@ -5192,7 +5192,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             try
             {
                 // Status Determination (heuristic, can be improved with event args)
-                string status = "âœ… YayÄ±nlandÄ±"; 
+                string status = "✅ Yayınlandı"; 
                 // Color coding
                 Color rowColor = Color.FromArgb(35, 35, 40);
                 Color statusColor = Color.LimeGreen;
@@ -5251,11 +5251,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 if (dgvSignals.Rows.Count > 0)
                     dgvSignals.FirstDisplayedScrollingRowIndex = dgvSignals.Rows.Count - 1;
                     
-                Log($"ðŸ“‹ {history.Count} adet geÃ§miÅŸ sinyal tabloya yÃ¼klendi.", "System");
+                Log($"📋 {history.Count} adet geçmiş sinyal tabloya yüklendi.", "System");
             }
             catch (Exception ex)
             {
-                Log($"âš ï¸ GeÃ§miÅŸ sinyaller yÃ¼klenirken hata: {ex.Message}", "System");
+                Log($"⚠️ Geçmiş sinyaller yüklenirken hata: {ex.Message}", "System");
             }
         }
 
@@ -5270,7 +5270,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             
             // Header
             var lblTitle = new Label { 
-                Text = $"ðŸ‘‘ ÃœSTAT TAKÄ°P MERKEZÄ° - {ConfigManager.Current.GuruHandle}", 
+                Text = $"👑 ÜSTAT TAKİP MERKEZİ - {ConfigManager.Current.GuruHandle}", 
                 Dock = DockStyle.Top, 
                 Height = 40, 
                 ForeColor = Color.Gold, 
@@ -5296,7 +5296,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             // Header Label
             var lblFeedHeader = new Label { 
-                Text = "ðŸ“¡ CanlÄ± AkÄ±ÅŸ (Son Tweetler & Tablolar)", 
+                Text = "📡 Canlı Akış (Son Tweetler & Tablolar)", 
                 Dock = DockStyle.Fill, 
                 Font = new Font("Segoe UI", 10, FontStyle.Bold), 
                 ForeColor = Color.Cyan,
@@ -5328,46 +5328,46 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             dgvGuru.DefaultCellStyle.SelectionBackColor = Color.Indigo;
 
             dgvGuru.Columns.Add("Date", "Saat"); dgvGuru.Columns[0].Width = 60;
-            dgvGuru.Columns.Add("Text", "Ä°Ã§erik");
-            dgvGuru.Columns.Add("Image", "GÃ¶rsel"); dgvGuru.Columns["Image"].Width = 70;
+            dgvGuru.Columns.Add("Text", "İçerik");
+            dgvGuru.Columns.Add("Image", "Görsel"); dgvGuru.Columns["Image"].Width = 70;
             dgvGuru.Columns.Add("Url", "Link"); dgvGuru.Columns["Url"].Visible = false;
             dgvGuru.RowTemplate.Height = 40;
             
             tlpFeed.Controls.Add(dgvGuru, 0, 1);
             
-            var btnScanHoca = new Button { Text = "ðŸ” HocayÄ± Åžimdi Tara", Dock = DockStyle.Fill, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            var btnScanHoca = new Button { Text = "🔍 Hocayı Şimdi Tara", Dock = DockStyle.Fill, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnScanHoca.Click += async (s, e) => {
                 if (_isGuruScanning) return;
                 try {
                     _isGuruScanning = true;
                     btnScanHoca.Enabled = false;
-                    btnScanHoca.Text = "â³ TaranÄ±yor...";
+                    btnScanHoca.Text = "⏳ Taranıyor...";
                     await ScanGuruAccountAsync();
-                } catch (Exception ex) { Log($"âš ï¸ Tarama hatasÄ±: {ex.Message}", "System"); }
+                } catch (Exception ex) { Log($"⚠️ Tarama hatası: {ex.Message}", "System"); }
                 finally {
                     _isGuruScanning = false;
                     if (!btnScanHoca.IsDisposed) {
                         btnScanHoca.Enabled = true;
-                        btnScanHoca.Text = "ðŸ” HocayÄ± Åžimdi Tara";
+                        btnScanHoca.Text = "🔍 Hocayı Şimdi Tara";
                     }
                 }
             };
             tlpFeed.Controls.Add(btnScanHoca, 0, 2);
             
-            var btnAnalyzeSelected = new Button { Text = "ðŸ§  SeÃ§ili Tabloyu Thread Yap", Dock = DockStyle.Fill, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            var btnAnalyzeSelected = new Button { Text = "🧠 Seçili Tabloyu Thread Yap", Dock = DockStyle.Fill, BackColor = Color.FromArgb(0, 120, 215), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             btnAnalyzeSelected.Click += async (s, e) => {
                 if (_isGuruAnalyzing) return;
                 try {
                     _isGuruAnalyzing = true;
                     btnAnalyzeSelected.Enabled = false;
-                    btnAnalyzeSelected.Text = "â³ Analiz Ediliyor...";
+                    btnAnalyzeSelected.Text = "⏳ Analiz Ediliyor...";
                     await AnalyzeSelectedGuruTableAsync();
-                } catch (Exception ex) { Log($"âš ï¸ Analiz hatasÄ±: {ex.Message}", "System"); }
+                } catch (Exception ex) { Log($"⚠️ Analiz hatası: {ex.Message}", "System"); }
                 finally {
                     _isGuruAnalyzing = false;
                     if (!btnAnalyzeSelected.IsDisposed) {
                         btnAnalyzeSelected.Enabled = true;
-                        btnAnalyzeSelected.Text = "ðŸ§  SeÃ§ili Tabloyu Thread Yap";
+                        btnAnalyzeSelected.Text = "🧠 Seçili Tabloyu Thread Yap";
                     }
                 }
             };
@@ -5379,9 +5379,9 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             var pnlReview = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
             
             var headerPanel = new Panel { Dock = DockStyle.Top, Height = 30 };
-            headerPanel.Controls.Add(new Label { Text = "ðŸ“ Onay Bekleyen Analizler (Taslaklar)", Dock = DockStyle.Left, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Orange, AutoSize = true });
+            headerPanel.Controls.Add(new Label { Text = "📝 Onay Bekleyen Analizler (Taslaklar)", Dock = DockStyle.Left, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.Orange, AutoSize = true });
             
-            var btnDelete = new Button { Text = "âŒ Sil", Dock = DockStyle.Right, Width = 80, BackColor = Color.Maroon, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var btnDelete = new Button { Text = "❌ Sil", Dock = DockStyle.Right, Width = 80, BackColor = Color.Maroon, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnDelete.Click += (s,e) => RejectSelectedThread();
             headerPanel.Controls.Add(btnDelete);
             
@@ -5409,7 +5409,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             dgvGuruApproval.Columns.Add("Date", "Tarih");
             dgvGuruApproval.Columns.Add("Symbol", "Sembol");
-            dgvGuruApproval.Columns.Add("Snippet", "Ã–zet");
+            dgvGuruApproval.Columns.Add("Snippet", "Özet");
             dgvGuruApproval.Columns.Add("Status", "Durum");
             dgvGuruApproval.Columns.Add("Content", "C"); dgvGuruApproval.Columns["Content"].Visible=false;
             dgvGuruApproval.Columns.Add("ImagePath", "I"); dgvGuruApproval.Columns["ImagePath"].Visible=false;
@@ -5421,7 +5421,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             var pnlPreview = new Panel { Dock = DockStyle.Fill };
             var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 200, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
             rtbGuruPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20,20,20), ForeColor = Color.White, BorderStyle = BorderStyle.None, ReadOnly = false };
-            var btnPublish = new Button { Text = "âœ… YAYINLA", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            var btnPublish = new Button { Text = "✅ YAYINLA", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
             btnPublish.Click += async (s,e) => await ApproveSelectedThread();
             
             pnlPreview.Controls.Add(rtbGuruPreview);
@@ -5451,7 +5451,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         private async Task ScanGuruAccountAsync()
         {
             string guruHandle = ConfigManager.Current.GuruHandle;
-            Log($"ðŸ“¡ {guruHandle} taranÄ±yor...", "System");
+            Log($"📡 {guruHandle} taranıyor...", "System");
             // Pass empty symbol to SocialIntelService to fetch timeline WITHOUT symbol filtering
             var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle });
             
@@ -5465,12 +5465,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 int idx = dgvGuru.Rows.Add(
                     post.PostDate.ToString("dd.MM HH:mm"),
                     post.Content,
-                    hasImage ? "âœ… EVET" : "âŒ HAYIR",
+                    hasImage ? "✅ EVET" : "❌ HAYIR",
                     post.Url);
-                // S3: Tag ile gÃ¼venli eÅŸleÅŸme
+                // S3: Tag ile güvenli eşleşme
                 dgvGuru.Rows[idx].Tag = post;
             }
-            Log($"âœ… {guruHandle} tarandÄ±, {res.Count} tweet verisi alÄ±ndÄ±. Grid SatÄ±r SayÄ±sÄ±: {dgvGuru.Rows.Count}", "System");
+            Log($"✅ {guruHandle} tarandı, {res.Count} tweet verisi alındı. Grid Satır Sayısı: {dgvGuru.Rows.Count}", "System");
             
             if (dgvGuru.Rows.Count > 0)
             {
@@ -5483,47 +5483,47 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
         {
             if (dgvGuru.SelectedRows.Count == 0) return;
             
-            // S3: Tag ile IndexOutOfRange riskini ortadan kaldÄ±r
+            // S3: Tag ile IndexOutOfRange riskini ortadan kaldır
             var post = dgvGuru.SelectedRows[0].Tag as InfluencerPost;
             if (post == null)
             {
-                Log("âš ï¸ SeÃ§ili satÄ±r iÃ§in post verisi bulunamadÄ±.", "System");
+                Log("⚠️ Seçili satır için post verisi bulunamadı.", "System");
                 return;
             }
 
-            // S10: Daha Ã¶nce iÅŸlendi mi kontrol et
+            // S10: Daha önce işlendi mi kontrol et
             if (!string.IsNullOrEmpty(post.Url) && _opManager.GuruPersistence.IsProcessed(post.Url))
             {
-                var ans = MessageBox.Show($"Bu tweet daha Ã¶nce iÅŸlendi:\n{post.Url}\n\nYeniden analiz etmek istiyor musunuz?",
+                var ans = MessageBox.Show($"Bu tweet daha önce işlendi:\n{post.Url}\n\nYeniden analiz etmek istiyor musunuz?",
                     "Tekrar Analiz", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (ans != DialogResult.Yes) return;
             }
 
-            // S6: ImageUrl gÃ¼venli kontrol
+            // S6: ImageUrl güvenli kontrol
             var imageUrls = post.ImageUrl?.Split(',') ?? Array.Empty<string>();
             string? firstImageUrl = imageUrls.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
 
             if (string.IsNullOrEmpty(firstImageUrl))
             {
-                MessageBox.Show("Bu paylaÅŸÄ±mda tablo gÃ¶rseli bulunamadÄ±. LÃ¼tfen gÃ¶rsel iÃ§eren bir tweet seÃ§in.");
+                MessageBox.Show("Bu paylaşımda tablo görseli bulunamadı. Lütfen görsel içeren bir tweet seçin.");
                 return;
             }
 
-            Log($"ðŸŽ¨ {ConfigManager.Current.GuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
+            Log($"🎨 {ConfigManager.Current.GuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
             
             var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(firstImageUrl);
             
-            // S8: Vision model kapalÄ±ysa aÃ§Ä±klayÄ±cÄ± mesaj
+            // S8: Vision model kapalıysa açıklayıcı mesaj
             if (items.Count == 0)
             {
                 string hint = ConfigManager.Current.EnableMultiModel
-                    ? "GÃ¶rselde tablo veya hisse sembolÃ¼ tespit edilemedi. GÃ¶rselin net bir tablo iÃ§erdiÄŸinden emin olun."
-                    : "GÃ¶rselde tablo tespit edilemedi. GÃ¶rsel analiz iÃ§in Ayarlar > Ã‡oklu Model seÃ§eneÄŸinin aktif olmasÄ± gerekir.";
-                Log($"âš ï¸ {hint}", "System");
+                    ? "Görselde tablo veya hisse sembolü tespit edilemedi. Görselin net bir tablo içerdiğinden emin olun."
+                    : "Görselde tablo tespit edilemedi. Görsel analiz için Ayarlar > Çoklu Model seçeneğinin aktif olması gerekir.";
+                Log($"⚠️ {hint}", "System");
                 return;
             }
 
-            Log($"âœ… {items.Count} hisse tespit edildi. ({tableName}) Analizler ve grafikler hazÄ±rlanÄ±yor...", "System");
+            Log($"✅ {items.Count} hisse tespit edildi. ({tableName}) Analizler ve grafikler hazırlanıyor...", "System");
 
             foreach (var (symbol, period) in items)
             {
@@ -5535,24 +5535,24 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 string? chartPath = null;
                 try
                 {
-                    Log($"ðŸ“¸ #{symbol} iÃ§in TradingView grafiÄŸi yakalanÄ±yor...", "System");
+                    Log($"📸 #{symbol} için TradingView grafiği yakalanıyor...", "System");
                     string tvSymbol = (marketPrefix == "BIST") ? $"BIST:{symbol}" : symbol;
                     chartPath = await _opManager.Screenshot.CaptureChart(tvSymbol, period, ConfigManager.Current.TradingViewChartId);
                 }
-                catch (Exception ex) { Log($"âš ï¸ Grafik yakalanamadÄ±: {ex.Message}", "System"); }
+                catch (Exception ex) { Log($"⚠️ Grafik yakalanamadı: {ex.Message}", "System"); }
 
                 // Technical Context (Price info)
                 string techContext = "";
                 try
                 {
                     var price = await _opManager.PriceFetch.GetPriceAsync(symbol, (marketPrefix == "BIST" ? "BIST" : "Kripto"));
-                    if (price != null) techContext = $"GÃœNCEL FÄ°YAT: {price.FormatFullInfo()}";
+                    if (price != null) techContext = $"GÜNCEL FİYAT: {price.FormatFullInfo()}";
                 }
                 catch { }
 
                 try
                 {
-                    Log($"âœï¸ #{symbol} ({period}) iÃ§in gÃ¶rsel destekli thread hazÄ±rlanÄ±yor...", "System");
+                    Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
                     string guruHandle = ConfigManager.Current.GuruHandle;
                     var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, post.Handle, post.Url, tableName, guruHandle, techContext, chartPath);
                     
@@ -5560,10 +5560,10 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     {
                         if (ConfigManager.Current.IsGuruAutomationEnabled)
                         {
-                            Log($"ðŸš€ Otomatik paylaÅŸÄ±m aktif: #{symbol} gÃ¶nderiliyor...", "Social");
+                            Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
                             var tweets = ThreadPipeline.ParseParts(thread, 280);
                             await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
-                            // S9: Otomasyon sonrasÄ± temp dosyayÄ± temizle
+                            // S9: Otomasyon sonrası temp dosyayı temizle
                             if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
                             {
                                 try { File.Delete(chartPath); } catch { /* ignore cleanup error */ }
@@ -5573,21 +5573,21 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                         {
                             // Add to Approval Grid
                             string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
-                            dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "HazÄ±r (Hoca)", thread, chartPath);
-                            Log($"ðŸ’¾ #{symbol} threadi 'Ãœstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
+                            dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
+                            Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
                             
-                            // S4: Ãœstat sekmesine yÃ¶nlendir (Bot sekmesi deÄŸil)
+                            // S4: Üstat sekmesine yönlendir (Bot sekmesi değil)
                             this.Invoke(new Action(() => ShowPanel(pnlGuruCenter, btnNavGuru)));
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log($"âš ï¸ #{symbol} thread oluÅŸturma hatasÄ±: {ex.Message}", "System");
+                    Log($"⚠️ #{symbol} thread oluşturma hatası: {ex.Message}", "System");
                 }
             }
 
-            // S10: BaÅŸarÄ±lÄ± iÅŸlem sonrasÄ± URL'yi iÅŸlenmiÅŸ olarak kaydet
+            // S10: Başarılı işlem sonrası URL'yi işlenmiş olarak kaydet
             if (!string.IsNullOrEmpty(post.Url))
                 _opManager.GuruPersistence.MarkAsProcessed(post.Url);
         }
@@ -5600,7 +5600,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             // --- 1. HEADER (Top) ---
             var lblHeader = new Label { 
-                Text = "FENERBAHÃ‡E FAN ZONE ðŸ’™ðŸ’›", 
+                Text = "FENERBAHÇE FAN ZONE 💙💛", 
                 Dock = DockStyle.Top, 
                 Height = 60, 
                 Font = new Font("Segoe UI", 18, FontStyle.Bold), 
@@ -5625,7 +5625,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             pnlSide.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F)); // Add Account
 
             var lblSideTitle = new Label {
-                Text = "ðŸ“‹ TAKÄ°P LÄ°STESÄ° / KADRO",
+                Text = "📋 TAKİP LİSTESİ / KADRO",
                 Dock = DockStyle.Top,
                 Height = 35,
                 ForeColor = Color.Gold,
@@ -5660,7 +5660,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             // Refresh Button
             var btnRefreshRoster = new Button {
-                Text = "ðŸ”„ Listeyi GÃ¼ncelle",
+                Text = "🔄 Listeyi Güncelle",
                 Dock = DockStyle.Bottom,
                 Height = 35,
                 FlatStyle = FlatStyle.Flat,
@@ -5671,7 +5671,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             // v4.5.3: User-friendly Add Account/Athlete Dialog (replaced Notepad approach)
             var btnEditConfig = new Button {
-                Text = "âž• Hesap Ekle",
+                Text = "➕ Hesap Ekle",
                 Dock = DockStyle.Bottom,
                 Height = 35,
                 FlatStyle = FlatStyle.Flat,
@@ -5682,7 +5682,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             btnEditConfig.Click += (s, e) => {
                 // Create a simple input dialog
                 var dlg = new Form {
-                    Text = "ðŸ’™ðŸ’› FanZone - Hesap Ekle",
+                    Text = "💙💛 FanZone - Hesap Ekle",
                     Width = 400,
                     Height = 280,
                     StartPosition = FormStartPosition.CenterParent,
@@ -5692,7 +5692,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     BackColor = Color.FromArgb(30, 30, 40)
                 };
 
-                var lblType = new Label { Text = "Hesap TÃ¼rÃ¼:", Left = 20, Top = 20, Width = 100, ForeColor = Color.White };
+                var lblType = new Label { Text = "Hesap Türü:", Left = 20, Top = 20, Width = 100, ForeColor = Color.White };
                 var cmbType = new ComboBox { Left = 130, Top = 18, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
                 cmbType.Items.AddRange(new[] { "Resmi Hesap", "Sporcu", "Muhabir/Fan" });
                 cmbType.SelectedIndex = 1;
@@ -5701,13 +5701,13 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 var txtHandle = new TextBox { Left = 130, Top = 58, Width = 220, BackColor = Color.FromArgb(50, 50, 60), ForeColor = Color.White };
                 txtHandle.PlaceholderText = "@kullaniciadi";
 
-                var lblName = new Label { Text = "Ä°sim (Sporcu):", Left = 20, Top = 100, Width = 100, ForeColor = Color.White };
+                var lblName = new Label { Text = "İsim (Sporcu):", Left = 20, Top = 100, Width = 100, ForeColor = Color.White };
                 var txtName = new TextBox { Left = 130, Top = 98, Width = 220, BackColor = Color.FromArgb(50, 50, 60), ForeColor = Color.White };
-                txtName.PlaceholderText = "Ã–rn: Edin Dzeko";
+                txtName.PlaceholderText = "Örn: Edin Dzeko";
 
-                var lblSport = new Label { Text = "BranÅŸ:", Left = 20, Top = 140, Width = 100, ForeColor = Color.White };
+                var lblSport = new Label { Text = "Branş:", Left = 20, Top = 140, Width = 100, ForeColor = Color.White };
                 var cmbSport = new ComboBox { Left = 130, Top = 138, Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
-                cmbSport.Items.AddRange(new[] { "Futbol", "Basketbol", "Voleybol", "DiÄŸer" });
+                cmbSport.Items.AddRange(new[] { "Futbol", "Basketbol", "Voleybol", "Diğer" });
                 cmbSport.SelectedIndex = 0;
 
                 // Show/hide athlete fields based on type
@@ -5716,8 +5716,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     lblName.Visible = txtName.Visible = lblSport.Visible = cmbSport.Visible = isSporcu;
                 };
 
-                var btnOk = new Button { Text = "âœ… Ekle", Left = 130, Top = 190, Width = 100, DialogResult = DialogResult.OK, FlatStyle = FlatStyle.Flat, BackColor = Color.Green, ForeColor = Color.White };
-                var btnCancel = new Button { Text = "Ä°ptal", Left = 250, Top = 190, Width = 100, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, BackColor = Color.Gray, ForeColor = Color.White };
+                var btnOk = new Button { Text = "✅ Ekle", Left = 130, Top = 190, Width = 100, DialogResult = DialogResult.OK, FlatStyle = FlatStyle.Flat, BackColor = Color.Green, ForeColor = Color.White };
+                var btnCancel = new Button { Text = "İptal", Left = 250, Top = 190, Width = 100, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat, BackColor = Color.Gray, ForeColor = Color.White };
 
                 dlg.Controls.AddRange(new Control[] { lblType, cmbType, lblHandle, txtHandle, lblName, txtName, lblSport, cmbSport, btnOk, btnCancel });
                 dlg.AcceptButton = btnOk;
@@ -5726,7 +5726,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                 if (dlg.ShowDialog() == DialogResult.OK) {
                     var handle = txtHandle.Text.Trim();
                     if (string.IsNullOrEmpty(handle)) {
-                        MessageBox.Show("Handle boÅŸ olamaz!", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show("Handle boş olamaz!", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
                     if (!handle.StartsWith("@")) handle = "@" + handle;
@@ -5740,20 +5740,20 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     } else {
                         // Resmi veya Muhabir
                         if (cmbType.SelectedIndex == 0) {
-                            cfg.FenerbahceAccounts.Insert(0, handle); // Resmi en baÅŸa
+                            cfg.FenerbahceAccounts.Insert(0, handle); // Resmi en başa
                         } else {
                             cfg.FenerbahceAccounts.Add(handle); // Muhabir sona
                         }
                     }
                     ConfigManager.Save();
                     ReloadRoster();
-                    Log($"âœ… FanZone: '{handle}' eklendi.", "System");
+                    Log($"✅ FanZone: '{handle}' eklendi.", "System");
                 }
             };
 
             // v4.3.5: Context menu for deleting items
             var ctxMenu = new ContextMenuStrip();
-            var mnuDelete = new ToolStripMenuItem("ðŸ—‘ï¸ Sil");
+            var mnuDelete = new ToolStripMenuItem("🗑️ Sil");
             mnuDelete.Click += (s, e) => {
                 if (lvwRoster.SelectedItems.Count == 0) return;
                 var selected = lvwRoster.SelectedItems[0];
@@ -5777,7 +5777,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     }
                     ConfigManager.Save();
                     ReloadRoster();
-                    Log($"ðŸ—‘ï¸ FanZone: '{text}' silindi.", "System");
+                    Log($"🗑️ FanZone: '{text}' silindi.", "System");
                 } catch { }
             };
             ctxMenu.Items.Add(mnuDelete);
@@ -5807,12 +5807,12 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
                     foreach(var ath in cfg.FenerbahceAthletes)
                         lvwRoster.Items.Add(new ListViewItem($"{ath.Name} ({ath.Handle})") { Group = grpAthlete });
 
-                    // Muhabirler (Liste dÄ±ÅŸÄ±ndakiler veya geri kalanÄ±)
+                    // Muhabirler (Liste dışındakiler veya geri kalanı)
                     foreach(var acc in cfg.FenerbahceAccounts.Skip(2))
                         lvwRoster.Items.Add(new ListViewItem(acc) { Group = grpReporter });
 
                     lvwRoster.EndUpdate();
-                    Log($"ðŸ“‹ FanZone listesi yenilendi. Toplam: {lvwRoster.Items.Count}", "System");
+                    Log($"📋 FanZone listesi yenilendi. Toplam: {lvwRoster.Items.Count}", "System");
                 } catch { }
             }
             
@@ -5824,25 +5824,25 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             // --- 3. MAIN CONTENT (Left/Fill) ---
             var pnlMain = new Panel {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(0, 0, 5, 0) // SaÄŸdan boÅŸluk bÄ±rak ki sidebar ile yapÄ±ÅŸmasÄ±n
+                Padding = new Padding(0, 0, 5, 0) // Sağdan boşluk bırak ki sidebar ile yapışmasın
             };
 
             // Main Controls (Start/Stop)
             var pnlControls = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = Color.FromArgb(40,40,40) };
             
-            var btnStart = new Button { Text = "â–¶ï¸ SALDIR (BaÅŸlat)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Green, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnStart = new Button { Text = "▶️ SALDIR (Başlat)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Green, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStart.Click += (s,e) => { 
                 _opManager.FanZone.Start(); 
-                MessageBox.Show("Tam saha pres baÅŸladÄ±! ModÃ¼l devrede.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
+                MessageBox.Show("Tam saha pres başladı! Modül devrede.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
             };
             
-            var btnStop = new Button { Text = "â¹ï¸ MOLA (Durdur)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Red, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            var btnStop = new Button { Text = "⏹️ MOLA (Durdur)", Width = 150, Dock = DockStyle.Left, FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = Color.Red, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStop.Click += (s,e) => { 
                 _opManager.FanZone.Stop(); 
-                MessageBox.Show("ModÃ¼l dinlenmeye Ã§ekildi.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
+                MessageBox.Show("Modül dinlenmeye çekildi.", "FanZone", MessageBoxButtons.OK, MessageBoxIcon.Information); 
             };
 
-            var btnClear = new Button { Text = "ðŸ§¹ Temizle", Width = 100, Dock = DockStyle.Right, FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
+            var btnClear = new Button { Text = "🧹 Temizle", Width = 100, Dock = DockStyle.Right, FlatStyle = FlatStyle.Flat, ForeColor = Color.White };
             btnClear.Click += (s,e) => { dgvFenerbahce.Rows.Clear(); };
 
             pnlControls.Controls.Add(btnStop);
@@ -5880,15 +5880,15 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             dgvFenerbahce.DefaultCellStyle.SelectionForeColor = Color.Yellow;
             dgvFenerbahce.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
-            // Columns - v4.5.3: Added EtkileÅŸim column
+            // Columns - v4.5.3: Added Etkileşim column
             dgvFenerbahce.Columns.Add("Time", "Zaman");
             dgvFenerbahce.Columns[0].Width = 55;
             dgvFenerbahce.Columns.Add("Source", "Kaynak");
             dgvFenerbahce.Columns[1].Width = 100;
-            dgvFenerbahce.Columns.Add("Interaction", "EtkileÅŸim");
+            dgvFenerbahce.Columns.Add("Interaction", "Etkileşim");
             dgvFenerbahce.Columns[2].Width = 60;
-            dgvFenerbahce.Columns.Add("Tweet", "Ä°Ã§erik");
-            dgvFenerbahce.Columns.Add("Reaction", "AI YanÄ±tÄ±");
+            dgvFenerbahce.Columns.Add("Tweet", "İçerik");
+            dgvFenerbahce.Columns.Add("Reaction", "AI Yanıtı");
             dgvFenerbahce.Columns.Add("Status", "Durum");
             dgvFenerbahce.Columns[5].Width = 75;
 
@@ -5917,7 +5917,7 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             
             // 1. Header (Fixed Row 0)
             lblHeader.Dock = DockStyle.Fill;
-            lblHeader.Text = "FENERBAHÃ‡E FAN ZONE (v4.5.0) ðŸ’™ðŸ’›"; // Final Release
+            lblHeader.Text = "FENERBAHÇE FAN ZONE (v4.5.0) 💙💛"; // Final Release
             tlpRoot.Controls.Add(lblHeader, 0, 0);
             
             // 2. Body Split (Content Row 1)
