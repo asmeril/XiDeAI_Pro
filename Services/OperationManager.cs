@@ -210,6 +210,7 @@ namespace XiDeAI_Pro.Services
                 Gemini,
                 Twitter,
                 SocialIntel,
+                InfluencerControl,
                 Screenshot,
                 ThreadSvc,
                 Prompts,

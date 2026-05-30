@@ -22,6 +22,7 @@ namespace XiDeAI_Pro.Services
         private readonly GeminiService _gemini;
         private readonly TwitterService _twitter;
         private readonly SocialIntelService _socialIntel;
+        private readonly InfluencerControlService _influencerControl;
         private readonly ScreenshotService _screenshot;
         private readonly ThreadService _threadService;
         private readonly PromptManager _promptManager;
@@ -63,6 +64,7 @@ namespace XiDeAI_Pro.Services
             GeminiService gemini, 
             TwitterService twitter, 
             SocialIntelService socialIntel,
+            InfluencerControlService influencerControl,
             ScreenshotService screenshot,
             ThreadService threadService,
             PromptManager promptManager,
@@ -78,6 +80,7 @@ namespace XiDeAI_Pro.Services
             _gemini = gemini;
             _twitter = twitter;
             _socialIntel = socialIntel;
+            _influencerControl = influencerControl;
             _screenshot = screenshot;
             _threadService = threadService;
             _promptManager = promptManager;
@@ -389,19 +392,70 @@ namespace XiDeAI_Pro.Services
                      }
                 }
 
-                // Influencer Intelligence
+                // Influencer Intelligence: VIP listesi → genel X araması → fallback handle
                 string influencerCitations = "";
-                try 
+                try
                 {
-                    var influencerPosts = await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market);
-                    if (influencerPosts != null && influencerPosts.Count > 0)
+                    string symUpper = sig.Symbol.ToUpperInvariant();
+                    string currentUser = ConfigManager.Current.XLoginUser?.Replace("@", "").Trim() ?? "";
+
+                    Func<List<InfluencerPost>, List<InfluencerPost>> cleanFilter = (raw) => (raw ?? new List<InfluencerPost>())
+                        .Where(p => !ContentQualityGuard.ContainsPrivateLinks(p.Content))
+                        .Where(p => {
+                            string h = p.Handle?.Replace("@", "").Trim() ?? "";
+                            if (!string.IsNullOrEmpty(currentUser) && h.Equals(currentUser, StringComparison.OrdinalIgnoreCase)) return false;
+                            string content = p.Content?.ToUpperInvariant() ?? "";
+                            return content.Contains($"#{symUpper}") ||
+                                   content.Contains($"${symUpper}") ||
+                                   System.Text.RegularExpressions.Regex.IsMatch(content, $@"\b{symUpper}\b");
+                        })
+                        .ToList();
+
+                    // Adım 1: VIP (fenomen modülü) listesiyle ara
+                    var vipHandles = _influencerControl?.GetTopInfluencers(sig.Symbol, 20);
+                    var vipPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, vipHandles));
+                    OnLog?.Invoke($"🔎 VIP arama: {vipPosts.Count} fenomen yorumu ({sig.Symbol})", "SocialIntel");
+
+                    List<InfluencerPost> finalPosts = vipPosts;
+
+                    // Adım 2: VIP'te bulunamazsa genel X araması
+                    if (finalPosts.Count == 0)
                     {
-                        // Take top 3 relevant posts
-                        var topPosts = influencerPosts.Take(3).Select(p => $"@{p.Handle}: {p.Content}").ToList();
-                        influencerCitations = string.Join("\n", topPosts);
+                        OnLog?.Invoke($"🔍 VIP'te yok, X'te genel arama yapılıyor...", "SocialIntel");
+                        finalPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, null));
+                        OnLog?.Invoke($"🔎 Genel arama: {finalPosts.Count} yorum", "SocialIntel");
+                    }
+
+                    if (finalPosts.Count > 0)
+                    {
+                        var topPosts = finalPosts
+                            .OrderByDescending(p => p.Content?.Length ?? 0)
+                            .Take(3)
+                            .ToList();
+                        var lines = new List<string>();
+                        for (int i = 0; i < topPosts.Count; i++)
+                        {
+                            string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
+                            lines.Add($"{prefix} @{topPosts[i].Handle}: {topPosts[i].Content?.Trim()}");
+                        }
+                        influencerCitations = string.Join("\n", lines);
+                        OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle}", "SocialIntel");
+                    }
+                    else
+                    {
+                        // Adım 3: Hiç post bulunamazsa fenomen modülünden handle öner
+                        var fallbackHandles = _influencerControl?.GetTopInfluencers(sig.Symbol, 3);
+                        if (fallbackHandles != null && fallbackHandles.Count > 0)
+                        {
+                            influencerCitations = $"[{sig.Symbol} için X'te spesifik yorum bulunamadı. " +
+                                $"Fenomen modülündeki analistler: " +
+                                string.Join(", ", fallbackHandles.Select(h => $"@{h}")) +
+                                $"]\nBu handle'lardan birini kendi analizine en uygun olanı seçerek 3. tweet'te doğal şekilde mention et.";
+                            OnLog?.Invoke($"⚠️ Fallback mention: {string.Join(", ", fallbackHandles)}", "SocialIntel");
+                        }
                     }
                 }
-                catch { /* Ignore social intel failure */ }
+                catch (Exception ex) { OnLog?.Invoke($"⚠️ Influencer araması başarısız: {ex.Message}", "SocialIntel"); }
 
                 // GENERATE HYBRID CONTENT
                 OnLog?.Invoke($"🧠 AI Analiz Üretiliyor (Tier: {sig.Tier})...", "HybridEngine");
