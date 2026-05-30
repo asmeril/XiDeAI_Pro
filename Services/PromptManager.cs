@@ -831,20 +831,51 @@ KESİN YASAKLAR:
         {
             string strategy = sig.Strategy.ToUpperInvariant();
             
-            if (strategy.Contains("KING") || strategy == "K")
-                return GetKingBombaSignalPrompt(sig, priceContext, influencerCitations, "KING");
-            if (strategy.Contains("BOMBA") || strategy == "B")
-                return GetKingBombaSignalPrompt(sig, priceContext, influencerCitations, "BOMBA");
-            if (strategy.Contains("TEFO") || strategy == "T")
-                return GetTefoSignalPrompt(sig, priceContext, influencerCitations);
-            if (strategy.Contains("ANKA"))
-                return GetAnkaSignalPrompt(sig, priceContext, influencerCitations);
-            if (strategy.Contains("DIP"))
-                return GetDipSignalPrompt(sig, priceContext, influencerCitations);
-            if (strategy.Contains("ZIRVE"))
-                return GetZirveSignalPrompt(sig, priceContext, influencerCitations);
+            if (strategy == "ALPHA")
+                return GetAlphaSignalPrompt(sig, priceContext, influencerCitations);
+            if (strategy == "PREMOVE")
+                return GetPreMoveSignalPrompt(sig, priceContext, influencerCitations);
             
-            return GetSignalAnalysisPrompt(sig.Symbol, sig.Strategy, $"{sig.Score}/{sig.MaxScore}", sig.Price.ToString("N2"), priceContext, sig.Period, influencerCitations);
+            // Eski stratejiler artık kullanılmıyor — fallback
+            return GetAlphaSignalPrompt(sig, priceContext, influencerCitations);
+        }
+
+        private string GetAlphaSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
+        {
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ:\n{influencerCitations}";
+            string tierInstruction = GetTierInstruction(sig.Tier);
+            string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
+            
+            return $@"### KİMLİK: Momentum + EMA ustası, 60 dakikalık bant yaklaşımı, Smart Money hareketi izleyen analist.
+### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
+### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: 60dk
+### VERİLER: {priceContext}
+### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi.{citationSection}
+### TON: Enerjik ama disiplinli. EMA/ADX/Squeeze kavramlarını kullan. {tierInstruction}
+FORMAT KURALLARI:
+- Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
+- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CÜMLE.
+- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
+- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
+        }
+
+        private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations)
+        {
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ:\n{influencerCitations}";
+            string tierInstruction = GetTierInstruction(sig.Tier);
+            string roketBadge = sig.IsRoket ? "🚀 GÜÇLÜ ADAY — " : "";
+            
+            return $@"### KİMLİK: Günlük bant uzmanı, VCP/Pocket Pivot avcısı, Up Volume oranı takipçisi.
+### GÖREV: #{sig.Symbol} için 📈 PREMOVE sinyal thread'i yaz.
+### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: Günlük (G)
+### VERİLER: {priceContext}
+### PREMOVE BAĞLAMI: Yukarı Hacim Oranı (uvRatio) güçlü, EMA dizilimi (9-21-50-200) sağlam, VCP/NR7 daralması ve Pocket Pivot kriterleri karşılandı.{citationSection}
+### TON: Temkinli iyimser, ""zemin kuruluyor"" hissi. VCP/PP/EMA kavramlarını kullan. {tierInstruction}
+FORMAT KURALLARI:
+- Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
+- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CÜMLE.
+- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
+- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
         }
 
         private string GetKingBombaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string type)

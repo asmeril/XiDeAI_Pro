@@ -340,7 +340,7 @@ namespace XiDeAI_Pro.Services
             {
                 // v4.3.0: Hybrid Signal Intelligence Start
                 _stats.RecordActivity("SignalEngine", $"Processing signal: {sig.Symbol}", true, sig.Strategy);
-                OnLog?.Invoke($"📡 Hybrid Processing: {sig.Symbol} | Strategy: {sig.Strategy} | Tier: {sig.Tier} | Score: {sig.FinalScore}", "HybridEngine");
+                OnLog?.Invoke($"📡 Hybrid Processing: {sig.Symbol} | Strategy: {sig.Strategy} | Tier: {sig.Tier} | Durum: {sig.Durum}{(sig.IsRoket ? " 🚀" : "")}", "HybridEngine");
                 
                 // 1. GLOBAL DEDUPLICATION
                 if (_persistence.IsProcessed(sig.Symbol, sig.Period))
@@ -380,7 +380,7 @@ namespace XiDeAI_Pro.Services
                 string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period); // Parallel candidate
 
                 // Context Preparation
-                string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Ham Skor: {sig.Score}/{sig.MaxScore}";
+                string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Durum: {sig.Durum}{(sig.IsRoket ? " (Roket 🚀)" : "")}";
                 
                 // Visual Analysis (if shot exists)
                 if (!string.IsNullOrEmpty(screenshotPath))
