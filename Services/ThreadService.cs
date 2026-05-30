@@ -540,8 +540,8 @@ namespace XiDeAI_Pro.Services
                 
                 var tweets = new List<string>();
 
-                // Sort by Score DESC
-                signals = signals.OrderByDescending(s => s.Score).ToList();
+                // Sort by IsRoket first, then Price
+                signals = signals.OrderByDescending(s => s.IsRoket).ThenByDescending(s => s.Price).ToList();
                 var topSignal = signals[0];
 
                 // ============================================
@@ -553,7 +553,7 @@ namespace XiDeAI_Pro.Services
                 // Add rows (Compact format)
                 foreach(var s in signals.Take(5))
                 {
-                    tweet1 += $"👉 #{CleanSymbolForX(s.Symbol)} {s.Price:N2} TL | {s.Strategy} | Skor: {s.Score}\n";
+                    tweet1 += $"👉 #{CleanSymbolForX(s.Symbol)} {s.Price:N2} TL | {s.Strategy} | Durum: {s.Durum}{(s.IsRoket ? " 🚀" : "")}\n";
                 }
                 
                 if (signals.Count > 5) tweet1 += $"...ve {signals.Count - 5} diğer hisse.\n";
@@ -570,7 +570,7 @@ namespace XiDeAI_Pro.Services
                 foreach(var sym in topSymbols)
                 {
                     var sig = signals.First(s => s.Symbol == sym);
-                    var bias = sig.Score >= 80 ? "Güçlü ivme" : sig.Score >= 60 ? "Pozitif" : sig.Strategy == "DIP" ? "Dipten toparlanma" : "Temkinli";
+                    var bias = sig.IsRoket ? "Roket İvmesi 🚀" : sig.Durum == "AKTIF" ? "Güçlü" : "Temkinli (Pullback)";
                     tweet2 += $"📌 #{CleanSymbolForX(sym)} | Fiyat: {sig.Price:N2} TL | {bias}\n";
                 }
 
@@ -656,7 +656,7 @@ namespace XiDeAI_Pro.Services
             try
             {
                 // Manuel Analysis gibi grafik oku
-                var priceContext = $"Fiyat: {signal.Price:N2} TL, Strateji: {signal.Strategy}, Skor: {signal.Score}";
+                var priceContext = $"Fiyat: {signal.Price:N2} TL, Strateji: {signal.Strategy}, Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}";
                 
                 // Influencer araştırması (DB → X)
                 var influencerPosts = new List<InfluencerPost>();
@@ -681,7 +681,7 @@ namespace XiDeAI_Pro.Services
                         signal.Symbol, 
                         signal.Market, 
                         priceContext + (historyContext != null ? $"\n\n📜 GEÇMIŞ ANALİZ:\n{historyContext}" : ""),
-                        $"Strateji: {signal.Strategy}, Skor: {signal.Score}", 
+                        $"Strateji: {signal.Strategy}, Durum: {signal.Durum}", 
                         influencerPosts
                     );
                     
@@ -757,10 +757,9 @@ namespace XiDeAI_Pro.Services
 
         private string GetDefaultAnalysis(SignalData signal)
         {
-            bool hasBonus = signal.Score > signal.MaxScore;
-            string bonusLine = hasBonus ? $"🏆 BONUS SKOR: {signal.Score}/{signal.MaxScore} - Nadir görülen güç!\n" : "";
+            string roketLine = signal.IsRoket ? $"🏆 ROKET SİNYALİ - Nadir görülen güç!\n" : "";
             
-            return $"{bonusLine}" +
+            return $"{roketLine}" +
                    $"🔹 MACD: Pozitif bölgede ✅\n" +
                    $"🔹 RSI: Güçlü momentum 📈\n" +
                    $"🔹 Hacim: Ortalamanın üstünde 🔥\n" +

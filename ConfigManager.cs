@@ -56,6 +56,24 @@ namespace XiDeAI_Pro.Config
         public bool AlphaOnlyAktif { get; set; } = false;
         public bool PreMoveOnlyAktif { get; set; } = false;
 
+        // --- Eski Robot Ayarları (Sabit Stub - Derleme Uyumu) ---
+        public bool EnableKing => false;
+        public bool EnableBomba => false;
+        public bool EnableTeFo => false;
+        public bool EnableDip => false;
+        public bool EnableZirve => false;
+        public bool EnableAnka => false;
+        public bool EnableMiner => false;
+        public bool Period15 => true;
+        public bool Period60 => true;
+        public bool Period240 => true;
+        public bool PeriodDaily => true;
+        public bool OnlyCommonSignals => false;
+        public System.Collections.Generic.List<string> CommonStrategies => new();
+        public int MinScoreKing => 0;
+        public int MinScoreDip => 0;
+        public int MinScoreAnka => 0;
+
         // Spam Protection Toggle
         public bool DisableSpamProtection { get; set; } = true; // Legacy/global toggle (deprecated)
 

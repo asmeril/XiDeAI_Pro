@@ -438,12 +438,11 @@ Sembol: {signal.Symbol}
 Piyasa: {signal.Market}
 Strateji: {signal.Strategy}
 Fiyat: {signal.Price:N2}
-Skor: {signal.Score}/{signal.MaxScore}
+Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}
 Periyot: {signal.Period}dk
 
 🎯 DEGERLENDIRME KRITERLERI:
-1. Skor Yeterliligi: {signal.Score}/{signal.MaxScore} orani yeterli mi?
-2. Piyasa Kosullari: Bu sembol su an aktif islem goruyor mu?
+1. Sinyal Gücü: Bu {signal.Durum} sinyali teknik olarak anlamlı mı?
 3. Volatilite: Fiyat hareketi anlamli mi yoksa gurultu mu?
 4. Strateji Uygunlugu: {signal.Strategy} stratejisi bu sembol icin mantikli mi?
 

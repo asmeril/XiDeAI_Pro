@@ -1,4 +1,4 @@
-# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
+﻿# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
@@ -1238,5 +1238,20 @@ ews_seen_titles.json dosyasina kaydedilerek uygulama yeniden baslatildiginda da 
 - `Services/SocialIntelService.cs`
 - `Services/NewsTrackerService.cs`
 
+---
+
+## 30 Mayıs 2026
+
+### v5.1.0 Release
+
+**Sinyal Modülü Tam Yeniden Yapılandırması**
+
+* **Kaldırıldı:** Eski tarama robotları (King, Bomba, TeFo, ANKA, DIP, ZIRVE, Miner) için tüm altyapı — klasör izleme, parser metodları, UI checkbox'ları, ConfigManager alanları.
+* **`LogFileWatcher`:** Klasör tabanlı `FileSystemWatcher` listesi tamamen kaldırıldı. `Start()` artık parametresiz; yalnızca `C:\iDeal\Sinyal_Log_Database.txt` tail-izleme yapıyor.
+* **`SignalParser`:** `ParseKingFormat`, `ParseDipZirveFormat`, `ParseAnkaFormat` kaldırıldı. `SignalData` modelinden `Score/MaxScore/FinalScore/StrategyBonus/PeriodBonus/IsCommonScan` kaldırıldı; yerine `Durum` (AKTIF/PULLBACK_ADAY) ve `IsRoket` eklendi. Tier artık robotun kendi verdiği duruma göre.
+* **`SignalEngine`:** `CheckSignalQualityWithAI` basitleştirildi — DB'ye yazılan her satır robotun eşiğinden zaten geçmiş (Alpha≥90, PreMove≥75); ek skor filtresi kaldırıldı. `OnlyCommonSignals` / `CommonStrategies` bloğu kaldırıldı.
+* **`PromptManager`:** `GetStrategySpecificPrompt` artık yalnızca `ALPHA` ve `PREMOVE` dallarına sahip. Her strateji için robotun kendi scoring mantığına uygun özel persona ve bağlam içeren promptlar (`GetAlphaSignalPrompt`, `GetPreMoveSignalPrompt`) eklendi.
+* **`ConfigManager`:** `WatchFolder*`, `MinScore*`, `Enable*` (eski robotlar), `Period*`, `OnlyCommonSignals`, `CommonStrategies` kaldırıldı. Yeni: `AlphaOnlyAktif`, `PreMoveOnlyAktif`.
+* **`MainForm`:** Sinyal Merkezi sekmesi sadeleştirildi — eski 7 robot checkbox'ı, 4 periyot, ortak tarama seçimi, 3 eşik numericUpDown kaldırıldı; yerine 2 kaynak + 2 durum checkbox'ı eklendi.
 
 

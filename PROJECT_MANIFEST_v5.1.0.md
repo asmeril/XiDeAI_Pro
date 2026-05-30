@@ -1,4 +1,4 @@
-# 📦 XiDeAI Pro — Project Manifest v5.0.1
+﻿# 📦 XiDeAI Pro — Project Manifest v5.0.1
 
 **Release Date:** 2026-05-29  
 **Version:** 5.0.1  
@@ -51,3 +51,4 @@
 - AI log: `[AI-LMStudio] 📸 ... /no_think aktif` + `✅ qwen/qwen3.6-27b vision analysis successful`
 - Twitter log: Thread part 2, 3... hepsi `✅ success` — "Reply button disabled" yok
 - Log path: `%LOCALAPPDATA%\XiDeAI\Logs\Log_YYYY-MM-DD_Twitter.txt`
+

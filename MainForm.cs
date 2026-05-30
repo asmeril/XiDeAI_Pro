@@ -659,7 +659,6 @@ namespace XiDeAI_Pro
             dgvSignals.Columns.Add("Symbol", "Sembol");
             dgvSignals.Columns.Add("Period", "Periyot");
             dgvSignals.Columns.Add("Price", "Fiyat");
-            dgvSignals.Columns.Add("Score", "Skor");
             dgvSignals.Columns.Add("Status", "Durum");
 
             // Column Widths
@@ -668,7 +667,6 @@ namespace XiDeAI_Pro
             dgvSignals.Columns["Symbol"].Width = 80;
             dgvSignals.Columns["Period"].Width = 60;
             dgvSignals.Columns["Price"].Width = 80;
-            dgvSignals.Columns["Score"].Width = 60;
 
             panelFilter.Controls.Add(dgvSignals);
 
@@ -3783,11 +3781,6 @@ namespace XiDeAI_Pro
                 if (s.Period == "240" && !cfg.Period240) return false;
                 if (s.Period == "G" && !cfg.PeriodDaily) return false;
 
-                // Score threshold
-                int threshold = s.Source == "KING" ? cfg.MinScoreKing : 
-                               s.Source == "DIP" ? cfg.MinScoreDip : cfg.MinScoreAnka;
-                if (s.Score < threshold) return false;
-
                 return true;
             }).ToList();
 
@@ -5164,13 +5157,12 @@ namespace XiDeAI_Pro
                     sig.Symbol,
                     sig.Period,
                     sig.Price.ToString("N2"),
-                    sig.Score,
                     status
                 );
 
                 var row = dgvSignals.Rows[idx];
                 row.DefaultCellStyle.BackColor = rowColor;
-                row.Cells[6].Style.ForeColor = statusColor; // Status column
+                row.Cells[5].Style.ForeColor = statusColor; // Status column
 
                 // Auto-scroll (only for live signals)
                 if (overrideTime == null && dgvSignals.Rows.Count > 0)

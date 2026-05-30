@@ -7,9 +7,9 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>xideai_icon.ico</ApplicationIcon>
     <AssemblyName>XiDeAI_Pro</AssemblyName>
-    <Version>5.0.2</Version>
-    <AssemblyVersion>5.0.2.0</AssemblyVersion>
-    <FileVersion>5.0.2.0</FileVersion>
+    <Version>5.1.0</Version>
+    <AssemblyVersion>5.1.0.0</AssemblyVersion>
+    <FileVersion>5.1.0.0</FileVersion>
     <Company>XiDeAI</Company>
     <Product>XiDeAI Pro</Product>
     <Description>XiDeAI Pro - AI-Powered Trading Assistant</Description>
@@ -33,9 +33,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <Target Name="PostPublish" AfterTargets="Publish">
-    <Exec Command="robocopy Scripts $(PublishDir)Scripts /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
-    <Exec Command="robocopy Config $(PublishDir)Config /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
-    <Exec Command="robocopy $(PublishDir) Dist\publish /MIR /IS /IT /NFL /NDL /NJH /NJS /NC /NS /NP" IgnoreExitCode="true" />
-  </Target>
 </Project>
+

@@ -1,6 +1,6 @@
-﻿> **Version:** 5.0.1 (Live)
+﻿> **Version:** 5.1.0 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
-> **Last Updated:** 2026-05-29
+> **Last Updated:** 2026-05-30
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -276,6 +276,7 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
 
 
 

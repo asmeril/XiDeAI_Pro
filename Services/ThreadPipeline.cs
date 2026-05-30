@@ -134,7 +134,7 @@ namespace XiDeAI_Pro.Services
             string headerTag = string.IsNullOrWhiteSpace(accountHandle) ? "🇹🇷" : $"🇹🇷 @{accountHandle} |";
             return $"{headerTag} #{cleanSymbol} ({periodStr}) Teknik Analizim\n\n" +
                    $"💰 Fiyat: {signal.Price:N2} {currency}\n" +
-                   $"📊 Skor: {signal.Score}/{signal.MaxScore}";
+                   $"📊 Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}";
         }
 
         private static string BuildNewsLeadTweet(NewsItem item)
