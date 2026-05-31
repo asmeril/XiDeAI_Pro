@@ -989,7 +989,9 @@ CEVAP: Sadece kategori adını yaz (Örn: EKONOMI). Başka açıklama yapma.";
         /// </summary>
         public string GetNewsUnifiedScoringPrompt(string title, string source)
         {
-            return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin.
+            // v5.1.4: "Düşünme adımı YOK" direktifi eklendi — Qwen3 thinking israfını minimize eder.
+            // Not: LMStudioProvider zaten /no_think prefix ekliyor, prompt'ta tekrar gerekmez.
+            return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin. Doğrudan yapılandırılmış çıktıyı ver, düşünme adımı YOK.
 
 HABER: {title}
 KAYNAK: {source}

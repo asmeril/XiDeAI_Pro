@@ -332,7 +332,10 @@ namespace XiDeAI_Pro.Services
             string prompt = _prompts.GetNewsUnifiedScoringPrompt(title, source);
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt, maxTokens: 450);
+                // v5.1.4: Qwen3.6-27b /no_think'e rağmen ~400-600 token thinking harciyor.
+                // Gerçek çıktı ~200 karakter ama model thinking+output için 1500 token gerekiyor.
+                // 450 → 1500: token limite takılma sorunu çözülüyor.
+                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt, maxTokens: 1500);
                 if (result == null) LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
                 return result;
             }
