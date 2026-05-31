@@ -1039,6 +1039,10 @@ KURALLAR:
         /// </summary>
         public string GetNewsCategoryAnalysisPrompt(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
+            // v5.1.3: Flash/SON DAKİKA haberler için garantili 2-tweet format
+            if (isFlash)
+                return GetFlashNewsAnalysisPrompt(title, source, link, category, description);
+
             return category.ToUpper() switch
             {
                 "EKONOMI"     => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash),
@@ -1051,6 +1055,43 @@ KURALLAR:
                 "YASAM"       => GetYasamNewsAnalysisPrompt(title, source, link, description, isFlash),
                 _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash) // Fallback
             };
+        }
+
+        private string GetFlashNewsAnalysisPrompt(string title, string source, string link, string category, string? description = null)
+        {
+            string descLine = !string.IsNullOrWhiteSpace(description) ? $"\nDETAY: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 200))}" : "";
+            string catEmoji = category.ToUpper() switch
+            {
+                "EKONOMI"   => "💹",
+                "SIYASET"   => "🏖️",
+                "TEKNOLOJI" => "🤖",
+                "GLOBAL"    => "🌍",
+                "KRIPTO"    => "₿",
+                "SPOR"      => "⚽",
+                "YASAM"     => "🏥",
+                _           => "📣"
+            };
+
+            return $@"KiMLiK: Sen XiDeAI Pro'nun hızlı refleks gösteren haber editörüsün.
+GÖREV: Kritik flaş haberi X'e tam 2 tweet olarak formatla. Sade, hızlı ve etkili.
+
+HABER: {title}
+KAYNAK: {source}{descLine}
+LiNK: {link}
+
+FORMAT (||| ile ayır, kesinlikle 2 tweet):
+Tweet 1 ({catEmoji} 🚨 SON DAKİKA):  270 kar. max.
+Haberi çarpıcı bir cümleyle özetle + kaynağı belirt + linki ekle ({link})
+|||
+Tweet 2 (⚡ ETKİ ANALİZİ): 270 kar. max.
+Bu haberin piyasaya/topluma 1-2 cümle etkisi + net CTA (Takip et, bildirimleri ac, RT)
+⚠️ Haber özetidir, yatırım tavsiyesi değildir.
+
+KATi KURALLAR:
+- Kesinlikle TAM OLARAK 2 tweet, ne 1 ne 3.
+- Her tweet 270 karakteri asmamalı.
+- [Tweet 1:] gibi başlık YAZMA — sadece tweet metnini yaz.
+- Link MUTLAKA 1. tweet'te yer almalı.";
         }
 
         private string GetEkonomiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
@@ -1299,14 +1340,14 @@ KURALLAR:
         {
             return category.ToUpper() switch
             {
-                "EKONOMI" => (0.3, 0.9, 40, 400),      // Düşük sıcaklık, tutarlı analiz
-                "SIYASET" => (0.4, 0.9, 40, 400),     // Dengeli, tarafsız
-                "TEKNOLOJI" => (0.6, 0.95, 50, 450),   // Biraz yaratıcı, vizyoner
-                "GLOBAL" => (0.4, 0.9, 40, 400),      // Stratejik, tutarlı
-                "KRIPTO" => (0.5, 0.95, 50, 400),     // Teknik ama dinamik
-                "SPOR" => (0.7, 0.95, 60, 400),       // Heyecanlı, tutkulu
-                "YASAM" => (0.5, 0.95, 50, 400),      // Empatik, dengeli
-                _ => (0.4, 0.9, 40, 400)              // Default
+                "EKONOMI"   => (0.3, 0.9,  40, 800),  // Düşük sıcaklık, tutarlı analiz
+                "SIYASET"   => (0.4, 0.9,  40, 800),  // Dengeli, tarafsız
+                "TEKNOLOJI" => (0.6, 0.95, 50, 800),  // Biraz yaratıcı, vizyoner
+                "GLOBAL"    => (0.4, 0.9,  40, 800),  // Stratejik, tutarlı
+                "KRIPTO"    => (0.5, 0.95, 50, 800),  // Teknik ama dinamik
+                "SPOR"      => (0.7, 0.95, 60, 800),  // Heyecanlı, tutkulu
+                "YASAM"     => (0.5, 0.95, 50, 800),  // Empatik, dengeli
+                _           => (0.4, 0.9,  40, 800)   // Default
             };
         }
 

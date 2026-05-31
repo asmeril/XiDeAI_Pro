@@ -240,20 +240,26 @@ namespace XiDeAI_Pro.Services
                     isFlash: item.IsFlash);
             }
             
-            // v3.0: İçerik Kalite Kontrolü
-            if (ContentQualityGuard.IsSpamOrLowQuality(threadContent ?? "", out string spamReason))
+            // v3.0: İçerik Kalite Kontrolü (sadece içerik varsa — null/boş durumda fallback'e geç)
+            if (!string.IsNullOrEmpty(threadContent) && ContentQualityGuard.IsSpamOrLowQuality(threadContent, out string spamReason))
             {
                 OnLog?.Invoke($"⚠️ Thread içeriği SPAM/KALİTESİZ ({spamReason}), atlanıyor.", "NewsEngine");
                 return (false, $"Thread içeriği kalitesiz: {spamReason}");
             }
 
+            List<string> normalizedParts;
             if (string.IsNullOrEmpty(threadContent) || threadContent.Contains("NO_IMPACT"))
             {
-                OnLog?.Invoke("⚠️ AI thread içeriği üretemedi, işlem iptal.", "NewsEngine");
-                return (false, "AI thread içeriği üretemedi");
+                // v5.1.3: Analiz üretilemese bile garantili minimum tweet: başlık + link
+                // Flash/kritik haberler sessizce iptal edilmemeli
+                OnLog?.Invoke("⚠️ AI thread içeriği üretemedi — minimum haber tweet'i gönderiliyor.", "NewsEngine");
+                string minTweet = BuildMinimalNewsTweet(item, summary);
+                normalizedParts = new List<string> { minTweet };
             }
-
-            var normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent);
+            else
+            {
+                normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent);
+            }
             if (normalizedParts.Count > 1 && !threadContent.Contains("|||"))
             {
                 OnLog?.Invoke("⚠️ AI thread separatoru (|||) kullanmadı. İçerik otomatik bölünüyor...", "NewsEngine");
@@ -406,6 +412,19 @@ namespace XiDeAI_Pro.Services
             return (confidence, status, summary, symbols, category, reasoning);
         }
 
+
+        // v5.1.3: AI analiz üretemediğinde gönderilecek garantili minimum tweet
+        private static string BuildMinimalNewsTweet(NewsItem item, string summary)
+        {
+            string title = item.Title?.Trim() ?? "Haber";
+            if (title.Length > 140) title = title.Substring(0, 140).TrimEnd() + "...";
+            string prefix = item.IsFlash ? "🚨 SON DAKİKA" : "📰 HABER";
+            string descPart = !string.IsNullOrWhiteSpace(summary) && summary.Length > 10
+                ? $"\n\n{(summary.Length > 160 ? summary.Substring(0, 160).TrimEnd() + "..." : summary)}"
+                : "";
+            string linkPart = !string.IsNullOrEmpty(item.Link) ? $"\n\n🔗 {item.Link}" : "";
+            return $"{prefix}\n\n{title}{descPart}{linkPart}\n\nKaynak: {item.Source}";
+        }
 
         private bool PerformLightweightNLPFilter(string title, string? description)
         {

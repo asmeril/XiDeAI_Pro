@@ -196,10 +196,11 @@ namespace XiDeAI_Pro.Services
         {
             string category = await DetectNewsCategory(title, source);
             string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash);
-            
+            // v5.1.3: Flash için 600, normal için 900 token — önceki 4096 default yerine explicit limit
+            int maxTok = isFlash ? 600 : 900;
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt);
+                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt, maxTokens: maxTok);
             }
             return await SendRequest(prompt, 0.3);
         }

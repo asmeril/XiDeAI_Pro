@@ -140,8 +140,10 @@ namespace XiDeAI_Pro.Services
         private static string BuildNewsLeadTweet(NewsItem item)
         {
             string leadTitle = item.Title?.Trim() ?? "Önemli Haber";
-            if (leadTitle.Length > 140) leadTitle = leadTitle.Substring(0, 140).TrimEnd() + "...";
-            return $"📰 {leadTitle}\n\nKaynak: {item.Source}";
+            if (leadTitle.Length > 120) leadTitle = leadTitle.Substring(0, 120).TrimEnd() + "...";
+            string prefix = item.IsFlash ? "🚨 SON DAKİKA" : "📰 HABER";
+            string linkLine = !string.IsNullOrEmpty(item.Link) ? $"\n🔗 {item.Link}" : "";
+            return $"{prefix}\n\n{leadTitle}\n\nKaynak: {item.Source}{linkLine}";
         }
 
         private static void MergeShortTailParts(List<string> tweets, int minimumLength, bool preserveFirstTweet)
