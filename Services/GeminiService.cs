@@ -198,11 +198,7 @@ namespace XiDeAI_Pro.Services
             string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash);
             // v5.1.3: Flash için 600, normal için 900 token — önceki 4096 default yerine explicit limit
             int maxTok = isFlash ? 600 : 900;
-            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
-            {
-                return await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration, prompt, maxTokens: maxTok);
-            }
-            return await SendRequest(prompt, 0.3);
+            return await SendGeminiRestApiRequest(prompt, 0.3, maxOutputTokens: maxTok);
         }
 
         public async Task<string?> GeneratePerformanceSynthesis(DailyReport report)
@@ -247,6 +243,66 @@ namespace XiDeAI_Pro.Services
             }
             LastError = "Yerel model v5.0 ile zorunludur.";
             return null;
+        }
+
+        private async Task<string?> SendGeminiRestApiRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048)
+        {
+            var cfg = ConfigManager.Current;
+            if (string.IsNullOrWhiteSpace(cfg.GeminiApiKey))
+            {
+                Logger.Sys("⚠️ Gemini API Key eksik, yerel modele (Fallback) geçiliyor...");
+                return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens);
+            }
+
+            try
+            {
+                var payload = new
+                {
+                    contents = new[] { new { parts = new[] { new { text = prompt } } } },
+                    generationConfig = new
+                    {
+                        temperature = temperature,
+                        topP = topP,
+                        topK = topK,
+                        maxOutputTokens = maxOutputTokens
+                    }
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                string model = string.IsNullOrWhiteSpace(cfg.GeminiModel) ? "gemini-2.5-flash" : cfg.GeminiModel;
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={cfg.GeminiApiKey}";
+
+                var response = await client.PostAsync(url, content);
+                string responseStr = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    using var doc = JsonDocument.Parse(responseStr);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+                    {
+                        var firstCandidate = candidates[0];
+                        if (firstCandidate.TryGetProperty("content", out var contentProp) &&
+                            contentProp.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                        {
+                            return parts[0].GetProperty("text").GetString();
+                        }
+                    }
+                }
+                else
+                {
+                    Logger.Sys($"⚠️ Gemini API Hatası: {response.StatusCode} - {responseStr}");
+                }
+            }
+            catch (Exception ex)
+            {
+                 Logger.Sys($"⚠️ Gemini API Exception: {ex.Message}");
+            }
+
+            // Fallback to local model
+            return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens);
         }
 
         public async Task<string?> SendMultimodalRequest(string prompt, string? imagePath, int maxOutputTokens = 2048)
@@ -317,7 +373,7 @@ namespace XiDeAI_Pro.Services
         public async Task<string> DetectNewsCategory(string title, string source)
         {
             // maxOutputTokens=20: response is a single word (e.g. "EKONOMI") — no need for 2048 default
-            var response = await SendRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1, maxOutputTokens: 20);
+            var response = await SendGeminiRestApiRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1, maxOutputTokens: 20);
             string cleaned = response?.Trim().ToUpper().Split(' ')[0] ?? "EKONOMI";
             return (new[] { "EKONOMI", "SIYASET", "TEKNOLOJI", "GLOBAL", "KRIPTO", "SPOR", "YASAM" }).Contains(cleaned) ? cleaned : "EKONOMI";
         }
@@ -330,22 +386,16 @@ namespace XiDeAI_Pro.Services
         public async Task<string?> AnalyzeNewsUnified(string title, string source)
         {
             string prompt = _prompts.GetNewsUnifiedScoringPrompt(title, source);
-            if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
-            {
-                // v5.1.4: Qwen3.6-27b /no_think'e rağmen ~400-600 token thinking harciyor.
-                // Gerçek çıktı ~200 karakter ama model thinking+output için 1500 token gerekiyor.
-                // 450 → 1500: token limite takılma sorunu çözülüyor.
-                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis, prompt, maxTokens: 1500);
-                if (result == null) LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
-                return result;
-            }
-            return null;
+            // v5.1.4: Qwen3.6-27b /no_think'e rağmen ~400-600 token thinking harciyor.
+            // Gerçek çıktı ~200 karakter ama model thinking+output için 1500 token gerekiyor.
+            // Gemini API'ye yönlendirildi:
+            return await SendGeminiRestApiRequest(prompt, maxOutputTokens: 1500);
         }
 
         public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
             var config = _prompts.GetNewsCategoryConfig(category);
-            return await SendRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash), config.Temp, config.TopP, config.TopK, config.MaxTokens);
+            return await SendGeminiRestApiRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash), config.Temp, config.TopP, config.TopK, config.MaxTokens);
         }
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
