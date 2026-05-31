@@ -260,7 +260,7 @@ namespace XiDeAI_Pro.Services
             {
                 normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent);
             }
-            if (normalizedParts.Count > 1 && !threadContent.Contains("|||"))
+            if (normalizedParts.Count > 1 && threadContent != null && !threadContent.Contains("|||"))
             {
                 OnLog?.Invoke("⚠️ AI thread separatoru (|||) kullanmadı. İçerik otomatik bölünüyor...", "NewsEngine");
             }
