@@ -252,17 +252,18 @@ namespace XiDeAI_Pro.Services.AI
                     }
                 }
 
-                // v4.10.9: Fallback — reasoning models (Qwen3 etc.) may return empty content
-                // when finish_reason=length and all tokens were consumed by thinking.
-                // In that case, return reasoning_content so the caller gets something useful.
+                // v5.1.3: reasoning_content fallback KALDIRILDI.
+                // Qwen3 finish_reason=length durumunda reasoning_content iç düşünce metnini
+                // döndürmek yerine null döndürülüyor — çağıran kod retry/hata yönetimi yapmalı.
+                // reasoning_content asla tweet metni olarak kullanılmamalı.
                 if (messageElement.TryGetProperty("reasoning_content", out var reasoningElement)
                     && reasoningElement.ValueKind == JsonValueKind.String)
                 {
                     var reasoning = reasoningElement.GetString();
                     if (!string.IsNullOrWhiteSpace(reasoning))
                     {
-                        _logger("⚠️ [LMStudio] content boş, reasoning_content fallback kullanılıyor (finish_reason=length?)");
-                        return reasoning;
+                        _logger("⚠️ [LMStudio] content boş, reasoning_content mevcut ama kullanılmıyor (finish_reason=length — token limiti aşıldı). Null döndürülüyor.");
+                        return null;
                     }
                 }
             }
