@@ -1,4 +1,4 @@
-﻿> **Version:** 5.1.3 (Live)
+﻿> **Version:** 5.1.4 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
 > **Last Updated:** 2026-05-31
 
@@ -41,7 +41,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır, daemon'ı başlatır, durdurur ve birbirine bağlar. | - |
 | `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. **v4.2.2:** Two-Step News metodları eklendi. | - |
 | `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi — benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak günceller. | - |
-| `NewsEngine.cs` | **v4.2.2:** Two-Step Logic (1-10 skor, 7 kategori, SON DAKİKA boost). Haber akışını kategorize eder ve işler. **v5.1.3:** Flash haber garantili 2-tweet format (`GetFlashNewsAnalysisPrompt`); `BuildMinimalNewsTweet` — AI null dönse bile başlık+link tweet’i gönderilir; maxTokens 800/900’a yükseldi; `BuildNewsLeadTweet` link+flash tag eklendi. | `x_daemon.py` |
+| `NewsEngine.cs` | **v4.2.2:** Two-Step Logic (1-10 skor, 7 kategori, SON DAKİKA boost). Haber akışını kategorize eder ve işler. **v5.1.3:** Flash haber garantili 2-tweet format (`GetFlashNewsAnalysisPrompt`); `BuildMinimalNewsTweet` — AI null dönse bile başlık+link tweet'i gönderilir; maxTokens 800/900'a yükseldi; `BuildNewsLeadTweet` link+flash tag eklendi. **v5.1.4:** CS8602 null guard — `threadContent != null &&` eklendi. |
 | `NewsTrackerService.cs` | RSS ve Twitter'dan haber tarar. **v3.8.3:** `OnNewsDetected` eventini tetikler. | `x_daemon.py` |
 | `ThreadService.cs` | Zincir (Thread) oluşturma mantığını kurar. | - |
 | `ThreadPipeline.cs` | **Merkezi Thread Hazırlayıcı.** Lead tweet, parça normalizasyonu ve ortak split kurallarını tek yerde toplar. | - |
@@ -49,7 +49,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
 | `SignalEngine.cs` | Sinyal işleme motoru. Sinyalleri filtreler, formatlar ve yayınlar. | - |
 | `ModelManager.cs` | **v4.10.0** AI provider yöneticisi. Aktif provider'ı seçer, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tüm provider'ları senkronize eder. | - |
-| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider’ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG’e dönüştürür. **v5.0.0:** `/no_think` prefix (Qwen3 reasoning bastirma), vision timeout 600s. **v5.1.3:** `reasoning_content` fallback KALDIRILDI — `content=boş`+`finish_reason=length` durumunda `null` döndürülüyor; `finish_reason=length` logu eklendi. | - |
+| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG'e dönüştürür. **v5.0.0:** `/no_think` prefix (Qwen3 reasoning bastirma), vision timeout 600s. **v5.1.3:** `reasoning_content` fallback KALDIRILDI — `content=boş`+`finish_reason=length` durumunda `null` döndürülüyor; `finish_reason=length` logu eklendi. **v5.1.4:** `AnalyzeNewsUnified` maxTokens 450→1500 (Qwen3.6-27b finish_reason=length sorunu çözüldü); prompt'a "düşünme adımı YOK" hint eklendi. |
 | `ManualAnalysisService.cs` | **v4.10.8** Manuel analiz servisi. **Yerel model aktifken:** `IndicatorExtractor` atlanır, kısa thread için ekran görüntüsü tekrar gönderilmez, ana analiz metni indicator context olarak kullanılır. | - |
 
 > **Not (v4.0.0):** HIVE servisleri (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex) kaldırılmıştır. Yedek: `d:\Projects\HiveProjesi`
