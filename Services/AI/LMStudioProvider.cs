@@ -90,7 +90,14 @@ namespace XiDeAI_Pro.Services.AI
 
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    return ExtractContentFromChoice(choices[0]);
+                    var choice = choices[0];
+                    // v5.1.3: finish_reason=length → token limiti aşıldı, uyar
+                    if (choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length")
+                    {
+                        _logger("⚠️ [LMStudio] finish_reason=length — model token limitini aşarak kesildi. İçerik eksik olabilir.");
+                        LastError = "LMStudio: finish_reason=length (token limit exceeded)";
+                    }
+                    return ExtractContentFromChoice(choice);
                 }
 
                 LastError = "LMStudio returned an empty response (no choices)";
@@ -201,7 +208,13 @@ namespace XiDeAI_Pro.Services.AI
 
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    return ExtractContentFromChoice(choices[0]);
+                    var choice = choices[0];
+                    if (choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length")
+                    {
+                        _logger("⚠️ [LMStudio Vision] finish_reason=length — token limiti aşıldı.");
+                        LastError = "LMStudio Vision: finish_reason=length (token limit exceeded)";
+                    }
+                    return ExtractContentFromChoice(choice);
                 }
 
                 LastError = "LMStudio Vision returned empty response";
