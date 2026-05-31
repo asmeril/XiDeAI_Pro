@@ -249,13 +249,13 @@ namespace XiDeAI_Pro.Services
             return null;
         }
 
-        public async Task<string?> SendMultimodalRequest(string prompt, string? imagePath)
+        public async Task<string?> SendMultimodalRequest(string prompt, string? imagePath, int maxOutputTokens = 2048)
         {
-            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath)) return await SendRequest(prompt);
+            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath)) return await SendRequest(prompt, maxOutputTokens: maxOutputTokens);
             
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                var result = await ModelManager.SendRequestWithImage(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, imagePath);
+                var result = await ModelManager.SendRequestWithImage(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, imagePath, maxTokens: maxOutputTokens);
                 if (result == null) LastError = ModelManager.LastError ?? "Yerel model görsel isteğe yanıt vermedi.";
                 if (!string.IsNullOrWhiteSpace(result)) LogTrainingData(prompt, result, "vision_analysis");
                 return result;
@@ -370,7 +370,8 @@ namespace XiDeAI_Pro.Services
         public async Task<string?> GenerateShortThreadWithHistory(string symbol, string marketType, string priceContext, string visualAnalysis, string influencerContext, string periyot, string? screenshotPath = null, string lastWeekAnalysis = "")
         {
             string prompt = _prompts.GetShortThreadPromptWithHistory(symbol, marketType, priceContext, visualAnalysis, influencerContext, periyot, lastWeekAnalysis);
-            return await SendMultimodalRequest(prompt, screenshotPath);
+            // 2500 token: Qwen3.6-27b /no_think ile ~800 thinking + 1700 output — 4 tweet için yeterli
+            return await SendMultimodalRequest(prompt, screenshotPath, maxOutputTokens: 2500);
         }
 
         public string GetLastWeekSuccessfulAnalysis(string symbol)
