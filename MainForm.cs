@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
@@ -2235,122 +2235,146 @@ namespace XiDeAI_Pro
 
         private async Task PostMorningMotivation()
         {
-            if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
+            try
             {
-                Log($"🛡️ Spam protection (Motivation): {reason}", "Twitter");
-                return;
-            }
-            Log("☀️ Posting Morning Motivation...", "Twitter");
-            UpdateBotStatus("📊 Günlük Motivasyon Paylaşılıyor...");
-            
-            string? tweet = await _opManager.Gemini.GenerateMotivationTweet();
-            
-            // Fallback if AI fails
-            if (string.IsNullOrEmpty(tweet))
-            {
-                tweet = "☀️ Günaydın!\n\n\"Başarı, son değil; başarısızlık, ölümcül değil. Önemli olan devam etme cesareti.\"\n- Winston Churchill\n\n💡 Her düşüş yeni bir yükseliş fırsatıdır. Vazgeçmeyin!\n\n#Motivasyon #Finans";
-            }
-
-            if (ConfigManager.Current.AutoTweet)
-            {
-                var webResult = await _opManager.SocialIntel.PostTweet(tweet);
-                if (webResult.status == "success")
+                if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
                 {
-                    Log("✅ Motivation tweet sent (WebView)!", "Twitter");
-                    _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION");
+                    Log($"🛡️ Spam protection (Motivation): {reason}", "Twitter");
+                    return;
                 }
+                Log("☀️ Posting Morning Motivation...", "Twitter");
+                UpdateBotStatus("📊 Günlük Motivasyon Paylaşılıyor...");
+                
+                string? tweet = await _opManager.Gemini.GenerateMotivationTweet();
+                
+                // Fallback if AI fails
+                if (string.IsNullOrEmpty(tweet))
+                {
+                    Log("⚠️ AI Motivasyon Tweeti üretemedi. Varsayılan metin kullanılıyor...", "System");
+                    tweet = "☀️ Günaydın!\n\n\"Başarı, son değil; başarısızlık, ölümcül değil. Önemli olan devam etme cesareti.\"\n- Winston Churchill\n\n💡 Her düşüş yeni bir yükseliş fırsatıdır. Vazgeçmeyin!\n\n#Motivasyon #Finans";
+                }
+
+                if (ConfigManager.Current.AutoTweet)
+                {
+                    var webResult = await _opManager.SocialIntel.PostTweet(tweet);
+                    if (webResult != null && webResult.status == "success")
+                    {
+                        Log("✅ Motivation tweet sent (WebView)!", "Twitter");
+                        _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION");
+                    }
+                    else
+                    {
+                        Log($"❌ Motivation tweet failed via WebView/Daemon: {webResult?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
+                    }
+                }
+                else
+                {
+                    string? sentUrl = await _opManager.Twitter.SendTweetAsync(tweet);
+                    if (!string.IsNullOrEmpty(sentUrl)) 
+                    { 
+                        Log("✅ Motivation tweet sent (API)!", "Twitter"); 
+                        _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION"); 
+                    }
+                    else Log($"❌ Motivation tweet failed: {_opManager.Twitter.LastError}", "Twitter");
+                }
+                UpdateBotStatus("IDLE");
             }
-            else
+            catch (Exception ex)
             {
-                string? sentUrl = await _opManager.Twitter.SendTweetAsync(tweet);
-                if (!string.IsNullOrEmpty(sentUrl)) 
-                { 
-                    Log("✅ Motivation tweet sent (API)!", "Twitter"); 
-                    _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION"); 
-                }
-                else Log($"❌ Motivation tweet failed: {_opManager.Twitter.LastError}", "Twitter");
+                Log($"❌ PostMorningMotivation Kritik Hata: {ex.Message}\n{ex.StackTrace}", "System");
             }
-            UpdateBotStatus("IDLE");
         }
 
         private async Task PostMarketCloseSummary()
         {
-            if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
-            {
-                Log($"🛡️ Spam protection (Kapanış Özeti): {reason}", "Twitter");
-                return;
-            }
-            Log("🌆 Posting Market Close Summary with Tables...", "Twitter");
-            
             try
             {
-                // 1. Fetch Indices Data
-                var financials = await _opManager.SocialIntel.GetFinancialSummaryAsync();
-                string indicesData = "";
+                if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
+                {
+                    Log($"🛡️ Spam protection (Kapanış Özeti): {reason}", "Twitter");
+                    return;
+                }
+                Log("🌆 Posting Market Close Summary with Tables...", "Twitter");
                 
-                if (financials != null && financials.Count > 0)
+                try
                 {
-                    var xu100 = financials.GetValueOrDefault("XU100", "?");
-                    var gold = financials.GetValueOrDefault("GramAltin", "?");
-                    var usd = financials.GetValueOrDefault("USD", "?");
+                    // 1. Fetch Indices Data
+                    var financials = await _opManager.SocialIntel.GetFinancialSummaryAsync();
+                    string indicesData = "";
                     
-                    indicesData = $"XU100: {xu100}, ALTIN: {gold}, USD: {usd}";
-                    Log($"📊 Endeksler çekildi: {indicesData}", "Twitter");
-                }
-                else
-                {
-                    indicesData = "Sembol | Fiyat\n-------|------\nBIST100| 9.850\nALTIN  | 2.850\nUSD    | 34.50";
-                }
-
-                // 2. Fetch Winners/Losers
-                var gainers = await _opManager.SocialIntel.GetTopGainersAsync();
-                var losers = await _opManager.SocialIntel.GetTopLosersAsync();
-                var topVolume = await _opManager.SocialIntel.GetTopVolumeAsync();
-
-                string topGainersData = BuildStockTable(gainers, "Top Gainers");
-                string topLosersData = BuildStockTable(losers, "Top Losers");
-                string topVolumeData = BuildStockTable(topVolume, "Top Volume");
-
-                // 3. AI Generation
-                Log("🤖 AI Piyasa Kapanış Özeti Hazırlanıyor...", "System");
-                string pulseAnomalies = "";
-try {
-    string pulseFile = @"C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt";
-    if (System.IO.File.Exists(pulseFile)) {
-        var lines = System.IO.File.ReadAllLines(pulseFile);
-        foreach (var line in lines) {
-            if (line.StartsWith(DateTime.Today.ToString("yyyy-MM-dd"))) {
-                pulseAnomalies += line + "\n";
-            }
-        }
-    }
-} catch {}
-string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indicesData, topGainersData, topLosersData, topVolumeData, pulseAnomalies);
-
-                if (string.IsNullOrEmpty(tweetSet)) return;
-
-                var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
-
-                if (tweets.Count > 0)
-                {
-                    Log($"🚀 Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
-                    var result = await _opManager.SocialIntel.PostThreadAsync(tweets);
-                    
-                    if (result != null && result.status == "success")
+                    if (financials != null && financials.Count > 0)
                     {
-                        Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
-                        for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
-                        Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
+                        var xu100 = financials.GetValueOrDefault("XU100", "?");
+                        var gold = financials.GetValueOrDefault("GramAltin", "?");
+                        var usd = financials.GetValueOrDefault("USD", "?");
+                        
+                        indicesData = $"XU100: {xu100}, ALTIN: {gold}, USD: {usd}";
+                        Log($"📊 Endeksler çekildi: {indicesData}", "Twitter");
                     }
                     else
                     {
-                        Log($"❌ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
+                        indicesData = "Sembol | Fiyat\n-------|------\nBIST100| 9.850\nALTIN  | 2.850\nUSD    | 34.50";
                     }
+
+                    // 2. Fetch Winners/Losers
+                    var gainers = await _opManager.SocialIntel.GetTopGainersAsync();
+                    var losers = await _opManager.SocialIntel.GetTopLosersAsync();
+                    var topVolume = await _opManager.SocialIntel.GetTopVolumeAsync();
+
+                    string topGainersData = BuildStockTable(gainers, "Top Gainers");
+                    string topLosersData = BuildStockTable(losers, "Top Losers");
+                    string topVolumeData = BuildStockTable(topVolume, "Top Volume");
+
+                    // 3. AI Generation
+                    Log("🤖 AI Piyasa Kapanış Özeti Hazırlanıyor...", "System");
+                    string pulseAnomalies = "";
+                    try {
+                        string pulseFile = @"C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt";
+                        if (System.IO.File.Exists(pulseFile)) {
+                            var lines = System.IO.File.ReadAllLines(pulseFile);
+                            foreach (var line in lines) {
+                                if (line.StartsWith(DateTime.Today.ToString("yyyy-MM-dd"))) {
+                                    pulseAnomalies += line + "\n";
+                                }
+                            }
+                        }
+                    } catch {}
+                    
+                    string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indicesData, topGainersData, topLosersData, topVolumeData, pulseAnomalies);
+
+                    if (string.IsNullOrEmpty(tweetSet)) 
+                    {
+                        Log("❌ AI Gün sonu özeti üretemedi (Zaman aşımı veya hata). Tweet atılamadı.", "Twitter");
+                        return;
+                    }
+
+                    var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
+
+                    if (tweets.Count > 0)
+                    {
+                        Log($"🚀 Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
+                        var result = await _opManager.SocialIntel.PostThreadAsync(tweets);
+                        
+                        if (result != null && result.status == "success")
+                        {
+                            Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
+                            for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
+                            Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
+                        }
+                        else
+                        {
+                            Log($"❌ Market Close Summary thread failed: {result?.ErrorMessage ?? "Bilinmeyen hata"}", "Twitter");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"❌ Market Close Summary Error: {ex.Message}", "Twitter");
                 }
             }
             catch (Exception ex)
             {
-                Log($"❌ Market Close Summary Error: {ex.Message}", "Twitter");
+                Log($"❌ PostMarketCloseSummary Kritik Hata: {ex.Message}\n{ex.StackTrace}", "System");
             }
         }
 
@@ -5191,11 +5215,11 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
 
             try
             {
-                // Status Determination (heuristic, can be improved with event args)
-                string status = "✅ Yayınlandı"; 
+                // v5.1.7: Status Determination Fix (It's not published yet, just entering the pipeline)
+                string status = "📥 İşleme Alındı"; 
                 // Color coding
                 Color rowColor = Color.FromArgb(35, 35, 40);
-                Color statusColor = Color.LimeGreen;
+                Color statusColor = Color.Cyan;
 
                 string timeDisplay = overrideTime ?? DateTime.Now.ToString("HH:mm:ss");
 
@@ -5453,7 +5477,8 @@ string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indices
             string guruHandle = ConfigManager.Current.GuruHandle;
             Log($"📡 {guruHandle} taranıyor...", "System");
             // Pass empty symbol to SocialIntelService to fetch timeline WITHOUT symbol filtering
-            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle });
+            // v5.1.7: Limit 10'dan 30'a çıkarıldı (Pinli veya retweetli akışlarda son postları kaçırmamak için)
+            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle }, 30);
             
             _guruPosts.Clear();
             _guruPosts.AddRange(res);

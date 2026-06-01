@@ -1698,7 +1698,8 @@ namespace XiDeAI_Pro.Services
                                         string? imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : null;
                                         int engagement = item.TryGetProperty("engagement", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetInt32() : 0;
                                         
-                                        if (string.IsNullOrWhiteSpace(content) || content.Length < 10) continue;
+                                        // v5.1.8: Allow short text if it contains an image (e.g., 'Efe HMA')
+                                        if ((string.IsNullOrWhiteSpace(content) || content.Length < 10) && string.IsNullOrEmpty(imageUrl)) continue;
                                         
                                         sink.Add(new InfluencerPost
                                         {

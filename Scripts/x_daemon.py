@@ -495,7 +495,20 @@ def cmd_search(params):
                 except:
                     text = art.text[:500]
                 
-                if not text or len(text) < 10:
+                # Extract image FIRST
+                img_url = None
+                try:
+                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                    for img in img_els:
+                        src = img.get_attribute("src")
+                        if src and "profile_images" not in src:
+                            img_url = src
+                            break
+                except:
+                    pass
+                
+                # Check text AND image. Short text is allowed if there is an image (e.g. "Efe HMA")
+                if (not text or len(text) < 10) and not img_url:
                     continue
                 
                 # Extract author
@@ -519,17 +532,7 @@ def cmd_search(params):
                     url = "https://x.com"
                     time_str = datetime.now(timezone.utc).isoformat()
                 
-                # Extract image
-                img_url = None
-                try:
-                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
-                    for img in img_els:
-                        src = img.get_attribute("src")
-                        if src and "profile_images" not in src:
-                            img_url = src
-                            break
-                except:
-                    pass
+                # Extract image logic moved above
                 
                 # Extract engagement
                 engagement = 0
@@ -592,7 +595,18 @@ def cmd_timeline(params):
                 except:
                     text = art.text[:500]
                 
-                if not text or len(text) < 10:
+                img_url = None
+                try:
+                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                    for img in img_els:
+                        src = img.get_attribute("src")
+                        if src and "profile_images" not in src:
+                            img_url = src
+                            break
+                except:
+                    pass
+                
+                if (not text or len(text) < 10) and not img_url:
                     continue
                 
                 url = ""
@@ -605,16 +619,7 @@ def cmd_timeline(params):
                     url = f"https://x.com/{handle}"
                     time_str = datetime.now(timezone.utc).isoformat()
                 
-                img_url = None
-                try:
-                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
-                    for img in img_els:
-                        src = img.get_attribute("src")
-                        if src and "profile_images" not in src:
-                            img_url = src
-                            break
-                except:
-                    pass
+                # img_url extraction moved above
                 
                 results.append({
                     "author": f"@{handle}",

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -19,9 +19,9 @@ namespace XiDeAI_Pro.Services.AI
     public class LMStudioProvider : IModelProvider
     {
         // Text-only requests: 300s for reasoning models on short prompts
-        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(300) };
-        // Vision requests: reasoning model + image processing needs more time (10 min)
-        private static readonly HttpClient _visionClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(600) };
+        private static readonly HttpClient _client = new HttpClient() { Timeout = TimeSpan.FromSeconds(900) };
+        // v4.5: Increased timeout for vision to 15 minutes (900s) as local vision + reasoning takes longer
+        private static readonly HttpClient _visionClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(900) };
         private readonly string _uri;
         private readonly string _apiKey;
         private readonly string _modelName;
@@ -58,6 +58,11 @@ namespace XiDeAI_Pro.Services.AI
                 LastError = null;
                 var url = $"{_uri}/chat/completions";
                 
+                // v5.1.7: Qwen3.6 /no_think'e rağmen reasoning_content'e düşünme yazıyor.
+                // 4096 token tümüyle reasoning'e gidiyor → content boş kalıyor.
+                // 16K token ile reasoning sızıntısına rağmen content için yeterli alan kalır.
+                int effectiveMaxTokens = Math.Max(maxTokens, 16384);
+                
                 // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
                 // LM Studio ignores the `thinking.budget_tokens` parameter, so this is the only
                 // reliable way to prevent the model from consuming all tokens on reasoning.
@@ -68,7 +73,7 @@ namespace XiDeAI_Pro.Services.AI
                     {
                         new { role = "user", content = "/no_think\n" + prompt }
                     },
-                    max_tokens = maxTokens,
+                    max_tokens = effectiveMaxTokens,
                     temperature = 0.2
                 };
 
@@ -265,17 +270,33 @@ namespace XiDeAI_Pro.Services.AI
                     }
                 }
 
-                // v5.1.3: reasoning_content fallback KALDIRILDI.
-                // Qwen3 finish_reason=length durumunda reasoning_content iç düşünce metnini
-                // döndürmek yerine null döndürülüyor — çağıran kod retry/hata yönetimi yapmalı.
-                // reasoning_content asla tweet metni olarak kullanılmamalı.
+                // v5.1.7: reasoning_content AKILLI KURTARMA.
+                // Qwen3.6 /no_think'e rağmen reasoning_content'e hem düşünce hem çıktı yazıyor.
+                // content boşsa, reasoning_content'ten <think>...</think> bloklarını soyup
+                // geriye kalan yararlı metni çıkarıyoruz. Eğer sadece düşünce varsa null döner.
                 if (messageElement.TryGetProperty("reasoning_content", out var reasoningElement)
                     && reasoningElement.ValueKind == JsonValueKind.String)
                 {
                     var reasoning = reasoningElement.GetString();
                     if (!string.IsNullOrWhiteSpace(reasoning))
                     {
-                        _logger("⚠️ [LMStudio] content boş, reasoning_content mevcut ama kullanılmıyor (finish_reason=length — token limiti aşıldı). Null döndürülüyor.");
+                        // <think>...</think> bloklarını soy
+                        string salvaged = System.Text.RegularExpressions.Regex.Replace(
+                            reasoning, @"<think>[\s\S]*?</think>", "", 
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                        
+                        // Eğer think bloğu kapatılmadan kaldıysa (token bitti), <think> sonrasını da sil
+                        int openThinkIdx = salvaged.IndexOf("<think>", StringComparison.OrdinalIgnoreCase);
+                        if (openThinkIdx >= 0)
+                            salvaged = salvaged.Substring(0, openThinkIdx).Trim();
+                        
+                        if (!string.IsNullOrWhiteSpace(salvaged) && salvaged.Length > 50)
+                        {
+                            _logger($"🔧 [LMStudio] content boş → reasoning_content'ten {salvaged.Length} karakter kurtarıldı.");
+                            return salvaged;
+                        }
+                        
+                        _logger("⚠️ [LMStudio] content boş, reasoning_content sadece düşünce içeriyor. Null döndürülüyor.");
                         return null;
                     }
                 }

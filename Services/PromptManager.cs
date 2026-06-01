@@ -737,7 +737,7 @@ MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
    - Çıktını yazmadan önce kendi kendine say: 1, 2, 3, 4 — dördüncüden sonra DUR.
 
 2. UZUNLUK:
-   - Her tweet EN AZ 240, EN FAZLA 278 karakter olmalı.
+   - 1. tweet (Hook) EN FAZLA 200 karakter olmalı. Kalan her tweet EN AZ 240, EN FAZLA 278 karakter olmalı.
    - 280 karakteri KESİNLİKLE geçme (Twitter sınırı).
    - Her tweet EN AZ 3 TAM CÜMLE içermeli — tek cümlelik tweet YASAK.
    - Örnek doğru uzunluk: Fiyat haftalar önce bu bölgeyi kırdı, ancak hala geri dönüyor. OB bölgesi alım talebini koruyor. RSI aşırı satımdan çıkıyor — kombinasyon güçlü. (~240 karakter, BÖYLE YAZ.)
@@ -833,7 +833,7 @@ KESİN YASAKLAR:
 ### TON: Enerjik ama disiplinli. EMA/ADX/Squeeze kavramlarını kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
         }
@@ -852,7 +852,7 @@ FORMAT KURALLARI:
 ### TON: Gizemli, fısıldayan ama emin konuşan borsa kurdu. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- Her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
 - 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
         }
@@ -870,7 +870,7 @@ FORMAT KURALLARI:
 ### TON: Enerjik, ""Rüzgar arkadan!"", MSB/Breakout Zone kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
-- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
 - Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
@@ -887,7 +887,7 @@ FORMAT KURALLARI:
 ### TON: Teknik, ""Grafik konuşuyor"", OB/EQ/Momentum Shift kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
-- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
 - Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
@@ -904,7 +904,7 @@ FORMAT KURALLARI:
 ### TON: Umut verici, ""Küllerinden doğuyor"", FVG/Demand Zone kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
-- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
 - Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
@@ -921,7 +921,7 @@ FORMAT KURALLARI:
 ### TON: Temkinli, ""Zemin sağlam mı?"", Liquidity Sweep/OB kullan. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
-- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
 - Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }
@@ -939,7 +939,7 @@ FORMAT KURALLARI:
 SHORT NOTU: Stop seviyesi belirt, Riskli islem uyarisi yap. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parcalara ayir. Parca sayisi ICERIK tierina uygun olmali.
-- Her parca EN AZ 240, EN FAZLA 278 karakter olmali — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cumlelik tweet YASAK, EN AZ 3 TAM CUMLE.
 - 3. tweet'te en az 1 fenomenin @kullaniciadini gercek cumle icinde dogal kullan (ZORUNLU).
 - Tweet 1/4: gibi basliklar ASLA kullanma. Son parcaya YTD uyarisi ekle.";
         }

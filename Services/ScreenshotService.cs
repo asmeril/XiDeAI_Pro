@@ -105,8 +105,8 @@ namespace XiDeAI_Pro.Services
                     return null;
                 }
 
-                // 120 second timeout to prevent server lockup (increased from 90s)
-                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
+                // 180 second timeout to prevent server lockup (increased from 120s for slower connections/yfinance downloads)
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(180));
                 
                 string output = "";
                 string error = "";
@@ -125,7 +125,7 @@ namespace XiDeAI_Pro.Services
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger("⚠️ Screenshot işlemi ZAMAN AŞIMINA uğradı (120s). Süreç sonlandırılıyor...");
+                    _logger("⚠️ Screenshot işlemi ZAMAN AŞIMINA uğradı (180s). Süreç sonlandırılıyor...");
                     try { process.Kill(true); } catch { } // Kill entire tree (python + chrome + driver)
                     return null;
                 }

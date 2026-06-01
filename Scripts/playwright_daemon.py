@@ -343,6 +343,17 @@ class XDaemonPlaywright:
                 await post_button.click(timeout=4000)
                 await self._sleep(3)
 
+                # Strict Validation: Check if an error toast appeared
+                toast = self.page.locator("div[data-testid='toast']")
+                toast_count = await toast.count()
+                for t_idx in range(toast_count):
+                    t_text = await toast.nth(t_idx).inner_text()
+                    if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
+                        raise Exception(f"Twitter Error: {t_text}")
+                
+                if "compose/post" in self.page.url.lower() and await self.page.locator('div[data-testid="tweetTextarea_0"]').count() > 0:
+                    raise Exception("Tweet failed to post (Compose box still visible)")
+
                 tweet_url = await self._extract_latest_tweet_url()
                 return {"status": "success", "tweet_url": tweet_url, "text": text}
 
@@ -612,6 +623,17 @@ class XDaemonPlaywright:
 
                 await post_button.click(timeout=4000)
                 await self._sleep(3)
+
+                # Strict Validation: Check if an error toast appeared
+                toast = self.page.locator("div[data-testid='toast']")
+                toast_count = await toast.count()
+                for t_idx in range(toast_count):
+                    t_text = await toast.nth(t_idx).inner_text()
+                    if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
+                        raise Exception(f"Twitter Error: {t_text}")
+                
+                if "compose/post" in self.page.url.lower() and await self.page.locator('div[data-testid="tweetTextarea_0"]').count() > 0:
+                    raise Exception("Tweet failed to post (Compose box still visible)")
 
                 tweet_url = await self._extract_latest_tweet_url()
                 return {"status": "success", "tweet_url": tweet_url}

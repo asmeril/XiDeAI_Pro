@@ -247,15 +247,23 @@ namespace XiDeAI_Pro.Services
                     }
                     
                     string currencyLabel = string.IsNullOrEmpty(currency) ? "Puan" : currency;
-                    tweet1 = $"{headerTag} #{cleanSymbol} ({periodStr}){basisSuffix} Teknik Analizim\n\n" +
-                             $"💰 Fiyat: {signal.Price:N2} {currencyLabel}\n\n" +
-                             $"👇 Grafik ve Detaylar:\n" +
-                             $"{tvLink}";
-                    tweets.Add(tweet1);
+                    tweet1 = $"{headerTag} #{cleanSymbol} ({periodStr}){basisSuffix} | Fiyat: {signal.Price:N2} {currencyLabel}\n" +
+                             $"{tvLink}\n\n";
+                    // Do not add tweet1 as a separate tweet yet! We will prepend it to the AI's first tweet.
                 }
                 
                 // v2.7:||| Ayırıcısına göre bölme desteği (X 280 karakter sınırı)
-                tweets.AddRange(ThreadPipeline.ParseParts(fullAnalysis, 280));
+                var aiParts = ThreadPipeline.ParseParts(fullAnalysis, 280);
+                if (aiParts.Count > 0)
+                {
+                    // Prepend our short header to the AI's hook
+                    aiParts[0] = tweet1 + aiParts[0];
+                    tweets.AddRange(aiParts);
+                }
+                else
+                {
+                    tweets.Add(tweet1 + "Analiz metni oluşturulamadı.");
+                }
 
                 // v3.5.4: Sanitize all tweets before finalizing
                 for (int i = tweets.Count - 1; i >= 0; i--)

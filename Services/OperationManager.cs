@@ -533,12 +533,10 @@ namespace XiDeAI_Pro.Services
                     ConfigManager.Save();
                 }
                 
-                // 5. Update ModelManager task preferences based on benchmark results
-                if (ModelManager != null)
-                {
-                    Logger.AI($"[AutoBenchmark] 🔧 ModelManager task preferences güncelleniyor...");
-                    ModelBenchmarkService.UpdateTaskPreferencesFromResults(results, ModelManager);
-                }
+                // v5.1.6: ModelManager task preferences artık güncellenmeyecek.
+                // Haber modülü hariç tüm modüller yerel modeli (LM Studio) kullanır.
+                // Benchmark sadece ConfigManager.GeminiModel'i günceller (News REST API için).
+                Logger.AI($"[AutoBenchmark] ℹ️ ModelManager tercihleri korunuyor (Yerel Model öncelikli).");
                 
                 _lastBenchmarkRun = DateTime.Now;
                 Logger.AI($"[AutoBenchmark] ✅ Benchmark tamamlandı. Sonraki çalışma: yarın 03:00");
