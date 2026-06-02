@@ -1,4 +1,4 @@
-﻿> **Version:** 5.2.0 (Live)
+﻿> **Version:** 5.2.2 (Live)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
 > **Last Updated:** 2026-06-02
 
@@ -45,7 +45,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | `NewsTrackerService.cs` | RSS ve Twitter'dan haber tarar. **v3.8.3:** `OnNewsDetected` eventini tetikler. | `x_daemon.py` |
 | `ThreadService.cs` | Zincir (Thread) oluşturma mantığını kurar. | - |
 | `ThreadPipeline.cs` | **Merkezi Thread Hazırlayıcı.** Lead tweet, parça normalizasyonu ve ortak split kurallarını tek yerde toplar. | - |
-| `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanını yönetir. | - |
+| `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanını yönetir. **(v5.2.2)** `UpdateScore(handle, delta)` eklendi — engagement bazlı otomatik skor güncelleme (0-100 aralığı). | - |
 | `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
 | `SignalEngine.cs` | Sinyal işleme motoru. Sinyalleri filtreler, formatlar ve yayınlar. | - |
 | `ModelManager.cs` | **v4.10.0** AI provider yöneticisi. Aktif provider'ı seçer, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tüm provider'ları senkronize eder. | - |
@@ -58,6 +58,8 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 
 #### `SocialIntelService.cs`
 - `FindInfluencerAnalyses(symbol, market)`: Fenomenlerin analizlerini arar. (Önce VIP timeline, sonra genel arama).
+- **(v5.2.2)** Daemon'dan post alınınca `engagement/10` formülüyle `InfluencerControlService.UpdateScore()` çağrılır — etkin fenomenler üste çıkar.
+- **(v5.2.2)** Genel arama parse hatasında handle boş kalırsa tweet atlanır (eski: `X-User` fallback kaldırıldı).
 - `PostTweet(text)` / `PostThreadAsync(tweets)`: Tweet atar. Önce dahili WebView2'yi dener, başarısız olursa Python'a düşer (Fallback).
 - `CheckSafety(actionType)`: **(v4.6.0)** Güvenlik kontrolü yapar (Hız limiti ve günlük kotalar).
 - `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
@@ -69,7 +71,9 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v4.10.8)** Derin analiz prompt'una `### GÖRSEL OKUMA (GRAFİK)` bölümü eklendi — yerel modelin grafik okuma kalitesini artırır.
 - **(v5.1.1)** `GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: Yeniden yazıldı. Eski tek-tweet şablon → 6-7 tweet fenomen thread yapısı (Hook → XU100 yorum → Yıldızlar → Kazazedeler → Pulse anları → Yarına bakış → CTA).
 - **(v5.1.1)** Tüm `### GÖREV` bloklarına X Algoritma Fenomen Kuralları enjekte edildi: Hook (kanca ilk cümle), kısa/boşluklu format (dwell time), ELI5 hikayeleştirme, CTA (son tweette RT/takip).
-- **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` — AI hard data ile sosyal algı zıtlığını Smart Money tuzağı olarak yorumlar.
+- **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` — AI hard data ile sosyal algı zıtlığını Smart Money tuzagı olarak yorumlar.
+- **(v5.2.2)** `GetSignalAnalysisPrompt`, `GetDeepManualAnalysisPrompt`, `GetDeepTechnicalAnalysisPrompt`: YASAK SÖZCÜKLER listesi eklendi (fısıltı alış, akıllı para, piyasa kurdu vb.). Son tweet ZORUNLU: AL/İZLE/BEKLE karar + soru formatı.
+- **(v5.2.2)** `GetAlphaSignalPrompt` / `GetPreMoveSignalPrompt`: Robotik ton kaldırıldı (borsa kurdu, fısıldayan vb.). Fenomen mention: varsa doğal, yoksa ekleme (zorunlu değil).
 
 #### `MainForm.cs`
 - **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
@@ -284,6 +288,8 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+
+
 
 
 

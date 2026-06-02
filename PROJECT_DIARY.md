@@ -1,4 +1,4 @@
-# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
+﻿# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
@@ -65,5 +65,31 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 - Tweet gönderimi (Post) butonuna basıldıktan sonra, hata veren toast mesajları yakalanacak.
 - Ekranda Compose (Oluştur) penceresi kapanmadan asılı kalırsa işlem anında sonlandırılacak, eski tweet URL'si kopyalanmayacak.
 - Bu sayede thread'lerin yanlışlıkla geçmiş eski bir tweete (Reply) bağlanarak zincir oluşturması engellendi.
+
+---
+
+## 02 Haziran 2026
+
+### 🔧 v5.2.1 — AI Prompt Zehirlenmesi ve React State Uyum Yaması
+
+**Prompt İyileştirmeleri (PromptManager):**
+- Haber ve Manuel Analiz (`GetDeepManualAnalysisPrompt`) promptlarındaki `[Tweet 1: ...]` gibi köşeli parantezli yapı zorunlulukları kaldırıldı.
+- AI'ın robotik başlıklar atması (örn: `**Tweet 1 - KANCA:**`) engellenerek tamamen fenomen akıcılığına geçildi.
+- Manuel Analiz ilk tweet uzunluğu Twitter'ın sınırlarına takılmaması için maksimum 180 karaktere indirildi.
+
+**Güvenlik Filtresi (SanitizeXContent):**
+- Sistemin "Tweet 1" içeren **bütün satırı komple silme** hatası giderildi. Artık regex yardımıyla metne dokunmadan sadece istenmeyen etiketler (Tweet 1, KANCA vs.) ayıklanıyor. (İlk tweetin boş çıkma hatası çözüldü).
+
+**Playwright Motoru (React Çakışma Düzeltmesi):**
+- `playwright_daemon.py` artık KESİNLİKLE tweet metninden *önce* haber/analiz görselini (image) yüklüyor.
+- Metin yazımında, React tabanlı (Draft.js) kutularla tam uyum sağlamak için Javascript `innerText` hilesi bırakılıp `keyboard.insert_text()` klavye simülasyonuna geçildi. Böylece görseller yüklenirken ekranın yenilenip metinleri silmesi problemi ortadan kalktı.
+
+---
+
+## 02 Haziran 2026
+
+### v5.2.2 Release
+
+> TODO: Release notes eklenecek.
 
 
