@@ -400,7 +400,18 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
         {
-            string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext, influencerCitations, htfContext);
+            string indicatorContext = "";
+            try
+            {
+                string indicatorGuidePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "IndicatorGuide.md");
+                if (File.Exists(indicatorGuidePath))
+                {
+                    string raw = File.ReadAllText(indicatorGuidePath);
+                    indicatorContext = $"\n\n=== GÖSTERGE KLAVUZU ===\n{raw}\n=== GÖSTERGE KLAVUZU SONU ===";
+                }
+            }
+            catch { }
+            string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext + indicatorContext, influencerCitations, htfContext);
             int maxTokens = sig.Tier switch { ContentTier.Premium => 1500, ContentTier.Standard => 1000, ContentTier.Summary => 600, _ => 300 };
             return await SendRequest(prompt, maxOutputTokens: maxTokens);
         }

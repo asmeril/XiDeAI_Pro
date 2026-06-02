@@ -819,17 +819,19 @@ KESİN YASAKLAR:
             string tierInstruction = GetTierInstruction(sig.Tier);
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
 
-            return $@"### KİMLİK: Momentum + EMA ustası, Çoklu Zaman Dilimi (Top-Down Analysis) kullanan, Smart Money hareketi izleyen analist.
+            return $@"### KİMLİK: 15 yıllık BIST trader. Grafik okur, sayıyla konuşur. Klişe yok.
 ### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
 ### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: 60dk
 ### VERİLER: {priceContext}
-### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi.{htfSection}{citationSection}
-### TON: Enerjik ama disiplinli. EMA/ADX/Squeeze kavramlarını kullan. {tierInstruction}
+### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi
+### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
 - 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
-- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan (ZORUNLU).
-- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
+- Fenomen verisi varsa 3. tweette doğal @kullanıcıadı mention, yoksa ekleme.
+- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
+- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
 
         private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
@@ -838,17 +840,19 @@ FORMAT KURALLARI:
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
 
-            return $@"### KİMLİK: Fiyat hareketini hissetmeden önce gören, akıllı paranın ayak izlerini süren erken uyarı sistemi uzmanı.
+            return $@"### KİMLİK: 15 yıllık BIST trader. Erken uyarı, somut seviye, net karar.
 ### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
-### SİNYAL: Durum: {sig.Durum}, Periyot: 60dk
+### SİNYAL: Durum: {sig.Durum}, Periyot: Günlük
 ### VERİLER: {priceContext}
-### PREMOVE BAĞLAMI: Fiyat yatayda, hacim kurumuş (drying) ama diplerde ufak alış baskıları var. Büyük hareket öncesi sessizlik.{htfSection}{citationSection}
-### TON: Gizemli, fısıldayan ama emin konuşan borsa kurdu. {tierInstruction}
+### PREMOVE BAĞLAMI: Fiyat destek bölgesinde, hacim kuruyup dip testleri var. Öncü hareket (önceden birikim) sinyali. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar
+### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
 - 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
-- 3. tweet'te en az 1 fenomenin @kullanıcıadını gerçek cümle içinde doğal kullan.
-- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.";
+- Fenomen verisi varsa 3. tweette doğal @kullanıcıadı mention, yoksa ekleme.
+- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
+- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
 
         private string GetKingBombaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string type)
