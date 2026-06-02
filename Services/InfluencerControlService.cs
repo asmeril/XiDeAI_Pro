@@ -264,6 +264,25 @@ namespace XiDeAI_Pro.Services
             }
         }
 
+        /// <summary>Engagement bazlı skor güncelle. delta pozitif=ödül, negatif=ceza. Skor 0-100 aralığında kalır.</summary>
+        public void UpdateScore(string handle, int delta)
+        {
+            handle = handle.Trim();
+            if (!handle.StartsWith("@")) handle = "@" + handle;
+            lock (_lock)
+            {
+                Influencer? found = null;
+                foreach (var kvp in _database)
+                    found = found ?? kvp.Value.FirstOrDefault(i => i.Handle.Equals(handle, StringComparison.OrdinalIgnoreCase));
+                foreach (var kvp in _metaTeacherDb)
+                    found = found ?? kvp.Value.FirstOrDefault(i => i.Handle.Equals(handle, StringComparison.OrdinalIgnoreCase));
+                if (found == null) return;
+                found.Score = Math.Clamp(found.Score + delta, 0, 100);
+                found.LastUpdated = DateTime.Now;
+            }
+            SaveDatabase();
+        }
+
         public List<string> GetTopInfluencers(string symbol, int count = 5)
         {
             string category = "BIST"; 

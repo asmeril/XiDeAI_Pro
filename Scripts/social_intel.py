@@ -1113,8 +1113,8 @@ def search_influencer_feed(query, symbol_hint):
                             handle = "@" + handle_match.group(1)
                     except: pass
 
-                if not handle:
-                    handle = "X-User" # Absolute fallback
+                if not handle or handle == "@":
+                    continue  # Handle parse edilemedi → bu tweet'i atla, X-User kirliliği oluşturma
                 
                 url = ""
                 time_str = ""

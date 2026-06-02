@@ -1720,6 +1720,15 @@ namespace XiDeAI_Pro.Services
                                 if (count > 0)
                                 {
                                     Logger.Twitter($"📊 [DAEMON] Found {count} posts for {symbol}");
+                                    // Engagement bazlı skor güncelle
+                                    foreach (var post in sink.TakeLast(count))
+                                    {
+                                        if (!string.IsNullOrEmpty(post.Handle) && post.Handle != "X-User" && post.Engagement > 0)
+                                        {
+                                            int delta = Math.Min(post.Engagement / 10, 5); // max +5 per tweet
+                                            _influencerControl?.UpdateScore(post.Handle, delta);
+                                        }
+                                    }
                                     return; // Success via daemon
                                 }
                             }

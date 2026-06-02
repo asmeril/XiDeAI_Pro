@@ -448,10 +448,11 @@ namespace XiDeAI_Pro.Services
                         for (int i = 0; i < topPosts.Count; i++)
                         {
                             string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
-                            lines.Add($"{prefix} @{topPosts[i].Handle}: {topPosts[i].Content?.Trim()}");
+                            string cleanHandle = topPosts[i].Handle?.TrimStart('@') ?? "";
+                            lines.Add($"{prefix} @{cleanHandle}: {topPosts[i].Content?.Trim()}");
                         }
                         influencerCitations = string.Join("\n", lines);
-                        OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle}", "SocialIntel");
+                        OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
                     }
                     else
                     {
@@ -459,11 +460,12 @@ namespace XiDeAI_Pro.Services
                         var fallbackHandles = _influencerControl?.GetTopInfluencers(sig.Symbol, 3);
                         if (fallbackHandles != null && fallbackHandles.Count > 0)
                         {
+                            // Handle'lar @ ile kayıtlı olabilir — temizle, sonra tek @ ekle
+                            var cleanHandles = fallbackHandles.Select(h => "@" + h.TrimStart('@')).ToList();
                             influencerCitations = $"[{sig.Symbol} için X'te spesifik yorum bulunamadı. " +
-                                $"Fenomen modülündeki analistler: " +
-                                string.Join(", ", fallbackHandles.Select(h => $"@{h}")) +
-                                $"]\nBu handle'lardan birini kendi analizine en uygun olanı seçerek 3. tweet'te doğal şekilde mention et.";
-                            OnLog?.Invoke($"⚠️ Fallback mention: {string.Join(", ", fallbackHandles)}", "SocialIntel");
+                                $"Tanınan analistler: {string.Join(", ", cleanHandles)}" +
+                                $"]\nEğer analiz içeriğine doğal uyuyorsa bu isimlerden birini kullanabilirsin, zorunlu değil.";
+                            OnLog?.Invoke($"⚠️ Fallback mention: {string.Join(", ", cleanHandles)}", "SocialIntel");
                         }
                     }
                 }
