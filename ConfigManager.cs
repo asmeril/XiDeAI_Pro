@@ -186,7 +186,7 @@ namespace XiDeAI_Pro.Config
                 DailyTotalTweetCount = 0;
                 LastDailyReset = DateTime.Now;
             }
-            if (LastMonthlyReset.Month != DateTime.Now.Month)
+            if (LastMonthlyReset.Month != DateTime.Now.Month || LastMonthlyReset.Year != DateTime.Now.Year)
             {
                 MonthlyTweetCount = 0;
                 MonthlyTotalTweetCount = 0;
@@ -331,4 +331,3 @@ namespace XiDeAI_Pro.Config
         }
     }
 }
-

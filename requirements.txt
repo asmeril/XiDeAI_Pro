@@ -1,0 +1,10 @@
+selenium
+webdriver-manager
+undetected-chromedriver
+requests
+beautifulsoup4
+pillow
+pyperclip
+playwright
+yfinance
+pandas

@@ -109,6 +109,7 @@ namespace XiDeAI_Pro.Services
                 string summary = analysisData.Summary;
                 string symbols = analysisData.Symbols;
                 string category = analysisData.Category;
+                item.Category = category;
 
                 // v4.7.3: Son Dakika skor boost kaldırıldı.
                 // AI'a zaten "son dakika haberlere max 9" kuralı verildi, çelişkiyi yönettik.
@@ -153,33 +154,11 @@ namespace XiDeAI_Pro.Services
                     return;
                 }
 
-                if (score >= 7 && score <= 8 || status == "PENDING_NEWS_ONLY")
+                if (status == "AUTO_POST_WITH_ANALYSIS" || score >= 10)
                 {
-                    // v4.6.20: Sessiz saatler (gece) koruması artık onaya düşen haberleri YUTMAYACAK.
-                    // UI Onay Bekleyenler sekmesinde birikecek. Kullanıcı sabah uyanıp onaylayabilir.
-
-                    // ONAY GEREKTİRİYOR - SADECE HABER
-                    OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
-                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, false); // false = no analysis
-                    return;
-                }
-
-                if (score == 9 || status == "PENDING_WITH_ANALYSIS")
-                {
-                    // v4.6.20: Sessiz saatler kontrolü (gece) iptal edildi, haberler çöpe atılmak yerine onay havuzunda bekleyecek.
-
-                    // ONAY GEREKTİRİYOR - HABER + ANALİZ
-                    OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
-                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, true); // true = with analysis
-                    return;
-                }
-
-                if (score == 10 || status == "AUTO_POST_WITH_ANALYSIS")
-                {
+                    item.IncludesAnalysis = true;
                     // OTOMATİK PAYLAŞ - HABER + ANALİZ
-                    OnLog?.Invoke($"🔥 KRİTİK HABER (Skor: 10/10): {item.Title}", "NewsEngine");
+                    OnLog?.Invoke($"🔥 KRİTİK HABER (Skor: {score}/10): {item.Title}", "NewsEngine");
                     
                     // Kategoriye özel analiz thread'i üret (description + isFlash ile zenginleştirilmiş)
                     string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(
@@ -194,6 +173,32 @@ namespace XiDeAI_Pro.Services
                     {
                         OnLog?.Invoke($"⚠️ Otomatik paylaşım başarısız: {msg}", "NewsEngine");
                     }
+                    return;
+                }
+
+                if (status == "PENDING_WITH_ANALYSIS" || score == 9)
+                {
+                    item.IncludesAnalysis = true;
+                    // v4.6.20: Sessiz saatler kontrolü (gece) iptal edildi, haberler çöpe atılmak yerine onay havuzunda bekleyecek.
+
+                    // ONAY GEREKTİRİYOR - HABER + ANALİZ
+                    OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
+                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, true); // true = with analysis
+                    return;
+                }
+
+                if (status == "PENDING_NEWS_ONLY" || (score >= 7 && score <= 8))
+                {
+                    item.IncludesAnalysis = false;
+                    // v4.6.20: Sessiz saatler (gece) koruması artık onaya düşen haberleri YUTMAYACAK.
+                    // UI Onay Bekleyenler sekmesinde birikecek. Kullanıcı sabah uyanıp onaylayabilir.
+
+                    // ONAY GEREKTİRİYOR - SADECE HABER
+                    OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
+                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, false); // false = no analysis
+                    return;
                 }
             }
             catch (Exception ex)
@@ -206,13 +211,17 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary, string category = "EKONOMI")
+        public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary, string? category = null, bool includeAnalysis = true)
         {
             OnLog?.Invoke($"👤 Kullanıcı Onayladı: {item.Title}", "NewsEngine");
-            // Onay sonrası kategoriye özel analiz thread'i üret
-            string? analysisThread = await _gemini.GenerateNewsCategoryAnalysis(
-                category, item.Title, item.Source, item.Link,
-                description: item.Description, isFlash: item.IsFlash);
+            category = string.IsNullOrWhiteSpace(category) ? item.Category : category;
+            if (string.IsNullOrWhiteSpace(category)) category = "EKONOMI";
+
+            string? analysisThread = includeAnalysis
+                ? await _gemini.GenerateNewsCategoryAnalysis(
+                    category, item.Title, item.Source, item.Link,
+                    description: item.Description, isFlash: item.IsFlash)
+                : BuildMinimalNewsTweet(item, summary);
             // v5.1.1: preBuiltThread geçiliyor → içeride duplicate AnalyzeNewsForThread çağrısı atlanır
             return await PostNewsThreadToTwitter(item, summary, "BIST100", isCritical: true, score: 8, category: category, preBuiltThread: analysisThread);
         }
@@ -301,20 +310,27 @@ namespace XiDeAI_Pro.Services
                     
                     if (System.IO.File.Exists(generatorScript))
                     {
-                        string safeTitle = item.Title.Replace("\"", "\\\"");
-                        string safeSource = item.Source.Replace("\"", "\\\"");
-                        string flashArg = item.IsFlash ? "--flash" : "";
-                        string logoArg = System.IO.File.Exists(iconPath) ? $"--logo \"{iconPath}\"" : "";
-                        
                         var psi = new System.Diagnostics.ProcessStartInfo
                         {
                             FileName = "python",
-                            Arguments = $"\"{generatorScript}\" --title \"{safeTitle}\" --output \"{cardPath}\" --source \"{safeSource}\" {flashArg} {logoArg}",
                             UseShellExecute = false,
                             CreateNoWindow = true,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true
                         };
+                        psi.ArgumentList.Add(generatorScript);
+                        psi.ArgumentList.Add("--title");
+                        psi.ArgumentList.Add(item.Title ?? string.Empty);
+                        psi.ArgumentList.Add("--output");
+                        psi.ArgumentList.Add(cardPath);
+                        psi.ArgumentList.Add("--source");
+                        psi.ArgumentList.Add(item.Source ?? string.Empty);
+                        if (item.IsFlash) psi.ArgumentList.Add("--flash");
+                        if (System.IO.File.Exists(iconPath))
+                        {
+                            psi.ArgumentList.Add("--logo");
+                            psi.ArgumentList.Add(iconPath);
+                        }
                         
                         using var proc = System.Diagnostics.Process.Start(psi);
                         if (proc != null)
@@ -580,5 +596,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
-

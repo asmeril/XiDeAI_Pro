@@ -952,10 +952,11 @@ namespace XiDeAI_Pro
             pnlInfluencers.Visible = false;
             pnlNews.Visible = false;
             pnlGuruCenter.Visible = false;
+            pnlFenerbahce.Visible = false;
             
             // Reset Buttons
             void ResetBtn(Button b) { b.BackColor = Color.Transparent; b.ForeColor = Color.Silver; b.Tag = null; }
-            ResetBtn(btnNavDash); ResetBtn(btnNavSignals); ResetBtn(btnNavAnalysis); ResetBtn(btnNavSettings); ResetBtn(btnNavBot); ResetBtn(btnNavHistory); ResetBtn(btnNavInfluencers); ResetBtn(btnNavNews); ResetBtn(btnNavGuru);
+            ResetBtn(btnNavDash); ResetBtn(btnNavSignals); ResetBtn(btnNavAnalysis); ResetBtn(btnNavSettings); ResetBtn(btnNavBot); ResetBtn(btnNavHistory); ResetBtn(btnNavInfluencers); ResetBtn(btnNavNews); ResetBtn(btnNavGuru); ResetBtn(btnNavFenerbahce);
 
             // Show Active
             activePanel.Visible = true;
@@ -1336,7 +1337,7 @@ namespace XiDeAI_Pro
                 btnApprove.FlatAppearance.BorderSize = 0;
                 btnApprove.Click += async (s, e) => {
                     targetPanel.Controls.Remove(card);
-                    await _opManager.NewsEng.ForcePostNews(news, analysis ?? "");
+                    await _opManager.NewsEng.ForcePostNews(news, analysis ?? "", news.Category, news.IncludesAnalysis);
                     // Moved to published automatically by NewsEngine event, but we can double check
                 };
                 
@@ -1870,6 +1871,8 @@ namespace XiDeAI_Pro
 
                 _opManager.NewsEng.OnNewsPendingApproval += (news, summary, score, category, reasoning, includesAnalysis) => {
                     int id = Interlocked.Increment(ref _newsIdCounter);
+                    news.Category = category;
+                    news.IncludesAnalysis = includesAnalysis;
                     _pendingNewsDict[id] = (news, summary);
                     string analysisText = includesAnalysis ? "+ Analiz" : "Sadece Haber";
                     UpdateBotStatus($"⚠️ [{category}] Onay Bekliyor [ID: {id}] ({analysisText}): {news.Title}");
@@ -4424,7 +4427,7 @@ namespace XiDeAI_Pro
                                         await _opManager.Telegram.SendMessageAsync($"⏳ {id} onaylandı. Yayınlanıyor...");
                                         try
                                         {
-                                            var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
+                                             var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary, pending.item.Category, pending.item.IncludesAnalysis);
                                             if (success)
                                             {
                                                 await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI! {pending.item.Title}");
@@ -4452,7 +4455,7 @@ namespace XiDeAI_Pro
                                         await _opManager.Telegram.SendMessageAsync($"⏳ Onaylandı: {pending.item.Title}");
                                         try
                                         {
-                                            var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary);
+                                             var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary, pending.item.Category, pending.item.IncludesAnalysis);
                                             if (success)
                                             {
                                                 await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI!");
@@ -5999,6 +6002,4 @@ namespace XiDeAI_Pro
         }
     }
 }
-
-
 

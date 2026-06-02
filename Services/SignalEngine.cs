@@ -349,8 +349,6 @@ namespace XiDeAI_Pro.Services
                     return;
                 }
                 
-                _persistence.MarkAsProcessed(sig.Symbol, sig.Period);
-
                 // 2. AI Pre-Filter
                 bool isWorthAnalyzing = await CheckSignalQualityWithAI(sig);
                 if (!isWorthAnalyzing) return;
@@ -404,8 +402,9 @@ namespace XiDeAI_Pro.Services
                      }
                 }
 
-                // Influencer Intelligence: VIP listesi → genel X araması → fallback handle
+                // Influencer Intelligence: VIP listesi → genel X araması → sadece doğrulanmış mention
                 string influencerCitations = "";
+                var allowedMentionHandles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
                     string symUpper = sig.Symbol.ToUpperInvariant();
@@ -449,24 +448,18 @@ namespace XiDeAI_Pro.Services
                         {
                             string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
                             string cleanHandle = topPosts[i].Handle?.TrimStart('@') ?? "";
-                            lines.Add($"{prefix} @{cleanHandle}: {topPosts[i].Content?.Trim()}");
+                            if (string.IsNullOrWhiteSpace(cleanHandle)) continue;
+                            if (!string.IsNullOrWhiteSpace(cleanHandle)) allowedMentionHandles.Add(cleanHandle);
+                            string cleanContent = StripUnapprovedMentions(topPosts[i].Content?.Trim() ?? "", new HashSet<string>(new[] { cleanHandle }, StringComparer.OrdinalIgnoreCase), out _);
+                            lines.Add($"{prefix} @{cleanHandle}: {cleanContent}");
                         }
                         influencerCitations = string.Join("\n", lines);
                         OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
                     }
                     else
                     {
-                        // Adım 3: Hiç post bulunamazsa fenomen modülünden handle öner
-                        var fallbackHandles = _influencerControl?.GetTopInfluencers(sig.Symbol, 3);
-                        if (fallbackHandles != null && fallbackHandles.Count > 0)
-                        {
-                            // Handle'lar @ ile kayıtlı olabilir — temizle, sonra tek @ ekle
-                            var cleanHandles = fallbackHandles.Select(h => "@" + h.TrimStart('@')).ToList();
-                            influencerCitations = $"[{sig.Symbol} için X'te spesifik yorum bulunamadı. " +
-                                $"Tanınan analistler: {string.Join(", ", cleanHandles)}" +
-                                $"]\nEğer analiz içeriğine doğal uyuyorsa bu isimlerden birini kullanabilirsin, zorunlu değil.";
-                            OnLog?.Invoke($"⚠️ Fallback mention: {string.Join(", ", cleanHandles)}", "SocialIntel");
-                        }
+                        // Sembole özel doğrulanmış post yoksa modele fallback handle verme.
+                        OnLog?.Invoke($"ℹ️ {sig.Symbol} için doğrulanmış fenomen yorumu yok; mention kapalı.", "SocialIntel");
                     }
                 }
                 catch (Exception ex) { OnLog?.Invoke($"⚠️ Influencer araması başarısız: {ex.Message}", "SocialIntel"); }
@@ -482,6 +475,12 @@ namespace XiDeAI_Pro.Services
                     return;
                 }
 
+                aiContent = StripUnapprovedMentions(aiContent, allowedMentionHandles, out var removedMentions);
+                if (removedMentions.Count > 0)
+                {
+                    OnLog?.Invoke($"🧹 Alakasız mention temizlendi: {string.Join(", ", removedMentions.Select(h => "@" + h))}", "SocialIntel");
+                }
+
                 // 5. Execution (New Raw Handler)
                 OnLog?.Invoke($"🧵 Paylaşılıyor: {sig.Symbol}", "Twitter");
                 
@@ -489,6 +488,7 @@ namespace XiDeAI_Pro.Services
 
                 if (sent)
                 {
+                    _persistence.MarkAsProcessed(sig.Symbol, sig.Period);
                     _spam.RecordTweet(sig.Symbol, sig.Strategy);
                     OnLog?.Invoke($"✅ Başarılı: {sig.Symbol} (Tier: {sig.Tier})", "Twitter");
                 }
@@ -503,6 +503,24 @@ namespace XiDeAI_Pro.Services
             {
                 OnLog?.Invoke($"❌ SignalEngine Error: {ex.Message}", "System");
             }
+        }
+
+        private static string StripUnapprovedMentions(string content, HashSet<string> allowedHandles, out List<string> removedHandles)
+        {
+            removedHandles = new List<string>();
+            if (string.IsNullOrWhiteSpace(content)) return content ?? string.Empty;
+
+            string cleaned = System.Text.RegularExpressions.Regex.Replace(content, @"(?<![\w])@([A-Za-z0-9_]{1,15})\b", match =>
+            {
+                string handle = match.Groups[1].Value;
+                if (allowedHandles.Contains(handle)) return match.Value;
+                if (!removedHandles.Contains(handle, StringComparer.OrdinalIgnoreCase)) removedHandles.Add(handle);
+                return string.Empty;
+            });
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]{2,}", " ");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+([,.;:!?])", "$1");
+            return cleaned.Trim();
         }
 
         private async Task<bool> CheckSignalQualityWithAI(SignalData sig)
@@ -639,5 +657,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
-

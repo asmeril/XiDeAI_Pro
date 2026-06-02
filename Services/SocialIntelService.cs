@@ -383,9 +383,10 @@ namespace XiDeAI_Pro.Services
                 if (string.IsNullOrEmpty(cfg.XLoginUser) || string.IsNullOrEmpty(cfg.XLoginPass))
                     return null;
 
-                // python social_intel.py search_influencer --symbol SYMBOL --market MARKET
+                // python social_intel.py search_influencer --query SYMBOL --market MARKET
                 // Credentials passed via Environment Variables for security (Hiding from Task Manager)
-                string args = $"\"{_scriptPath}\" search_influencer --symbol {symbol} --market {marketType}";
+                string safeSymbol = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(symbol ?? string.Empty));
+                string args = $"\"{_scriptPath}\" search_influencer --query \"{safeSymbol}\" --base64 --market {marketType}";
                 
                 string json = await RunPythonScript(args, cfg.XLoginUser, cfg.XLoginPass);
                 return JsonSerializer.Deserialize<SocialIntelResult>(json);
@@ -1606,7 +1607,10 @@ namespace XiDeAI_Pro.Services
             try
             {
                 // Dedup check (Avoid duplicate searches within 30s) - SKIP FOR DEEP SCAN
-                string cacheKey = $"{symbol}|{market}";
+                string scopeKey = vipHandles != null && vipHandles.Count > 0
+                    ? string.Join(",", vipHandles.Take(5).Select(h => h.Trim().TrimStart('@')).OrderBy(h => h, StringComparer.OrdinalIgnoreCase))
+                    : "GENERAL";
+                string cacheKey = $"{symbol}|{market}|{scopeKey}|{limit}";
                 if (string.IsNullOrEmpty(sinceDate) && _lastSearchTimes.TryGetValue(cacheKey, out DateTime lastTime) && (DateTime.Now - lastTime).TotalSeconds < 30)
                 {
                     Logger.Twitter($"🛡️ Arama deduplikasyonu: {symbol} için son arama üzerinden <30s geçti. Kısayol.");
@@ -2161,5 +2165,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
-

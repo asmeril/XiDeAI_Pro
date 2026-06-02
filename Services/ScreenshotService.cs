@@ -88,15 +88,20 @@ namespace XiDeAI_Pro.Services
                 var psi = new ProcessStartInfo
                 {
                     FileName = "python",
-                    Arguments = $"\"{_scriptPath}\" {symbol} {period} \"{_outputDir}\" \"{chartId}\" \"{chromedriverPath}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WorkingDirectory = Path.GetDirectoryName(_scriptPath) // Set working dir to script folder
                 };
+                psi.ArgumentList.Add(_scriptPath);
+                psi.ArgumentList.Add(symbol);
+                psi.ArgumentList.Add(period);
+                psi.ArgumentList.Add(_outputDir);
+                psi.ArgumentList.Add(chartId);
+                psi.ArgumentList.Add(chromedriverPath);
 
-                _logger($"📸 Script Başlatılıyor: python {psi.Arguments}");
+                _logger($"📸 Script Başlatılıyor: python \"{_scriptPath}\" \"{symbol}\" \"{period}\"");
 
                 using var process = Process.Start(psi);
                 if (process == null) 
@@ -177,7 +182,7 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
-                var cutoff = DateTime.Now.AddHours(-1); // Keep only last 1 hour (aggressive cleanup for 4K images)
+                var cutoff = DateTime.Now.AddHours(-24);
                 foreach (var file in Directory.GetFiles(_outputDir, "*.png"))
                 {
                     if (File.GetCreationTime(file) < cutoff)

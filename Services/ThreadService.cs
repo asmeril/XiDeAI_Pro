@@ -165,18 +165,14 @@ namespace XiDeAI_Pro.Services
                      .Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5) // v4.10.7: Boş veya çok kısa parçaları filtrele (Reply disabled hatasını önler)
                      .ToList();
                  
-                 // Fallback for single tweet if something went wrong
-                 if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
+                  // Fallback for single tweet if something went wrong
+                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
+                 tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
-                 var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
+                  var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
                  
                  if (result.status == "success")
                  {
-                    var cfg = ConfigManager.Current;
-                    cfg.CheckReset();
-                          cfg.DailyTotalTweetCount += tweets.Count;
-                          cfg.MonthlyTotalTweetCount += tweets.Count;
-                    ConfigManager.Save();
                     _stats?.RecordTweet("HybridEngine", tweets.Count, signal.Symbol, tweets[0]);
                     return (true, "");
                  }
@@ -280,11 +276,12 @@ namespace XiDeAI_Pro.Services
                 for (int i = tweets.Count - 1; i >= 1; i--)
                 {
                      // Sadece 1. tweet haricindeki(indeks > 0) aşırı kısa kalan parçaları geriye aktar
-                     if (tweets[i].Trim().Length < 80 && !tweets[i].Contains("Fiyat:"))
-                     {
-                         tweets[i - 1] = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
-                         tweets.RemoveAt(i);
-                     }
+                      string merged = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
+                      if (tweets[i].Trim().Length < 80 && !tweets[i].Contains("Fiyat:") && merged.Length <= 280)
+                      {
+                          tweets[i - 1] = merged;
+                          tweets.RemoveAt(i);
+                      }
                 }
 
                 // ============================================
@@ -306,6 +303,7 @@ namespace XiDeAI_Pro.Services
                 }
                 
                 tweets.Add(tweet4);
+                tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
                 // Send via Selenium (Cookies)
                 var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
@@ -315,15 +313,6 @@ namespace XiDeAI_Pro.Services
                 
                 if (result.status == "success")
                 {
-                    // Increment Counters (Web/Selenium only - NOT API counters)
-                    var cfg = ConfigManager.Current;
-                    cfg.CheckReset();
-                    // DailyTweetCount ve MonthlyTweetCount SADECE API için
-                    // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
-                    cfg.DailyTotalTweetCount += tweets.Count;
-                    cfg.MonthlyTotalTweetCount += tweets.Count;
-                    ConfigManager.Save();
-                    
                     // Record in stats engine by module
                     var threadContent = string.Join(" ", tweets).Substring(0, Math.Min(150, string.Join(" ", tweets).Length));
                     _stats?.RecordTweet("ThreadService", tweets.Count, signal.Symbol, threadContent);
@@ -595,20 +584,9 @@ namespace XiDeAI_Pro.Services
                 
                 tweet2 += $"\n{allTags}\n{trends}" + DISCLAIMER;
                 tweets.Add(tweet2);
+                tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
                 var result = await _socialIntel.PostThreadAsync(tweets);
-                
-                if (result.status == "success")
-                {
-                    // Increment Counters (Web/Selenium only - NOT API counters)
-                    var cfg = ConfigManager.Current;
-                    cfg.CheckReset();
-                    // DailyTweetCount ve MonthlyTweetCount SADECE API için
-                    // ThreadService Selenium kullanıyor, o yüzden sadece Total artır
-                    cfg.DailyTotalTweetCount += tweets.Count;
-                    cfg.MonthlyTotalTweetCount += tweets.Count;
-                    ConfigManager.Save();
-                }
 
                 return result.status == "success";
             }
@@ -638,12 +616,6 @@ namespace XiDeAI_Pro.Services
                 var result = await _socialIntel.PostThreadAsync(tweets);
                 if (result.status == "success")
                 {
-                     var cfg = ConfigManager.Current;
-                     cfg.CheckReset();
-                     cfg.DailyTotalTweetCount += tweets.Count;
-                     cfg.MonthlyTotalTweetCount += tweets.Count;
-                     ConfigManager.Save();
-                     
                      _stats?.RecordTweet("HiveIntel", tweets.Count, "", tweets.FirstOrDefault() ?? "");
                      return true;
                 }
@@ -1201,5 +1173,4 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
 

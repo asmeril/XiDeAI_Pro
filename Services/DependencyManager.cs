@@ -439,7 +439,19 @@ namespace XiDeAI_Pro.Services
             }
             
             // Required packages
-            string[] requiredPackages = new[] { "selenium", "webdriver-manager", "pillow", "pyperclip", "playwright" };
+            string[] requiredPackages = new[]
+            {
+                "selenium",
+                "webdriver-manager",
+                "undetected-chromedriver",
+                "requests",
+                "beautifulsoup4",
+                "pillow",
+                "pyperclip",
+                "playwright",
+                "yfinance",
+                "pandas"
+            };
             
             foreach (var package in requiredPackages)
             {
@@ -610,4 +622,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

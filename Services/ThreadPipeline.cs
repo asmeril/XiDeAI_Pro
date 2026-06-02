@@ -24,8 +24,8 @@ namespace XiDeAI_Pro.Services
             }
 
             tweets.AddRange(parsedParts);
-            MergeShortTailParts(tweets, minimumLength: 80, preserveFirstTweet: true);
-            return tweets.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            MergeShortTailParts(tweets, minimumLength: 80, preserveFirstTweet: true, maxLength: 280);
+            return EnsureWithinLimit(tweets, 280);
         }
 
         public static List<string> BuildNewsThread(NewsItem item, string threadContent)
@@ -50,7 +50,7 @@ namespace XiDeAI_Pro.Services
                 tweets.Insert(0, leadTweet);
             }
 
-            return tweets;
+            return EnsureWithinLimit(tweets, 280);
         }
 
         public static List<string> ParseParts(string content, int limit)
@@ -90,16 +90,11 @@ namespace XiDeAI_Pro.Services
             string trimmed = content.Trim();
             if (trimmed.StartsWith("{") && TryExtractJsonTweets(trimmed, out var jsonTweets))
             {
-                return jsonTweets;
+                return EnsureWithinLimit(jsonTweets, limit);
             }
 
             trimmed = ExtractPublishableThreadContent(trimmed);
             if (string.IsNullOrWhiteSpace(trimmed)) return new List<string>();
-
-            if (!trimmed.Contains("|||", StringComparison.Ordinal))
-            {
-                return new List<string> { trimmed };
-            }
 
             return ParseParts(trimmed, limit);
         }
@@ -146,14 +141,34 @@ namespace XiDeAI_Pro.Services
             return $"{prefix}\n\n{leadTitle}\n\nKaynak: {item.Source}{linkLine}";
         }
 
-        private static void MergeShortTailParts(List<string> tweets, int minimumLength, bool preserveFirstTweet)
+        public static List<string> EnsureWithinLimit(IEnumerable<string> tweets, int limit)
+        {
+            var normalized = new List<string>();
+            foreach (var tweet in tweets)
+            {
+                if (string.IsNullOrWhiteSpace(tweet)) continue;
+                string trimmed = tweet.Trim();
+                if (trimmed.Length <= limit)
+                {
+                    normalized.Add(trimmed);
+                    continue;
+                }
+
+                normalized.AddRange(ThreadService.SplitText(trimmed, limit));
+            }
+
+            return normalized.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        }
+
+        private static void MergeShortTailParts(List<string> tweets, int minimumLength, bool preserveFirstTweet, int maxLength)
         {
             int startIndex = preserveFirstTweet ? 2 : 1;
             for (int i = tweets.Count - 1; i >= startIndex; i--)
             {
-                if (tweets[i].Trim().Length < minimumLength)
+                string merged = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
+                if (tweets[i].Trim().Length < minimumLength && merged.Length <= maxLength)
                 {
-                    tweets[i - 1] = tweets[i - 1].TrimEnd() + " " + tweets[i].Trim();
+                    tweets[i - 1] = merged;
                     tweets.RemoveAt(i);
                 }
             }

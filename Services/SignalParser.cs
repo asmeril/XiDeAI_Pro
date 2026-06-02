@@ -99,7 +99,11 @@ namespace XiDeAI_Pro.Services
 
                 DateTime detectedAt = DateTime.Now;
                 if (parts.Length >= 4)
-                    DateTime.TryParse(parts[3].Trim(), out detectedAt);
+                {
+                    if (!DateTime.TryParse(parts[3].Trim(), out var parsedDate))
+                        parsedDate = DateTime.Now;
+                    detectedAt = parsedDate;
+                }
 
                 results.Add(new SignalData
                 {

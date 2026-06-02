@@ -301,7 +301,6 @@ class XDaemonPlaywright:
                     (element, text) => {
                         element.focus();
                         element.innerText = text;
-                        document.execCommand('insertText', false, text);
                         element.dispatchEvent(new Event('input', { bubbles: true }));
                     }
                 """, text)
@@ -355,6 +354,8 @@ class XDaemonPlaywright:
                     raise Exception("Tweet failed to post (Compose box still visible)")
 
                 tweet_url = await self._extract_latest_tweet_url()
+                if "/status/" not in tweet_url:
+                    raise Exception(f"Tweet URL could not be verified after posting: {tweet_url}")
                 return {"status": "success", "tweet_url": tweet_url, "text": text}
 
             except PlaywrightTimeoutError as e:
@@ -542,7 +543,6 @@ class XDaemonPlaywright:
                         (element, text) => {
                             element.focus();
                             element.innerText = text;
-                            document.execCommand('insertText', false, text);
                             element.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     """, chunk)
@@ -636,6 +636,8 @@ class XDaemonPlaywright:
                     raise Exception("Tweet failed to post (Compose box still visible)")
 
                 tweet_url = await self._extract_latest_tweet_url()
+                if "/status/" not in tweet_url:
+                    raise Exception(f"Thread URL could not be verified after posting: {tweet_url}")
                 return {"status": "success", "tweet_url": tweet_url}
 
             except PlaywrightTimeoutError as e:

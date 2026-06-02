@@ -2,8 +2,8 @@
 # Usage: .\release.ps1 -Version 3.8.0 -Changelog "HIVE Protocol Phase 1 & 2"
 
 param (
-    [string]$Version = "5.0.0",
-    [string]$Changelog = "v5.0.0: Full Local AI Transition (Gemma 4), Vision Analysis Fix, Improved Error Reporting, Build Optimization (~50MB)"
+    [string]$Version = "5.2.2",
+    [string]$Changelog = "v5.2.2: mention fix, engagement score, scan context, IndicatorGuide AI, last tweet CTA"
 )
 
 $ErrorActionPreference = "Stop"

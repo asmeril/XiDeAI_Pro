@@ -54,7 +54,7 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
         }
 
 
-        public string GetDeepManualAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext, string influencerCitations, string newsContext = "", string marketOverview = "")
+        public string GetDeepManualAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext, string influencerCitations, string newsContext = "", string marketOverview = "", bool hasChart = true)
         {
             string citationSection = string.IsNullOrEmpty(influencerCitations)
                 ? ""
@@ -64,6 +64,16 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
 
             string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}\n\nKURAL: Bu haberi analize doğal bir cümleyle dahil et, ayrı başlık açma.";
+
+            string visualSection = hasChart
+                ? @"### GÖRSEL OKUMA (Grafik ektedir):
+- Trend yönü ve güçlü/zayıf mum yapıları
+- RSI ve MACD uyumsuzlukları
+- OB / FVG bölgeleri — varsa somut fiyat seviyeleri ver
+- Net destek ve direnç seviyeleri"
+                : @"### GRAFİK VERİSİ:
+- Bu istekte ekran görüntüsü yok. Sadece verilen fiyat, gösterge, haber ve piyasa bağlamını kullan.
+- Görmediğin mum, RSI/MACD uyumsuzluğu, OB/FVG veya destek/direnç seviyesini uydurma.";
 
             return $@"### KMLK:
 Sen {symbol} grafiğini açtın, bir şey dikkatini çekti. Bunu Twitter'da paylaşıyorsun.
@@ -88,11 +98,7 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
 {marketSection}
 {newsSection}
 
-### GÖRSEL OKUMA (Grafik ektedir):
-- Trend yönü ve güçlü/zayıf mum yapıları
-- RSI ve MACD uyumsuzlukları
-- OB / FVG bölgeleri — varsa somut fiyat seviyeleri ver
-- Net destek ve direnç seviyeleri
+{visualSection}
 
 ### FORMAT:
 - ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
@@ -814,7 +820,7 @@ KESİN YASAKLAR:
 
         private string GetAlphaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT):\n{influencerCitations}\nKURAL: Fenomenlerin hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT - DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
@@ -823,20 +829,20 @@ KESİN YASAKLAR:
 ### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
 ### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: 60dk
 ### VERİLER: {priceContext}
-### ALPHA BAĞLAMI: EMA20 > EMA50 trendi, ADX momentum, hacim patlaması (volRatio) ve volatilite sıkışması tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### ALPHA BAĞLAMI: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar dar bant/squeeze ve ortalamanın 1.5x+ üstünde hacim tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
 ### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi
 ### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
 - 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
-- Fenomen verisi varsa 3. tweette doğal @kullanıcıadı mention, yoksa ekleme.
+- Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
 
         private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT):\n{influencerCitations}\nKURAL: Fenomenlerin hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT - DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
 
@@ -844,13 +850,13 @@ FORMAT KURALLARI:
 ### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
 ### SİNYAL: Durum: {sig.Durum}, Periyot: Günlük
 ### VERİLER: {priceContext}
-### PREMOVE BAĞLAMI: Fiyat destek bölgesinde, hacim kuruyup dip testleri var. Öncü hareket (önceden birikim) sinyali. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### PREMOVE BAĞLAMI: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
 ### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar
 ### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
 - 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
-- Fenomen verisi varsa 3. tweette doğal @kullanıcıadı mention, yoksa ekleme.
+- Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
@@ -1442,9 +1448,6 @@ Sadece tweet metnini yaz, başka açıklama yapma.";
         }
     }
 }
-
-
-
 
 
 

@@ -413,6 +413,10 @@ def _discover_appdata():
 APPDATA_DIR = _discover_appdata()
 PROFILE_DIR = APPDATA_DIR / "chrome_anon_profile"
 COOKIES_FILE = APPDATA_DIR / "twitter_cookies.pkl"
+JSON_COOKIES_FILE = APPDATA_DIR / "twitter_cookies.json"
+
+def has_cookie_file():
+    return COOKIES_FILE.exists() or JSON_COOKIES_FILE.exists()
 
 # ===== CLEANUP HANDLER =====
 def _cleanup_driver_pool():
@@ -705,7 +709,7 @@ def parse_follower_text(text):
 
 def find_influencer_posts(query, market, limit=10, since_date=None, until_date=None):
     """Search influencer posts either via VIP timelines or global search"""
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return json.dumps({"status": "error", "message": "No cookies", "data": []})
 
     # Query expansion: if query is just a symbol, add analysis keywords
@@ -752,7 +756,7 @@ def find_influencer_posts(query, market, limit=10, since_date=None, until_date=N
 
 def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limit=10, since_date=None, until_date=None):
     """Fetch tweets from VIP timelines when query includes from: handles"""
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return []
 
     driver = setup_driver(headless=True, use_undetected=True)
@@ -1179,7 +1183,7 @@ def post_tweet(text, media_path=None):
     """Post a tweet using Selenium automation (bypasses API limits)"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies found. Please import cookies first."}
         
     # Run visible to avoid detection
@@ -1268,7 +1272,7 @@ def reply_to_tweet(tweet_url, text):
     """Reply to a specific tweet"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
         
     # SECURITY GUARD: Ensure we are replying to a TWEET, not a profile
@@ -1401,7 +1405,7 @@ def fetch_replies(tweet_url):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
 
     driver = setup_driver(headless=True) # Pool driver is fine for read-only
@@ -1471,7 +1475,7 @@ def fetch_retweeters(tweet_url):
     from selenium.webdriver.support import expected_conditions as EC
     import re
     
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
 
     # Extract ID
@@ -1536,7 +1540,7 @@ def like_tweet(tweet_url):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
         
     # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
@@ -1594,7 +1598,7 @@ def retweet(tweet_url):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
         
     # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
@@ -1657,7 +1661,7 @@ def get_profile_stats():
     """Scrape profile stats (Followers, Following) from own profile"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies."}
         
     driver = setup_driver(headless=True)
@@ -1717,7 +1721,7 @@ def get_recent_engagement(limit=10):
     """Scrape likes/rt/replies for the last N tweets from own profile"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists(): return {"status": "error", "message": "No cookies"}
+    if not has_cookie_file(): return {"status": "error", "message": "No cookies"}
     
     driver = setup_driver(headless=True)
     if not driver: return {"status": "error"}
@@ -1776,7 +1780,7 @@ def get_breaking_news_topics():
     """Scrape 'What's Happening' section for smart tagging (Trends)"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists(): return {"status": "error"}
+    if not has_cookie_file(): return {"status": "error"}
     
     driver = setup_driver(headless=True)
     try:
@@ -1828,7 +1832,7 @@ def get_dms():
     """Scrape latest DMs (top 3)"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists(): return {"status": "error"}
+    if not has_cookie_file(): return {"status": "error"}
     
     driver = setup_driver(headless=True)
     if not driver: return {"status": "error"}
@@ -1907,7 +1911,7 @@ def post_thread_chain(tweets, media_path=None):
     if not tweets:
         return {"status": "error", "message": "No tweets provided"}
 
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies found."}
 
     def _post_one(driver, text, reply_to_url=None, media_path=None):
@@ -2100,7 +2104,7 @@ def fetch_search_news():
     """Search for breaking financial news on X"""
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    if not COOKIES_FILE.exists(): return {"status": "error", "message": "No cookies"}
+    if not has_cookie_file(): return {"status": "error", "message": "No cookies"}
     
     driver = setup_driver(headless=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
@@ -2276,6 +2280,34 @@ def get_top_volume():
     """Scrape BIST100 most active (volume)"""
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-islem-gorenler-tl/")
 
+def get_stock_prices(symbols):
+    """Fetch latest prices for a batch of symbols via Yahoo chart API."""
+    data = {}
+    for raw_symbol in symbols:
+        symbol = (raw_symbol or "").strip().upper().replace("#", "").replace("$", "")
+        if not symbol:
+            continue
+
+        yahoo_symbol = symbol
+        if symbol.endswith("USDT"):
+            yahoo_symbol = symbol[:-4] + "-USD"
+        elif not any(sep in symbol for sep in [".", "-", "="]) and not symbol.startswith(("XU", "USD", "EUR", "XAU")):
+            yahoo_symbol = symbol + ".IS"
+
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(yahoo_symbol)}?range=1d&interval=1m"
+            resp = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+            payload = resp.json()
+            result = payload.get("chart", {}).get("result") or []
+            meta = result[0].get("meta", {}) if result else {}
+            price = meta.get("regularMarketPrice") or meta.get("previousClose")
+            if price is not None:
+                data[symbol] = str(price).replace(".", ",")
+        except Exception as exc:
+            print(f"Price fetch failed for {symbol}: {exc}", file=sys.stderr)
+
+    return {"status": "success", "data": data}
+
 def find_twitter_handle_via_google(name):
     """Search Google for an Official Twitter handle"""
     from selenium.webdriver.common.keys import Keys
@@ -2389,10 +2421,10 @@ def interact_with_targets(targets):
     """Like + RT the last tweet of target accounts
     targets_str: comma-separated handles (e.g., "@handle1,@handle2" or "handle1,2")
     """
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies found"}
     
-    handles = [h.strip().lstrip('@') for h in targets_str.split(',') if h.strip()]
+    handles = [h.strip().lstrip('@') for h in targets.split(',') if h.strip()]
     if not handles:
         return {"status": "error", "message": "No handles provided"}
     
@@ -2566,7 +2598,7 @@ def discover_influencers(category, custom_query=None):
     target_hubs = hub_accounts.get(category)
     if not target_hubs:
         return {"status": "error", "message": f"Invalid category: {category}"}
-    if not COOKIES_FILE.exists():
+    if not has_cookie_file():
         return {"status": "error", "message": "No cookies found."}
     driver = setup_driver(headless=True, use_undetected=True)
     if not driver: return {"status": "error", "message": "Failed to start driver"}
@@ -2634,6 +2666,9 @@ if __name__ == "__main__":
     # Import cookies command
     cmd_import = subparsers.add_parser("import_cookies", parents=[parent_parser])
     cmd_import.add_argument("--file", required=True)
+
+    cmd_setcookies = subparsers.add_parser("SetCookiesFromJson", parents=[parent_parser])
+    cmd_setcookies.add_argument("--file", required=True)
     
     # Post tweet command
     cmd_post = subparsers.add_parser("post_tweet", parents=[parent_parser])
@@ -2687,6 +2722,16 @@ if __name__ == "__main__":
     cmd_reply = subparsers.add_parser("reply_tweet", parents=[parent_parser])
     cmd_reply.add_argument("--url", required=True)
     cmd_reply.add_argument("--text", required=True)
+
+    cmd_quote = subparsers.add_parser("quote_retweet", parents=[parent_parser])
+    cmd_quote.add_argument("--url", required=True)
+    cmd_quote.add_argument("--text", required=True)
+
+    cmd_replies = subparsers.add_parser("fetch_replies", parents=[parent_parser])
+    cmd_replies.add_argument("--url", required=True)
+
+    cmd_retweeters = subparsers.add_parser("fetch_retweeters", parents=[parent_parser])
+    cmd_retweeters.add_argument("--url", required=True)
 
     # Fetch News command
     cmd_news = subparsers.add_parser("fetch_news", parents=[parent_parser])

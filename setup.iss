@@ -48,14 +48,14 @@ begin
   sUnInstallString := GetUninstallString();
   if sUnInstallString <> '' then
   begin
-    V := MsgBox('?nceki s?r?m tespit edildi. Temiz kurulum i?in kald?r?ls?n m??' + #13#10 + '(Ayarlar?n?z korunacakt?r)', mbInformation, MB_YESNO);
+    V := MsgBox('Onceki surum tespit edildi. Temiz kurulum icin kaldirilsin mi?' + #13#10 + '(Ayarlariniz korunacaktir)', mbInformation, MB_YESNO);
     if V = IDYES then
     begin
       sUnInstallString := RemoveQuotes(sUnInstallString);
       if Exec(sUnInstallString, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, iResultCode) then
         Result := True
       else
-        MsgBox('Kald?rma ba?ar?s?z oldu. Manuel kald?rman?z gerekebilir.', mbError, MB_OK);
+        MsgBox('Kaldirma basarisiz oldu. Manuel kaldirmaniz gerekebilir.', mbError, MB_OK);
     end;
   end;
 end;
@@ -79,7 +79,6 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
 
 
 

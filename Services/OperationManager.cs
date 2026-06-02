@@ -128,11 +128,11 @@ namespace XiDeAI_Pro.Services
             _baseDir = AppDomain.CurrentDomain.BaseDirectory;
             _scriptsDir = Path.Combine(_baseDir, "Scripts");
             _appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
-            _logsDir = Path.Combine(_baseDir, "Logs");
+            _logsDir = Path.Combine(_appDataDir, "Logs");
             Directory.CreateDirectory(_appDataDir);
             Directory.CreateDirectory(_logsDir);
             
-            _opsFilePath = Path.Combine(_baseDir, "active_operations.json");
+            _opsFilePath = Path.Combine(_appDataDir, "active_operations.json");
 
             // 2. Base Utility Services (No dependencies)
             Stats = new StatsEngine(_logsDir);

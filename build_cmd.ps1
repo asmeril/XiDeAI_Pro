@@ -1,2 +1,2 @@
 # Build script call
-.\release.ps1 -Version "2.4.0" -Changelog "Robust Thread Posting (JS + Wait), Enhanced Error Logs, Fix for 'Message empty' error"
+.\release.ps1 -Version "5.2.2" -Changelog "v5.2.2: mention fix, engagement score, scan context, IndicatorGuide AI, last tweet CTA"

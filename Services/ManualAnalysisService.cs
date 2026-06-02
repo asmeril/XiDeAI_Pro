@@ -597,6 +597,9 @@ namespace XiDeAI_Pro.Services
                 }
                 else
                 {
+                    if (marketType == "Emtia") return CheckBasis(GetCommodityTicker(upperSym), basis);
+                    if (marketType == "Endeks") return CheckBasis(GetIndexTicker(upperSym), basis);
+
                     // Default fallback based on market type
                     tvSymbol = marketType switch
                     {
@@ -628,7 +631,7 @@ namespace XiDeAI_Pro.Services
             string normalized = sym;
             if (sym.Contains("PAMUK") || sym.Contains("Pamuk")) normalized = "COTTON";
             else if (sym.Contains("BUĞDAY") || sym.Contains("WHEAT") || sym.Contains("Buğday")) normalized = "WHEAT";
-            else if (sym.Contains("MÍSIR") || sym.Contains("CORN") || sym.Contains("Mısır")) normalized = "CORN";
+            else if (sym.Contains("MISIR") || sym.Contains("MÍSIR") || sym.Contains("CORN") || sym.Contains("Mısır")) normalized = "CORN";
             else if (sym.Contains("ALTIN") || sym.Contains("Altın")) normalized = "XAUUSD";
             else if (sym.Contains("GÜMÜŞ") || sym.Contains("GUMUS") || sym.Contains("Gümüş")) normalized = "XAGUSD";
             else if (sym.Contains("DOĞALGAZ") || sym.Contains("DOGALGAZ")) normalized = "NATGAS";

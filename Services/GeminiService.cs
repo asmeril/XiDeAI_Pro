@@ -101,26 +101,31 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> GenerateMarketAnalysisWithPrice(string symbol, string marketType, string priceContext, string influencerCitations = "", string newsContext = "", string marketOverview = "")
         {
-            string indicatorContext = "";
-            try
-            {
-                string indicatorGuidePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "IndicatorGuide.md");
-                if (File.Exists(indicatorGuidePath))
-                {
-                    indicatorContext = File.ReadAllText(indicatorGuidePath);
-                    indicatorContext = $"\n=== GÖSTERGE REHBERİ ===\n{indicatorContext}\n=== GÖSTERGE REHBERİ SONU ===\n\n";
-                }
-            }
-            catch { }
-
-            string prompt = _prompts.GetDeepManualAnalysisPrompt(symbol, marketType, priceContext, indicatorContext, influencerCitations, newsContext, marketOverview);
+            string indicatorContext = LoadIndicatorGuideContext();
+            string prompt = _prompts.GetDeepManualAnalysisPrompt(symbol, marketType, priceContext, indicatorContext, influencerCitations, newsContext, marketOverview, hasChart: false);
             return await SendRequest(prompt);
         }
 
         public async Task<string?> GenerateMarketAnalysisWithChart(string symbol, string marketType, string priceContext, string screenshotPath, string influencerCitations = "", string newsContext = "", string marketOverview = "")
         {
-            string prompt = _prompts.GetDeepManualAnalysisPrompt(symbol, marketType, priceContext, "", influencerCitations, newsContext, marketOverview);
+            string indicatorContext = LoadIndicatorGuideContext();
+            string prompt = _prompts.GetDeepManualAnalysisPrompt(symbol, marketType, priceContext, indicatorContext, influencerCitations, newsContext, marketOverview, hasChart: true);
             return await SendMultimodalRequest(prompt, screenshotPath);
+        }
+
+        private string LoadIndicatorGuideContext()
+        {
+            try
+            {
+                string indicatorGuidePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "IndicatorGuide.md");
+                if (File.Exists(indicatorGuidePath))
+                {
+                    string raw = File.ReadAllText(indicatorGuidePath);
+                    return $"\n=== GÖSTERGE REHBERİ ===\n{raw}\n=== GÖSTERGE REHBERİ SONU ===\n\n";
+                }
+            }
+            catch { }
+            return string.Empty;
         }
 
         public async Task<(List<(string Symbol, string Period)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
@@ -170,7 +175,8 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, string visualContext = "", string priceContext = "", string marketOverview = "", string newsContext = "")
         {
-            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, technicalContext, guruName, guruHandle, $"{guruName} (@{guruHandle}) - {tableName}", visualContext, marketOverview, newsContext);
+            string indicatorContext = string.Join("\n", new[] { technicalContext, LoadIndicatorGuideContext() }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, indicatorContext, guruName, guruHandle, $"{guruName} (@{guruHandle}) - {tableName}\nKaynak: {originalTweetUrl}", visualContext, marketOverview, newsContext);
             return await SendMultimodalRequest(prompt, imagePath);
         }
 
@@ -195,7 +201,8 @@ namespace XiDeAI_Pro.Services
         public async Task<string?> AnalyzeNewsForThread(string title, string source, string summary, string link = "", string? description = null, bool isFlash = false)
         {
             string category = await DetectNewsCategory(title, source);
-            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash);
+            string richDescription = string.Join("\n", new[] { summary, description }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, richDescription, isFlash);
             // v5.1.3: Flash için 600, normal için 900 token — önceki 4096 default yerine explicit limit
             int maxTok = isFlash ? 600 : 900;
             return await SendGeminiRestApiRequest(prompt, 0.3, maxOutputTokens: maxTok);
@@ -400,17 +407,7 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
         {
-            string indicatorContext = "";
-            try
-            {
-                string indicatorGuidePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "IndicatorGuide.md");
-                if (File.Exists(indicatorGuidePath))
-                {
-                    string raw = File.ReadAllText(indicatorGuidePath);
-                    indicatorContext = $"\n\n=== GÖSTERGE KLAVUZU ===\n{raw}\n=== GÖSTERGE KLAVUZU SONU ===";
-                }
-            }
-            catch { }
+            string indicatorContext = LoadIndicatorGuideContext();
             string prompt = _prompts.GetStrategySpecificPrompt(sig, priceContext + indicatorContext, influencerCitations, htfContext);
             int maxTokens = sig.Tier switch { ContentTier.Premium => 1500, ContentTier.Standard => 1000, ContentTier.Summary => 600, _ => 300 };
             return await SendRequest(prompt, maxOutputTokens: maxTokens);
@@ -418,7 +415,10 @@ namespace XiDeAI_Pro.Services
 
         public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume, string pulseAnomalies = "")
         {
-            return await SendRequest(_prompts.GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies));
+            string marketData = string.IsNullOrWhiteSpace(topVolume)
+                ? indicesData
+                : $"{indicesData}\n\nEN COK HACIM:\n{topVolume}";
+            return await SendRequest(_prompts.GetMarketClosePrompt("BIST", marketData, topGainers, topLosers, pulseAnomalies));
         }
 
         private string CleanTweetContent(string raw, int maxLength = 200)

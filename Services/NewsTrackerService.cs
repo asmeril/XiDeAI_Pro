@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using XiDeAI_Pro.Config;
@@ -16,6 +17,8 @@ namespace XiDeAI_Pro.Services
         public string? ImageUrl { get; set; } // v4.6.18: Added for Visual Hooks strategy
         public string? Description { get; set; } // v4.7.3: Haber özeti/gövdesi (RSS body)
         public bool IsFlash { get; set; } = false; // v4.7.3: Flaş haber bayrağı ("son dakika", "breaking" vb.)
+        public string Category { get; set; } = "EKONOMI";
+        public bool IncludesAnalysis { get; set; } = true;
         public DateTime PubDate { get; set; }
     }
 
@@ -56,7 +59,7 @@ namespace XiDeAI_Pro.Services
         public event Action<NewsItem>? OnNewsDetected;
         
         private System.Timers.Timer? _timer;
-        private volatile bool _isChecking = false; // Eşzamanlı CheckFeeds çağrısını önler
+        private int _isChecking = 0; // Eşzamanlı CheckFeeds çağrısını önler
 
         public void Start()
         {
@@ -157,8 +160,7 @@ namespace XiDeAI_Pro.Services
         public async Task CheckFeeds()
         {
             // Eşzamanlı çağrı koruması: Timer overlap durumunda ikinci çağrı atlanır
-            if (_isChecking) { LogAction?.Invoke("⏭️ Haber taraması zaten devam ediyor, atlandı.", "News"); return; }
-            _isChecking = true;
+            if (Interlocked.Exchange(ref _isChecking, 1) == 1) { LogAction?.Invoke("⏭️ Haber taraması zaten devam ediyor, atlandı.", "News"); return; }
             try
             {
                 LogAction?.Invoke("🔍 Haberler taranıyor...", "News");
@@ -195,9 +197,19 @@ namespace XiDeAI_Pro.Services
                         _seenLinks.Add(news.Link);
                         _seenTitles.Add(cleanTitle);
 
-                        // HashSet insertion sırası belirsiz — limit aşılınca cache sıfırla (disk geçmişi kaynak olmaya devam eder)
-                        if (_seenLinks.Count > 2000) { _seenLinks.Clear(); SaveHistory(); }
-                        if (_seenTitles.Count > 2000) _seenTitles.Clear();
+                        // Limit aşılınca tüm geçmişi silme; son görülenlerden bir pencere tut.
+                        if (_seenLinks.Count > 2000)
+                        {
+                            var keepLinks = _seenLinks.TakeLast(1500).ToList();
+                            _seenLinks.Clear();
+                            foreach (var link in keepLinks) _seenLinks.Add(link);
+                        }
+                        if (_seenTitles.Count > 2000)
+                        {
+                            var keepTitles = _seenTitles.TakeLast(1500).ToList();
+                            _seenTitles.Clear();
+                            foreach (var title in keepTitles) _seenTitles.Add(title);
+                        }
 
                         SaveHistory(); // Persist on change
 
@@ -208,7 +220,7 @@ namespace XiDeAI_Pro.Services
             }
             finally
             {
-                _isChecking = false;
+                Interlocked.Exchange(ref _isChecking, 0);
             }
         }
 
@@ -307,7 +319,7 @@ namespace XiDeAI_Pro.Services
 
                     if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(link))
                     {
-                        DateTime pubDate = DateTime.Now;
+                        DateTime pubDate = DateTime.MinValue;
                         if (DateTime.TryParse(pubDateStr, out DateTime dt)) pubDate = dt;
 
                         // Identify source from URL
@@ -366,5 +378,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
-
