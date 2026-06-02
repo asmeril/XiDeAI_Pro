@@ -12,23 +12,31 @@ namespace XiDeAI_Pro.Services
 
         public string GetSignalAnalysisPrompt(string symbol, string strategy, string score, string price, string screenText, string period, string influencerCitations = "")
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) 
-                ? "" 
-                : $"\n\nFENOMEN RADARI:\n{influencerCitations}\n" +
-                  "KURAL: Yukarıdaki fenomenleri analizinde @kullaniciadı olarak doğal bir şekilde etiketle. " +
-                  "'@thyaydin da bu hareketi bekliyordu' gibi. Bu hem onlara saygı hem de görünür olmak demek.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations)
+                ? ""
+                : $"\n\nPYASADA BAŞKALARI NE DYOR:\n{influencerCitations}\n" +
+                  "KURAL: Eğer yukarıdaki kişilerin görüşü analizinle örtüşüyor ya da çelişiyorsa, @kullaniciadini doğal bir cümlede kullan. " +
+                  "Örnek: '@thyaydin bu hareketi haftalar önce işaret etmişti.' Fenomen verisi yoksa kesinlikle @mention ekleme, kendi analizinle devam et.";
 
-            string indicatorGuideSection = string.IsNullOrEmpty(screenText) ? "" : $"\n\nGRAFİK VERİSİ:\n{screenText}";
+            string indicatorGuideSection = string.IsNullOrEmpty(screenText) ? "" : $"\n\nGRAFK VERS:\n{screenText}";
 
-            return $@"### KİMLİK:
-Sen yıllardır piyasada olan, jargonu ezberletici bir ders anlatır gibi değil, sahada kullanır gibi konuşan bir duayensin.
-Takipçilerin MSB'nin ne olduğunu biliyor, FVG'yi, OB'yi, EQ'yu biliyor — sen onlara ders değil, içgörü veriyorsun.
-Hitabetin güçlü: Aynı kelimeyi iki kez kullanmak yerine farklı imgelerle anlatırsın. Robotik değil, berrak ve güçlü.
+            return $@"### KMLK:
+Sen 15 yıllık BIST trader'ısın. Bugün #{symbol}'e baktın, seni durduran bir şey gördün.
+Bunu Twitter'da paylaşıyorsun — bir arkadaşına yazıyormuşsun gibi. Net, kısa, kararlı.
 
-### GÖREV:
-#{symbol} için güçlü bir X (Twitter) thread'i yaz. Sesini haykır, ama verilerle haykır.
+### NASIL YAZACAKSIN:
+- lk cümle: bir gözlem ya da soru. 'Bu mumu gördünüz mü?' veya 'Bu seviye neden kritik?' gibi.
+- Her cümle maksimum 15 kelime. Kısa kes.
+- Önce rakam, sonra ne anlama geldiği. Yorum rakamdan sonra gelir.
+- 'Sanırım', 'belki', 'muhtemelen' yasak — ya eminsin ya susarsın.
+- Son tweet: net seviye + takipçiyi düşündüren bir soru.
 
-### ANALİZ VERİLERİ:
+### YASAK SÖZCÜKLER (bunları kullanırsan analiz geçersiz sayılır):
+fısıltı alış, akıllı para, likidite avı, premove sahnesi, yayını germek,
+kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü,
+akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzını
+
+### ANALZ VERLER:
 - Sembol: #{symbol}
 - Periyot: {period}
 - Strateji: {strategy} ({score})
@@ -36,18 +44,13 @@ Hitabetin güçlü: Aynı kelimeyi iki kez kullanmak yerine farklı imgelerle an
 {indicatorGuideSection}
 {citationSection}
 
-YAZI STRATEJISI:
-1. Tweet 1 - KANCA: Ilk cumle durdurucu olmali. Soru, tez veya sarsici bir tespiyle gir. Her tweet EN AZ 3 TAM CUMLE icermeli, 240-278 karakter olmali. [C# baslik ekliyor, dogrudan konuya gir]
-2. Tweet 2 - DERIN VERI: MSB, FVG, OB kavramlarini aciklamadan, aksiyonunu soler gibi kullan. Her tweet dolu, 240-278 char.
-3. Tweet 3 - FENOMEN ETIKETI ZORUNLU: En az 1 fenomenin @kullaniciadini GERCEK cumle icinde dogal kullan. Ornek: @thyaydin bu seviyeyi kritik buluyordu, grafige bakarsan nedenini gorursun.
-4. Tweet 4 - STRATEJI + CIKIS: Net destek/direnc, XU100 / genel borsa baglamina bir goz at. Hashtag + YTD.
-
-FORMAT KURALLARI:
-- ||| ile tam 3 parca, 2 adet ayirici. Her parca EN AZ 240, EN FAZLA 278 karakter.
-- Her tweet EN AZ 3 TAM CUMLE icermeli — tek cumlelik tweet KESINLIKLE YASAK.
-- Tek basina anlamsiz kisa tweet yapma; her parca kendi icinde tam bir icgoru tasimali.
-- Basmakalip acilis cumlesi (Merhaba, Degerli yatirimcilar vb.) YASAK.
-- Son parcaya YTD uyarisi ekle: Yatirim tavsiyesi degildir.";
+### FORMAT:
+- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
+- Şablon yapma — her tweet farklı bir açıdan baksın, hepsi aynı iskelet olmasın.
+- Başlık cümlesi (Merhaba, Değerli yatırımcılar vb.) YASAK.
+- Hashtag sadece son tweete: kripto ise #BTCUSDT #Kripto, BIST ise #Borsa #BIST100.
+- Son parçaya ekle: ⚠️ Yatırım tavsiyesi değildir.
+- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşünü yazmaya davet eden bir soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
 
 
@@ -58,45 +61,44 @@ FORMAT KURALLARI:
                 : $"\n\nFENOMENLERİN DURUMU (SENTİMENT):\n{influencerCitations}\n" +
                   "KURAL: Bu fenomenleri analizine doğal @kullaniciadi olarak entegre et. Eğer bu fenomenler aşırı Bullish (pozitif) ise sen risklerden bahset ve Contrarian (aykırı) ol, Bearish ise fırsatları grafik üzerinden göstererek onlara meydan oku veya destekle. Hikayeyi zenginleştir.";
 
-            string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nGENEL PIYASA BAGLAMI (CONTRARIAN KONTROLU ICERIR):\n{marketOverview}\nKURAL: Eger [XU100_CANLI_VERI] (Gercek Veri) yonu ile [YATIRIMCI_SOSYAL_ALGI] (Twitter trendleri - kucuk yatirimci heyecani) arasinda buyuk bir zıtlık varsa, bunun Akilli Para (Smart Money) tarafindan hazirlanmis bir tuzak/manipulasyon veya firsat (likidite avi) olabilecegine dikkat cek. Fenomenlerin abartili trendlerine supheyle yaklas.";
+            string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
 
-            string newsSection = string.IsNullOrEmpty(newsContext)
-                ? ""
-                : $"\n\nKRITİK HABERLER:\n{newsContext}\n\nÖNEMLİ: Bu haberlerin {symbol} üzerindeki olası etkisini analize yedir.";
+            string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}\n\nKURAL: Bu haberi analize doğal bir cümleyle dahil et, ayrı başlık açma.";
 
-            return $@"### KİMLİK:
-Sen teknik ve temel analizde duayen, ama hitabeti o kadar yüksek ki bir grafikten şiir gibi analiz yazabilen bir stratejistsin.
-Takipçin RSI'yı, EMA'yı, MSB'yi, OB'yi biliyor — sen bunların açıklamasını değil, içgörü sınırını genişleteceksin.
-Her analizinde farklı bir imge, farklı bir sıfatla anlat. 'Yatay bantlandı' yerine 'Fiyat nefes alıyor' de.
+            return $@"### KMLK:
+Sen {symbol} grafiğini açtın, bir şey dikkatini çekti. Bunu Twitter'da paylaşıyorsun.
+Ses tonu: bir arkadaşına analiz anlatıyormuşsun gibi. Samimi, net, gereksiz kelime yok.
 
-### GÖREV:
-{symbol} ({marketType}) için X'te görünürlüğü yüksek, derinlikli bir analiz thread'i hazırla.
+### NASIL YAZACAKSIN:
+- lk tweet: tek bir gözlem veya soru ile gir. Genel girişler yasak.
+- Grafik okuma: OB, FVG, RSI, MACD — bunları açıklamadan somut fiyatla kullan. Örnek: '11.76 OB kırılırsa 12.60 açık.'
+- Son tweet: net karar + takipçiyi düşündüren bir soru.
+- Cümleler kısa, maksimum 15 kelime.
+- Haber veya fenomen varsa doğal bir cümlede geç, paragraf ayırma.
 
-### VERİ KONTEKSTİ:
+### YASAK SÖZCÜKLER:
+fısıltı alış, akıllı para, likidite avı, premove sahnesi, yayını germek,
+kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü,
+akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzını
+
+### VER:
 {priceContext}
 {indicatorContext}
 {citationSection}
 {marketSection}
 {newsSection}
 
-### GÖRSEL OKUMA (GRAFİK):
-Grafik görseli ekte sunulmuştur. Lütfen analizine şu tespitleri dahil et:
-1. Fiyat Hareketi ve Mum Yapıları (Trend yönü, güçlü/zayıf mumlar)
-2. İndikatörler: RSI ve MACD değerleri/uyumsuzlukları
-3. Smart Money Bölgeleri: OB (Order Block) ve FVG (Fair Value Gap) varsa tespitleri
-4. Pivot/Destek-Direnç noktaları
+### GÖRSEL OKUMA (Grafik ektedir):
+- Trend yönü ve güçlü/zayıf mum yapıları
+- RSI ve MACD uyumsuzlukları
+- OB / FVG bölgeleri — varsa somut fiyat seviyeleri ver
+- Net destek ve direnç seviyeleri
 
-### YAZI STRATEJİSİ:
-1. **Tweet 1 - KANCA:** 'Şimdi neden {symbol}?' sorusunu cevaplar cinsinden başla. Algoritma kelimeleri (Borsa, Teknik Analiz, Alım, Satım) metne doğal yedir.
-2. **Tweet 2-3 - DERİN BAKIŞ:** Grafik ne anlatıyor? Fenomen varsa @mention ile o bakışa değin, haber varsa tek cümleyle bağla.
-3. **Tweet 4 - YOL HARİTASI + ÇIKIŞ:** Net destek/direnç, strateji cümlesi. #BIST100 #Borsa + Y.T.D.
-
-### KURALLAR:
-- ||| ile 3-4 parçaya böl. Her parça 240-270 karakter, 280'i geçme.
-- Liste yapma. Akan cümleler.
-- Basmakalıp açılışlar (Değerli yatırımcılar vb.) YASAK.
-- Kişaletmelerden kaçın (OB nedir açıklama yapma).
-- En son parçaya '⚠️ Yatırım tavsiyesi değildir.' ekle.";
+### FORMAT:
+- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
+- Son parçaya ekle: ⚠️ Yatırım tavsiyesi değildir.
+- Hashtag sadece son tweete: kripto ise #BTCUSDT #Kripto, BIST ise #Borsa #BIST100.
+- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşünü yazmaya davet eden bir soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
         }
 
         public string GetNewsAnalysisPrompt(string newsContent, string source)
@@ -377,50 +379,42 @@ KURALLAR:
 
         public string GetDeepTechnicalAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext = "", string influencerNotes = "", string newsContext = "", string marketOverview = "")
         {
-            string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nGENEL PIYASA BAGLAMI (CONTRARIAN KONTROLU ICERIR):\n{marketOverview}\nKURAL: Eger [XU100_CANLI_VERI] (Gercek Veri) yonu ile [YATIRIMCI_SOSYAL_ALGI] (Twitter trendleri - kucuk yatirimci heyecani) arasinda buyuk bir zıtlık varsa, bunun Akilli Para (Smart Money) tarafindan hazirlanmis bir tuzak/manipulasyon veya firsat (likidite avi) olabilecegine dikkat cek. Fenomenlerin abartili trendlerine supheyle yaklas.";
+            string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
 
-            string newsSection = string.IsNullOrEmpty(newsContext)
+            string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}";
+
+            string citationSection = string.IsNullOrEmpty(influencerNotes)
                 ? ""
-                : $"\n\nKRİTİK HABERLER:\n{newsContext}\n\nÖNEMLİ: Bu haberlerin {symbol} üzerindeki olası etkisini analize yedir.";
-            string smartMoneyRef = @"SMART MONEY PROTOCOLS:
-- Order Blocks (OB): Bullish / Bearish kurumsal emir bölgeleri.
-- Fair Value Gaps (FVG): Likidite boşlukları (mıknatıs etkisi).
-- Market Structure Break (MSB): Trend onay yapıları.
-- Liquidity Sweep: Likidite süpürme operasyonları.";
+                : $"\n\nDER ANALSTLER:\n{influencerNotes}";
 
-            string citationSection = string.IsNullOrEmpty(influencerNotes) 
-                ? "" 
-                : $"\n\nDOSTLARIN GÖRÜŞÜ (Fenomen Sentezi):\n{influencerNotes}";
+            return $@"### KMLK:
+Sen {symbol} grafiğine bakıyorsun ve bir şey gördün. Bunu doğrudan anlat.
+Ses tonu: samimi, kısa, net. Arkadaşına yazıyormuşsun gibi.
 
-            return $@"### KİMLİK: Sen deneyimli ve profesyonel bir 'Piyasa Kurdu'sun. Grafiği okumazsın, grafikle adeta konuşursun.
-Dilin samimi, direkt ve tecrübe kokar. Robotik ""görüyorum"", ""gözlemliyorum"" laflarını kullanmazsın.
-Sadece grafiğe değil, genel piyasa havasına ve haberlere de hakimsin.
+### NASIL YAZACAKSIN:
+- lk cümle: bir gözlem veya soru. Genel giriş yasak.
+- OB, FVG, MSB — bunları somut fiyatla kullan. Açıklama yapma.
+- Cümleler kısa, maksimum 15 kelime.
+- Son tweet: net seviye + soru.
 
-### GÖREV: #{symbol} ({marketType}) için 'Smart Money' konseptlerini ve 'Piyasa Bağlamını' (Context) içeren, usta işi bir analiz patlat.
+### YASAK SÖZCÜKLER:
+akıllı para, fısıltı alış, likidite avı, kurumsal ayak izi,
+balinalar maliyetlendi, premove sahnesi, büyük hamlenin öncüsü,
+akıllı paranın fiyatı toparlay, piyasa kurdu, usta işi, patlat
 
-### VERİ SETİ:
+### VER:
 {priceContext}
-{(!string.IsNullOrEmpty(indicatorContext) ? $"GRAFIK DETAYLARI:\n{indicatorContext}\n" : "")}
+{(!string.IsNullOrEmpty(indicatorContext) ? $"GRAFK DETAYLARI:\n{indicatorContext}\n" : "")}
 {marketSection}
 {newsSection}
 {citationSection}
-{smartMoneyRef}
 
-### ANALİZ REHBERİ:
-1. **HİKAYE & BAĞLAM:** ""Piyasa genelindeki duruma rağmen {symbol} nasıl davranıyor?"" sorusuna cevap ver.
-2. **SMART MONEY İZLERİ:**
-   - **MSB:** Yapı kırılımı var mı? ""Market yapısı değişti, rüzgar arkamızda"" de.
-   - **FVG:** Boşluk var mı? ""Fiyat bu boşluğu sevmez, doldurmak isteyebilir"" de.
-   - **OB:** Kurumsal ayak izi nerede? ""Balinalar burada maliyetlendi"" de.
-3. **YOL HARİTASI:** Destek/Direnç deme; ""Burası kalemiz"", ""Burası kâr durağı"" de.
+### FORMAT:
+- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
+- Son parçaya ekle: ⚠️ Yatırım tavsiyesi değildir.
+- Hashtag sadece son tweete: kripto ise #BTCUSDT #Kripto, BIST ise #Borsa #BIST100.
+- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşünü yazmaya davet eden bir soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
 
-### KURALLAR:
-- Toplam metni akıcı bir sohbet havasında yazıp, X (Twitter) thread'i olabilmesi için ||| işaretini kullanarak EN FAZLA 3 veya 4 parçaya böl.
-- Her bir parçayı 240-270 karakter arası olacak şekilde DOLU DOLU yaz. Her cümleden sonra bölme YAPMA, tweetleri birleştir.
-- KESİNLİKLE 280 KARAKTERDEN KISA olmalıdır. Uzatmaktan kaçın.
-- Maksimum 1200 karakter toplam.
-- Liste mantığından kaçın.
-- En son parçanın sonuna '⚠️ Yatırım tavsiyesi değildir.' ekle.";
         }
 
         public string GetDeepScanPrompt(SignalData signal)
@@ -749,12 +743,12 @@ MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
    - Geçmiş başarı varsa DOĞAL şekilde ilk tweet'te hatırlat.
    - Asla selamlama ifadeleri (Merhaba dostlar, Değerli yatırımcılar) ile başlama.
 
-4. FENOMEN ETİKETLEME — 3. TWEET'TE ZORUNLU:
+4. FENOMEN ETİKETLEME — SADECE VERİ VERİLMİŞSE:
    - 3. tweet mutlaka en az 1 fenomenin @kullaniciadi'nı GERÇEK cümle içinde barındırmalı.
-   - Fenomen verisi verilmişse onu kullan; yoksa piyasada bilinen analistlerden birini seç (@thyaydin, @EFELERiiNEFESi3 vb.).
+   - Fenomen verisi yukarıda verilmişse, o kişinin @kullaniciadini cümle içinde doğal kullan.
    - DOĞRU örnek: @thyaydin bu hareketi bekliyordu, grafige bakarsan neden görürsün.
    - Etiket sona yapıştırılmış gibi değil — cümle içine doğal yerleştirilmeli.
-   - @mention olmayan bir 3. tweet GEÇERSİZ sayılır.
+   - Fenomen verisi VERİLMEMİŞSE @mention EKLEME — asla kendi kafandan kullanıcı adı uydurma.
 
 5. TEKNİK GÖSTERGELERİ HİKAYEYE YEDİR:
    YANLIŞ: RSI: 28, MACD: Bullish, Pivot S1: 52.30
@@ -769,7 +763,7 @@ MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
 7. THREAD YAPISI (TAM 4 TWEET):
    - Tweet 1/4: BAŞLIK/HOOK cümlesi + Geçmiş başarı (varsa) + Ana hikaye başlangıcı — 3+ cümle, 240-278 char
    - Tweet 2/4: Teknik analiz (göstergeler doğal entegre, LİSTE YOK) — 3+ cümle, 240-278 char
-   - Tweet 3/4: Fenomen görüşü @ETİKETLE + Kendi yorumun — 3+ cümle, 240-278 char (ZORUNLU ETİKET)
+   - Tweet 3/4: Fenomen verisi varsa @ETİKETLE görüş + kendi yorumun; yoksa derin teknik bağlam — 3+ cümle, 240-278 char
    - Tweet 4/4: Net strateji (Hedef/Stop) + SORU İÇEREN CTA + YTD — 3+ cümle, 240-278 char
 
 8. EMOJİ: Dengeli kullan — her tweet'te 1-2 emoji yeterli. Abartma, profesyonel tut.
@@ -1112,12 +1106,11 @@ LİNK: {link}
 - Panik yaratma, gerçekçi ol.
 
 FORMAT (||| ile ayır):
-[Tweet 1: 📢 SON HABER + Çarpıcı özet + {link}]
+1. Tweet: 📢 SON HABER + Çarpıcı özet + {link}
 |||
-[Tweet 2: 📊 Makro etki analizi - Bu ne anlama geliyor?]
+2. Tweet: 📊 Makro etki analizi - Bu ne anlama geliyor?
 |||
-[Tweet 3: 💡 Yatırımcı için çıkarım + İlgili semboller + YTD]
-
+3. Tweet: 💡 Yatırımcı için çıkarım + İlgili semboller + YTD
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Emoji dengeli kullan.
@@ -1141,14 +1134,13 @@ LİNK: {link}
 - ""Bu karar piyasayı nasıl etkiler?"" sorusuna cevap ver.
 
 FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Tweet 1: 📢 Haber özeti + {link}]
+1. Tweet: 📢 Haber özeti + {link}
 |||
-[Tweet 2: 📊 Ekonomik/piyasa etkisi analizi]
+2. Tweet: 📊 Ekonomik/piyasa etkisi analizi
 |||
-[Tweet 3: 💡 Yatırımcı perspektifi]
+3. Tweet: 💡 Yatırımcı perspektifi
 |||
-[Tweet 4: ⚠️ Yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
-
+4. Tweet: ⚠️ Yatırım tavsiyesi değildir. | Kaynak: {source} | {link}
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Siyasi yorum yapma, sadece ekonomik etki.
@@ -1171,12 +1163,11 @@ LİNK: {link}
 - Teknolojiyi övdükçe övme, kritik de ol.
 
 FORMAT (||| ile ayır):
-[Tweet 1: 🚀 Teknoloji haberi + Çarpıcı açılış + {link}]
+1. Tweet: 🚀 Teknoloji haberi + Çarpıcı açılış + {link}
 |||
-[Tweet 2: 🔬 Derinlemesine analiz - Neden önemli?]
+2. Tweet: 🔬 Derinlemesine analiz - Neden önemli?
 |||
-[Tweet 3: 🇹🇷 Türkiye için fırsat/tehdit + İlgili BIST teknoloji hisseleri + YTD]
-
+3. Tweet: 🇹🇷 Türkiye için fırsat/tehdit + İlgili BIST teknoloji hisseleri + YTD
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - BIST teknoloji hisselerini (ASELS, LOGO, INDES vb.) bağla.
@@ -1201,14 +1192,13 @@ LİNK: {link}
 - Korkutma değil, bilgilendir.
 
 FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Tweet 1: 🌍 Global haber + Stratejik özet + {link}]
+1. Tweet: 🌍 Global haber + Stratejik özet + {link}
 |||
-[Tweet 2: 🔗 Türkiye bağlantısı - Ekonomik/ticari etki]
+2. Tweet: 🔗 Türkiye bağlantısı - Ekonomik/ticari etki
 |||
-[Tweet 3: 📊 Piyasa perspektifi + İlgili sektörler]
+3. Tweet: 📊 Piyasa perspektifi + İlgili sektörler
 |||
-[Tweet 4: ⚠️ Bu bir haber özetidir, yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
-
+4. Tweet: ⚠️ Bu bir haber özetidir, yatırım tavsiyesi değildir. | Kaynak: {source} | {link}
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Türkiye bağlantısı aramak zorunda değilsin, ancak varsa belirtebilirsin.
@@ -1233,14 +1223,13 @@ LİNK: {link}
 - Gerekirse piyasa etkisine değin; zorunlu değil.
 
 FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Tweet 1: 🌍 {flashTag.Trim()} KÜRESEL GELİŞME — Ne oldu? + {link}]
+1. Tweet: 🌍 {flashTag.Trim()} KÜRESEL GELİŞME — Ne oldu? + {link}
 |||
-[Tweet 2: 📌 Kim, ne zaman, neden? — Arka plan ve bağlam]
+2. Tweet: 📌 Kim, ne zaman, neden? — Arka plan ve bağlam
 |||
-[Tweet 3: 📈 Küresel/Bölgesel etkisi + Piyasa yansıması]
+3. Tweet: 📈 Küresel/Bölgesel etkisi + Piyasa yansıması
 |||
-[Tweet 4: ⚠️ Bu bir haber özetidir, yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
-
+4. Tweet: ⚠️ Bu bir haber özetidir, yatırım tavsiyesi değildir. | Kaynak: {source} | {link}
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Türkiye bağlantısı aramak zorunda değilsin, ancak varsa belirtebilirsin.
@@ -1265,14 +1254,13 @@ LİNK: {link}
 - Düzenleyici riskleri unutma.
 
 FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Tweet 1: ₿ Kripto haberi + Çarpıcı açılış + {link}]
+1. Tweet: ₿ Kripto haberi + Çarpıcı açılış + {link}
 |||
-[Tweet 2: ⛓️ Teknik analiz - Piyasa yapısı, hacim, trend]
+2. Tweet: ⛓️ Teknik analiz - Piyasa yapısı, hacim, trend
 |||
-[Tweet 3: 🎯 Strateji + Hedef/Stop seviyeleri]
+3. Tweet: 🎯 Strateji + Hedef/Stop seviyeleri
 |||
-[Tweet 4: ⚠️ Yatırım tavsiyesi değildir. | Kaynak: {source} | {link}]
-
+4. Tweet: ⚠️ Yatırım tavsiyesi değildir. | Kaynak: {source} | {link}
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - BTC, ETH ve ilgili altcoinleri bağla.
@@ -1295,12 +1283,11 @@ LİNK: {link}
 - Transfer, sponsorluk, gelir-gider dengesi odaklı ol.
 
 FORMAT (||| ile ayır):
-[Tweet 1: ⚽ Spor haberi + Finansal perspektif + {link}]
+1. Tweet: ⚽ Spor haberi + Finansal perspektif + {link}
 |||
-[Tweet 2: 📊 Kulüp ekonomisi analizi - Gelir/gider etkisi]
+2. Tweet: 📊 Kulüp ekonomisi analizi - Gelir/gider etkisi
 |||
-[Tweet 3: 💰 BIST spor hisseleri perspektifi (FENER, GSRAY, BJKAS) + YTD]
-
+3. Tweet: 💰 BIST spor hisseleri perspektifi (FENER, GSRAY, BJKAS) + YTD
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Fenerbahçe için ekstra pozitif ama gerçekçi ol.
@@ -1323,12 +1310,11 @@ LİNK: {link}
 - Spekülasyon yapma, bilgilendir.
 
 FORMAT (||| ile ayır):
-[Tweet 1: 📰 Yaşam haberi + İnsani perspektif + {link}]
+1. Tweet: 📰 Yaşam haberi + İnsani perspektif + {link}
 |||
-[Tweet 2: 🏛️ Ekonomik/toplumsal etki analizi]
+2. Tweet: 🏛️ Ekonomik/toplumsal etki analizi
 |||
-[Tweet 3: 💡 Sektörel perspektif + İlgili BIST hisseleri + YTD]
-
+3. Tweet: 💡 Sektörel perspektif + İlgili BIST hisseleri + YTD
 KURALLAR:
 - Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
 - Hassas konularda dikkatli ol.

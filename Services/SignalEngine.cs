@@ -381,6 +381,18 @@ namespace XiDeAI_Pro.Services
 
                 // Context Preparation
                 string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Durum: {sig.Durum}{(sig.IsRoket ? " (Roket 🚀)" : "")}";
+
+                // Strateji bazlı tarama kriteri bağlamı
+                string scanCriteria = sig.Strategy switch
+                {
+                    "ALPHA" => "TARAMA KRİTERLERİ: 60dk periyot | EMA200 üzerinde (trend: yukarı) | ADX>20 (güçlü trend) | 18-bar dar bant (squeeze/sıkışma) | Hacim 1.5x+ ortalamanın üzeri | Seçilme sebebi: momentum + volatilite kırılım beklentisi",
+                    "PREMOVE" => "TARAMA KRİTERLERİ: Günlük periyot | Destek bölgesinde fiyat tespiti (PreMove) | Hacim artışı ile birlikte dip test | Seçilme sebebi: öncü hareket (önceden birikim) sinyali",
+                    _ => ""
+                };
+                if (!string.IsNullOrEmpty(scanCriteria))
+                    priceContext += $"\n\n{scanCriteria}";
+                if (sig.IsRoket)
+                    priceContext += "\n\n⚡ ROKET SİNYALİ: Hacim 3x+ ve mum %1+ uzunluğunda — yüksek güven, ani hareket beklentisi.";
                 
                 // Visual Analysis (if shot exists)
                 if (!string.IsNullOrEmpty(screenshotPath))
