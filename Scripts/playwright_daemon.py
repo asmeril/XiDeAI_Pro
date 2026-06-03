@@ -403,9 +403,11 @@ class XDaemonPlaywright:
                         compose_check = self.page.locator('div[data-testid="tweetTextarea_0"]').first
                         filled = await compose_check.inner_text()
                         if filled.strip():
-                            raise Exception("Post not submitted: compose box still contains text after 10s")
-                    except Exception as ce:
-                        raise Exception(str(ce))
+                            raise PlaywrightTimeoutError("Post not submitted: compose box still contains text after 10s")
+                    except PlaywrightTimeoutError:
+                        raise
+                    except Exception:
+                        pass  # compose_check lookup failed — page may have navigated mid-check
 
                 await self._sleep(1.5)  # brief settle for DOM after navigation
 
@@ -434,7 +436,10 @@ class XDaemonPlaywright:
                     return {"status": "error", "message": str(e)}
                 await self._sleep(2)
             except Exception as e:
-                return {"status": "error", "message": str(e)}
+                # Non-timeout exceptions also get retried
+                if attempt == 3:
+                    return {"status": "error", "message": str(e)}
+                await self._sleep(2)
 
     async def _post_reply_in_thread(self, parent_url: str, text: str) -> dict:
         for attempt in range(1, 4):
@@ -534,13 +539,18 @@ class XDaemonPlaywright:
                         break
 
                 if not navigated:
+                    # Still on compose — check if compose box still has text (not submitted)
                     try:
                         compose_check = self.page.locator('div[data-testid="tweetTextarea_0"]').first
                         filled = await compose_check.inner_text()
                         if filled.strip():
-                            raise Exception("Reply not submitted: compose box still has text after 10s")
-                    except Exception as ce:
-                        raise Exception(str(ce))
+                            # Raise as PlaywrightTimeoutError so retry logic kicks in
+                            raise PlaywrightTimeoutError("Reply not submitted: compose box still has text after 10s")
+                    except PlaywrightTimeoutError:
+                        raise
+                    except Exception:
+                        # compose_check lookup itself failed — treat as submitted (page may have navigated mid-check)
+                        pass
 
                 await asyncio.sleep(1.5)
 
@@ -557,7 +567,10 @@ class XDaemonPlaywright:
                     return {"status": "error", "message": str(e)}
                 await asyncio.sleep(3)
             except Exception as e:
-                return {"status": "error", "message": str(e)}
+                # Non-timeout exceptions also get retried (up to max attempts)
+                if attempt == 3:
+                    return {"status": "error", "message": str(e)}
+                await asyncio.sleep(3)
 
     async def _post_thread_compose(self, chunks: list, images=None) -> dict:
         """Post a multi-tweet thread using X compose screen + add (+) button.
