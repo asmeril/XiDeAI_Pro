@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import json
 import asyncio
 import os
@@ -112,7 +112,7 @@ class XDaemonPlaywright:
                 return
             except Exception as second_err:
                 try:
-                    await button.evaluate("el => el.click()")
+                    await asyncio.wait_for(button.evaluate("el => el.click()"), timeout=3.0)
                     return
                 except Exception as js_err:
                     try:
@@ -329,7 +329,7 @@ class XDaemonPlaywright:
                 await compose_box.fill("")
                 await self._sleep(0.3)
 
-                # v5.2.3: Media-first upload â€” prevents React state desync (empty tweet bug)
+                # v5.2.3: Media-first upload Ã¢â‚¬â€ prevents React state desync (empty tweet bug)
                 if images and isinstance(images, list):
                     for img in images:
                         try:
@@ -363,14 +363,14 @@ class XDaemonPlaywright:
                 
                 if not text_inserted:
                     try:
-                        await self.page.evaluate("""
+                        await asyncio.wait_for(self.page.evaluate("""
                             (element, text) => {
                                 element.focus();
                                 element.innerText = text;
                                 element.dispatchEvent(new Event('input', { bubbles: true }));
                                 element.dispatchEvent(new Event('change', { bubbles: true }));
                             }
-                        """, await compose_box.element_handle(), text)
+                        """, await compose_box.element_handle(), text), timeout=3.0)
                         await self._sleep(0.5)
                     except:
                         pass
@@ -436,42 +436,20 @@ class XDaemonPlaywright:
     async def _post_reply_in_thread(self, parent_url: str, text: str) -> dict:
         for attempt in range(1, 4):
             try:
-                await self.page.goto(parent_url, wait_until="domcontentloaded", timeout=20000)
-                await asyncio.sleep(2.0)
-
                 parent_id = None
                 m = re.search(r'/status/(\d+)', parent_url)
                 if m:
                     parent_id = m.group(1)
 
-                # 1) Reply butonunu dene
-                reply_btn = None
-                for sel in ['button[data-testid="reply"]', 'div[data-testid="reply"]', '[data-testid="reply"]']:
-                    try:
-                        cand = self.page.locator(sel).first
-                        await cand.wait_for(state="visible", timeout=4000)
-                        reply_btn = cand
-                        break
-                    except:
-                        pass
+                if not parent_id:
+                    raise PlaywrightTimeoutError("Tweet id could not be parsed for thread chaining")
 
-                if reply_btn:
-                    try:
-                        await self._click_publish(reply_btn, "reply_open")
-                        await asyncio.sleep(1.0)
-                    except Exception as e:
-                        print(f"Reply button click failed: {e}")
-                        reply_btn = None # Fallback to URL method
+                # Bypass the reply button modal completely to avoid DOM detachment timeouts.
+                compose_url = f"https://x.com/compose/post?in_reply_to={parent_id}"
+                await self.page.goto(compose_url, wait_until="domcontentloaded", timeout=20000)
+                await asyncio.sleep(2.0)
 
-                if not reply_btn and parent_id:
-                    # Fallback: compose/post?in_reply_to=
-                    compose_url = f"https://x.com/compose/post?in_reply_to={parent_id}"
-                    await self.page.goto(compose_url, wait_until="domcontentloaded", timeout=20000)
-                    await asyncio.sleep(1.5)
-                elif not reply_btn and not parent_id:
-                    raise PlaywrightTimeoutError("Reply button not found and tweet id could not be parsed")
-
-                # 2) Compose box'Ä± bul
+                # 2) Compose box'u bul
                 compose_box = None
                 for sel in [
                     'div[data-testid="tweetTextarea_0"]',
@@ -486,8 +464,8 @@ class XDaemonPlaywright:
                     except:
                         pass
 
-                if not compose_box and parent_id:
-                    # Ä°kinci fallback: prefilled URL
+                if not compose_box:
+                    # Ikinci fallback: prefilled URL
                     from urllib.parse import quote as urlquote
                     prefilled = f"https://x.com/compose/post?in_reply_to={parent_id}&text={urlquote(text, safe='')}"
                     await self.page.goto(prefilled, wait_until="domcontentloaded", timeout=20000)
@@ -504,28 +482,58 @@ class XDaemonPlaywright:
                 if not compose_box:
                     raise PlaywrightTimeoutError("Reply compose box not found")
 
-                # 3) Metni yaz: Ã¶nce fill(), olmadÄ± type(delay=20)
                 try:
                     await self._click_publish(compose_box, "compose_focus")
                 except:
-                    await compose_box.evaluate("el => el.focus()")
+                    try:
+                        await asyncio.wait_for(compose_box.evaluate("el => el.focus()"), timeout=3.0)
+                    except:
+                        pass
 
+                # Robust text insertion (from XHive x_daemon)
                 text_inserted = False
                 try:
                     await compose_box.fill(text)
-                    await asyncio.sleep(0.5)
-                    current = await compose_box.inner_text()
-                    if len(current.strip()) >= len(text.strip()) * 0.8:
+                    await asyncio.sleep(0.6)
+                    current_text = await compose_box.inner_text()
+                    if len(current_text.strip()) >= len(text.strip()) * 0.8:
                         text_inserted = True
                 except:
                     pass
-
+                
                 if not text_inserted:
-                    # React state dÃ¼zgÃ¼n tetiklenmedi â€” karakter karakter yaz
-                    await compose_box.press("Control+a")
-                    await compose_box.press("Delete")
-                    await compose_box.type(text, delay=20)
+                    try:
+                        await compose_box.focus()
+                        await compose_box.type(text, delay=20)
+                        await asyncio.sleep(0.5)
+                        current_text = await compose_box.inner_text()
+                        if len(current_text.strip()) >= len(text.strip()) * 0.8:
+                            text_inserted = True
+                    except:
+                        pass
+                
+                if not text_inserted:
+                    try:
+                        await asyncio.wait_for(self.page.evaluate("""
+                            (element, text) => {
+                                element.focus();
+                                element.innerText = text;
+                                element.dispatchEvent(new Event('input', { bubbles: true }));
+                                element.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        """, await compose_box.element_handle(), text), timeout=3.0)
+                        await asyncio.sleep(0.5)
+                    except:
+                        pass
+                
+                # Wake up React
+                try:
+                    await compose_box.press(" ")
+                    await asyncio.sleep(0.1)
+                    await compose_box.press("Backspace")
                     await asyncio.sleep(0.5)
+                except:
+                    pass
 
                 # 4) Post butonunu bekle (max 5 sn)
                 post_btn = None
@@ -570,13 +578,13 @@ class XDaemonPlaywright:
         This avoids the reply-chain approach which can attach replies to wrong/unrelated tweets."""
         # X changed the compose URL; try canonical first, fall back to legacy alias.
         COMPOSE_URLS = ["https://x.com/compose/post", "https://x.com/compose/tweet"]
-        # data-testid for the Â«Add tweetÂ» (+) button â€” try multiple to survive A/B changes.
+        # data-testid for the Ã‚Â«Add tweetÃ‚Â» (+) button Ã¢â‚¬â€ try multiple to survive A/B changes.
         ADD_BTN_SELECTORS = [
             '[data-testid="addButton"]',        # element-agnostic (most resilient)
             'div[data-testid="addButton"]',     # historical form (div)
             'button[data-testid="addButton"]',  # in case X switched to <button>
             '[aria-label="Add post"]',          # aria-label (en/default locale)
-            '[aria-label="GÃ¶nderi ekle"]',      # aria-label (tr locale)
+            '[aria-label="GÃƒÂ¶nderi ekle"]',      # aria-label (tr locale)
             '[aria-label="Post ekle"]',         # possible mixed locale variant
             '[data-testid="tweetButton_add"]',  # speculative future testid
         ]
@@ -609,7 +617,7 @@ class XDaemonPlaywright:
                     await compose_box.fill("")
                     await self._sleep(0.3)
 
-                    # v5.2.3: Media-first upload â€” only for first tweet
+                    # v5.2.3: Media-first upload Ã¢â‚¬â€ only for first tweet
                     if idx == 0 and images and isinstance(images, list):
                         for img in images:
                             try:
@@ -643,7 +651,7 @@ class XDaemonPlaywright:
                                 pass
                         if add_btn is None:
                             raise PlaywrightTimeoutError(
-                                "Add tweet (+) button not found â€” tried: " + ", ".join(ADD_BTN_SELECTORS)
+                                "Add tweet (+) button not found Ã¢â‚¬â€ tried: " + ", ".join(ADD_BTN_SELECTORS)
                             )
                         await add_btn.click(timeout=3000)
                         # Ensure new textarea really appears. If not, force-click once and recheck.
@@ -654,7 +662,10 @@ class XDaemonPlaywright:
                                 timeout=3000,
                             )
                         except Exception:
-                            await add_btn.evaluate("el => el.click()")
+                            try:
+                                await asyncio.wait_for(add_btn.evaluate("el => el.click()"), timeout=3.0)
+                            except:
+                                pass
                             await self.page.wait_for_function(
                                 "(prev) => document.querySelectorAll('div[data-testid^=\"tweetTextarea_\"]').length > prev",
                                 arg=before_count,
@@ -843,8 +854,8 @@ class XDaemonPlaywright:
         numbered_chunks = []
         total = len(chunks)
         for i, chunk in enumerate(chunks, 1):
-            if i == 1: numbered_chunks.append(f"{chunk}\n\nðŸ§µ {i}/{total}")
-            else: numbered_chunks.append(f"ðŸ§µ {i}/{total}\n\n{chunk}")
+            if i == 1: numbered_chunks.append(f"{chunk}\n\nÃ°Å¸Â§Âµ {i}/{total}")
+            else: numbered_chunks.append(f"Ã°Å¸Â§Âµ {i}/{total}\n\n{chunk}")
 
         # Bypass native compose thread to avoid UI unreliability with (+) button.
         # Always use reply-chain approach directly (like XHive worker daemon).
