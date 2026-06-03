@@ -1,75 +1,69 @@
-﻿# BIST SektÃ¶r-Hisse HaritasÄ± (v2.0 - TeFo.txt DoÄŸrulamalÄ±)
-# KAYNAK: D:\iDeal\SembolListeleri\TeFo.txt
-# KURAL: Haber thread'lerinde sembol seÃ§erken YALNIZCA bu listeden al.
-#        Listede olmayan sembol ASLA yazma.
+# BIST Sector-Stock Map (v2.1 - Verified from TeFo.txt)
+# SOURCE: D:\iDeal\SembolListeleri\TeFo.txt
+# RULE: Use ONLY symbols listed here. NEVER invent symbols not on this list.
 
-## Demir-Ã‡elik / Metal
-EREGL (EreÄŸli Demir Ã‡elik), KRDMD (Kardemir D), KRDMA (Kardemir A), KRDMB (Kardemir B), BRSAN (Borusan Mannesmann), CEMTS (Ã‡emtaÅŸ Ã‡elik), DMSAS (DemisaÅŸ DÃ¶kÃ¼m), CELHA (Ã‡elik Halat), ISCTR (Ä°ÅŸ BankasÄ± - dolaylÄ± Ã§elik finansmanÄ±)
+## Demir-Celik / Metal
+EREGL, KRDMD, KRDMA, KRDMB, BRSAN, CEMTS, DMSAS, CELHA, ISDMR
 
 ## Banka / Finans
-GARAN (Garanti), AKBNK (Akbank), ISCTR (Ä°ÅŸ BankasÄ±), YKBNK (YapÄ± Kredi), HALKB (Halkbank), VAKBN (VakÄ±fbank), ALBRK (Albaraka TÃ¼rk), SKBNK (Åžekerbank), ICBCT (ICBC Turkey Bank), TSKB (TSKB), ISFIN (Ä°ÅŸ Finansal Kiralama)
+GARAN, AKBNK, ISCTR, YKBNK, HALKB, VAKBN, ALBRK, SKBNK, ICBCT, TSKB, ISFIN
 
 ## Sigorta
-AKGRT (Aksigorta), ANSGR (Anadolu Sigorta), ISGSY (Ä°ÅŸ Sigorta)
+AKGRT, ANSGR, ISGSY
 
 ## Enerji / Elektrik / Yenilenebilir
-AKSEN (Aksa Enerji), AYEN (Aydem Enerji), AYDEM (Aydem), ODAS (OdaÅŸ Elektrik), ZOREN (Zorlu Enerji), ENJSA (Enerjisa Enerji), GWIND (Galata Wind), NATEN (Nates Enerji), EUREN (Euro Yenilenebilir), BIOEN (Bio Enerji), HUNER (HÃ¼nkar Enerji), CANTE (Ã‡an2 Termik), AKENR (AK Enerji), ORGE (Orge Enerji)
+AKSEN, AYEN, AYDEM, ODAS, ZOREN, ENJSA, GWIND, NATEN, EUREN, BIOEN, HUNER, CANTE, AKENR, ORGE
 
 ## Petrokimya / Petrol / Rafineri
-TUPRS (TÃ¼praÅŸ), PETKM (Petkim), AYGAZ (Aygaz), BAGFS (BagfaÅŸ), GUBRF (GÃ¼bre FabrikalarÄ±), SASA (Sasa Polyester)
+TUPRS, PETKM, AYGAZ, BAGFS, GUBRF, SASA
 
-## HavacÄ±lÄ±k / UlaÅŸÄ±m
-THYAO (TÃ¼rk Hava YollarÄ±), PGSUS (Pegasus), CLEBI (Ã‡elebi HavacÄ±lÄ±k), TAVHL (TAV HavalimanlarÄ±), RYSAS (ReysaÅŸ Lojistik), ULUFA (UlaÅŸlar UÃ§ak YakÄ±t), HURGZ (HÃ¼rriyet Gazetecilik - deÄŸil, dikkat)
+## Havayollari / Ulasim
+THYAO, PGSUS, CLEBI, TAVHL, RYSAS, ULUFA
 
 ## Otomotiv / Yan Sanayi
-FROTO (Ford Otosan), TOASO (TofaÅŸ), OTKAR (Otokar), DOAS (DoÄŸuÅŸ Otomotiv), TTRAK (TÃ¼rk TraktÃ¶r), ASUZU (Anadolu Isuzu), JANTS (Jantsa), BRISA (Brisa), GOODY (Goodyear)
+FROTO, TOASO, OTKAR, DOAS, TTRAK, ASUZU, JANTS, BRISA, GOODY
 
-## Teknoloji / YazÄ±lÄ±m / Elektronik
-ASELS (Aselsan), LOGO (Logo YazÄ±lÄ±m), INDES (Ä°ndeks Bilgisayar), KAREL (Karel Elektronik), NETAS (NetaÅŸ), ARENA (Arena Bilgisayar), DESPC (Despec Bilgisayar), LINK (Link Bilgisayar), FONET (Fonet BiliÅŸim), ESCOM (Escort Teknoloji), EDATA (E-Data Teknoloji), PKART (Plastikkart)
+## Teknoloji / Yazilim / Elektronik
+ASELS, LOGO, INDES, KAREL, NETAS, ARENA, DESPC, LINK, FONET, ESCOM, EDATA, PKART
 
-## TelekomÃ¼nikasyon
-TCELL (Turkcell), TTKOM (TÃ¼rk Telekom)
+## Telekomunikasyon
+TCELL, TTKOM
 
-## Savunma / HavacÄ±lÄ±k Sanayi
-ASELS (Aselsan), KONTR (Kontrolmatik), SMART (Smart GÃ¼neÅŸ Enerjisi - deÄŸil, dikkat)
+## Cam / Cimento / Yapi Malzemeleri
+SISE, CIMSA, AKCNS, BTCIM, BUCIM, NUHCM, BSOKE, AFYON, KONYA
 
-## Cam / YapÄ± Malzemeleri / Ã‡imento
-SISE (ÅžiÅŸe Cam), CIMSA (Ã‡imsa), AKCNS (AkÃ§ansa), BTCIM (BatÄ±Ã§im), BUCIM (Bursa Ã‡imento), NUHCM (Nuh Ã‡imento), BSOKE (BatÄ± SÃ¶ke Ã‡imento), AFYON (Afyon Ã‡imento), KONYA (Konya Ã‡imento)
+## Insaat / GYO
+EKGYO, ISGYO, TRGYO, ENKAI, TKFEN, YYAPI, DGGYO, ALGYO, HLGYO, KGYO, KLGYO, MRGYO
 
-## Ä°nÅŸaat / GYO
-EKGYO (Emlak Konut GYO), ISGYO (Ä°ÅŸ GYO), TRGYO (Torunlar GYO), ENKAI (Enka Ä°nÅŸaat), TKFEN (Tekfen Holding), YYAPI (Yesil YapÄ±), DGGYO (DoÄŸan GYO), ALGYO (Alarko GYO), HLGYO (Halk GYO), KGYO (KÃ¶rfez GYO), KLGYO (Kiler GYO), MRGYO (MartÄ± GYO)
+## Gida / Icecek / Perakende
+AEFES, CCOLA, ULKER, BIMAS, MGROS, SOKM, CRFSA, TATGD, BANVT, PENGD, PNSUT, MERKO, BIZIM, KRVGD, PINSU, ULUUN, DOCO
 
-## GÄ±da / Ä°Ã§ecek / Perakende
-AEFES (Anadolu Efes), CCOLA (Coca-Cola Ä°Ã§ecek), ULKER (Ãœlker), BIMAS (BÄ°M), MGROS (Migros), SOKM (Åžok Marketler), CRFSA (CarrefourSA), TATGD (Tat GÄ±da), BANVT (BandÄ±rma Vitaminli), PENGD (PÄ±nar Et), PNSUT (PÄ±nar SÃ¼t), MERKO (Merko GÄ±da), BIZIM (Bizim Toptan), KRVGD (KerevitaÅŸ GÄ±da), PINSU (PÄ±nar Su), ULUUN (UlupÄ±nar Un), DOCO (DoÄŸanlar Grubu)
+## Saglik / Ilac / Eczane
+ECILC, DEVA, SELEC, MPARK, ANGEN
 
-## SaÄŸlÄ±k / Ä°laÃ§ / Eczane
-ECILC (EczacÄ±baÅŸÄ± Ä°laÃ§), DEVA (Deva Holding), SELEC (SelÃ§uk Ecza), MPARK (MLP SaÄŸlÄ±k), ANGEN (Anadolu Grup)
+## Tekstil / Giyim / Deri
+MAVI, DESA, SKTAS, ATEKS, BOSSA, ARSAN, DAGI
 
-## Tekstil / HazÄ±r Giyim / Deri
-MAVI (Mavi Giyim), DESA (Desa Deri), SKTAS (SÃ¶ktaÅŸ Tekstil), ATEKS (AltÄ±n Tekstil), BOSSA (Bossa Ticaret), ARSAN (Arsan Tekstil), DAGI (DaÄŸi Giyim)
+## Beyaz Esya / Elektronik Urun
+ARCLK, VESTL, VESBE, ARZUM
 
-## Beyaz EÅŸya / Elektronik ÃœrÃ¼n
-ARCLK (ArÃ§elik), VESTL (Vestel), VESBE (Vestel Beyaz EÅŸya), KONKA (Konka - TeFo'da yok, kullanma), ARZUM (Arzum)
+## Holding / Cesitlendirilmis
+KCHOL, SAHOL, DOHOL, GOZDE, ALARK, TKFEN, POLHO, SANKO, AGHOL, AVHOL, KLRHO, NTHOL, GSDHO
 
-## Holding / Ã‡eÅŸitlendirilmiÅŸ
-KCHOL (KoÃ§ Holding), SAHOL (SabancÄ± Holding), DOHOL (DoÄŸan Holding), GOZDE (GÃ¶zde GiriÅŸim), ALARK (Alarko Holding), TKFEN (Tekfen Holding), POLHO (Polisan Holding), SANKO (Sanko Holding), AGHOL (AG Holding), AVHOL (Ava Holding), KLRHO (Kiler Holding), NTHOL (Net Holding), GSDHO (GSD Holding)
+## Madencilik / Altin / Gumus
+KOZAL, KOZAA, IPEKE, ALMAD, SILVR
 
-## Madencilik / Maden / AltÄ±n / GÃ¼mÃ¼ÅŸ
-KOZAL (Koza AltÄ±n), KOZAA (Koza Anadolu Metal), IPEKE (Ä°pek DoÄŸal Enerji), ALMAD (Anadolu Madencilik), SILVR (Silverline EndÃ¼stri - dikkat)
+## Tarim / Gubre
+GUBRF, BAGFS, TTRAK, EGGUB, TGSAS
 
-## TarÄ±m / GÃ¼bre
-GUBRF (GÃ¼bre FabrikalarÄ±), BAGFS (BagfaÅŸ), TTRAK (TÃ¼rk TraktÃ¶r), EGGUB (Ege GÃ¼bre), TGSAS (Tarsal GS)
+## Kagit / Ambalaj
+KARTN, BAKAB, OLMK
 
-## KaÄŸÄ±t / Ambalaj
-KARTN (Kartonsan), BAKAB (BakaÅŸ KaÄŸÄ±t), OLMK (Olmuksan International)
-
-## Spor KulÃ¼pleri
-FENER (FenerbahÃ§e), GSRAY (Galatasaray), BJKAS (BeÅŸiktaÅŸ), TSPOR (Trabzonspor)
+## Spor Kulupler
+FENER, GSRAY, BJKAS, TSPOR
 
 ## Kimya / Boya
-ALKIM (Alkim Kimya), DYOBY (DYO Boya), KLKIM (Kalekim)
+ALKIM, DYOBY, KLKIM
 
-## Lojistik / Nakliye / Depo
-RYSAS (ReysaÅŸ Lojistik), CLEBI (Ã‡elebi), ULUSE (UluslararasÄ± Servis)
-
-
+## Lojistik / Nakliye
+RYSAS, CLEBI, ULUSE
