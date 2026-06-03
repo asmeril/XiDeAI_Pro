@@ -1,9 +1,42 @@
-# XiDeAI Pro - Project Manifest v5.2.4
+﻿# XiDeAI Pro - Project Manifest v5.2.6
 
 **Release Date:** 2026-06-03
-**Version:** 5.2.4
-**Build:** Release / Full stabilization
-**Setup:** Generated (XiDeAI_v5.2.4_Setup.exe in Output/)
+**Version:** 5.2.6
+**Build:** Release / Thread Posting Engine Overhaul
+**Setup:** Generated (XiDeAI_v5.2.6_Setup.exe in Output/)
+
+---
+
+## Bu Sürümde Ne Değişti? (v5.2.6)
+
+### 1. `_click_publish` — Escape Kaldırıldı (Ana Düzeltme)
+X compose ekranında Escape tuşuna basmak "Gönderiyi sil?" modalını açıyor ve post butonunu engelliyor. `_click_publish` artık doğrudan click → force click → JS click sırasını izliyor; Escape yalnızca tüm yöntemler başarısız olursa son çare olarak kullanılıyor.
+
+### 2. `keyboard.insert_text()` Geçişi
+`compose_box.fill()` React state'ini güncellemiyordu — bu yüzden post butonu `aria-disabled=true` kalıyor ve tıklansa bile tweet gönderilmiyordu. `_post_single_tweet` ve `_post_reply_in_thread` artık `keyboard.insert_text()` kullanıyor.
+
+### 3. Compose-Cleared Doğrulaması
+`_click_publish` sonrasında X'in compose sayfasından gerçekten ayrılıp ayrılmadığı kontrol ediliyor (10 saniye / 0.5s adımlar). Ayrılmadıysa hata fırlatılıp retry yapılıyor.
+
+### 4. False-Positive URL Tespiti Engellendi (`min_id` Baseline)
+`self._last_known_tweet_id` tracker eklendi. Her post öncesi mevcut en yüksek bilinen tweet ID'si kaydediliyor; `_extract_latest_tweet_url` yalnızca bu değerden büyük status ID'li URL'leri kabul ediyor.
+
+### 5. DOM-First URL Tespiti (XHive Pattern)
+Toast bekleme süresi sıfırlandı. Post sonrası önce mevcut sayfanın DOM'u `/status/` linki için taranarak profil sayfasına gidiş ihtiyacı minimuma indirildi.
+
+---
+
+## Değişen Dosyalar
+
+| Dosya | Değişiklik |
+|---|---|
+| `Scripts/playwright_daemon.py` | Escape kaldırma, insert_text, compose-cleared check, min_id baseline, DOM-first URL tespiti |
+
+---
+
+## Doğrulama
+- Syntax: `ast.parse()` ile doğrulandı (OK).
+- Production kopyalandı: `C:\Program Files (x86)\XiDeAI Pro\Scripts\playwright_daemon.py`
 
 ---
 
@@ -49,3 +82,4 @@
 ## Doğrulama
 - `.NET build` 0 Hata / 0 Uyarı ile Windows üzerinde derlendi.
 - `ISCC.exe` ile `Output\XiDeAI_v5.2.4_Setup.exe` kurulum paketi başarıyla paketlendi.
+

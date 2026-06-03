@@ -92,4 +92,18 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 
 > TODO: Release notes eklenecek.
 
+---
+
+## 03 Haziran 2026
+
+### v5.2.6 Release
+
+**Thread Gönderim Motoru Yeniden Yazıldı (`playwright_daemon.py`)**
+
+- **`_click_publish` düzeltmesi:** `Escape` tuşu publish öncesinden kaldırıldı. X compose'da Escape "Gönderiyi sil?" modalını açıyor ve tweet gönderilememesine neden oluyordu. Escape artık yalnızca son çare JS click başarısız olursa overlay kaldırmak için kullanılıyor.
+- **`keyboard.insert_text()` geçişi:** `compose_box.fill()` React synthetic event'lerini tetiklemediğinden post butonu `aria-disabled=true` kalıyordu. `_post_single_tweet` ve `_post_reply_in_thread` artık `keyboard.insert_text()` kullanıyor.
+- **Compose-cleared doğrulaması:** Her iki gönderim fonksiyonunda da `_click_publish` sonrası 10 saniye içinde sayfanın compose URL'den ayrılıp ayrılmadığı kontrol ediliyor. Ayrılmadıysa hata fırlatılıp retry yapılıyor.
+- **`_last_known_tweet_id` baseline filtresi:** `_extract_latest_tweet_url` her post öncesi `min_id` alıyor; bu değerden küçük ya da eşit status ID'li URL'ler skip ediliyor. Eski tweetlerin "yeni tweet" olarak raporlanması (false-positive) engellendi.
+- **DOM-first URL tespiti (XHive pattern):** Toast bekleme (20s → 0s) kaldırıldı. Önce mevcut sayfanın DOM'u taranarak `/status/` linki arandığından çoğu durumda profil sayfasına gidilmesine gerek kalmıyor.
+
 
