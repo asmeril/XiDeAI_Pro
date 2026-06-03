@@ -525,15 +525,20 @@ namespace XiDeAI_Pro.Services
 
             try
             {
-                // Read both streams asynchronously with timeout support
+                // Read both streams asynchronously
                 var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
                 var errorTask = process.StandardError.ReadToEndAsync(cts.Token);
 
-                await Task.WhenAll(outputTask, errorTask);
+                // Wait for the process to exit OR the cancellation token to trigger
                 await process.WaitForExitAsync(cts.Token);
 
-                output = outputTask.Result.Trim();
-                error = errorTask.Result.Trim();
+                // If process exited normally, wait briefly for streams to finish
+                try {
+                    await Task.WhenAll(outputTask, errorTask).WaitAsync(TimeSpan.FromSeconds(2));
+                } catch { }
+
+                output = outputTask.IsCompletedSuccessfully ? outputTask.Result.Trim() : "";
+                error = errorTask.IsCompletedSuccessfully ? errorTask.Result.Trim() : "";
             }
             catch (OperationCanceledException)
             {

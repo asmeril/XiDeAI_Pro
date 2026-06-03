@@ -418,16 +418,18 @@ class XDaemonPlaywright:
 
                 if reply_btn:
                     try:
-                        await reply_btn.click(timeout=5000)
-                    except:
-                        await reply_btn.click(timeout=5000, force=True)
-                    await asyncio.sleep(1.0)
-                elif parent_id:
+                        await self._click_publish(reply_btn, "reply_open")
+                        await asyncio.sleep(1.0)
+                    except Exception as e:
+                        print(f"Reply button click failed: {e}")
+                        reply_btn = None # Fallback to URL method
+
+                if not reply_btn and parent_id:
                     # Fallback: compose/post?in_reply_to=
                     compose_url = f"https://x.com/compose/post?in_reply_to={parent_id}"
                     await self.page.goto(compose_url, wait_until="domcontentloaded", timeout=20000)
                     await asyncio.sleep(1.5)
-                else:
+                elif not reply_btn and not parent_id:
                     raise PlaywrightTimeoutError("Reply button not found and tweet id could not be parsed")
 
                 # 2) Compose box'ı bul
@@ -465,7 +467,7 @@ class XDaemonPlaywright:
 
                 # 3) Metni yaz: önce fill(), olmadı type(delay=20)
                 try:
-                    await compose_box.click(timeout=3000)
+                    await self._click_publish(compose_box, "compose_focus")
                 except:
                     await compose_box.evaluate("el => el.focus()")
 
@@ -806,14 +808,9 @@ class XDaemonPlaywright:
             if i == 1: numbered_chunks.append(f"{chunk}\n\n🧵 {i}/{total}")
             else: numbered_chunks.append(f"🧵 {i}/{total}\n\n{chunk}")
 
-        # PRIMARY: Native compose thread — all tweets typed in one session, publish once.
-        # X builds a proper thread internally, no risk of replying to wrong tweets.
-        compose_result = await self._post_thread_compose(numbered_chunks, images)
-        if compose_result.get("status") == "success":
-            return compose_result
-
-        # FALLBACK: reply-chain if compose approach failed (e.g. + button unavailable)
-        print(f"[playwright_daemon] Compose thread failed ({compose_result.get('message')}), falling back to reply-chain.", flush=True)
+        # Bypass native compose thread to avoid UI unreliability with (+) button.
+        # Always use reply-chain approach directly (like XHive worker daemon).
+        print(f"[playwright_daemon] Using reply-chain approach for thread posting.", flush=True)
         first_res = await self._post_single_tweet(numbered_chunks[0], images)
         if first_res.get("status") != "success":
             return first_res
