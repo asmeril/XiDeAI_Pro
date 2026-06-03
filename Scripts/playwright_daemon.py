@@ -74,7 +74,9 @@ class XDaemonPlaywright:
         self.context = None
         self.page = None
         self.profile_path = None
-        self.profile_path = None
+        # Tracks the highest tweet status ID we've ever returned, so we never report
+        # an old tweet as "the just-posted tweet" (false-positive guard).
+        self._last_known_tweet_id: int = 0
         # Runtime tuning for slow/unstable environments.
         # Example: set X_POSTING_DELAY_FACTOR=1.5 to increase all short sleeps by 50%.
         self.delay_factor = self._read_delay_factor()
@@ -395,21 +397,52 @@ class XDaemonPlaywright:
                     raise PlaywrightTimeoutError("Post button disabled or not found. Text might be invalid/empty.")
 
                 await self._click_publish(post_button, "single")
-                await self._sleep(3)
 
-                # Strict Validation: Check if an error toast appeared
+                # Wait for X to navigate AWAY from compose page (confirms tweet submitted).
+                # X always redirects after a successful post; if it stays on /compose, it failed.
+                navigated = False
+                for _ in range(20):  # up to 10s in 0.5s steps
+                    await self._sleep(0.5)
+                    if "compose" not in self.page.url:
+                        navigated = True
+                        break
+
+                if not navigated:
+                    # Still on compose page — check for error toast before retrying
+                    toast = self.page.locator("div[data-testid='toast']")
+                    for t_idx in range(await toast.count()):
+                        t_text = await toast.nth(t_idx).inner_text()
+                        if any(kw in t_text.lower() for kw in ['went wrong', 'already', 'duplicate', 'failed', 'limit']):
+                            raise Exception(f"Twitter Error (compose still open): {t_text}")
+                    # Check if compose box is still filled → definitely not posted
+                    try:
+                        compose_check = self.page.locator('div[data-testid="tweetTextarea_0"]').first
+                        filled = await compose_check.inner_text()
+                        if filled.strip():
+                            raise Exception("Post not submitted: compose box still contains text after 10s")
+                    except Exception as ce:
+                        raise Exception(str(ce))
+
+                await self._sleep(1.5)  # brief settle for DOM after navigation
+
+                # Strict Validation: error toast on new page
                 toast = self.page.locator("div[data-testid='toast']")
                 toast_count = await toast.count()
                 for t_idx in range(toast_count):
                     t_text = await toast.nth(t_idx).inner_text()
-                    if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
+                    if any(kw in t_text.lower() for kw in ['went wrong', 'already', 'duplicate', 'failed']):
                         raise Exception(f"Twitter Error: {t_text}")
-                
-                # Removed faulty compose box visibility check
 
-                tweet_url = await self._extract_latest_tweet_url()
+                # Pass current baseline so _extract only accepts IDs > last known
+                pre_post_baseline = self._last_known_tweet_id
+                tweet_url = await self._extract_latest_tweet_url(min_id=pre_post_baseline)
                 if "/status/" not in tweet_url:
                     print(f"WARNING: Tweet URL verification failed: {tweet_url}", file=sys.stderr)
+                else:
+                    # Update baseline for next post
+                    m_id = re.search(r'/status/(\d+)', tweet_url)
+                    if m_id:
+                        self._last_known_tweet_id = max(self._last_known_tweet_id, int(m_id.group(1)))
                 return {"status": "success", "tweet_url": tweet_url, "text": text}
 
             except PlaywrightTimeoutError as e:
@@ -548,7 +581,12 @@ class XDaemonPlaywright:
                 await self._click_publish(post_btn, "reply")
                 await asyncio.sleep(3)
 
-                tweet_url = await self._extract_latest_tweet_url()
+                pre_reply_baseline = self._last_known_tweet_id
+                tweet_url = await self._extract_latest_tweet_url(min_id=pre_reply_baseline)
+                if "/status/" in tweet_url:
+                    m_id = re.search(r'/status/(\d+)', tweet_url)
+                    if m_id:
+                        self._last_known_tweet_id = max(self._last_known_tweet_id, int(m_id.group(1)))
                 return {"status": "success", "tweet_url": tweet_url}
 
             except PlaywrightTimeoutError as e:
@@ -709,7 +747,14 @@ class XDaemonPlaywright:
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
-    async def _extract_latest_tweet_url(self) -> str:
+    async def _extract_latest_tweet_url(self, min_id: int = 0) -> str:
+        """
+        Extract the URL of the just-posted tweet.
+
+        min_id: Only accept tweet status IDs strictly greater than this value.
+                Pass self._last_known_tweet_id before each post to avoid returning
+                an old cached tweet as "the new tweet" (false-positive guard).
+        """
         # Strategy order (XHive-inspired):
         # 0) Scan current page DOM immediately — fastest, works for both post and reply
         # 1) Check if page.url already has /status/
@@ -748,6 +793,8 @@ class XDaemonPlaywright:
                     if not m:
                         continue
                     status_id = int(m.group(1))
+                    if status_id <= min_id:
+                        continue  # skip — this is an old tweet we already knew about
                     if status_id > best_id:
                         best_id = status_id
                         best_url = url
@@ -759,7 +806,9 @@ class XDaemonPlaywright:
 
         # --- Step 1: page.url already is the tweet ---
         if "/status/" in self.page.url:
-            return self.page.url
+            m_page = re.search(r'/status/(\d+)', self.page.url)
+            if not m_page or int(m_page.group(1)) > min_id:
+                return self.page.url
 
         # --- Step 2: Short toast check (2s) ---
         toast_selectors = [
@@ -810,6 +859,8 @@ class XDaemonPlaywright:
                         if not m:
                             continue
                         status_id = int(m.group(1))
+                        if status_id <= min_id:
+                            continue  # skip old tweet
                         if status_id > best_id:
                             best_id = status_id
                             best_url = url
