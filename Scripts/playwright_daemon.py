@@ -732,6 +732,10 @@ class XDaemonPlaywright:
         for selector in toast_selectors:
             try:
                 links = self.page.locator(selector)
+                try:
+                    await links.first.wait_for(state="attached", timeout=5000)
+                except:
+                    pass
                 count = await links.count()
                 for i in range(min(count, 3)):
                     href = await links.nth(i).get_attribute("href")
