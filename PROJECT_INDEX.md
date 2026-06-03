@@ -1,6 +1,6 @@
-﻿> **Version:** 5.2.3 (Preflight Docs)
+> **Version:** 5.2.9 (Preflight Docs)
 > **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
-> **Last Updated:** 2026-06-03
+> **Last Updated:** 2026-06-04
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -90,6 +90,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` — AI hard data ile sosyal algı zıtlığını Smart Money tuzagı olarak yorumlar.
 - **(v5.2.2)** `GetSignalAnalysisPrompt`, `GetDeepManualAnalysisPrompt`, `GetDeepTechnicalAnalysisPrompt`: YASAK SÖZCÜKLER listesi eklendi (fısıltı alış, akıllı para, piyasa kurdu vb.). Son tweet ZORUNLU: AL/İZLE/BEKLE karar + soru formatı.
 - **(v5.2.2)** `GetAlphaSignalPrompt` / `GetPreMoveSignalPrompt`: Robotik ton kaldırıldı (borsa kurdu, fısıldayan vb.). Fenomen mention: varsa doğal, yoksa ekleme (zorunlu değil).
+- **(v5.2.9)** `GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap)`: `sectorMap` parametresi eklendi. `GetEkonomiNewsAnalysisPrompt`, `GetTeknolojiNewsAnalysisPrompt`, `GetYasamNewsAnalysisPrompt` BIST Sektör Haritası'nı prompt'a enjekte eder; halusinatör sembol üretimi engellendi. Her kategori prompt'u "TAM OLARAK 3 TWEET" ve `|||` zorunluluğu ile güncellendi.
 
 #### `MainForm.cs`
 - **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
@@ -104,8 +105,9 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `DetectNewsCategory(title, source)`: **(v4.2.2)** Haber kategorisini tespit eder (7 kategori).
 - `AnalyzeNewsImpactTwoStep(title, source)`: **(v4.2.2)** Önce kategori, sonra 1-10 skor üretir.
 - `GenerateNewsCategoryAnalysis(category, title, source, link)`: **(v4.2.2)** Kategoriye özel analiz thread'i üretir.
+- **(v5.2.9)** `LoadSectorMapContext()`: `Config/BistSectorMap.md` dosyasını okur. `GenerateNewsCategoryAnalysis` ve `AnalyzeNewsForThread` çağrılarında `sectorMap` parametresi olarak prompt'a enjekte edilir.
 - `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
-- `GenerateMarketCloseTableTweet(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: **(v5.1.1)** Gün sonu kapanış tweet thread'i üretir. `pulseAnomalies` parametresi ile gün içi nabız alarmlarını (Market_Pulse_Alarm.txt) fenomen thread formatına (6-7 tweet) dönüştürür.
+- `GenerateMarketCloseTableTweet(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: **(v5.1.1)** Gün sonu kapanış tweet thread'i üretir.
 
 #### `LMStudioProvider.cs`
 - `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat). **(v5.0.0)** Prompt başına `/no_think\n` prefix eklenir, timeout 300s.
