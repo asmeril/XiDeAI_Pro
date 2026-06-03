@@ -73,7 +73,7 @@ class XDaemonPlaywright:
         self.browser = None
         self.context = None
         self.page = None
-        self.profile_url = None
+        self.profile_path = None
         self.profile_path = None
         # Runtime tuning for slow/unstable environments.
         # Example: set X_POSTING_DELAY_FACTOR=1.5 to increase all short sleeps by 50%.
@@ -731,9 +731,9 @@ class XDaemonPlaywright:
                 pass
 
         # 2) Fallback to own profile; pick highest status id among own links.
-        if self.profile_url:
+        if self.profile_path:
             try:
-                await self.page.goto(self.profile_url, wait_until="domcontentloaded", timeout=20000)
+                await self.page.goto(self.profile_path, wait_until="domcontentloaded", timeout=20000)
                 await asyncio.sleep(1.5)
 
                 links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")
@@ -902,5 +902,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
