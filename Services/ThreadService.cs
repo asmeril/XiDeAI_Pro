@@ -384,25 +384,18 @@ namespace XiDeAI_Pro.Services
             // 1. Remove Markdown Bold (Stars)
             text = text.Replace("**", "");
 
-            // 2. Remove Robotic Headers (Case insensitive, various formats)
-            string[] patterns = { 
-                "TWEET 1", "TWEET 2", "TWEET 3", "TWEET 4", "TWEET 5",
-                "==== ", " ====", "::::", "----", "####" 
-            };
-            
-            foreach(var p in patterns)
-            {
-                // We use a simple replace but check for common bot-like markers
-                if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
-                {
-                    // If it's a standalone marker line like "==== TWEET 1 ====", remove the whole line
-                    var lines = text.Split('\n');
-                    var cleanLines = lines.Where(l => !l.Contains("TWEET", StringComparison.OrdinalIgnoreCase) && !l.Contains("===")).ToList();
-                    text = string.Join("\n", cleanLines).Trim();
-                }
-            }
+            // 2. v5.2.3: Non-destructive regex — strip only robotic header PREFIXES, preserve content
+            // "[Tweet 1]:", "[Tweet 1] -", "Tweet 1:", "1. Tweet:", etc.
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?im)^\s*\[?Tweet\s*\d+\s*[:\-]?\s*\]?\s*", "");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?im)^\s*\d+\.\s*Tweet\s*[:\-]?\s*", "");
 
-            // Clean up multiple newlines
+            // 3. Remove AI template section headers (KANCA, DERİN BAKIŞ, YOL HARİTASI, etc.)
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?im)^\s*(KANCA|DERİN\s*BAKIŞ?|YOL\s*HARİTASI|KAPANIŞ)\s*[:\-]?\s*", "");
+
+            // 4. Remove pure separator lines (====, ----, ####, ::::)
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^\s*[=\-#:]{4,}\s*$", "");
+
+            // 5. Clean up multiple newlines
             while (text.Contains("\n\n\n")) text = text.Replace("\n\n\n", "\n\n");
 
             return text.Trim();

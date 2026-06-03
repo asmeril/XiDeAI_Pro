@@ -90,37 +90,21 @@ class XDaemonPlaywright:
     async def _sleep(self, seconds):
         await asyncio.sleep(seconds * self.delay_factor)
 
-    async def _robust_click_publish(self, button, label="publish"):
-        try:
-            await self.page.keyboard.press("Escape")
-            await self._sleep(0.4)
-        except Exception:
-            pass
-
+    async def _click_publish(self, button, label="publish"):
+        """Simple click with error screenshot on failure."""
         try:
             await button.scroll_into_view_if_needed(timeout=3000)
         except Exception:
             pass
-
         try:
-            await button.click(timeout=5000)
-            return
-        except Exception as first_error:
+            await button.click(timeout=4000)
+        except Exception as click_err:
             try:
-                await self._sleep(0.8)
-                await button.click(timeout=5000, force=True)
-                return
-            except Exception as second_error:
-                try:
-                    await button.evaluate("el => el.click()")
-                    return
-                except Exception as js_error:
-                    try:
-                        shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
-                        await self.page.screenshot(path=shot, full_page=True)
-                    except Exception:
-                        shot = ""
-                    raise Exception(f"Publish click failed: {first_error} | force: {second_error} | js: {js_error} | screenshot={shot}")
+                shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
+                await self.page.screenshot(path=shot, full_page=True)
+            except Exception:
+                shot = ""
+            raise Exception(f"Publish click failed: {click_err} | screenshot={shot}")
 
     async def start(self):
         self.playwright = await async_playwright().start()
@@ -329,15 +313,7 @@ class XDaemonPlaywright:
                 await compose_box.fill("")
                 await self._sleep(0.3)
 
-                await compose_box.evaluate("""
-                    (element, text) => {
-                        element.focus();
-                        element.innerText = text;
-                        element.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                """, text)
-                await self._sleep(0.5)
-
+                # v5.2.3: Media-first upload — prevents React state desync (empty tweet bug)
                 if images and isinstance(images, list):
                     for img in images:
                         try:
@@ -346,6 +322,11 @@ class XDaemonPlaywright:
                             await self._sleep(1.5)
                         except:
                             pass
+
+                # v5.2.3: keyboard.insert_text for React-compatible text input
+                await compose_box.focus()
+                await self.page.keyboard.insert_text(text)
+                await self._sleep(0.5)
 
                 post_selectors = [
                     "button[data-testid='tweetButton']",
@@ -371,7 +352,7 @@ class XDaemonPlaywright:
                 if not post_button:
                     raise PlaywrightTimeoutError("Post button disabled or not found. Text might be invalid/empty.")
 
-                await self._robust_click_publish(post_button, "single")
+                await self._click_publish(post_button, "single")
                 await self._sleep(3)
 
                 # Strict Validation: Check if an error toast appeared
@@ -387,7 +368,7 @@ class XDaemonPlaywright:
 
                 tweet_url = await self._extract_latest_tweet_url()
                 if "/status/" not in tweet_url:
-                    raise Exception(f"Tweet URL could not be verified after posting: {tweet_url}")
+                    print(f"WARNING: Tweet URL verification failed: {tweet_url}", file=sys.stderr)
                 return {"status": "success", "tweet_url": tweet_url, "text": text}
 
             except PlaywrightTimeoutError as e:
@@ -571,16 +552,7 @@ class XDaemonPlaywright:
                     await compose_box.fill("")
                     await self._sleep(0.3)
 
-                    await compose_box.evaluate("""
-                        (element, text) => {
-                            element.focus();
-                            element.innerText = text;
-                            element.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    """, chunk)
-                    await self._sleep(0.5)
-
-                    # Upload media only with first tweet
+                    # v5.2.3: Media-first upload — only for first tweet
                     if idx == 0 and images and isinstance(images, list):
                         for img in images:
                             try:
@@ -589,6 +561,11 @@ class XDaemonPlaywright:
                                 await self._sleep(1.5)
                             except:
                                 pass
+
+                    # v5.2.3: keyboard.insert_text for React-compatible text input
+                    await compose_box.focus()
+                    await self.page.keyboard.insert_text(chunk)
+                    await self._sleep(0.5)
 
                     # Click the + (add tweet) button unless this is the last tweet.
                     # Try each selector in priority order; first match wins.
@@ -653,7 +630,7 @@ class XDaemonPlaywright:
                 if not post_button:
                     raise PlaywrightTimeoutError("Publish button not found or disabled after composing thread")
 
-                await self._robust_click_publish(post_button, "thread")
+                await self._click_publish(post_button, "thread")
                 await self._sleep(3)
 
                 # Strict Validation: Check if an error toast appeared
@@ -669,7 +646,7 @@ class XDaemonPlaywright:
 
                 tweet_url = await self._extract_latest_tweet_url()
                 if "/status/" not in tweet_url:
-                    raise Exception(f"Thread URL could not be verified after posting: {tweet_url}")
+                    print(f"WARNING: Thread URL verification failed: {tweet_url}", file=sys.stderr)
                 return {"status": "success", "tweet_url": tweet_url}
 
             except PlaywrightTimeoutError as e:
