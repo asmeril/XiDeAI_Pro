@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace XiDeAI_Pro.Services
@@ -12,8 +14,8 @@ namespace XiDeAI_Pro.Services
     public class LogFileWatcher
     {
         private FileSystemWatcher? _dbWatcher;
-        private long _dbLastPosition = 0;
         private readonly object _dbLock = new object();
+        private readonly HashSet<string> _seenSignalKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public event Action<string, string>? OnSignalDetected; // line, "ALPHA"|"PREMOVE"
         public event Action<string>? OnLog;
@@ -33,10 +35,7 @@ namespace XiDeAI_Pro.Services
                 return;
             }
 
-            lock (_dbLock)
-            {
-                _dbLastPosition = new FileInfo(DbPath).Length;
-            }
+            LoadSeenKeys(DbPath);
 
             string dir = Path.GetDirectoryName(DbPath)!;
             string file = Path.GetFileName(DbPath);
@@ -61,30 +60,17 @@ namespace XiDeAI_Pro.Services
                     System.Threading.Thread.Sleep(500); // Kısa debounce
                     lock (_dbLock)
                     {
-                        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        if (fs.Length <= _dbLastPosition) return;
-
-                        fs.Seek(_dbLastPosition, SeekOrigin.Begin);
-                        using var sr = new StreamReader(fs);
-                        string? line;
-                        while ((line = sr.ReadLine()) != null)
+                        foreach (var line in ReadStableLines(path))
                         {
-                            if (!string.IsNullOrWhiteSpace(line))
+                            if (TryBuildSignalKey(line, out var key, out var strategy))
                             {
-                                var parts = line.Split('|');
-                                if (parts.Length >= 2)
+                                if (_seenSignalKeys.Add(key))
                                 {
-                                    string strategy = parts[1].Trim().ToUpperInvariant();
-                                    // source olarak strateji adını gönder: "ALPHA" veya "PREMOVE"
-                                    if (strategy == "ALPHA" || strategy == "PREMOVE")
-                                    {
-                                        OnLog?.Invoke($"📄 DB Sinyal: {line}");
-                                        OnSignalDetected?.Invoke(line, strategy);
-                                    }
+                                    OnLog?.Invoke($"📄 DB Sinyal: {line}");
+                                    OnSignalDetected?.Invoke(line, strategy);
                                 }
                             }
                         }
-                        _dbLastPosition = fs.Position;
                     }
                 }
                 catch (Exception ex)
@@ -92,6 +78,71 @@ namespace XiDeAI_Pro.Services
                     OnLog?.Invoke($"❌ DB Dosya Okuma Hatası: {ex.Message}");
                 }
             });
+        }
+
+        private void LoadSeenKeys(string path)
+        {
+            lock (_dbLock)
+            {
+                _seenSignalKeys.Clear();
+                foreach (var line in ReadStableLines(path))
+                {
+                    if (TryBuildSignalKey(line, out var key, out _))
+                        _seenSignalKeys.Add(key);
+                }
+            }
+        }
+
+        private static List<string> ReadStableLines(string path)
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var sr = new StreamReader(fs);
+                    return sr.ReadToEnd()
+                        .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList();
+                }
+                catch when (attempt < 2)
+                {
+                    System.Threading.Thread.Sleep(250);
+                }
+                catch
+                {
+                    return new List<string>();
+                }
+            }
+
+            return new List<string>();
+        }
+
+        private static bool TryBuildSignalKey(string line, out string key, out string strategy)
+        {
+            key = string.Empty;
+            strategy = string.Empty;
+            var parts = line.Split('|');
+            if (parts.Length < 6) return false;
+            if (parts[0].Trim().Equals("Sembol", StringComparison.OrdinalIgnoreCase)) return false;
+
+            string symbol = SymbolNormalizer.NormalizeSignalSymbol(parts[0]);
+            if (!SymbolNormalizer.IsKnownBistSymbol(symbol)) return false;
+
+            strategy = parts[1].Trim().ToUpperInvariant();
+            if (strategy != "ALPHA" && strategy != "PREMOVE") return false;
+
+            string period = parts[2].Trim().ToUpperInvariant();
+            if (period == "D") period = "G";
+            string detectedAt = parts[3].Trim();
+            string status = parts[5].Trim().ToUpperInvariant();
+            if (status.Contains("ROKET")) status = "AKTIF";
+            if (status == "KAPALI") return false;
+            if (status != "AKTIF" && status != "PULLBACK_ADAY") return false;
+
+            key = $"{symbol}|{strategy}|{period}|{detectedAt}|{status}";
+            return true;
         }
 
         public void Stop()
@@ -115,4 +166,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

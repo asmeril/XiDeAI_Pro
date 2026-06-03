@@ -23,6 +23,7 @@ import time
 import json
 from datetime import datetime, timedelta
 import threading
+import re
 
 # Try to use webdriver-manager for automatic driver management
 try:
@@ -53,6 +54,19 @@ def wait_for_chart(driver, timeout=30):
         print(f"Warning: Chart canvas not ready after {timeout}s - {e}")
         return False
 
+def normalize_symbol(symbol):
+    if not symbol:
+        return ""
+    raw = symbol.strip().upper().replace("'", "").replace('"', "").replace("`", "")
+    if ":" in raw:
+        prefix, rest = raw.split(":", 1)
+        return f"{prefix}:{normalize_symbol(rest)}"
+    while raw.startswith("VIPVIP-"):
+        raw = "VIP-" + raw[len("VIPVIP-"):]
+    if raw.startswith("VIP-"):
+        raw = raw[4:]
+    return re.sub(r"[^A-Z0-9!._-]", "", raw)
+
 
 def get_ohlc_data(symbol, interval='1d'):
     """
@@ -66,7 +80,7 @@ def get_ohlc_data(symbol, interval='1d'):
     
     try:
         # Convert symbol format for yfinance
-        ticker = symbol
+        ticker = normalize_symbol(symbol)
         if ':' in ticker:
             ticker = ticker.split(':')[1]  # BIST:THYAO -> THYAO
         
@@ -285,7 +299,7 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
     tv_period = period_map.get(period, "60")
     
     # Build URL based on symbol format
-    tv_symbol = symbol.upper()
+    tv_symbol = normalize_symbol(symbol)
     
     if ":" in tv_symbol:
         pass
@@ -581,7 +595,7 @@ if __name__ == "__main__":
         print("Kullanım: python screenshot.py SEMBOL [PERIYOT] [OUTPUT_DIR] [CHART_ID] [CHROMEDRIVER_PATH]")
         sys.exit(1)
     
-    symbol = sys.argv[1].upper()
+    symbol = normalize_symbol(sys.argv[1])
     period = sys.argv[2] if len(sys.argv) > 2 else "60"
     output_dir = sys.argv[3] if len(sys.argv) > 3 else "screenshots"
     chart_id = sys.argv[4] if len(sys.argv) > 4 else "GDHgGCEv"

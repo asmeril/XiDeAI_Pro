@@ -90,6 +90,38 @@ class XDaemonPlaywright:
     async def _sleep(self, seconds):
         await asyncio.sleep(seconds * self.delay_factor)
 
+    async def _robust_click_publish(self, button, label="publish"):
+        try:
+            await self.page.keyboard.press("Escape")
+            await self._sleep(0.4)
+        except Exception:
+            pass
+
+        try:
+            await button.scroll_into_view_if_needed(timeout=3000)
+        except Exception:
+            pass
+
+        try:
+            await button.click(timeout=5000)
+            return
+        except Exception as first_error:
+            try:
+                await self._sleep(0.8)
+                await button.click(timeout=5000, force=True)
+                return
+            except Exception as second_error:
+                try:
+                    await button.evaluate("el => el.click()")
+                    return
+                except Exception as js_error:
+                    try:
+                        shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
+                        await self.page.screenshot(path=shot, full_page=True)
+                    except Exception:
+                        shot = ""
+                    raise Exception(f"Publish click failed: {first_error} | force: {second_error} | js: {js_error} | screenshot={shot}")
+
     async def start(self):
         self.playwright = await async_playwright().start()
         # Fast initialization
@@ -339,7 +371,7 @@ class XDaemonPlaywright:
                 if not post_button:
                     raise PlaywrightTimeoutError("Post button disabled or not found. Text might be invalid/empty.")
 
-                await post_button.click(timeout=4000)
+                await self._robust_click_publish(post_button, "single")
                 await self._sleep(3)
 
                 # Strict Validation: Check if an error toast appeared
@@ -621,7 +653,7 @@ class XDaemonPlaywright:
                 if not post_button:
                     raise PlaywrightTimeoutError("Publish button not found or disabled after composing thread")
 
-                await post_button.click(timeout=4000)
+                await self._robust_click_publish(post_button, "thread")
                 await self._sleep(3)
 
                 # Strict Validation: Check if an error toast appeared

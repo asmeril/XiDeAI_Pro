@@ -58,24 +58,14 @@ namespace XiDeAI_Pro.Services.AI
                 LastError = null;
                 var url = $"{_uri}/chat/completions";
                 
-                // v5.1.7: Qwen3.6 /no_think'e rağmen reasoning_content'e düşünme yazıyor.
-                // 4096 token tümüyle reasoning'e gidiyor → content boş kalıyor.
-                // 16K token ile reasoning sızıntısına rağmen content için yeterli alan kalır.
-                int effectiveMaxTokens = Math.Max(maxTokens, 16384);
+                // Reasoning modelleri /no_think'i yok sayarsa 16K token sadece uzun bekleme üretir.
+                // Düşünme kapatma parametrelerini gönder, yine de content boşsa başarısız say.
+                int effectiveMaxTokens = Math.Clamp(maxTokens, 800, 4096);
                 
                 // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
                 // LM Studio ignores the `thinking.budget_tokens` parameter, so this is the only
                 // reliable way to prevent the model from consuming all tokens on reasoning.
-                var requestBody = new
-                {
-                    model = _modelName,
-                    messages = new[]
-                    {
-                        new { role = "user", content = "/no_think\n" + prompt }
-                    },
-                    max_tokens = effectiveMaxTokens,
-                    temperature = 0.2
-                };
+                var requestBody = BuildRequestBody("/no_think\n" + prompt, effectiveMaxTokens);
 
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -99,10 +89,18 @@ namespace XiDeAI_Pro.Services.AI
                     // v5.1.3: finish_reason=length → token limiti aşıldı, uyar
                     if (choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length")
                     {
-                        _logger("⚠️ [LMStudio] finish_reason=length — model token limitini aşarak kesildi. İçerik eksik olabilir.");
+                        _logger("⚠️ [LMStudio] finish_reason=length — response publishable değil, fallback tetiklenecek.");
                         LastError = "LMStudio: finish_reason=length (token limit exceeded)";
+                        return null;
                     }
-                    return ExtractContentFromChoice(choice);
+                    var extracted = ExtractContentFromChoice(choice);
+                    if (string.IsNullOrWhiteSpace(extracted))
+                    {
+                        LastError = HasReasoningContent(choice) ? "LMStudio: empty content; model only returned reasoning_content" : "LMStudio: empty content";
+                        _logger($"⚠️ {LastError}");
+                        return null;
+                    }
+                    return extracted;
                 }
 
                 LastError = "LMStudio returned an empty response (no choices)";
@@ -171,28 +169,8 @@ namespace XiDeAI_Pro.Services.AI
 
                 var url = $"{_uri}/chat/completions";
 
-                // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
-                // LM Studio ignores budget_tokens; /no_think is the only reliable suppression.
-                // Also raise max_tokens to 8192 minimum so output tokens aren't starved.
-                int effectiveMaxTokens = Math.Max(maxTokens, 8192);
-                var requestBody = new
-                {
-                    model = _modelName,
-                    messages = new[]
-                    {
-                        new
-                        {
-                            role = "user",
-                            content = new object[]
-                            {
-                                new { type = "text", text = "/no_think\n" + prompt },
-                                new { type = "image_url", image_url = new { url = $"data:{mimeType};base64,{base64Image}" } }
-                            }
-                        }
-                    },
-                    max_tokens = effectiveMaxTokens,
-                    temperature = 0.2
-                };
+                int effectiveMaxTokens = Math.Clamp(maxTokens, 1200, 4096);
+                var requestBody = BuildVisionRequestBody("/no_think\n" + prompt, $"data:{mimeType};base64,{base64Image}", effectiveMaxTokens);
                 _logger($"🧠 [LMStudio Vision] max_tokens={effectiveMaxTokens}, /no_think aktif");
 
                 var json = JsonSerializer.Serialize(requestBody);
@@ -216,10 +194,18 @@ namespace XiDeAI_Pro.Services.AI
                     var choice = choices[0];
                     if (choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length")
                     {
-                        _logger("⚠️ [LMStudio Vision] finish_reason=length — token limiti aşıldı.");
+                        _logger("⚠️ [LMStudio Vision] finish_reason=length — response publishable değil, fallback tetiklenecek.");
                         LastError = "LMStudio Vision: finish_reason=length (token limit exceeded)";
+                        return null;
                     }
-                    return ExtractContentFromChoice(choice);
+                    var extracted = ExtractContentFromChoice(choice);
+                    if (string.IsNullOrWhiteSpace(extracted))
+                    {
+                        LastError = HasReasoningContent(choice) ? "LMStudio Vision: empty content; model only returned reasoning_content" : "LMStudio Vision: empty content";
+                        _logger($"⚠️ {LastError}");
+                        return null;
+                    }
+                    return extracted;
                 }
 
                 LastError = "LMStudio Vision returned empty response";
@@ -232,6 +218,45 @@ namespace XiDeAI_Pro.Services.AI
                 _logger($"❌ {LastError}");
                 return null;
             }
+        }
+
+        private object BuildRequestBody(string prompt, int maxTokens)
+        {
+            return new
+            {
+                model = _modelName,
+                messages = new[] { new { role = "user", content = prompt } },
+                max_tokens = maxTokens,
+                temperature = 0.2,
+                enable_thinking = false,
+                reasoning_effort = "none",
+                chat_template_kwargs = new { enable_thinking = false }
+            };
+        }
+
+        private object BuildVisionRequestBody(string prompt, string imageUrl, int maxTokens)
+        {
+            return new
+            {
+                model = _modelName,
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "text", text = prompt },
+                            new { type = "image_url", image_url = new { url = imageUrl } }
+                        }
+                    }
+                },
+                max_tokens = maxTokens,
+                temperature = 0.2,
+                enable_thinking = false,
+                reasoning_effort = "none",
+                chat_template_kwargs = new { enable_thinking = false }
+            };
         }
 
         /// <summary>
@@ -270,33 +295,14 @@ namespace XiDeAI_Pro.Services.AI
                     }
                 }
 
-                // v5.1.7: reasoning_content AKILLI KURTARMA.
-                // Qwen3.6 /no_think'e rağmen reasoning_content'e hem düşünce hem çıktı yazıyor.
-                // content boşsa, reasoning_content'ten <think>...</think> bloklarını soyup
-                // geriye kalan yararlı metni çıkarıyoruz. Eğer sadece düşünce varsa null döner.
+                // reasoning_content publishable değildir. Content boşsa fallback tetiklenmeli.
                 if (messageElement.TryGetProperty("reasoning_content", out var reasoningElement)
                     && reasoningElement.ValueKind == JsonValueKind.String)
                 {
                     var reasoning = reasoningElement.GetString();
                     if (!string.IsNullOrWhiteSpace(reasoning))
                     {
-                        // <think>...</think> bloklarını soy
-                        string salvaged = System.Text.RegularExpressions.Regex.Replace(
-                            reasoning, @"<think>[\s\S]*?</think>", "", 
-                            System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
-                        
-                        // Eğer think bloğu kapatılmadan kaldıysa (token bitti), <think> sonrasını da sil
-                        int openThinkIdx = salvaged.IndexOf("<think>", StringComparison.OrdinalIgnoreCase);
-                        if (openThinkIdx >= 0)
-                            salvaged = salvaged.Substring(0, openThinkIdx).Trim();
-                        
-                        if (!string.IsNullOrWhiteSpace(salvaged) && salvaged.Length > 50)
-                        {
-                            _logger($"🔧 [LMStudio] content boş → reasoning_content'ten {salvaged.Length} karakter kurtarıldı.");
-                            return salvaged;
-                        }
-                        
-                        _logger("⚠️ [LMStudio] content boş, reasoning_content sadece düşünce içeriyor. Null döndürülüyor.");
+                        _logger($"⚠️ [LMStudio] reasoning_content geldi ({reasoning.Length} chars) ama content boş; publish edilmeyecek.");
                         return null;
                     }
                 }
@@ -309,6 +315,14 @@ namespace XiDeAI_Pro.Services.AI
             }
 
             return null;
+        }
+
+        private static bool HasReasoningContent(JsonElement choice)
+        {
+            return choice.TryGetProperty("message", out var messageElement)
+                && messageElement.TryGetProperty("reasoning_content", out var reasoningElement)
+                && reasoningElement.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(reasoningElement.GetString());
         }
 
         public bool IsAvailable()

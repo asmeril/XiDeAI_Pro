@@ -694,18 +694,58 @@ def parse_follower_text(text):
     """Parse follower count text like '5.2K', '120K', '1.5M' to integer."""
     if not text:
         return 0
-    text = text.strip().replace(",", "").replace(" ", "")
+    text = text.strip().replace(" ", "")
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
     try:
-        if "B" in text.upper():
-            return int(float(text.upper().replace("B", "")) * 1_000_000_000)
-        elif "M" in text.upper():
-            return int(float(text.upper().replace("M", "")) * 1_000_000)
-        elif "K" in text.upper():
+        upper = text.upper()
+        match = re.search(r"(\d+(?:\.\d+)?)(MN|[BMK])?", upper)
+        if match:
+            value = float(match.group(1))
+            suffix = match.group(2) or ""
+            if suffix == "MN" or suffix == "M":
+                return int(value * 1_000_000)
+            if suffix == "B" or suffix == "K":
+                return int(value * 1_000)
+            return int(value)
+        if "MN" in upper:
+            return int(float(upper.replace("MN", "")) * 1_000_000)
+        elif "B" in upper:
+            # Turkish X UI: B = bin (thousand), not billion.
+            return int(float(upper.replace("B", "")) * 1_000)
+        elif "M" in upper:
+            return int(float(upper.replace("M", "")) * 1_000_000)
+        elif "K" in upper:
             return int(float(text.upper().replace("K", "")) * 1_000)
         else:
             return int(float(text))
     except:
         return 0
+
+def normalize_status_url(url):
+    if not url:
+        return ""
+    url = url.split("?")[0]
+    m = re.search(r"https?://(?:twitter|x)\.com/([^/]+)/status/(\d+)", url)
+    if not m:
+        return url.rstrip("/")
+    return f"https://x.com/{m.group(1)}/status/{m.group(2)}"
+
+def is_own_handle(handle):
+    current = (os.environ.get("X_USER") or "").strip().lstrip("@").lower()
+    candidate = (handle or "").strip().lstrip("@").lower()
+    return bool(current and candidate and current == candidate)
+
+def looks_like_generated_bot_content(text):
+    lower = (text or "").lower()
+    markers = [
+        "piyasa görüşleri",
+        "teknik analizim",
+        "yatırım tavsiyesi değildir",
+        "xideai",
+        "thread tamamlandı"
+    ]
+    return any(marker in lower for marker in markers)
 
 def find_influencer_posts(query, market, limit=10, since_date=None, until_date=None):
     """Search influencer posts either via VIP timelines or global search"""
@@ -792,13 +832,7 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
                     page_text = driver.find_element(By.TAG_NAME, "body").text
                     if "This account doesn't exist" in page_text or "Böyle bir hesap yok" in page_text or "Account suspended" in page_text:
                         print(f"⚠️ Account @{handle_clean} is dead!", file=sys.stderr)
-                        results.append({
-                            "author": "ERROR_404",
-                            "content": "ACC_NOT_FOUND",
-                            "url": timeline_url,
-                            "relevance_score": 999
-                        })
-                        break # Skip this handle but send marker
+                        continue
 
 
                 except: pass
@@ -821,6 +855,7 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
                 def parse_visible_tweets(round_idx):
                     nonlocal oldest_tweet_date
                     parsed = []
+                    seen_round_urls = {normalize_status_url(r.get("url", "")) for r in results if r.get("url")}
                     tweets = driver.find_elements(By.TAG_NAME, "article")
                     log_debug(f"Round {round_idx}: Found {len(tweets)} article elements")
                     
@@ -871,10 +906,13 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
                             except Exception:
                                 # Some ads or blocked tweets don't have status links
                                 pass
-                            
+                            url = normalize_status_url(url)
+
                             # Skip if already seen (by URL)
-                            if url and any(r.get("url") == url for r in results):
+                            if url and url in seen_round_urls:
                                 continue
+                            if url:
+                                seen_round_urls.add(url)
                             
                             # 4. Time
                             time_str = ""
@@ -901,6 +939,10 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
                                             original_author = "@" + href.split("/")[-1]
                                             break
                             except: pass
+
+                            if is_own_handle(tweet_author) or is_own_handle(original_author) or looks_like_generated_bot_content(text):
+                                log_debug(f"  Tweet {idx}: SKIPPED (own/generated content)")
+                                continue
 
 
                             # 7. Engagement
@@ -983,9 +1025,11 @@ def find_influencer_tweets_from_timeline(vip_handles, symbol_query, market, limi
                     unique_results = []
                     seen_urls = set()
                     for r in results:
-                        if r['url'] not in seen_urls:
+                        norm_url = normalize_status_url(r.get('url', ''))
+                        if norm_url and norm_url not in seen_urls:
+                            r['url'] = norm_url
                             unique_results.append(r)
-                            seen_urls.add(r['url'])
+                            seen_urls.add(norm_url)
                     results = unique_results
                 
                 log_debug(f"--- END SCAN FOR {handle} : Total {len(results)} collected ---")
@@ -1044,6 +1088,7 @@ def search_influencer_feed(query, symbol_hint):
         if not articles:
             articles = driver.find_elements(By.TAG_NAME, "article")
         symbol_upper = (symbol_hint or "").upper()
+        seen_urls = set()
         for art in articles[:10]:
             try:
                 text = ""
@@ -1119,6 +1164,8 @@ def search_influencer_feed(query, symbol_hint):
 
                 if not handle or handle == "@":
                     continue  # Handle parse edilemedi → bu tweet'i atla, X-User kirliliği oluşturma
+                if is_own_handle(handle) or looks_like_generated_bot_content(text):
+                    continue
                 
                 url = ""
                 time_str = ""
@@ -1129,6 +1176,10 @@ def search_influencer_feed(query, symbol_hint):
                 except Exception:
                     url = "https://x.com"
                     time_str = datetime.now(timezone.utc).isoformat()
+                url = normalize_status_url(url)
+                if not url or url == "https://x.com" or url in seen_urls:
+                    continue
+                seen_urls.add(url)
 
                 img_url = None
                 try:

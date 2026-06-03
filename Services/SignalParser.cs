@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace XiDeAI_Pro.Services
 {
@@ -80,22 +81,32 @@ namespace XiDeAI_Pro.Services
             if (string.IsNullOrEmpty(line)) return results;
 
             var parts = line.Split('|');
-            if (parts.Length < 5) return results;
+            if (parts.Length < 6) return results;
 
             try
             {
-                string symbol = parts[0].Trim();
+                if (parts[0].Trim().Equals("Sembol", StringComparison.OrdinalIgnoreCase)) return results;
+
+                string symbol = SymbolNormalizer.NormalizeSignalSymbol(parts[0]);
+                if (!SymbolNormalizer.IsKnownBistSymbol(symbol)) return results;
+
                 string strategy = strategyOverride.Length > 0 ? strategyOverride : parts[1].Trim().ToUpperInvariant();
-                string period = parts[2].Trim();
+                if (strategy != "ALPHA" && strategy != "PREMOVE") return results;
+
+                string period = parts[2].Trim().ToUpperInvariant();
+                if (period == "D") period = "G";
                 string rawDurum = parts.Length >= 6 ? parts[5].Trim().ToUpperInvariant() : "AKTIF";
                 bool isRoket = rawDurum.Contains("ROKET");
                 string durum = isRoket ? "AKTIF" : rawDurum;
+                if (durum == "KAPALI") return results;
+                if (durum != "AKTIF" && durum != "PULLBACK_ADAY") return results;
 
                 decimal price = 0;
                 decimal.TryParse(parts[4].Trim().Replace(",", "."),
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture,
+                    NumberStyles.Any,
+                    CultureInfo.InvariantCulture,
                     out price);
+                if (price <= 0) return results;
 
                 DateTime detectedAt = DateTime.Now;
                 if (parts.Length >= 4)

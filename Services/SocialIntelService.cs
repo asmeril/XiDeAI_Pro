@@ -1702,6 +1702,8 @@ namespace XiDeAI_Pro.Services
                                         string? imageUrl = item.TryGetProperty("imageUrl", out var img) && img.ValueKind == JsonValueKind.String ? img.GetString() : null;
                                         int engagement = item.TryGetProperty("engagement", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetInt32() : 0;
                                         
+                                        if (IsBadSocialResult(author, content, url)) continue;
+
                                         // v5.1.8: Allow short text if it contains an image (e.g., 'Efe HMA')
                                         if ((string.IsNullOrWhiteSpace(content) || content.Length < 10) && string.IsNullOrEmpty(imageUrl)) continue;
                                         
@@ -1770,7 +1772,8 @@ namespace XiDeAI_Pro.Services
                 
                 // Deep scans (sinceDate != null) need more time
                 int timeout = string.IsNullOrEmpty(sinceDate) ? 90 : 1200; 
-                string json = await RunPythonScript(args, null, null, timeout);
+                var cfg = ConfigManager.Current;
+                string json = await RunPythonScript(args, cfg.XLoginUser, cfg.XLoginPass, timeout);
 
                 using var doc = JsonDocument.Parse(json);
                 JsonElement data;
@@ -1805,6 +1808,7 @@ namespace XiDeAI_Pro.Services
                         string author = item.TryGetProperty("author", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() ?? (handle ?? "") : (handle ?? "");
                         string content = item.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() ?? string.Empty : string.Empty;
                         string url = item.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString() ?? string.Empty : string.Empty;
+                        if (IsBadSocialResult(author, content, url)) continue;
                         
                         // Robust integer parsing
                         int engagement = 0;
@@ -1884,6 +1888,20 @@ namespace XiDeAI_Pro.Services
                 // v4.4.1: Record search completion time for rate limiting
                 _lastSearchCompletedUtc = DateTime.UtcNow;
             }
+        }
+
+        private static bool IsBadSocialResult(string author, string content, string url)
+        {
+            string cleanAuthor = (author ?? string.Empty).Trim().TrimStart('@');
+            string currentUser = ConfigManager.Current.XLoginUser?.Trim().TrimStart('@') ?? string.Empty;
+            if (cleanAuthor.Equals("ERROR_404", StringComparison.OrdinalIgnoreCase)) return true;
+            if (!string.IsNullOrEmpty(currentUser) && cleanAuthor.Equals(currentUser, StringComparison.OrdinalIgnoreCase)) return true;
+
+            string lower = (content ?? string.Empty).ToLowerInvariant();
+            if (lower.Contains("acc_not_found")) return true;
+            if (lower.Contains("piyasa görüşleri") || lower.Contains("teknik analizim") || lower.Contains("xideai")) return true;
+            if (string.IsNullOrWhiteSpace(url) || url.TrimEnd('/').Equals("https://x.com", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
         /// <summary>
         /// Get top 10 losers for the day
