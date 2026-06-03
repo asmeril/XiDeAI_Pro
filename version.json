@@ -1,9 +1,9 @@
 {
-    "version": "5.2.2",
-    "build_number": 5220,
-    "lastUpdate": "2026-06-02T12:53:51Z",
+    "version": "5.2.3",
+    "build_number": 5230,
+    "lastUpdate": "2026-06-03T09:16:00Z",
     "changelog": [
-        "v5.2.2: RELEASE: mention fix, engagement score, scan context, IndicatorGuide AI, last tweet CTA",
+        "v5.2.3: RELEASE: LM Studio reasoning suppression, LogFileWatcher snapshot db, SymbolNormalizer integration, SocialIntel filtering, Playwright media-first posting and regex sanitization",
         "v5.2.2: FIX: X-User fallback kaldirildi, cift @@ mention hatasi giderildi, fallback mention opsiyonel yapildi",
         "v5.2.2: AI: Tarama kriteri baglami ve IndicatorGuide promptlara eklendi",
         "v5.2.2: SOCIAL: Fenomen engagement skoru aktif edildi ve son tweet CTA kurali eklendi",

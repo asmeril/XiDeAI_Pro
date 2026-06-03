@@ -2,8 +2,8 @@
 
 **Release Date:** 2026-06-03
 **Version:** 5.2.3
-**Build:** Preflight / source-only stabilization
-**Setup:** Not generated in this Linux environment
+**Build:** Release / Full stabilization
+**Setup:** Generated (XiDeAI_v5.2.3_Setup.exe in Output/)
 
 ---
 
