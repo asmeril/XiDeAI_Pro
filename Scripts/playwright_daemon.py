@@ -710,7 +710,58 @@ class XDaemonPlaywright:
                 return {"status": "error", "message": str(e)}
 
     async def _extract_latest_tweet_url(self) -> str:
-        # 1) Prefer post-success toast links immediately after publish.
+        # Strategy order (XHive-inspired):
+        # 0) Scan current page DOM immediately — fastest, works for both post and reply
+        # 1) Check if page.url already has /status/
+        # 2) Short toast check (2s) — still works on some X versions
+        # 3) Profile fallback with 3 retries — last resort
+
+        def _normalize(href: str) -> str:
+            if href.startswith("https://"):
+                return href
+            if href.startswith("/"):
+                return f"https://x.com{href}"
+            return f"https://x.com/{href}"
+
+        # --- Step 0: Scan current page DOM (no navigation, no waiting) ---
+        dom_selectors = [
+            "article[data-testid='tweet'] a[href*='/status/']",
+            "a[href*='/status/']",
+        ]
+        for selector in dom_selectors:
+            try:
+                links = self.page.locator(selector)
+                count = await links.count()
+                best_url = ""
+                best_id = -1
+                for i in range(min(count, 12)):
+                    href = await links.nth(i).get_attribute("href")
+                    if not href or "/status/" not in href:
+                        continue
+                    url = _normalize(href)
+                    if "photo" in url or "video" in url:
+                        continue
+                    # If we know the profile path, only accept own tweets
+                    if self.profile_path and f"x.com{self.profile_path}/status/" not in url and f"x.com/{self.profile_path.lstrip('/')}/status/" not in url:
+                        continue
+                    m = re.search(r"/status/(\d+)", url)
+                    if not m:
+                        continue
+                    status_id = int(m.group(1))
+                    if status_id > best_id:
+                        best_id = status_id
+                        best_url = url
+                if best_url:
+                    print(f"[playwright_daemon] DOM scan found tweet URL: {best_url}", flush=True)
+                    return best_url
+            except:
+                pass
+
+        # --- Step 1: page.url already is the tweet ---
+        if "/status/" in self.page.url:
+            return self.page.url
+
+        # --- Step 2: Short toast check (2s) ---
         toast_selectors = [
             "div[data-testid='toast'] a[href*='/status/']",
             "div[role='alert'] a[href*='/status/']",
@@ -719,59 +770,59 @@ class XDaemonPlaywright:
             try:
                 links = self.page.locator(selector)
                 try:
-                    await links.first.wait_for(state="attached", timeout=20000)
+                    await links.first.wait_for(state="attached", timeout=2000)
                 except:
                     pass
                 count = await links.count()
                 for i in range(min(count, 3)):
                     href = await links.nth(i).get_attribute("href")
                     if href and "/status/" in href:
-                        return f"https://x.com{href}" if href.startswith("/") else href
+                        return _normalize(href)
             except:
                 pass
 
-        # 2) Fallback to own profile; pick highest status id among own links.
+        # --- Step 3: Profile page fallback with 3 retries ---
         if self.profile_path:
-            try:
-                await self.page.goto(f"https://x.com{self.profile_path}", wait_until="domcontentloaded", timeout=20000)
-                await asyncio.sleep(2.0)
-
-                links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")
+            for retry in range(3):
                 try:
-                    await links.first.wait_for(state="attached", timeout=6000)
+                    wait_secs = 5.0 + retry * 3.0  # 5s, 8s, 11s
+                    await asyncio.sleep(wait_secs)
+                    await self.page.goto(f"https://x.com{self.profile_path}", wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(2.0)
+
+                    links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")
+                    try:
+                        await links.first.wait_for(state="attached", timeout=6000)
+                    except:
+                        pass
+                    count = await links.count()
+                    best_url = ""
+                    best_id = -1
+
+                    for i in range(min(count, 20)):
+                        href = await links.nth(i).get_attribute("href")
+                        if not href or "/status/" not in href:
+                            continue
+                        url = _normalize(href)
+                        if "photo" in url or "video" in url:
+                            continue
+                        m = re.search(r"/status/(\d+)", url)
+                        if not m:
+                            continue
+                        status_id = int(m.group(1))
+                        if status_id > best_id:
+                            best_id = status_id
+                            best_url = url
+
+                    if best_url:
+                        print(f"[playwright_daemon] Profile fallback (retry {retry+1}/3) found: {best_url}", flush=True)
+                        return best_url
+
+                    print(f"[playwright_daemon] Profile fallback retry {retry+1}/3: no status URL found yet.", flush=True)
                 except:
                     pass
-                count = await links.count()
-                best_url = ""
-                best_id = -1
 
-                for i in range(min(count, 20)):
-                    href = await links.nth(i).get_attribute("href")
-                    if not href or "/status/" not in href:
-                        continue
-
-                    if self.profile_path and href.startswith("/") and not href.startswith(self.profile_path + "/status/"):
-                        continue
-
-                    url = f"https://x.com{href}" if href.startswith("/") else href
-                    if "photo" in url or "video" in url:
-                        continue
-
-                    m = re.search(r"/status/(\d+)", url)
-                    if not m:
-                        continue
-
-                    status_id = int(m.group(1))
-                    if status_id > best_id:
-                        best_id = status_id
-                        best_url = url
-
-                if best_url:
-                    return best_url
-            except:
-                pass
-
-        # 3) Last resort: keep current page URL.
+        # --- Last resort: current page URL ---
         return self.page.url
 
     async def execute_post(self, payload):
@@ -860,6 +911,16 @@ class XDaemonPlaywright:
             return first_res
 
         parent_url = first_res.get("tweet_url", "")
+
+        # Safety net: if URL capture missed /status/, try profile page one more time before threading
+        if "/status/" not in parent_url and self.profile_path:
+            print(f"[playwright_daemon] parent_url has no /status/. Retrying profile lookup...", flush=True)
+            recovered_url = await self._extract_latest_tweet_url()
+            if "/status/" in recovered_url:
+                parent_url = recovered_url
+                print(f"[playwright_daemon] Recovered parent_url: {parent_url}", flush=True)
+            else:
+                return {"status": "error", "message": f"Could not determine parent tweet URL for thread chaining. Got: {parent_url}"}
         for i, chunk in enumerate(numbered_chunks[1:], 2):
             await asyncio.sleep(2.0)
             res = await self._post_reply_in_thread(parent_url, chunk)
