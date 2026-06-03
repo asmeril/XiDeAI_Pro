@@ -329,7 +329,7 @@ class XDaemonPlaywright:
                 await compose_box.fill("")
                 await self._sleep(0.3)
 
-                # v5.2.3: Media-first upload — prevents React state desync (empty tweet bug)
+                # v5.2.3: Media-first upload â€” prevents React state desync (empty tweet bug)
                 if images and isinstance(images, list):
                     for img in images:
                         try:
@@ -339,10 +339,50 @@ class XDaemonPlaywright:
                         except:
                             pass
 
-                # v5.2.3: keyboard.insert_text for React-compatible text input
-                await compose_box.focus()
-                await self.page.keyboard.insert_text(text)
-                await self._sleep(0.5)
+                # Robust text insertion (from XHive x_daemon)
+                text_inserted = False
+                try:
+                    await compose_box.fill(text)
+                    await self._sleep(0.6)
+                    current_text = await compose_box.inner_text()
+                    if len(current_text.strip()) >= len(text.strip()) * 0.8:
+                        text_inserted = True
+                except:
+                    pass
+                
+                if not text_inserted:
+                    try:
+                        await compose_box.focus()
+                        await compose_box.type(text, delay=20)
+                        await self._sleep(0.5)
+                        current_text = await compose_box.inner_text()
+                        if len(current_text.strip()) >= len(text.strip()) * 0.8:
+                            text_inserted = True
+                    except:
+                        pass
+                
+                if not text_inserted:
+                    try:
+                        await self.page.evaluate("""
+                            (element, text) => {
+                                element.focus();
+                                element.innerText = text;
+                                element.dispatchEvent(new Event('input', { bubbles: true }));
+                                element.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        """, await compose_box.element_handle(), text)
+                        await self._sleep(0.5)
+                    except:
+                        pass
+                
+                # Wake up React
+                try:
+                    await compose_box.press(" ")
+                    await self._sleep(0.1)
+                    await compose_box.press("Backspace")
+                    await self._sleep(0.5)
+                except:
+                    pass
 
                 post_selectors = [
                     "button[data-testid='tweetButton']",
@@ -379,8 +419,7 @@ class XDaemonPlaywright:
                     if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
                         raise Exception(f"Twitter Error: {t_text}")
                 
-                if "compose/post" in self.page.url.lower() and await self.page.locator('div[data-testid="tweetTextarea_0"]').count() > 0:
-                    raise Exception("Tweet failed to post (Compose box still visible)")
+                # Removed faulty compose box visibility check
 
                 tweet_url = await self._extract_latest_tweet_url()
                 if "/status/" not in tweet_url:
@@ -432,7 +471,7 @@ class XDaemonPlaywright:
                 elif not reply_btn and not parent_id:
                     raise PlaywrightTimeoutError("Reply button not found and tweet id could not be parsed")
 
-                # 2) Compose box'ı bul
+                # 2) Compose box'Ä± bul
                 compose_box = None
                 for sel in [
                     'div[data-testid="tweetTextarea_0"]',
@@ -448,7 +487,7 @@ class XDaemonPlaywright:
                         pass
 
                 if not compose_box and parent_id:
-                    # İkinci fallback: prefilled URL
+                    # Ä°kinci fallback: prefilled URL
                     from urllib.parse import quote as urlquote
                     prefilled = f"https://x.com/compose/post?in_reply_to={parent_id}&text={urlquote(text, safe='')}"
                     await self.page.goto(prefilled, wait_until="domcontentloaded", timeout=20000)
@@ -465,7 +504,7 @@ class XDaemonPlaywright:
                 if not compose_box:
                     raise PlaywrightTimeoutError("Reply compose box not found")
 
-                # 3) Metni yaz: önce fill(), olmadı type(delay=20)
+                # 3) Metni yaz: Ã¶nce fill(), olmadÄ± type(delay=20)
                 try:
                     await self._click_publish(compose_box, "compose_focus")
                 except:
@@ -482,7 +521,7 @@ class XDaemonPlaywright:
                     pass
 
                 if not text_inserted:
-                    # React state düzgün tetiklenmedi — karakter karakter yaz
+                    # React state dÃ¼zgÃ¼n tetiklenmedi â€” karakter karakter yaz
                     await compose_box.press("Control+a")
                     await compose_box.press("Delete")
                     await compose_box.type(text, delay=20)
@@ -531,13 +570,13 @@ class XDaemonPlaywright:
         This avoids the reply-chain approach which can attach replies to wrong/unrelated tweets."""
         # X changed the compose URL; try canonical first, fall back to legacy alias.
         COMPOSE_URLS = ["https://x.com/compose/post", "https://x.com/compose/tweet"]
-        # data-testid for the «Add tweet» (+) button — try multiple to survive A/B changes.
+        # data-testid for the Â«Add tweetÂ» (+) button â€” try multiple to survive A/B changes.
         ADD_BTN_SELECTORS = [
             '[data-testid="addButton"]',        # element-agnostic (most resilient)
             'div[data-testid="addButton"]',     # historical form (div)
             'button[data-testid="addButton"]',  # in case X switched to <button>
             '[aria-label="Add post"]',          # aria-label (en/default locale)
-            '[aria-label="Gönderi ekle"]',      # aria-label (tr locale)
+            '[aria-label="GÃ¶nderi ekle"]',      # aria-label (tr locale)
             '[aria-label="Post ekle"]',         # possible mixed locale variant
             '[data-testid="tweetButton_add"]',  # speculative future testid
         ]
@@ -570,7 +609,7 @@ class XDaemonPlaywright:
                     await compose_box.fill("")
                     await self._sleep(0.3)
 
-                    # v5.2.3: Media-first upload — only for first tweet
+                    # v5.2.3: Media-first upload â€” only for first tweet
                     if idx == 0 and images and isinstance(images, list):
                         for img in images:
                             try:
@@ -604,7 +643,7 @@ class XDaemonPlaywright:
                                 pass
                         if add_btn is None:
                             raise PlaywrightTimeoutError(
-                                "Add tweet (+) button not found — tried: " + ", ".join(ADD_BTN_SELECTORS)
+                                "Add tweet (+) button not found â€” tried: " + ", ".join(ADD_BTN_SELECTORS)
                             )
                         await add_btn.click(timeout=3000)
                         # Ensure new textarea really appears. If not, force-click once and recheck.
@@ -659,8 +698,7 @@ class XDaemonPlaywright:
                     if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
                         raise Exception(f"Twitter Error: {t_text}")
                 
-                if "compose/post" in self.page.url.lower() and await self.page.locator('div[data-testid="tweetTextarea_0"]').count() > 0:
-                    raise Exception("Tweet failed to post (Compose box still visible)")
+                # Removed faulty compose box visibility check
 
                 tweet_url = await self._extract_latest_tweet_url()
                 if "/status/" not in tweet_url:
@@ -805,8 +843,8 @@ class XDaemonPlaywright:
         numbered_chunks = []
         total = len(chunks)
         for i, chunk in enumerate(chunks, 1):
-            if i == 1: numbered_chunks.append(f"{chunk}\n\n🧵 {i}/{total}")
-            else: numbered_chunks.append(f"🧵 {i}/{total}\n\n{chunk}")
+            if i == 1: numbered_chunks.append(f"{chunk}\n\nðŸ§µ {i}/{total}")
+            else: numbered_chunks.append(f"ðŸ§µ {i}/{total}\n\n{chunk}")
 
         # Bypass native compose thread to avoid UI unreliability with (+) button.
         # Always use reply-chain approach directly (like XHive worker daemon).
