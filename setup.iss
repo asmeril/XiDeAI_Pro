@@ -1,7 +1,7 @@
 ; X'iDeAI Installer Script
 
 #define MyAppName "XiDeAI Pro"
-#define MyAppVersion "5.2.7"
+#define MyAppVersion "5.2.8"
 #define MyAppPublisher "iDeAI Labs"
 #define MyAppExeName "XiDeAI_Pro.exe"
 

@@ -47,12 +47,12 @@ Set-Location "d:\MEGA\XiDeAI_Pro"
 
 ```powershell
 Set-Location "d:\MEGA\XiDeAI_Pro"
-dotnet publish -c Release -r win-x86 --self-contained false `
-  -o "C:\Program Files (x86)\XiDeAI Pro" /p:PublishSingleFile=false
+dotnet publish -c Release -r win-x86 --self-contained true `
+  /p:PublishSingleFile=true -o "C:\Program Files (x86)\XiDeAI Pro"
 ```
 
-> **NOT:** Bu proje `--self-contained false`, `win-x86`, `PublishSingleFile=false` ile build alıyor.
-> EXE boyutu ~65-69 MB olmalı.
+> **NOT:** Bu proje `--self-contained true`, `win-x86`, `PublishSingleFile=true` ile build alıyor.
+> EXE boyutu ~135-145 MB olmalı (self-contained .NET 8 runtime dahil).
 
 ---
 
