@@ -106,4 +106,15 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 - **`_last_known_tweet_id` baseline filtresi:** `_extract_latest_tweet_url` her post öncesi `min_id` alıyor; bu değerden küçük ya da eşit status ID'li URL'ler skip ediliyor. Eski tweetlerin "yeni tweet" olarak raporlanması (false-positive) engellendi.
 - **DOM-first URL tespiti (XHive pattern):** Toast bekleme (20s → 0s) kaldırıldı. Önce mevcut sayfanın DOM'u taranarak `/status/` linki arandığından çoğu durumda profil sayfasına gidilmesine gerek kalmıyor.
 
+---
+
+## 03 Haziran 2026
+
+### v5.2.7 Release
+
+**Thread Son Tweet Sorunu Giderildi (`playwright_daemon.py`)**
+
+- **Compose-cleared hatası artık retry kapsıyor:** "Compose box still has text after 10s" `Exception` fırlatıyor ve anında fail döndürüyordu. Artık `PlaywrightTimeoutError` olarak fırlatılıyor — 3 deneme hakkı devreye giriyor.
+- **Tüm Exception'lar retry alıyor:** `_post_single_tweet` ve `_post_reply_in_thread`'de genel `except Exception` bloğu artık anında `return error` yerine attempt=3'e kadar retry yapıyor. Bu sayede X'in yavaş tepki verdiği durumlarda (rate limit, geçici gecikme) son tweet kaybolmuyor.
+
 

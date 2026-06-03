@@ -1,4 +1,34 @@
-﻿# XiDeAI Pro - Project Manifest v5.2.6
+﻿# XiDeAI Pro - Project Manifest v5.2.7
+
+**Release Date:** 2026-06-03
+**Version:** 5.2.7
+**Build:** Release / Thread Last-Tweet Fix
+**Setup:** Generated (XiDeAI_v5.2.7_Setup.exe in Output/)
+
+---
+
+## Bu Sürümde Ne Değişti? (v5.2.7)
+
+### 1. Thread Son Tweet Sorunu (10/10 Eksikliği)
+`_post_reply_in_thread`'de "compose box still has text" kontrolü `Exception` fırlatıyordu. Genel `except Exception` bloğu ise attempt sayısına bakmadan anında `return {"status": "error"}` yapıyordu. Sonuç: son tweet hiç retry görmeden başarısız oluyordu.
+
+**Fix:**
+- "Compose box still has text" artık `PlaywrightTimeoutError` olarak fırlatılıyor → `except PlaywrightTimeoutError` bloğu yakaliyor → 3 deneme hakki.
+- Her iki fonksiyonda da (`_post_single_tweet`, `_post_reply_in_thread`) `except Exception` artık `attempt == 3` kontrolü yapıyor.
+
+---
+
+## Değişen Dosyalar
+
+| Dosya | Değişiklik |
+|---|---|
+| `Scripts/playwright_daemon.py` | Compose-cleared exception retry + genel exception retry |
+
+---
+
+## Doğrulama
+- Syntax: `ast.parse()` OK
+- Production kopyalandı: `C:\Program Files (x86)\XiDeAI Pro\Scripts\playwright_daemon.py`
 
 **Release Date:** 2026-06-03
 **Version:** 5.2.6
@@ -82,4 +112,5 @@ Toast bekleme süresi sıfırlandı. Post sonrası önce mevcut sayfanın DOM'u 
 ## Doğrulama
 - `.NET build` 0 Hata / 0 Uyarı ile Windows üzerinde derlendi.
 - `ISCC.exe` ile `Output\XiDeAI_v5.2.4_Setup.exe` kurulum paketi başarıyla paketlendi.
+
 
