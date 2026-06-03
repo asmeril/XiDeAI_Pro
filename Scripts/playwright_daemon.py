@@ -91,20 +91,36 @@ class XDaemonPlaywright:
         await asyncio.sleep(seconds * self.delay_factor)
 
     async def _click_publish(self, button, label="publish"):
-        """Simple click with error screenshot on failure."""
+        """Robust click that handles pointer-intercepting overlays (force & JS fallback)."""
+        try:
+            await self.page.keyboard.press("Escape")
+            await self._sleep(0.3)
+        except Exception:
+            pass
+
         try:
             await button.scroll_into_view_if_needed(timeout=3000)
         except Exception:
             pass
+
         try:
-            await button.click(timeout=4000)
-        except Exception as click_err:
+            await button.click(timeout=3000)
+            return
+        except Exception as first_err:
             try:
-                shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
-                await self.page.screenshot(path=shot, full_page=True)
-            except Exception:
-                shot = ""
-            raise Exception(f"Publish click failed: {click_err} | screenshot={shot}")
+                await button.click(timeout=3000, force=True)
+                return
+            except Exception as second_err:
+                try:
+                    await button.evaluate("el => el.click()")
+                    return
+                except Exception as js_err:
+                    try:
+                        shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
+                        await self.page.screenshot(path=shot, full_page=True)
+                    except Exception:
+                        shot = ""
+                    raise Exception(f"Publish click failed: {first_err} | force: {second_err} | js: {js_err} | screenshot={shot}")
 
     async def start(self):
         self.playwright = await async_playwright().start()
@@ -494,7 +510,7 @@ class XDaemonPlaywright:
                 if not post_btn:
                     raise PlaywrightTimeoutError("Reply button disabled")
 
-                await post_btn.click(timeout=4000)
+                await self._click_publish(post_btn, "reply")
                 await asyncio.sleep(3)
 
                 tweet_url = await self._extract_latest_tweet_url()
