@@ -1,74 +1,124 @@
+﻿---
+description: XiDeAI Pro — Build, Publish, Deploy & Git Workflow
 ---
-description: Build, Publish and Generate Setup for XiDeAI Pro
+
+## 0. Pre-Flight Checklist (ZORUNLU — yayınlamadan önce tik at)
+
+### Kod Kalitesi
+- [ ] Derleme hatası yok: `get_errors` ile tüm değiştirilen dosyalar kontrol edildi
+- [ ] Yeni `.cs` dosyası varsa `PROJECT_INDEX.md` → Services Map tablosuna eklendi
+- [ ] Yeni metot/özellik varsa `PROJECT_INDEX.md` → Key Classes & Methods güncellendi
+
+### iDeal Entegrasyon Kontrolleri
+- [ ] `C:\iDeal\TARAMA_LOG\Market_Status.txt` → format: `datetime|MOD|YON|GunlukDeg%|Score|XU030%|XU050%|XU100_Fiyat|VolKat`
+- [ ] `C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt` → EOD_SNAPSHOT satırı 18:10-18:20 arasında yazılıyor
+- [ ] `C:\iDeal\TARAMA_LOG\Market_Movers.txt` → bugüne ait tarihli, her 30 dk güncelleniyor
+- [ ] `C:\iDeal\SembolListeleri\TeFo.txt` → mevcut (tüm robotlar bu yolu kullanıyor)
+
+### Versiyon Kuralı
+Format: `MAJOR.MINOR.PATCH`
+- Normal güncelleme → sadece PATCH artar: `5.2.7` → `5.2.8`
+- PATCH 9'a ulaşınca → MINOR artar, PATCH sıfırlanır: `5.2.9` → `5.3.0`
+- MINOR ve PATCH **hiçbir zaman çift haneye (10+) çıkmaz**
+- Büyük mimari değişiklik → MAJOR artar: `5.9.9` → `6.0.0`
+
+### Script Kontrolleri
+- [ ] `social_intel.py` → `get_top_gainers/losers` önce `Market_Movers.txt` deniyor, fallback bigpara
+- [ ] `playwright_daemon.py` → `THREAD_EMOJI = "\U0001F9F5"` (mojibake değil)
+- [ ] PromptManager.cs `GetMarketClosePrompt` → `nabizUyarilari` parametresi, encoding bozukluğu yok
+
 ---
-// turbo-all
 
-## 0. Pre-Flight Check (CRITICAL)
-**Yayınlamadan önce KESİNLİKLE kontrol et:**
-1.  **Yeni Dosya Var mı?**
-    - Eğer yeni bir `.cs` (Service/Form) veya `.py` script oluşturduysan, bunu `PROJECT_INDEX.md` -> **Services Map** tablosuna ekle.
-2.  **Yeni Metot/Özellik Var mı?**
-    - `PROJECT_INDEX.md` -> **Key Classes & Methods** bölümünü güncelle.
-3.  **Manifest Güncellemesi:**
-    - `PROJECT_MANIFEST_vX.X.X.md` içinde sürüm notları detaylı mı? Sadece başlık yetmez.
-
-## 1. Update Version & Documentation (Single Command)
-
-> **📌 Sürüm Numarası Kuralı:** Format `MAJOR.MINOR.PATCH`'tir.
-> - Normal güncelleme: sadece `PATCH` artar → `5.0.1` → `5.0.2`
-> - **PATCH 9'a ulaştığında:** `MINOR` artar, `PATCH` 0'a sıfırlanır → `5.0.9` → `5.1.0` (`5.0.10` OLMAZ)
-> - **MINOR 9'a ulaştığında:** `MAJOR` artar, `MINOR` ve `PATCH` sıfırlanır → `5.9.9` → `6.0.0` (`5.10.x` OLMAZ)
-> - Büyük mimari değişikliklerde de: `MAJOR` artar.
-> - ⚠️ **MINOR ve PATCH hiçbir zaman çift haneye (10+) çıkmaz.**
-> - 📌 **Mevcut seri:** `4.10.9` son `4.x` sürümüdür. Bir sonraki sürüm `5.0.0`'dan başlar.
+## 1. Versiyon Güncelle
 
 ```powershell
-.\update-version.ps1 -Version "4.8.0"
+# csproj'u güncelle (release.ps1 yoksa manuel)
+Set-Location "d:\MEGA\XiDeAI_Pro"
+(Get-Content XiDeAI_Pro.csproj -Raw) `
+  -replace '<Version>.*?</Version>', '<Version>NEW_VER</Version>' `
+  -replace '<AssemblyVersion>.*?</AssemblyVersion>', '<AssemblyVersion>NEW_VER.0</AssemblyVersion>' `
+  -replace '<FileVersion>.*?</FileVersion>', '<FileVersion>NEW_VER.0</FileVersion>' |
+  Set-Content XiDeAI_Pro.csproj -Encoding UTF8
 ```
-**Otomatik güncellenenler:**
-- `.csproj` (Version, AssemblyVersion, FileVersion)
-- `setup.iss` (MyAppVersion)
-- `PROJECT_INDEX.md` (Version + Last Updated)
-- `PROJECT_MANIFEST` (Dosya adı + içerik)
-- `PROJECT_DIARY.md` (Yeni versiyon başlığı eklenir)
 
-⚠️ **Manuel:** `PROJECT_DIARY.md`'deki TODO kısmını gerçek release notes ile değiştir.
+---
 
-## 2. Clean & Build (Tek Komut — Önerilen)
+## 2. Build & Deploy (Tek Komut)
+
 ```powershell
-.\release.ps1 -Version "4.X.Y" -Changelog "Değişiklik açıklaması"
+Set-Location "d:\MEGA\XiDeAI_Pro"
+dotnet publish -c Release -r win-x86 --self-contained false `
+  -o "C:\Program Files (x86)\XiDeAI Pro" /p:PublishSingleFile=false
 ```
-`release.ps1` şunları otomatik yapar: temizlik → versiyon güncelleme → publish → Scripts/Config kopyalama → ISCC setup oluşturma → version.json.
 
-> **⚠️ KRİTİK — Bilinen Sorun (Giderildi v4.10.9):**
-> `release.ps1` eski versiyonlarda csproj versiyonunu güncellemek için `[xml]` parser kullanıyordu.
-> Bu, `PublishSingleFile=true` gibi ayarları **sessizce siliyordu** → setup boyutu 64MB yerine 49MB çıkıyordu.
-> **Fix:** `release.ps1` artık `[System.IO.File]::ReadAllText` + string-replace kullanıyor. Bu sorunu bir daha yaşamamalısınız.
+> **NOT:** Bu proje `--self-contained false`, `win-x86`, `PublishSingleFile=false` ile build alıyor.
+> EXE boyutu ~65-69 MB olmalı.
 
-> **⚠️ KRİTİK — `PublishSingleFile` Korunmalı:**
-> `XiDeAI_Pro.csproj` içinde `<PublishSingleFile>true</PublishSingleFile>` her zaman `true` olmalı.
-> Doğru build: `XiDeAI_Pro.exe = ~65.6 MB` (single-file, self-contained)
-> Doğru setup: `XiDeAI_v{VERSION}_Setup.exe = ~64 MB`
-> Eğer setup **49 MB** çıkıyorsa `PublishSingleFile` silinmiş demektir — csproj kontrol et.
+---
 
-## 3. Manuel Build (Adım Adım)
+## 3. Scripts Kopyala
+
 ```powershell
-# 1. Publish
-dotnet publish XiDeAI_Pro.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -o "Dist\publish"
-
-# 2. Scripts & Config kopyala
-Copy-Item -Path "Scripts\*" -Destination "Dist\publish\Scripts" -Recurse -Force
-Copy-Item -Path "Config\*"  -Destination "Dist\publish\Config"  -Recurse -Force
-
-# 3. Setup oluştur
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
+Copy-Item "d:\MEGA\XiDeAI_Pro\Scripts\social_intel.py" `
+  "C:\Program Files (x86)\XiDeAI Pro\Scripts\social_intel.py" -Force
+Copy-Item "d:\MEGA\XiDeAI_Pro\Scripts\playwright_daemon.py" `
+  "C:\Program Files (x86)\XiDeAI Pro\Scripts\playwright_daemon.py" -Force
 ```
+
+---
 
 ## 4. Verify
-```powershell
-# EXE boyutu ~65.6 MB olmalı
-Get-Item "Dist\publish\XiDeAI_Pro.exe" | Select-Object Name, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}
 
-# Setup boyutu ~64 MB olmalı
-Get-Item "Output\XiDeAI_v{VERSION}_Setup.exe" | Select-Object Name, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}
+```powershell
+# EXE timestamp ve boyut
+Get-Item "C:\Program Files (x86)\XiDeAI Pro\XiDeAI_Pro.exe" |
+  Select-Object FullName, LastWriteTime, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}
+
+# Versiyon bilgisi
+(Get-Content "d:\MEGA\XiDeAI_Pro\XiDeAI_Pro.csproj" | Select-String "Version")[0]
 ```
+
+---
+
+## 5. Git Commit & Push
+
+```powershell
+Set-Location "d:\MEGA\XiDeAI_Pro"
+git add .
+git commit -m "feat: vNEW_VER - <degisiklik ozeti>"
+git push origin master
+```
+
+---
+
+## 6. Bilinen Sorunlar & Notlar
+
+| Konu | Durum | Sürüm |
+|---|---|---|
+| Thread emoji mojibake (`Ã°Å¸Â§Âµ`) | ✅ Düzeltildi — `\U0001F9F5` unicode escape | v5.2.6 |
+| `except Exception` → anında return (son tweet gitmiyor) | ✅ Düzeltildi — retry mekanizması | v5.2.7 |
+| Compose-cleared `Exception` değil `PlaywrightTimeoutError` fırlatmalı | ✅ Düzeltildi | v5.2.7 |
+| OperationEngine scheduler'da pulseAnomalies geçilmiyordu | ✅ Düzeltildi — nabizUyarilari | v5.2.8 |
+| TeFo.txt yolu `D:\Projects\...` hardcoded | ✅ Düzeltildi — `C:\iDeal\SembolListeleri\TeFo.txt` | v5.2.8 |
+| Market_Movers.txt NABIZ\ alt klasöründeydi | ✅ Düzeltildi — TARAMA_LOG\ ana klasörü | v5.2.8 |
+| EOD penceresi 18:00-18:15 (veriler tamamlanmamış) | ✅ Düzeltildi — 18:10-18:20 | v5.2.8 |
+| Kapanış verisi thread'de görünmüyordu (sadece internet kaynağı) | ✅ Düzeltildi — iDeal birincil kaynak + EOD_SNAPSHOT | v5.2.8 |
+| Prompt encoding bozukluğu (? karakterleri) | ✅ Düzeltildi — unicode escape | v5.2.8 |
+| "Pulse" ngilizce terim | ✅ Türkçeleştirildi — "Nabız Uyarısı / Anlık Kırılım" | v5.2.8 |
+| Kanca (hook) tweet'i oluşmuyordu | ✅ Düzeltildi — KANCA KURALI prompt bölümü | v5.2.8 |
+
+---
+
+## 7. Kritik Dosya Haritası
+
+| Dosya | Konum | Açıklama |
+|---|---|---|
+| `Market_Status.txt` | `C:\iDeal\TARAMA_LOG\` | Anlık XU100 durumu, her 5 dk |
+| `Market_Pulse_Alarm.txt` | `C:\iDeal\TARAMA_LOG\` | Nabız alarmları + EOD_SNAPSHOT |
+| `Market_Movers.txt` | `C:\iDeal\TARAMA_LOG\` | Yükselen/düşen top 20, her 30 dk |
+| `TeFo.txt` | `C:\iDeal\SembolListeleri\` | Tarama sembol listesi |
+| `playwright_daemon.py` | `Scripts\` | X thread gönderim motoru |
+| `social_intel.py` | `Scripts\` | Piyasa veri çekme + bigpara fallback |
+| `PromptManager.cs` | `Services\` | LLM prompt şablonları |
+| `OperationEngine.cs` | `Services\` | Zamanlayıcı tabanlı operasyonlar |
+| `Robot_XU100_Nabiz_Monitor.txt` | `d:\MEGA\Robots\` | iDeal robot — log dosyalarını üretir |
