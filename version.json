@@ -1,8 +1,9 @@
 {
-    "version": "5.2.3",
-    "build_number": 5230,
-    "lastUpdate": "2026-06-03T09:16:00Z",
+    "version": "5.2.4",
+    "build_number": 5240,
+    "lastUpdate": "2026-06-03T09:58:00Z",
     "changelog": [
+        "v5.2.4: FIX: Restored robust click logic in playwright_daemon.py to prevent pointer intercept failures on replies",
         "v5.2.3: RELEASE: LM Studio reasoning suppression, LogFileWatcher snapshot db, SymbolNormalizer integration, SocialIntel filtering, Playwright media-first posting and regex sanitization",
         "v5.2.2: FIX: X-User fallback kaldirildi, cift @@ mention hatasi giderildi, fallback mention opsiyonel yapildi",
         "v5.2.2: AI: Tarama kriteri baglami ve IndicatorGuide promptlara eklendi",
