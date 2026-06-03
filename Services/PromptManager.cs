@@ -1,4 +1,4 @@
-﻿// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
+// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
 // PURPOSE: Ultimate AI prompt templates ensuring Smart Money protocols and correct context separation.
 
 using System;
@@ -1054,7 +1054,7 @@ KURALLAR:
         /// <summary>
         /// Kategoriye göre analiz promptu seçer (Bot etkileşim gibi)
         /// </summary>
-        public string GetNewsCategoryAnalysisPrompt(string category, string title, string source, string link, string? description = null, bool isFlash = false)
+        public string GetNewsCategoryAnalysisPrompt(string category, string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
             // v5.1.3: Flash/SON DAKİKA haberler için garantili 2-tweet format
             if (isFlash)
@@ -1062,15 +1062,15 @@ KURALLAR:
 
             return category.ToUpper() switch
             {
-                "EKONOMI"     => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash),
+                "EKONOMI"     => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
                 "SIYASET"     => GetSiyasetNewsAnalysisPrompt(title, source, link, description, isFlash),
-                "TEKNOLOJI"   => GetTeknolojiNewsAnalysisPrompt(title, source, link, description, isFlash),
+                "TEKNOLOJI"   => GetTeknolojiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
                 "GLOBAL"      => GetGlobalNewsAnalysisPrompt(title, source, link, description, isFlash),
                 "GLOBAL_MACRO"=> GetGlobalMacroAnalysisPrompt(title, source, link, description, isFlash),
                 "KRIPTO"      => GetKriptoNewsAnalysisPrompt(title, source, link, description, isFlash),
                 "SPOR"        => GetSporNewsAnalysisPrompt(title, source, link, description, isFlash),
-                "YASAM"       => GetYasamNewsAnalysisPrompt(title, source, link, description, isFlash),
-                _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash) // Fallback
+                "YASAM"       => GetYasamNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
+                _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap) // Fallback
             };
         }
 
@@ -1111,14 +1111,18 @@ KATi KURALLAR:
 - Link MUTLAKA 1. tweet'te yer almalı.";
         }
 
-        private string GetEkonomiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
+        private string GetEkonomiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 300))}" : "";
+            string sectorSection = !string.IsNullOrWhiteSpace(sectorMap)
+                ? $"\n\nBIST SEKTÖR-HİSSE HARİTASI (Sembol seçerken YALNIZCA bu listeden al, listede olmayan sembol YAZMA):\n{sectorMap}"
+                : "";
             return $@"KİMLİK: Sen BIST ve Türk ekonomisinin nabzını tutan deneyimli bir ekonomist ve piyasa stratejistisin.
 GÖREV: Aşağıdaki ekonomi haberini analiz et ve X (Twitter) thread'i oluştur.
 
 HABER: {title}
 KAYNAK: {source}
-LİNK: {link}
+LİNK: {link}{descSection}{sectorSection}
 
 ÜSLUP:
 - Makro odaklı, veri bazlı konuş.
@@ -1126,16 +1130,18 @@ LİNK: {link}
 - TCMB, enflasyon, faiz konularında teknik ama anlaşılır ol.
 - Panik yaratma, gerçekçi ol.
 
-FORMAT (||| ile ayır):
+FORMAT (||| ile ayır) - TAM OLARAK 3 TWEET:
 1. Tweet: 📢 SON HABER + Çarpıcı özet + {link}
 |||
 2. Tweet: 📊 Makro etki analizi - Bu ne anlama geliyor?
 |||
-3. Tweet: 💡 Yatırımcı için çıkarım + İlgili semboller + YTD
+3. Tweet: 💡 Yatırımcı için çıkarım + Sektör hissesi (YALNIZCA yukarıdaki haritadan) + YTD
 KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
+- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR!
+- KESINLIKLE tam olarak 3 tweet yaz, ne 2 ne 4 ne 7. 3 tweet = 2 adet ||| ayracı.
 - Emoji dengeli kullan.
-- Son tweet'te ""⚠️ Yatırım tavsiyesi değildir."" ekle.";
+- Son tweet'te ""⚠️ Yatırım tavsiyesi değildir."" ekle.
+- Sembol seçerken: haber hangi sektörü etkiliyorsa o sektörün haritadaki hisselerini kullan. Haritada yoksa sembol yazma.";
         }
 
         private string GetSiyasetNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
@@ -1168,14 +1174,18 @@ KURALLAR:
 - Son tweet kaynak ve link zorunlu.";
         }
 
-        private string GetTeknolojiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
+        private string GetTeknolojiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 300))}" : "";
+            string sectorSection = !string.IsNullOrWhiteSpace(sectorMap)
+                ? $"\n\nBIST SEKTÖR-HİSSE HARİTASI (Sembol seçerken YALNIZCA bu listeden al):\n{sectorMap}"
+                : "";
             return $@"KİMLİK: Sen vizyoner bir teknoloji analisti ve girişimcisin. AI, startup ekosistemi ve dijital dönüşüm konularında uzmansın.
 GÖREV: Aşağıdaki teknoloji haberini Türkiye perspektifinden analiz et.
 
 HABER: {title}
 KAYNAK: {source}
-LİNK: {link}
+LİNK: {link}{descSection}{sectorSection}
 
 ÜSLUP:
 - Heyecanlı ama gerçekçi ol.
@@ -1183,15 +1193,16 @@ LİNK: {link}
 - AI, Web3, SaaS gibi trendleri doğal kullan.
 - Teknolojiyi övdükçe övme, kritik de ol.
 
-FORMAT (||| ile ayır):
+FORMAT (||| ile ayır) - TAM OLARAK 3 TWEET:
 1. Tweet: 🚀 Teknoloji haberi + Çarpıcı açılış + {link}
 |||
 2. Tweet: 🔬 Derinlemesine analiz - Neden önemli?
 |||
-3. Tweet: 🇹🇷 Türkiye için fırsat/tehdit + İlgili BIST teknoloji hisseleri + YTD
+3. Tweet: 🇹🇷 Türkiye için fırsat/tehdit + İlgili BIST hisseleri (YALNIZCA haritadan) + YTD
 KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- BIST teknoloji hisselerini (ASELS, LOGO, INDES vb.) bağla.
+- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR!
+- KESINLIKLE tam olarak 3 tweet yaz. 3 tweet = 2 adet ||| ayracı.
+- Sembol seçerken YALNIZCA yukarıdaki haritadaki semboller. Haritada yoksa sembol YAZMA.
 - Son tweet'te ""⚠️ Yatırım tavsiyesi değildir."" ekle.";
         }
 
@@ -1315,14 +1326,18 @@ KURALLAR:
 - Son tweet'te ""⚠️ Yatırım tavsiyesi değildir."" ekle.";
         }
 
-        private string GetYasamNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
+        private string GetYasamNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 300))}" : "";
+            string sectorSection = !string.IsNullOrWhiteSpace(sectorMap)
+                ? $"\n\nBIST SEKTÖR-HİSSE HARİTASI (Sembol seçerken YALNIZCA bu listeden al):\n{sectorMap}"
+                : "";
             return $@"KİMLİK: Sen toplumsal olayların ekonomik etkilerini analiz eden sosyal ekonomist ve insani perspektife sahip bir yorumcusun.
 GÖREV: Aşağıdaki yaşam haberini ekonomik ve toplumsal perspektiften analiz et.
 
 HABER: {title}
 KAYNAK: {source}
-LİNK: {link}
+LİNK: {link}{descSection}{sectorSection}
 
 ÜSLUP:
 - Empatik, insani ama analitik ol.
@@ -1330,15 +1345,16 @@ LİNK: {link}
 - Afet, sağlık, eğitim konularında duyarlı ol.
 - Spekülasyon yapma, bilgilendir.
 
-FORMAT (||| ile ayır):
+FORMAT (||| ile ayır) - TAM OLARAK 3 TWEET:
 1. Tweet: 📰 Yaşam haberi + İnsani perspektif + {link}
 |||
 2. Tweet: 🏛️ Ekonomik/toplumsal etki analizi
 |||
-3. Tweet: 💡 Sektörel perspektif + İlgili BIST hisseleri + YTD
+3. Tweet: 💡 Sektörel perspektif + İlgili BIST hisseleri (YALNIZCA haritadan) + YTD
 KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- Hassas konularda dikkatli ol.
+- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR!
+- KESINLIKLE tam olarak 3 tweet yaz. 3 tweet = 2 adet ||| ayracı.
+- Sembol seçerken YALNIZCA yukarıdaki haritadaki semboller. Haritada yoksa sembol YAZMA.
 - Son tweet'te ""⚠️ Yatırım tavsiyesi değildir."" ekle.";
         }
 

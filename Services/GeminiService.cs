@@ -128,6 +128,18 @@ namespace XiDeAI_Pro.Services
             return string.Empty;
         }
 
+        private string LoadSectorMapContext()
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "BistSectorMap.md");
+                if (File.Exists(path))
+                    return File.ReadAllText(path);
+            }
+            catch { }
+            return string.Empty;
+        }
+
         public async Task<(List<(string Symbol, string Period)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
         {
             var results = new List<(string Symbol, string Period)>();
@@ -202,8 +214,8 @@ namespace XiDeAI_Pro.Services
         {
             string category = await DetectNewsCategory(title, source);
             string richDescription = string.Join("\n", new[] { summary, description }.Where(x => !string.IsNullOrWhiteSpace(x)));
-            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, richDescription, isFlash);
-            // v5.1.3: Flash için 600, normal için 900 token — önceki 4096 default yerine explicit limit
+            string sectorMap = LoadSectorMapContext();
+            string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, richDescription, isFlash, sectorMap);
             int maxTok = isFlash ? 600 : 900;
             return await SendGeminiRestApiRequest(prompt, 0.3, maxOutputTokens: maxTok);
         }
@@ -402,7 +414,8 @@ namespace XiDeAI_Pro.Services
         public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
             var config = _prompts.GetNewsCategoryConfig(category);
-            return await SendGeminiRestApiRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash), config.Temp, config.TopP, config.TopK, config.MaxTokens);
+            string sectorMap = LoadSectorMapContext();
+            return await SendGeminiRestApiRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap), config.Temp, config.TopP, config.TopK, config.MaxTokens);
         }
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
