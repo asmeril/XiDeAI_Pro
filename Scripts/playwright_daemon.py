@@ -719,7 +719,7 @@ class XDaemonPlaywright:
             try:
                 links = self.page.locator(selector)
                 try:
-                    await links.first.wait_for(state="attached", timeout=5000)
+                    await links.first.wait_for(state="attached", timeout=20000)
                 except:
                     pass
                 count = await links.count()
@@ -906,6 +906,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
