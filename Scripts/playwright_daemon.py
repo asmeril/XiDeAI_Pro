@@ -151,35 +151,21 @@ class XDaemonPlaywright:
         await self._discover_profile()
 
     async def _discover_profile(self):
-        """Resolve current account profile URL to prevent replying to unrelated timeline tweets."""
+        if self.profile_path: return
         try:
-            candidates = [
-                'a[data-testid="AppTabBar_Profile_Link"]',
-                'a[href*="/"].r-1loqt21.r-1otgn73',
-            ]
-
-            for sel in candidates:
-                link = self.page.locator(sel).first
-                if await link.count() == 0:
-                    continue
-
-                href = await link.get_attribute("href")
-                if not href:
-                    continue
-
-                if href.startswith("/"):
-                    self.profile_path = href
-                    self.profile_url = f"https://x.com{href}"
-                elif "x.com/" in href:
-                    self.profile_url = href
-                    m = re.search(r"https?://x\.com(/[^/?#]+)", href)
-                    if m:
-                        self.profile_path = m.group(1)
-
-                if self.profile_url:
-                    return
-        except Exception:
-            pass
+            current_url = self.page.url
+            if "x.com/home" not in current_url:
+                await self.page.goto("https://x.com/home", wait_until="domcontentloaded", timeout=20000)
+                await asyncio.sleep(2.0)
+                
+            profile_link = self.page.locator('a[data-testid="AppTabBar_Profile_Link"]')
+            await profile_link.wait_for(state="attached", timeout=6000)
+            href = await profile_link.get_attribute("href")
+            if href:
+                self.profile_path = href
+                print(f"[playwright_daemon] Discovered profile path: {self.profile_path}", flush=True)
+        except Exception as e:
+            print(f"[playwright_daemon] Failed to discover profile: {e}", flush=True)
 
     async def load_cookies(self):
         pw_cookies = []
@@ -785,13 +771,14 @@ class XDaemonPlaywright:
         return self.page.url
 
     async def execute_post(self, payload):
+        if not self.profile_path:
+            await self._discover_profile()
+            
         text = payload.get("text", "")
         media_path = payload.get("media")
         preserve_chunks = bool(payload.get("preserve_chunks", False))
         images = [media_path] if media_path and os.path.exists(media_path) else None
 
-        # Determine if it's a thread (XiDeAI_Pro UI passes List<string> but translates it to json?)
-        # Wait, social_intel.cs writes: new { tweets = tweets, media = mediaPath }
         tweets = payload.get("tweets", [])
         if not tweets and text:
             tweets = [text] # single tweet mode
@@ -915,3 +902,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
