@@ -93,36 +93,49 @@ class XDaemonPlaywright:
         await asyncio.sleep(seconds * self.delay_factor)
 
     async def _click_publish(self, button, label="publish"):
-        """Robust click that handles pointer-intercepting overlays (force & JS fallback)."""
-        try:
-            await self.page.keyboard.press("Escape")
-            await self._sleep(0.3)
-        except Exception:
-            pass
-
+        """Robust click that handles pointer-intercepting overlays.
+        NOTE: Do NOT press Escape before clicking — on X compose, Escape opens
+        the 'Discard post?' dialog which blocks the post button.
+        """
         try:
             await button.scroll_into_view_if_needed(timeout=3000)
         except Exception:
             pass
 
+        # 1) Normal click
         try:
             await button.click(timeout=3000)
             return
         except Exception as first_err:
+            pass
+
+        # 2) Force click (bypasses visibility/pointer checks)
+        try:
+            await button.click(timeout=3000, force=True)
+            return
+        except Exception as second_err:
+            pass
+
+        # 3) JS click (works even if element is obscured)
+        try:
+            await asyncio.wait_for(button.evaluate("el => el.click()"), timeout=3.0)
+            return
+        except Exception as js_err:
+            pass
+
+        # 4) Last resort: Escape to dismiss any overlay, then JS click
+        try:
+            await self.page.keyboard.press("Escape")
+            await self._sleep(0.3)
+            await asyncio.wait_for(button.evaluate("el => el.click()"), timeout=3.0)
+            return
+        except Exception as last_err:
             try:
-                await button.click(timeout=3000, force=True)
-                return
-            except Exception as second_err:
-                try:
-                    await asyncio.wait_for(button.evaluate("el => el.click()"), timeout=3.0)
-                    return
-                except Exception as js_err:
-                    try:
-                        shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
-                        await self.page.screenshot(path=shot, full_page=True)
-                    except Exception:
-                        shot = ""
-                    raise Exception(f"Publish click failed: {first_err} | force: {second_err} | js: {js_err} | screenshot={shot}")
+                shot = os.path.join("/tmp", f"xideai_{label}_click_fail.png")
+                await self.page.screenshot(path=shot, full_page=True)
+            except Exception:
+                shot = ""
+            raise Exception(f"Publish click failed [{label}] | js: {js_err} | last: {last_err} | screenshot={shot}")
 
     async def start(self):
         self.playwright = await async_playwright().start()
@@ -327,50 +340,21 @@ class XDaemonPlaywright:
                         except:
                             pass
 
-                # Robust text insertion (from XHive x_daemon)
-                text_inserted = False
-                try:
-                    await compose_box.fill(text)
-                    await self._sleep(0.6)
-                    current_text = await compose_box.inner_text()
-                    if len(current_text.strip()) >= len(text.strip()) * 0.8:
-                        text_inserted = True
-                except:
-                    pass
-                
-                if not text_inserted:
-                    try:
-                        await compose_box.focus()
-                        await compose_box.type(text, delay=20)
-                        await self._sleep(0.5)
-                        current_text = await compose_box.inner_text()
-                        if len(current_text.strip()) >= len(text.strip()) * 0.8:
-                            text_inserted = True
-                    except:
-                        pass
-                
-                if not text_inserted:
-                    try:
-                        await asyncio.wait_for(self.page.evaluate("""
-                            (element, text) => {
-                                element.focus();
-                                element.innerText = text;
-                                element.dispatchEvent(new Event('input', { bubbles: true }));
-                                element.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        """, await compose_box.element_handle(), text), timeout=3.0)
-                        await self._sleep(0.5)
-                    except:
-                        pass
-                
-                # Wake up React
-                try:
-                    await compose_box.press(" ")
-                    await self._sleep(0.1)
-                    await compose_box.press("Backspace")
+                # keyboard.insert_text is the most React-compatible insertion method.
+                # fill() bypasses React synthetic events → post button stays aria-disabled.
+                await compose_box.click(timeout=3000)
+                await self._sleep(0.2)
+                await self.page.keyboard.insert_text(text)
+                await self._sleep(0.6)
+
+                # Verify text landed; fall back to type() if insert_text failed (e.g. IME)
+                current_text = await compose_box.inner_text()
+                if len(current_text.strip()) < len(text.strip()) * 0.7:
+                    await compose_box.triple_click()
+                    await compose_box.press("Delete")
+                    await self._sleep(0.2)
+                    await compose_box.type(text, delay=15)
                     await self._sleep(0.5)
-                except:
-                    pass
 
                 post_selectors = [
                     "button[data-testid='tweetButton']",
@@ -501,58 +485,19 @@ class XDaemonPlaywright:
                 if not compose_box:
                     raise PlaywrightTimeoutError("Reply compose box not found")
 
-                try:
-                    await self._click_publish(compose_box, "compose_focus")
-                except:
-                    try:
-                        await asyncio.wait_for(compose_box.evaluate("el => el.focus()"), timeout=3.0)
-                    except:
-                        pass
+                await compose_box.click(timeout=3000)
+                await asyncio.sleep(0.2)
+                await self.page.keyboard.insert_text(text)
+                await asyncio.sleep(0.6)
 
-                # Robust text insertion (from XHive x_daemon)
-                text_inserted = False
-                try:
-                    await compose_box.fill(text)
-                    await asyncio.sleep(0.6)
-                    current_text = await compose_box.inner_text()
-                    if len(current_text.strip()) >= len(text.strip()) * 0.8:
-                        text_inserted = True
-                except:
-                    pass
-                
-                if not text_inserted:
-                    try:
-                        await compose_box.focus()
-                        await compose_box.type(text, delay=20)
-                        await asyncio.sleep(0.5)
-                        current_text = await compose_box.inner_text()
-                        if len(current_text.strip()) >= len(text.strip()) * 0.8:
-                            text_inserted = True
-                    except:
-                        pass
-                
-                if not text_inserted:
-                    try:
-                        await asyncio.wait_for(self.page.evaluate("""
-                            (element, text) => {
-                                element.focus();
-                                element.innerText = text;
-                                element.dispatchEvent(new Event('input', { bubbles: true }));
-                                element.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                        """, await compose_box.element_handle(), text), timeout=3.0)
-                        await asyncio.sleep(0.5)
-                    except:
-                        pass
-                
-                # Wake up React
-                try:
-                    await compose_box.press(" ")
-                    await asyncio.sleep(0.1)
-                    await compose_box.press("Backspace")
+                # Verify text landed
+                current_text = await compose_box.inner_text()
+                if len(current_text.strip()) < len(text.strip()) * 0.7:
+                    await compose_box.triple_click()
+                    await compose_box.press("Delete")
+                    await asyncio.sleep(0.2)
+                    await compose_box.type(text, delay=15)
                     await asyncio.sleep(0.5)
-                except:
-                    pass
 
                 # 4) Post butonunu bekle (max 5 sn)
                 post_btn = None
@@ -579,7 +524,25 @@ class XDaemonPlaywright:
                     raise PlaywrightTimeoutError("Reply button disabled")
 
                 await self._click_publish(post_btn, "reply")
-                await asyncio.sleep(3)
+
+                # Wait for X to navigate away from compose (confirms submission)
+                navigated = False
+                for _ in range(20):
+                    await asyncio.sleep(0.5)
+                    if "compose" not in self.page.url:
+                        navigated = True
+                        break
+
+                if not navigated:
+                    try:
+                        compose_check = self.page.locator('div[data-testid="tweetTextarea_0"]').first
+                        filled = await compose_check.inner_text()
+                        if filled.strip():
+                            raise Exception("Reply not submitted: compose box still has text after 10s")
+                    except Exception as ce:
+                        raise Exception(str(ce))
+
+                await asyncio.sleep(1.5)
 
                 pre_reply_baseline = self._last_known_tweet_id
                 tweet_url = await self._extract_latest_tweet_url(min_id=pre_reply_baseline)
