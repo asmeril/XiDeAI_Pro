@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 
@@ -12,6 +15,7 @@ namespace XiDeAI_Pro.Services.AI
     public class ModelManager
     {
         private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1); // v3.5.2: Global AI Traffic Control
+        private static readonly ConcurrentDictionary<string, (DateTime StoredAt, string Response)> _responseCache = new();
         private readonly Dictionary<string, IModelProvider> _providers = new();
         private readonly Dictionary<TaskType, List<string>> _taskModelPreferences = new();
         private readonly Action<string> _logger;
@@ -67,10 +71,27 @@ namespace XiDeAI_Pro.Services.AI
         /// </summary>
         public async Task<string?> SendRequest(TaskType taskType, string prompt, int maxTokens = 4096)
         {
+            string promptHash = ComputePromptHash(prompt);
+            string cacheKey = $"text|{taskType}|{maxTokens}|{promptHash}";
+            TimeSpan cacheTtl = GetCacheTtl(taskType, prompt);
+            if (TryGetCached(cacheKey, cacheTtl, out var cached))
+            {
+                _logger($"♻️ AI cache hit: task={taskType}, hash={promptHash}, chars={cached.Length}");
+                return cached;
+            }
+
             await _semaphore.WaitAsync(); // v3.5.2: Ensure sequential execution across all providers
             try
             {
                 LastError = null;
+                if (TryGetCached(cacheKey, cacheTtl, out cached))
+                {
+                    _logger($"♻️ AI cache hit after wait: task={taskType}, hash={promptHash}, chars={cached.Length}");
+                    return cached;
+                }
+
+                _logger($"🧾 AI request: task={taskType}, hash={promptHash}, chars={prompt.Length}, maxTokens={maxTokens}");
+
                 // v3.6.6: Increased delay for better rate limit protection
                 // Priority logic: Add extra delay for background tasks during business hours
                 await ApplyPriorityDelay(taskType);
@@ -110,6 +131,7 @@ namespace XiDeAI_Pro.Services.AI
                         if (!string.IsNullOrWhiteSpace(result))
                         {
                             _logger($"✅ {provider.ModelName} returned successful response ({result.Length} chars)");
+                            CacheResponse(cacheKey, result);
                             return result;
                         }
                         else
@@ -144,6 +166,9 @@ namespace XiDeAI_Pro.Services.AI
             try
             {
                 LastError = null;
+                string promptHash = ComputePromptHash($"{prompt}|{imagePath}|{GetImageStamp(imagePath)}");
+                _logger($"🧾 AI vision request: task={taskType}, hash={promptHash}, chars={prompt.Length}, image={System.IO.Path.GetFileName(imagePath)}, maxTokens={maxTokens}");
+
                 // Small delay between requests to keep API keys healthy
                 await Task.Delay(300).ConfigureAwait(false);
 
@@ -243,6 +268,63 @@ namespace XiDeAI_Pro.Services.AI
             _taskModelPreferences[taskType] = modelNames;
             _logger($"✅ Task preference updated for {taskType}: {string.Join(", ", modelNames)}");
         }
+
+        private static string ComputePromptHash(string prompt)
+        {
+            using var sha = SHA256.Create();
+            byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(prompt ?? string.Empty));
+            return Convert.ToHexString(bytes).Substring(0, 12).ToLowerInvariant();
+        }
+
+        private static bool TryGetCached(string cacheKey, TimeSpan ttl, out string cached)
+        {
+            cached = string.Empty;
+            if (ttl <= TimeSpan.Zero) return false;
+            if (!_responseCache.TryGetValue(cacheKey, out var entry)) return false;
+            if (DateTime.UtcNow - entry.StoredAt > ttl)
+            {
+                _responseCache.TryRemove(cacheKey, out _);
+                return false;
+            }
+            cached = entry.Response;
+            return true;
+        }
+
+        private static void CacheResponse(string cacheKey, string response)
+        {
+            _responseCache[cacheKey] = (DateTime.UtcNow, response);
+            if (_responseCache.Count > 500)
+            {
+                foreach (var oldKey in _responseCache.OrderBy(x => x.Value.StoredAt).Take(100).Select(x => x.Key))
+                    _responseCache.TryRemove(oldKey, out _);
+            }
+        }
+
+        private static TimeSpan GetCacheTtl(TaskType taskType, string prompt)
+        {
+            string p = prompt ?? string.Empty;
+            if (taskType == TaskType.NewsAnalysis || taskType == TaskType.NewsThreadGeneration ||
+                p.Contains("Baş Editörü", StringComparison.OrdinalIgnoreCase) ||
+                p.Contains("CATEGORY", StringComparison.OrdinalIgnoreCase))
+                return TimeSpan.FromHours(24);
+
+            if (taskType == TaskType.DeepScan || taskType == TaskType.TrendTracking || taskType == TaskType.SymbolResearch)
+                return TimeSpan.FromMinutes(15);
+
+            return TimeSpan.FromMinutes(5);
+        }
+
+        private static string GetImageStamp(string imagePath)
+        {
+            try
+            {
+                var info = new System.IO.FileInfo(imagePath);
+                return $"{info.Length}:{info.LastWriteTimeUtc.Ticks}";
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
     }
 }
-

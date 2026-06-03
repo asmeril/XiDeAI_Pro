@@ -56,16 +56,16 @@ namespace XiDeAI_Pro.Services.AI
             try
             {
                 LastError = null;
-                var url = $"{_uri}/chat/completions";
-                
                 // Reasoning modelleri /no_think'i yok sayarsa 16K token sadece uzun bekleme üretir.
                 // Düşünme kapatma parametrelerini gönder, yine de content boşsa başarısız say.
                 int effectiveMaxTokens = Math.Clamp(maxTokens, 800, 4096);
-                
-                // v5.0.0: Prepend /no_think to suppress chain-of-thought on Qwen3/DeepSeek-R1.
-                // LM Studio ignores the `thinking.budget_tokens` parameter, so this is the only
-                // reliable way to prevent the model from consuming all tokens on reasoning.
-                var requestBody = BuildRequestBody("/no_think\n" + prompt, effectiveMaxTokens);
+
+                var nativeResult = await TrySendNativeChat(prompt, effectiveMaxTokens, imageDataUrl: null);
+                if (!string.IsNullOrWhiteSpace(nativeResult)) return nativeResult;
+
+                _logger($"⚠️ [LMStudio] Native /api/v1/chat başarısız, OpenAI-compatible fallback deneniyor: {LastError}");
+                var url = $"{_uri}/chat/completions";
+                var requestBody = BuildRequestBody(BuildNoThinkPrompt(prompt), effectiveMaxTokens);
 
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -170,7 +170,12 @@ namespace XiDeAI_Pro.Services.AI
                 var url = $"{_uri}/chat/completions";
 
                 int effectiveMaxTokens = Math.Clamp(maxTokens, 1200, 4096);
-                var requestBody = BuildVisionRequestBody("/no_think\n" + prompt, $"data:{mimeType};base64,{base64Image}", effectiveMaxTokens);
+                string imageDataUrl = $"data:{mimeType};base64,{base64Image}";
+                var nativeResult = await TrySendNativeChat(prompt, effectiveMaxTokens, imageDataUrl);
+                if (!string.IsNullOrWhiteSpace(nativeResult)) return nativeResult;
+
+                _logger($"⚠️ [LMStudio Vision] Native /api/v1/chat başarısız, OpenAI-compatible fallback deneniyor: {LastError}");
+                var requestBody = BuildVisionRequestBody(BuildNoThinkPrompt(prompt), imageDataUrl, effectiveMaxTokens);
                 _logger($"🧠 [LMStudio Vision] max_tokens={effectiveMaxTokens}, /no_think aktif");
 
                 var json = JsonSerializer.Serialize(requestBody);
@@ -220,6 +225,97 @@ namespace XiDeAI_Pro.Services.AI
             }
         }
 
+        private async Task<string?> TrySendNativeChat(string prompt, int maxTokens, string? imageDataUrl)
+        {
+            try
+            {
+                string baseUri = _uri.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
+                    ? _uri.Substring(0, _uri.Length - 3)
+                    : _uri;
+                string url = $"{baseUri}/api/v1/chat";
+
+                object input = string.IsNullOrEmpty(imageDataUrl)
+                    ? BuildNoThinkPrompt(prompt)
+                    : new object[]
+                    {
+                        new { type = "message", content = BuildNoThinkPrompt(prompt) },
+                        new { type = "image", data_url = imageDataUrl }
+                    };
+
+                var requestBody = new
+                {
+                    model = _modelName,
+                    input,
+                    max_output_tokens = maxTokens,
+                    temperature = 0.7,
+                    top_p = 0.8,
+                    top_k = 20,
+                    min_p = 0,
+                    presence_penalty = 1.5,
+                    reasoning = "off",
+                    store = false
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var client = string.IsNullOrEmpty(imageDataUrl) ? _client : _visionClient;
+                var response = await client.PostAsync(url, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    LastError = $"LMStudio native chat error: {response.StatusCode} - {TrimForLog(responseContent)}";
+                    return null;
+                }
+
+                using var doc = JsonDocument.Parse(responseContent);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("stats", out var stats)
+                    && stats.TryGetProperty("reasoning_output_tokens", out var reasoningTokens)
+                    && reasoningTokens.ValueKind == JsonValueKind.Number
+                    && reasoningTokens.GetInt32() > 0)
+                {
+                    _logger($"⚠️ [LMStudio Native] reasoning=off istendi ama reasoning_output_tokens={reasoningTokens.GetInt32()} geldi.");
+                }
+
+                if (root.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+                {
+                    var sb = new StringBuilder();
+                    foreach (var item in output.EnumerateArray())
+                    {
+                        string type = item.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "" : "";
+                        if (type == "reasoning") continue;
+                        if (type == "message" && item.TryGetProperty("content", out var contentProp) && contentProp.ValueKind == JsonValueKind.String)
+                        {
+                            sb.AppendLine(contentProp.GetString());
+                        }
+                    }
+
+                    string text = sb.ToString().Trim();
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+
+                LastError = $"LMStudio native chat returned empty message output. Raw: {TrimForLog(responseContent)}";
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LastError = $"LMStudio native chat exception: {ex.Message}";
+                return null;
+            }
+        }
+
+        private static string BuildNoThinkPrompt(string prompt)
+        {
+            return $"{prompt}\n\n/no_think\n/nothink";
+        }
+
+        private static string TrimForLog(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+            return text.Length > 500 ? text.Substring(0, 500) + "..." : text;
+        }
+
         private object BuildRequestBody(string prompt, int maxTokens)
         {
             return new
@@ -227,7 +323,11 @@ namespace XiDeAI_Pro.Services.AI
                 model = _modelName,
                 messages = new[] { new { role = "user", content = prompt } },
                 max_tokens = maxTokens,
-                temperature = 0.2,
+                temperature = 0.7,
+                top_p = 0.8,
+                top_k = 20,
+                min_p = 0,
+                presence_penalty = 1.5,
                 enable_thinking = false,
                 reasoning_effort = "none",
                 chat_template_kwargs = new { enable_thinking = false }
@@ -252,7 +352,11 @@ namespace XiDeAI_Pro.Services.AI
                     }
                 },
                 max_tokens = maxTokens,
-                temperature = 0.2,
+                temperature = 0.7,
+                top_p = 0.8,
+                top_k = 20,
+                min_p = 0,
+                presence_penalty = 1.5,
                 enable_thinking = false,
                 reasoning_effort = "none",
                 chat_template_kwargs = new { enable_thinking = false }

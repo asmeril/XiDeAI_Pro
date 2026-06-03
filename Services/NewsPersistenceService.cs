@@ -124,10 +124,45 @@ namespace XiDeAI_Pro.Services
             return false;
         }
 
+        public bool IsKnownUrl(string url, out string reason)
+        {
+            reason = string.Empty;
+            string cleanUrl = NormalizeUrl(url);
+            if (string.IsNullOrWhiteSpace(cleanUrl)) return false;
+
+            lock (_lock)
+            {
+                var existing = _history
+                    .Where(x => x.ProcessedAt >= DateTime.Now.AddDays(-MAX_HISTORY_DAYS))
+                    .FirstOrDefault(x => NormalizeUrl(x.Url).Equals(cleanUrl, StringComparison.OrdinalIgnoreCase));
+                if (existing == null) return false;
+                reason = $"Aynı URL daha önce işlendi: {existing.Status}";
+                return true;
+            }
+        }
+
         public void AddParsedNews(string title, string source, string url, int score, bool tweeted, string status = "PUBLISHED")
         {
             lock (_lock)
             {
+                string cleanUrl = NormalizeUrl(url);
+                var existing = !string.IsNullOrWhiteSpace(cleanUrl)
+                    ? _history.FirstOrDefault(x => NormalizeUrl(x.Url).Equals(cleanUrl, StringComparison.OrdinalIgnoreCase))
+                    : null;
+
+                if (existing != null)
+                {
+                    existing.Title = NormalizeTitle(title);
+                    existing.Source = source;
+                    existing.Url = url;
+                    existing.ProcessedAt = DateTime.Now;
+                    existing.ImportanceScore = Math.Max(existing.ImportanceScore, score);
+                    existing.WasTweeted = existing.WasTweeted || tweeted;
+                    existing.Status = tweeted ? "PUBLISHED" : status;
+                    SaveHistory();
+                    return;
+                }
+
                 var item = new NewsHistoryItem
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -152,6 +187,17 @@ namespace XiDeAI_Pro.Services
             // Replace any sequence of whitespace (including \r\n, \n, \t) with a single space
             return System.Text.RegularExpressions.Regex
                 .Replace(title.Trim(), @"[\r\n\t]+|\s{2,}", " ");
+        }
+
+        private static string NormalizeUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+            string clean = url.Trim();
+            int hashIdx = clean.IndexOf('#');
+            if (hashIdx >= 0) clean = clean.Substring(0, hashIdx);
+            int qIdx = clean.IndexOf('?');
+            if (qIdx >= 0) clean = clean.Substring(0, qIdx);
+            return clean.TrimEnd('/');
         }
 
         // Levenshtein Distance Algoritması
@@ -181,4 +227,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

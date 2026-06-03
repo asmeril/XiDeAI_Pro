@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Linq;
 using XiDeAI_Pro.Config;
@@ -21,6 +22,7 @@ namespace XiDeAI_Pro.Services
         private readonly StatsEngine _stats;
         private readonly NewsPersistenceService _persistence;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(2, 2); // Max 2 eşzamanlı haber işlemi (VRAM güvenliği)
+        private readonly ConcurrentDictionary<string, DateTime> _inflightNews = new(StringComparer.OrdinalIgnoreCase);
         
         public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
 
@@ -50,8 +52,16 @@ namespace XiDeAI_Pro.Services
         public async Task ProcessNews(NewsItem item)
         {
             await _semaphore.WaitAsync();
+            string newsKey = BuildNewsKey(item);
             try
             {
+                CleanupInflightNews();
+                if (!_inflightNews.TryAdd(newsKey, DateTime.UtcNow))
+                {
+                    OnLog?.Invoke($"⏭️ Haber atlandı (aynı haber zaten işleniyor): {item.Title}", "NewsEngine");
+                    return;
+                }
+
                 _stats.RecordActivity("NewsEngine", $"Processing news: {item.Title}", true, item.Source);
                 
                 // v3.6.4: Safety Recency Check (Max 48h - Extended for Weekends)
@@ -68,6 +78,12 @@ namespace XiDeAI_Pro.Services
                 {
                      OnLog?.Invoke($"⏭️ Haber atlandı ({dupReason})", "NewsEngine");
                      return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.Link) && _persistence.IsKnownUrl(item.Link, out string urlReason))
+                {
+                    OnLog?.Invoke($"⏭️ Haber atlandı ({urlReason}): {item.Title}", "NewsEngine");
+                    return;
                 }
 
                 // v5.0: Multi-Layer Filtering (Regex/Keyword -> Lightweight NLP)
@@ -207,8 +223,30 @@ namespace XiDeAI_Pro.Services
             }
             finally
             {
+                _inflightNews.TryRemove(newsKey, out _);
                 _semaphore.Release();
             }
+        }
+
+        private static string BuildNewsKey(NewsItem item)
+        {
+            string link = (item.Link ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(link))
+            {
+                int qIdx = link.IndexOf('?');
+                if (qIdx >= 0) link = link.Substring(0, qIdx);
+                return "url:" + link.TrimEnd('/');
+            }
+
+            string title = System.Text.RegularExpressions.Regex.Replace(item.Title ?? string.Empty, @"\s+", " ").Trim().ToLowerInvariant();
+            return $"title:{item.Source}:{title}";
+        }
+
+        private void CleanupInflightNews()
+        {
+            var cutoff = DateTime.UtcNow.AddMinutes(-30);
+            foreach (var kv in _inflightNews.Where(x => x.Value < cutoff).ToList())
+                _inflightNews.TryRemove(kv.Key, out _);
         }
 
         public async Task<(bool success, string message)> ForcePostNews(NewsItem item, string summary, string? category = null, bool includeAnalysis = true)
