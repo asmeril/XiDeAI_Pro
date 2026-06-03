@@ -913,9 +913,10 @@ class XDaemonPlaywright:
 
         numbered_chunks = []
         total = len(chunks)
+        THREAD_EMOJI = "\U0001F9F5"  # 🧵 - unicode escape to prevent encoding issues
         for i, chunk in enumerate(chunks, 1):
-            if i == 1: numbered_chunks.append(f"{chunk}\n\nÃ°Å¸Â§Âµ {i}/{total}")
-            else: numbered_chunks.append(f"Ã°Å¸Â§Âµ {i}/{total}\n\n{chunk}")
+            if i == 1: numbered_chunks.append(f"{chunk}\n\n{THREAD_EMOJI} {i}/{total}")
+            else: numbered_chunks.append(f"{THREAD_EMOJI} {i}/{total}\n\n{chunk}")
 
         # Bypass native compose thread to avoid UI unreliability with (+) button.
         # Always use reply-chain approach directly (like XHive worker daemon).
@@ -935,20 +936,31 @@ class XDaemonPlaywright:
                 print(f"[playwright_daemon] Recovered parent_url: {parent_url}", flush=True)
             else:
                 return {"status": "error", "message": f"Could not determine parent tweet URL for thread chaining. Got: {parent_url}"}
+        posted_count = 1
         for i, chunk in enumerate(numbered_chunks[1:], 2):
             await asyncio.sleep(2.0)
             res = await self._post_reply_in_thread(parent_url, chunk)
             if res.get("status") == "success":
+                posted_count += 1
                 candidate = res.get("tweet_url", parent_url)
                 if isinstance(candidate, str) and "/status/" in candidate:
                     if (self.profile_path and f"x.com{self.profile_path}/status/" in candidate) or (not self.profile_path):
                         parent_url = candidate
             else:
-                return {
-                    "status": "error",
-                    "message": f"Thread part {i} failed: {res.get('message')}",
-                    "tweet_url": first_res.get("tweet_url")
-                }
+                # Retry once before giving up on this tweet
+                print(f"[playwright_daemon] Thread part {i} failed: {res.get('message')}. Retrying once...", flush=True)
+                await asyncio.sleep(4.0)
+                res2 = await self._post_reply_in_thread(parent_url, chunk)
+                if res2.get("status") == "success":
+                    posted_count += 1
+                    candidate = res2.get("tweet_url", parent_url)
+                    if isinstance(candidate, str) and "/status/" in candidate:
+                        if (self.profile_path and f"x.com{self.profile_path}/status/" in candidate) or (not self.profile_path):
+                            parent_url = candidate
+                else:
+                    # Retry also failed — log and continue with remaining tweets rather than aborting
+                    print(f"[playwright_daemon] Thread part {i} retry also failed: {res2.get('message')}. Continuing with next tweet.", flush=True)
+                    # Don't update parent_url; remaining tweets will reply to last successful parent
 
         return {"status": "success", "tweet_url": first_res.get("tweet_url")}
 
