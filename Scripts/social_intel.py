@@ -2319,12 +2319,66 @@ def scrape_bigpara_market_list(url, limit=10):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def _parse_market_movers_file():
+    """
+    C:\\iDeal\\TARAMA_LOG\\Market_Movers.txt dosyasından kazanan/kaybeden listesini oku.
+    Dosya yoksa, bugüne ait değilse veya parse edilemezse None döner (bigpara fallback devreye girer).
+    """
+    import os, datetime
+    movers_path = r"C:\iDeal\TARAMA_LOG\Market_Movers.txt"
+    try:
+        if not os.path.exists(movers_path):
+            return None
+        # Bugüne ait mi? (son yazma zamanı bugün olmalı)
+        mtime = datetime.datetime.fromtimestamp(os.path.getmtime(movers_path))
+        if mtime.date() != datetime.date.today():
+            return None
+        content = open(movers_path, encoding="cp1254", errors="replace").read()
+        gainers, losers = [], []
+        section = None
+        for line in content.splitlines():
+            if "YÜKSELENLER" in line:
+                section = "g"
+            elif "DÜŞENLER" in line:
+                section = "l"
+            elif section and line.strip() and not line.startswith("=") and not line.startswith("-") and not line.startswith("["):
+                # Format: " 1. THYAO     +3.45%  Hacim:12345678"
+                parts = line.split()
+                if len(parts) >= 3:
+                    try:
+                        symbol = parts[1]
+                        pct_str = parts[2].replace("+", "").replace("%", "").replace(",", ".")
+                        pct = float(pct_str)
+                        entry = {"symbol": symbol, "change_percent": pct, "name": symbol}
+                        if section == "g":
+                            gainers.append(entry)
+                        else:
+                            losers.append(entry)
+                    except Exception:
+                        pass
+        if gainers or losers:
+            return {"gainers": gainers, "losers": losers}
+    except Exception:
+        pass
+    return None
+
+
 def get_top_gainers():
-    """Scrape BIST100 top gainers"""
+    """İlk olarak iDeal'in yerel Market_Movers.txt dosyasını dene; yoksa bigpara'dan çek."""
+    local = _parse_market_movers_file()
+    if local and local.get("gainers"):
+        data = [{"symbol": e["symbol"], "name": e["name"], "change_percent": e["change_percent"],
+                 "price": "", "volume": ""} for e in local["gainers"][:20]]
+        return {"status": "success", "data": data}
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-artan-hisseler/")
 
 def get_top_losers():
-    """Scrape BIST100 top losers"""
+    """İlk olarak iDeal'in yerel Market_Movers.txt dosyasını dene; yoksa bigpara'dan çek."""
+    local = _parse_market_movers_file()
+    if local and local.get("losers"):
+        data = [{"symbol": e["symbol"], "name": e["name"], "change_percent": e["change_percent"],
+                 "price": "", "volume": ""} for e in local["losers"][:20]]
+        return {"status": "success", "data": data}
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-azalanlar/")
 
 def get_top_volume():

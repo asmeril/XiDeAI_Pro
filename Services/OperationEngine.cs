@@ -104,17 +104,32 @@ namespace XiDeAI_Pro.Services
             {
                 OnStatusUpdate?.Invoke("🌆 Piyasa kapanış özeti hazırlanıyor...");
                 
-                var financials = await _socialIntel.GetFinancialSummaryAsync();
+                // iDeal log dosyalarından birincil veri kaynağı
+                var (ideaLIndices, eodSnapshot, nabizUyarilari) = ReadIDeaLMarketData();
+
+                // iDeal verisi yoksa internet kaynağına fallback
+                string indices;
+                if (!string.IsNullOrWhiteSpace(ideaLIndices))
+                {
+                    indices = ideaLIndices;
+                    OnLog?.Invoke("✅ iDeal'den endeks verisi okundu.", "Operation");
+                }
+                else
+                {
+                    var financials = await _socialIntel.GetFinancialSummaryAsync();
+                    indices = FormatIndices(financials);
+                    OnLog?.Invoke("⚠️ iDeal verisi yok, internet kaynağı kullanılıyor.", "Operation");
+                }
+
                 var gainers = await _socialIntel.GetTopGainersAsync();
-                var losers = await _socialIntel.GetTopLosersAsync();
-                var volume = await _socialIntel.GetTopVolumeAsync();
+                var losers  = await _socialIntel.GetTopLosersAsync();
+                var volume  = await _socialIntel.GetTopVolumeAsync();
 
-                string indices = FormatIndices(financials);
                 string gTable = FormatStockTable(gainers, "Kazananlar");
-                string lTable = FormatStockTable(losers, "Kaybedenler");
-                string vTable = FormatStockTable(volume, "Hacim");
+                string lTable = FormatStockTable(losers,  "Kaybedenler");
+                string vTable = FormatStockTable(volume,  "Hacim");
 
-                string? tweetSet = await _gemini.GenerateMarketCloseTableTweet(indices, gTable, lTable, vTable);
+                string? tweetSet = await _gemini.GenerateMarketCloseTableTweet(indices, gTable, lTable, vTable, nabizUyarilari, eodSnapshot);
                 if (string.IsNullOrEmpty(tweetSet)) throw new Exception("Gemini report generation failed.");
 
                 bool anySent = false;
@@ -313,6 +328,75 @@ namespace XiDeAI_Pro.Services
         {
             if (stocks == null || stocks.Count == 0) return $"{title}: Veri yok.";
             return title + ":\n" + string.Join("\n", stocks.Take(5).Select(s => $"• ${s.Symbol}: {s.Close} (%{s.ChangePercent})"));
+        }
+
+        /// <summary>
+        /// iDeal log dosyalarından anlık endeks durumu, gün sonu kapanış özeti ve nabız uyarılarını okur.
+        /// Market_Status.txt → anlık durum | Market_Pulse_Alarm.txt → EOD_SNAPSHOT + alarm satırları
+        /// </summary>
+        internal static (string indicesData, string eodSnapshot, string nabizUyarilari) ReadIDeaLMarketData()
+        {
+            string indicesData   = "";
+            string eodSnapshot   = "";
+            string nabizUyarilari = "";
+
+            try
+            {
+                // ── 1. Market_Status.txt → anlık endeks durumu ──────────────────────────────
+                string statusFile = @"C:\iDeal\TARAMA_LOG\Market_Status.txt";
+                if (System.IO.File.Exists(statusFile))
+                {
+                    // Format: datetime|MOD|YON|GunlukDeg%|Score|XU030%|XU050%|XU100_Fiyat|VolKat
+                    var cols = System.IO.File.ReadAllText(statusFile).Split('|');
+                    if (cols.Length >= 8)
+                    {
+                        string tarih = cols[0].Length >= 10 ? cols[0].Substring(0, 10) : cols[0];
+                        if (DateTime.TryParse(tarih, out DateTime dt) && dt.Date == DateTime.Today)
+                        {
+                            indicesData = $"XU100 Anlık | Fiyat: {cols[7]} | Değişim: %{cols[3]} | Trend: {cols[2]} | Mod: {cols[1]}";
+                            if (cols.Length >= 9) indicesData += $" | Hacim Kat: {cols[8]}x";
+                            if (cols.Length >= 6) indicesData += $"\nXU030: %{cols[5]} | XU050: %{cols[6]}";
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                // ── 2. Market_Pulse_Alarm.txt → EOD_SNAPSHOT + nabız uyarıları ────────────
+                string pulseFile = @"C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt";
+                if (System.IO.File.Exists(pulseFile))
+                {
+                    string todayPrefix = DateTime.Today.ToString("yyyy-MM-dd");
+                    var alarmLines = new System.Collections.Generic.List<string>();
+                    string eodLine = "";
+
+                    foreach (var line in System.IO.File.ReadAllLines(pulseFile))
+                    {
+                        if (!line.StartsWith(todayPrefix)) continue;
+                        if (line.Contains("EOD_SNAPSHOT"))
+                            eodLine = line;
+                        else
+                            alarmLines.Add(line);
+                    }
+
+                    // EOD_SNAPSHOT parse: datetime|EOD_SNAPSHOT|MOD|GunlukDeg:X%|XU100_Kapanis:X|GunYuksek:X|GunDusuk:X|GunRange:X%|XU030Deg:X%|XU050Deg:X%|PuanScore:X
+                    if (!string.IsNullOrEmpty(eodLine))
+                    {
+                        var ep = eodLine.Split('|');
+                        // ep[0]=datetime, ep[2]=mod, ep[3]=GunlukDeg, ep[4]=XU100_Kapanis, ep[5]=GunYuksek, ep[6]=GunDusuk, ep[7]=GunRange, ep[8]=XU030Deg, ep[9]=XU050Deg, ep[10]=PuanScore
+                        var eodParts = ep.Skip(2).Select(p => p.Trim()).ToArray();
+                        eodSnapshot = string.Join(" | ", eodParts);
+                    }
+
+                    if (alarmLines.Count > 0)
+                        nabizUyarilari = string.Join("\n", alarmLines);
+                }
+            }
+            catch { }
+
+            return (indicesData, eodSnapshot, nabizUyarilari);
         }
     }
 }

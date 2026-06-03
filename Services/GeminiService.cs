@@ -413,12 +413,14 @@ namespace XiDeAI_Pro.Services
             return await SendRequest(prompt, maxOutputTokens: maxTokens);
         }
 
-        public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume, string pulseAnomalies = "")
+        public async Task<string?> GenerateMarketCloseTableTweet(string indicesData, string topGainers, string topLosers, string topVolume, string nabizUyarilari = "", string eodSnapshot = "")
         {
-            string marketData = string.IsNullOrWhiteSpace(topVolume)
-                ? indicesData
-                : $"{indicesData}\n\nEN COK HACIM:\n{topVolume}";
-            return await SendRequest(_prompts.GetMarketClosePrompt("BIST", marketData, topGainers, topLosers, pulseAnomalies));
+            string marketData = indicesData;
+            if (!string.IsNullOrWhiteSpace(eodSnapshot))
+                marketData += $"\n\nGUN SONU KAPANIŞ OZETI:\n{eodSnapshot}";
+            if (!string.IsNullOrWhiteSpace(topVolume))
+                marketData += $"\n\nEN COK ISLEM GORENLER:\n{topVolume}";
+            return await SendRequest(_prompts.GetMarketClosePrompt("BIST", marketData, topGainers, topLosers, nabizUyarilari));
         }
 
         private string CleanTweetContent(string raw, int maxLength = 200)

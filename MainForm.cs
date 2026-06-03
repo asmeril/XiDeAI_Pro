@@ -2301,49 +2301,36 @@ namespace XiDeAI_Pro
                 
                 try
                 {
-                    // 1. Fetch Indices Data
-                    var financials = await _opManager.SocialIntel.GetFinancialSummaryAsync();
-                    string indicesData = "";
-                    
-                    if (financials != null && financials.Count > 0)
+                    // 1. iDeal'den birincil veri kaynağı
+                    var (ideaLIndices, eodSnapshot, nabizUyarilari) = OperationEngine.ReadIDeaLMarketData();
+
+                    string indicesData;
+                    if (!string.IsNullOrWhiteSpace(ideaLIndices))
                     {
-                        var xu100 = financials.GetValueOrDefault("XU100", "?");
-                        var gold = financials.GetValueOrDefault("GramAltin", "?");
-                        var usd = financials.GetValueOrDefault("USD", "?");
-                        
-                        indicesData = $"XU100: {xu100}, ALTIN: {gold}, USD: {usd}";
-                        Log($"📊 Endeksler çekildi: {indicesData}", "Twitter");
+                        indicesData = ideaLIndices;
+                        Log($"✅ iDeal'den endeks verisi okundu: {ideaLIndices}", "Twitter");
                     }
                     else
                     {
-                        indicesData = "Sembol | Fiyat\n-------|------\nBIST100| 9.850\nALTIN  | 2.850\nUSD    | 34.50";
+                        var financials = await _opManager.SocialIntel.GetFinancialSummaryAsync();
+                        indicesData = financials != null && financials.Count > 0
+                            ? $"XU100: {financials.GetValueOrDefault("XU100","?")}, ALTIN: {financials.GetValueOrDefault("GramAltin","?")}, USD: {financials.GetValueOrDefault("USD","?")}"
+                            : "Endeks verisi alınamadı.";
+                        Log($"⚠️ iDeal verisi yok, internet kaynağı kullanılıyor: {indicesData}", "Twitter");
                     }
 
-                    // 2. Fetch Winners/Losers
+                    // 2. Yükselen / Düşen / Hacim
                     var gainers = await _opManager.SocialIntel.GetTopGainersAsync();
                     var losers = await _opManager.SocialIntel.GetTopLosersAsync();
                     var topVolume = await _opManager.SocialIntel.GetTopVolumeAsync();
 
                     string topGainersData = BuildStockTable(gainers, "Top Gainers");
-                    string topLosersData = BuildStockTable(losers, "Top Losers");
-                    string topVolumeData = BuildStockTable(topVolume, "Top Volume");
+                    string topLosersData  = BuildStockTable(losers,  "Top Losers");
+                    string topVolumeData  = BuildStockTable(topVolume, "Top Volume");
 
-                    // 3. AI Generation
+                    // 3. AI üretimi
                     Log("🤖 AI Piyasa Kapanış Özeti Hazırlanıyor...", "System");
-                    string pulseAnomalies = "";
-                    try {
-                        string pulseFile = @"C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt";
-                        if (System.IO.File.Exists(pulseFile)) {
-                            var lines = System.IO.File.ReadAllLines(pulseFile);
-                            foreach (var line in lines) {
-                                if (line.StartsWith(DateTime.Today.ToString("yyyy-MM-dd"))) {
-                                    pulseAnomalies += line + "\n";
-                                }
-                            }
-                        }
-                    } catch {}
-                    
-                    string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indicesData, topGainersData, topLosersData, topVolumeData, pulseAnomalies);
+                    string? tweetSet = await _opManager.Gemini.GenerateMarketCloseTableTweet(indicesData, topGainersData, topLosersData, topVolumeData, nabizUyarilari, eodSnapshot);
 
                     if (string.IsNullOrEmpty(tweetSet)) 
                     {
