@@ -507,17 +507,22 @@ namespace XiDeAI_Pro.Services
 
         private static string StripUnapprovedMentions(string content, HashSet<string> allowedHandles, out List<string> removedHandles)
         {
-            removedHandles = new List<string>();
-            if (string.IsNullOrWhiteSpace(content)) return content ?? string.Empty;
+            var localRemoved = new List<string>();
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                removedHandles = localRemoved;
+                return content ?? string.Empty;
+            }
 
             string cleaned = System.Text.RegularExpressions.Regex.Replace(content, @"(?<![\w])@([A-Za-z0-9_]{1,15})\b", match =>
             {
                 string handle = match.Groups[1].Value;
                 if (allowedHandles.Contains(handle)) return match.Value;
-                if (!removedHandles.Contains(handle, StringComparer.OrdinalIgnoreCase)) removedHandles.Add(handle);
+                if (!localRemoved.Contains(handle, StringComparer.OrdinalIgnoreCase)) localRemoved.Add(handle);
                 return string.Empty;
             });
 
+            removedHandles = localRemoved;
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]{2,}", " ");
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+([,.;:!?])", "$1");
             return cleaned.Trim();
