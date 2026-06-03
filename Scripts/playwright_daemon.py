@@ -734,9 +734,13 @@ class XDaemonPlaywright:
         if self.profile_path:
             try:
                 await self.page.goto(self.profile_path, wait_until="domcontentloaded", timeout=20000)
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2.0)
 
                 links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")
+                try:
+                    await links.first.wait_for(state="attached", timeout=6000)
+                except:
+                    pass
                 count = await links.count()
                 best_url = ""
                 best_id = -1
