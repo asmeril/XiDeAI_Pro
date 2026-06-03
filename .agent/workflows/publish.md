@@ -43,20 +43,24 @@ Set-Location "d:\MEGA\XiDeAI_Pro"
 
 ---
 
-## 2. Build & Deploy (Tek Komut)
+## 2. Build, Setup & Deploy (release.ps1)
 
 ```powershell
 Set-Location "d:\MEGA\XiDeAI_Pro"
-dotnet publish -c Release -r win-x86 --self-contained true `
-  /p:PublishSingleFile=true -o "C:\Program Files (x86)\XiDeAI Pro"
+.\release.ps1 -Version "NEW_VER" -Changelog "vNEW_VER: <degisiklik ozeti>"
 ```
 
-> **NOT:** Bu proje `--self-contained true`, `win-x86`, `PublishSingleFile=true` ile build alıyor.
-> EXE boyutu ~135-145 MB olmalı (self-contained .NET 8 runtime dahil).
+Bu script şunları yapar:
+1. csproj + setup.iss versiyon güncelleme
+2. `dotnet publish` (win-x64, self-contained, single-file)
+3. Scripts\ ve Config\ klasörlerini publish dizinine kopyalama
+4. Inno Setup ile `Output\XiDeAI_vNEW_VER_Setup.exe` oluşturma
+5. `Output\version.json` güncelleme
 
----
+> **NOT:** Build çıktısı `Dist\publish\` altında toplanır, setup EXE `Output\` klasörüne yazılır.
+> Inno Setup kurulu olmalı: `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`
 
-## 3. Scripts Kopyala
+### Production deploy (setup sonrası)
 
 ```powershell
 Copy-Item "d:\MEGA\XiDeAI_Pro\Scripts\social_intel.py" `
