@@ -308,11 +308,17 @@ namespace XiDeAI_Pro.Services
                 // Send via Selenium (Cookies)
                 var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
                 
-                // LOG the result for debugging
+                // LOG the result for debugging (with partial success detection)
                 Logger.Twitter($"Thread Result: status={result.status}, message={result.message}, text={result.text}");
                 
                 if (result.status == "success")
                 {
+                    // Check if this is a partial success (some tweets failed)
+                    if (!string.IsNullOrEmpty(result.message) && result.message.Contains("partially"))
+                    {
+                        Logger.Twitter($"⚠️ Thread kısmen gönderildi: {result.message}");
+                    }
+                    
                     // Record in stats engine by module
                     var threadContent = string.Join(" ", tweets).Substring(0, Math.Min(150, string.Join(" ", tweets).Length));
                     _stats?.RecordTweet("ThreadService", tweets.Count, signal.Symbol, threadContent);
@@ -322,6 +328,7 @@ namespace XiDeAI_Pro.Services
                 
                 // Use message OR text for error (message is primary)
                 string errorDetail = !string.IsNullOrEmpty(result.message) ? result.message : result.text;
+                Logger.Twitter($"❌ Thread gönderim hatası: {errorDetail}");
                 return (false, "Twitter gönderimi başarısız: " + errorDetail);
             }
             catch (Exception ex)

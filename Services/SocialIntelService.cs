@@ -851,7 +851,7 @@ namespace XiDeAI_Pro.Services
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
                 string args = $"\"{playwrightScript}\" post_thread --file \"{tempFile}\"{visibilityFlag}";
                 
-                string json = await RunPythonScript(args, null, null, 360); // Extended timeout for reply-chain thread posting (4 tweets × ~60s each)
+                string json = await RunPythonScript(args, null, null, 480); // Extended timeout for reply-chain thread posting (4 tweets × ~60s each + safety margin)
                 
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 _lastPostUtc = DateTime.UtcNow;

@@ -560,7 +560,10 @@ class XDaemonPlaywright:
                     m_id = re.search(r'/status/(\d+)', tweet_url)
                     if m_id:
                         self._last_known_tweet_id = max(self._last_known_tweet_id, int(m_id.group(1)))
-                return {"status": "success", "tweet_url": tweet_url}
+                    return {"status": "success", "tweet_url": tweet_url}
+                # CRITICAL FIX: If we cannot find /status/ after reply, the reply was likely NOT posted
+                print(f"ERROR: Reply URL verification failed — reply was likely NOT posted: {tweet_url}", file=sys.stderr)
+                return {"status": "error", "message": f"Reply post verification failed: no tweet URL found. Got: {tweet_url}"}
 
             except PlaywrightTimeoutError as e:
                 if attempt == 3:
@@ -709,11 +712,31 @@ class XDaemonPlaywright:
                     if 'went wrong' in t_text.lower() or 'already' in t_text.lower() or 'duplicate' in t_text.lower() or 'failed' in t_text.lower():
                         raise Exception(f"Twitter Error: {t_text}")
                 
-                # Removed faulty compose box visibility check
+                # CRITICAL FIX: Verify we navigated AWAY from compose page (thread was actually submitted)
+                still_on_compose = "compose" in self.page.url.lower()
+                if still_on_compose:
+                    # Check if compose box still has content -> thread was NOT posted
+                    try:
+                        textareas = self.page.locator('div[data-testid^="tweetTextarea_"]')
+                        ta_count = await textareas.count()
+                        has_content = False
+                        for ta_i in range(min(ta_count, 5)):
+                            ta_text = await textareas.nth(ta_i).inner_text()
+                            if ta_text.strip():
+                                has_content = True
+                                break
+                        if has_content:
+                            raise PlaywrightTimeoutError("Thread not submitted: still on compose page with content after 10s")
+                    except PlaywrightTimeoutError:
+                        raise
+                    except Exception:
+                        pass
 
                 tweet_url = await self._extract_latest_tweet_url()
+                # CRITICAL FIX: If no /status/ in URL, treat as failure (not just a warning)
                 if "/status/" not in tweet_url:
-                    print(f"WARNING: Thread URL verification failed: {tweet_url}", file=sys.stderr)
+                    print(f"ERROR: Thread URL verification failed — tweet was likely NOT posted: {tweet_url}", file=sys.stderr)
+                    return {"status": "error", "message": f"Thread post verification failed: no tweet URL found. Got: {tweet_url}"}
                 return {"status": "success", "tweet_url": tweet_url}
 
             except PlaywrightTimeoutError as e:
@@ -950,6 +973,7 @@ class XDaemonPlaywright:
             else:
                 return {"status": "error", "message": f"Could not determine parent tweet URL for thread chaining. Got: {parent_url}"}
         posted_count = 1
+        failed_parts = []
         for i, chunk in enumerate(numbered_chunks[1:], 2):
             await asyncio.sleep(2.0)
             res = await self._post_reply_in_thread(parent_url, chunk)
@@ -971,9 +995,32 @@ class XDaemonPlaywright:
                         if (self.profile_path and f"x.com{self.profile_path}/status/" in candidate) or (not self.profile_path):
                             parent_url = candidate
                 else:
-                    # Retry also failed — log and continue with remaining tweets rather than aborting
+                    # Retry also failed — track which parts failed
+                    failed_parts.append(i)
                     print(f"[playwright_daemon] Thread part {i} retry also failed: {res2.get('message')}. Continuing with next tweet.", flush=True)
                     # Don't update parent_url; remaining tweets will reply to last successful parent
+
+        # CRITICAL FIX: Report accurate status based on how many parts actually posted
+        total_replies = len(numbered_chunks) - 1  # exclude first tweet
+        if failed_parts:
+            print(f"[playwright_daemon] Thread completed with {len(failed_parts)} failed part(s): parts {failed_parts}", flush=True)
+            if posted_count == 1 and len(failed_parts) == total_replies:
+                # ALL replies failed — only the first tweet was posted. This is a partial failure.
+                return {
+                    "status": "error",
+                    "message": f"Thread incomplete: only first tweet posted. {total_replies} reply tweet(s) failed (parts: {failed_parts}).",
+                    "tweet_url": first_res.get("tweet_url"),
+                    "posted_count": posted_count,
+                    "total_chunks": len(numbered_chunks),
+                }
+            # Partial success: first tweet + some replies posted, but not all
+            return {
+                "status": "success",
+                "message": f"Thread partially posted: {posted_count}/{len(numbered_chunks)} tweets succeeded. Failed parts: {failed_parts}.",
+                "tweet_url": first_res.get("tweet_url"),
+                "posted_count": posted_count,
+                "total_chunks": len(numbered_chunks),
+            }
 
         return {"status": "success", "tweet_url": first_res.get("tweet_url")}
 
