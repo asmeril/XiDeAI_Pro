@@ -21,12 +21,13 @@ namespace XiDeAI_Pro.Services
         private readonly PromptManager _prompts;
         private readonly StatsEngine _stats;
         private readonly NewsPersistenceService _persistence;
+        private readonly PostingService _posting;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(2, 2); // Max 2 eşzamanlı haber işlemi (VRAM güvenliği)
         private readonly ConcurrentDictionary<string, DateTime> _inflightNews = new(StringComparer.OrdinalIgnoreCase);
         
         public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; }
 
-        public NewsEngine(GeminiService gemini, TwitterService twitter, SocialIntelService socialIntel, TelegramService telegram, SpamProtection spam, PromptManager prompts, StatsEngine stats, NewsPersistenceService persistence)
+        public NewsEngine(GeminiService gemini, TwitterService twitter, SocialIntelService socialIntel, TelegramService telegram, SpamProtection spam, PromptManager prompts, StatsEngine stats, NewsPersistenceService persistence, PostingService? posting = null)
         {
             _gemini = gemini;
             _twitter = twitter;
@@ -36,6 +37,7 @@ namespace XiDeAI_Pro.Services
             _prompts = prompts;
             _stats = stats;
             _persistence = persistence;
+            _posting = posting ?? new PostingService(socialIntel, stats);
         }
 
         public event Action<string, string>? OnLog;
@@ -389,7 +391,7 @@ namespace XiDeAI_Pro.Services
             }
 
 
-            var result = await _socialIntel.PostThreadAsync(normalizedParts, localImagePath);
+            var result = await _posting.PostThreadAsync(normalizedParts, localImagePath, "NewsEngine");
 
             // Cleanup temp image
             if (!string.IsNullOrEmpty(localImagePath) && System.IO.File.Exists(localImagePath))

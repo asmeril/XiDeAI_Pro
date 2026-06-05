@@ -16,6 +16,7 @@ namespace XiDeAI_Pro.Services
         private readonly GeminiService _gemini;
         private readonly TelegramService _telegram;
         private readonly StatsEngine _stats;
+        private readonly PostingService _posting;
         private readonly PromptManager _prompts = new PromptManager();
         
         private DateTime _lastRunTime = DateTime.MinValue;
@@ -41,12 +42,14 @@ namespace XiDeAI_Pro.Services
             SocialIntelService socialIntel,
             GeminiService gemini,
             TelegramService telegram,
-            StatsEngine stats)
+            StatsEngine stats,
+            PostingService? posting = null)
         {
             _socialIntel = socialIntel;
             _gemini = gemini;
             _telegram = telegram;
             _stats = stats;
+            _posting = posting ?? new PostingService(socialIntel, stats);
         }
 
         /// <summary>
@@ -139,7 +142,7 @@ namespace XiDeAI_Pro.Services
 
                     // Post the tweet
                     OnStatusUpdate?.Invoke($"📤 Paylaşılıyor: {topic.Topic}...");
-                    var result = await _socialIntel.PostTweet(tweet, null);
+                    var result = await _posting.PostTweetAsync(tweet, null, "TrendEngagement");
                     
                     if (result.status == "success")
                     {

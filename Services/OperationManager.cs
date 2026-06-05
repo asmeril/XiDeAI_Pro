@@ -107,6 +107,7 @@ namespace XiDeAI_Pro.Services
         public NewsTrackerService NewsTracker { get; private set; }
         public SignalEngine SignalEng { get; private set; }
         public TrendService TrendService { get; private set; }
+        public PostingService Posting { get; private set; }
         public ModelManager? ModelManager { get; private set; }
         public AthleteDiscoveryService AthleteDiscovery { get; private set; } // v4.1.0
         
@@ -165,6 +166,7 @@ namespace XiDeAI_Pro.Services
             SocialIntel.SetMemoryEngine(Memory);
             SocialIntel.SetInfluencerControl(InfluencerControl);
             SocialIntel.SetStatsEngine(Stats);
+            Posting = new PostingService(SocialIntel, Stats);
             
             // v4.4.0: X daemon in background (DISABLED AUTO-START for safety)
             // _ = Task.Run(async () => {
@@ -174,9 +176,9 @@ namespace XiDeAI_Pro.Services
             
             // 4. Analysis & Execution Services (Dependency: Intelligence)
             // [HIVE REMOVED] Sentinel service moved to HiveProjesi
-            ThreadSvc = new ThreadService(Twitter, Gemini, SocialIntel, InfluencerControl, Stats);
+            ThreadSvc = new ThreadService(Twitter, Gemini, SocialIntel, InfluencerControl, Stats, Posting);
             
-            NewsEng = new NewsEngine(Gemini, Twitter, SocialIntel, Telegram, Spam, Prompts, Stats, NewsPersistence);
+            NewsEng = new NewsEngine(Gemini, Twitter, SocialIntel, Telegram, Spam, Prompts, Stats, NewsPersistence, Posting);
             NewsEng.ModelManager = ModelManager;
             
             // [HIVE REMOVED] Apex service moved to HiveProjesi
@@ -220,7 +222,8 @@ namespace XiDeAI_Pro.Services
                 Stats,
                 SignalPersistence,
                 Memory,  // v3.8: Weekly thread control
-                ModelManager
+                ModelManager,
+                Posting
             );
 
             // [HIVE REMOVED] OmniScout and Oracle services moved to HiveProjesi

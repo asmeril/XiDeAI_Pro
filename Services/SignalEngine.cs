@@ -33,6 +33,7 @@ namespace XiDeAI_Pro.Services
         private readonly StatsEngine _stats;
         private readonly SignalPersistenceService _persistence; // Persistent memory (v3.1.2)
         private readonly MemoryEngine? _memory; // v3.8: Weekly thread control
+        private readonly PostingService _posting;
         public XiDeAI_Pro.Services.AI.ModelManager? ModelManager { get; set; } // Public for OperationManager linkage
         private readonly XiDeAI_Pro.Services.AI.ModelManager? _modelManager; // Multi-Model AI (v3.1+)
 
@@ -74,7 +75,8 @@ namespace XiDeAI_Pro.Services
             StatsEngine stats,
             SignalPersistenceService persistence,
             MemoryEngine? memory = null,
-            XiDeAI_Pro.Services.AI.ModelManager? modelManager = null)
+            XiDeAI_Pro.Services.AI.ModelManager? modelManager = null,
+            PostingService? posting = null)
         {
             _parser = parser;
             _gemini = gemini;
@@ -92,6 +94,7 @@ namespace XiDeAI_Pro.Services
             _persistence = persistence;
             _memory = memory;
             _modelManager = modelManager;
+            _posting = posting ?? new PostingService(socialIntel, stats);
         }
 
         public async Task InitializeAsync()
@@ -642,23 +645,19 @@ namespace XiDeAI_Pro.Services
             var threadTweets = ThreadPipeline.ParseThreadPayload(content, 280);
             if (threadTweets.Count > 1)
             {
-                var res = await _socialIntel.PostThreadAsync(threadTweets, mediaPath);
+                var res = await _posting.PostThreadAsync(threadTweets, mediaPath, "SignalEngine");
                 return res.status == "success";
             }
 
             // Web automation first
-            var result = await _socialIntel.PostTweet(content, mediaPath);
+            var result = await _posting.PostTweetAsync(content, mediaPath, "SignalEngine");
             if (result.status == "success")
             {
                 _stats.RecordActivity("SignalEngine", $"Posted tweet via Web: {sig.Symbol}", true);
                 return true;
             }
-
-            // API Fallback
-            var apiRes = await _twitter.SendTweetAsync(content);
-            bool apiSent = !string.IsNullOrEmpty(apiRes);
-            _stats.RecordActivity("SignalEngine", $"Posted tweet via API: {sig.Symbol}", apiSent, apiSent ? "" : _twitter.LastError);
-            return apiSent;
+            _stats.RecordActivity("SignalEngine", $"Post failed: {sig.Symbol}", false, result.ErrorMessage);
+            return false;
         }
     }
 }

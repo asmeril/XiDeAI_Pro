@@ -19,8 +19,11 @@ namespace XiDeAI_Pro.Services
         public string status { get; set; } = "";
         public string handle { get; set; } = "";
         public string link { get; set; } = "";
+        public string tweet_url { get; set; } = "";
         public string text { get; set; } = "";
         public string message { get; set; } = "";  // Python returns 'message' for errors
+        public int posted_count { get; set; } = 0;
+        public int total_chunks { get; set; } = 0;
         
         // Helper: Get error message from either property
         public string ErrorMessage => !string.IsNullOrEmpty(message) ? message : text;
@@ -693,17 +696,23 @@ namespace XiDeAI_Pro.Services
                 return await PostThreadAsync(new List<string> { text }, mediaPath);
             }
 
-            // 1. Try Internal Bridge (WebView2) First - More reliable as it uses current session
-            if (OnPostTweetRequested != null)
+            // Internal WebView2 bridge can report success without a verified /status/ URL.
+            // Use Playwright as the canonical posting engine until the bridge has URL verification.
+            bool useInternalBridge = false;
+            if (useInternalBridge && OnPostTweetRequested != null)
             {
                 try
                 {
                     var res = await OnPostTweetRequested.Invoke(text, mediaPath);
                     if (res != null && res.status == "success")
                     {
-                        ConfigManager.AddWebUsage();
-                        _stats?.RecordTweet("SocialIntel", 1, "", text);
-                        return res;
+                        if (HasVerifiedTweetUrl(res))
+                        {
+                            ConfigManager.AddWebUsage();
+                            _stats?.RecordTweet("SocialIntel", 1, "", text);
+                            return res;
+                        }
+                        Logger.Twitter("⚠️ Dahili tweet success doğrulanamadı (/status/ URL yok). Playwright fallback deneniyor...");
                     }
                 }
                 catch (Exception ex)
@@ -735,8 +744,16 @@ namespace XiDeAI_Pro.Services
                 
                 if (result != null && result.status == "success")
                 {
-                     ConfigManager.AddWebUsage();
-                     _stats?.RecordTweet("SocialIntel", 1, "", text);
+                     if (!HasVerifiedTweetUrl(result))
+                     {
+                         result.status = "error";
+                         result.message = "Tweet success doğrulanamadı: /status/ URL yok.";
+                     }
+                     else
+                     {
+                         ConfigManager.AddWebUsage();
+                         _stats?.RecordTweet("SocialIntel", 1, "", text);
+                     }
                 }
                 
                 return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
@@ -782,8 +799,10 @@ namespace XiDeAI_Pro.Services
                 return new SocialIntelResult { status = "error", message = "Thread payload is empty after normalization." };
             }
 
-            // 1. Try Internal Bridge
-            if (OnPostThreadRequested != null)
+            // Internal WebView2 bridge can close/type without actually creating a post.
+            // Use Playwright as the canonical posting engine until it returns verified status URLs.
+            bool useInternalBridge = false;
+            if (useInternalBridge && OnPostThreadRequested != null)
             {
                 try
                 {
@@ -793,17 +812,21 @@ namespace XiDeAI_Pro.Services
                     {
                         if (res.status == "success") 
                         {
-                            Logger.Twitter("✅ Dahili thread gönderimi başarılı.");
-                            try
+                            if (HasVerifiedThreadResult(res, tweets.Count))
                             {
-                                var cfg = ConfigManager.Current;
-                                cfg.CheckReset();
-                                cfg.DailyTotalTweetCount += tweets.Count;
-                                cfg.MonthlyTotalTweetCount += tweets.Count;
-                                ConfigManager.Save();
+                                Logger.Twitter("✅ Dahili thread gönderimi doğrulandı.");
+                                try
+                                {
+                                    var cfg = ConfigManager.Current;
+                                    cfg.CheckReset();
+                                    cfg.DailyTotalTweetCount += tweets.Count;
+                                    cfg.MonthlyTotalTweetCount += tweets.Count;
+                                    ConfigManager.Save();
+                                }
+                                catch { /* sayaç güncelleme hatası yok sayılır */ }
+                                return res;
                             }
-                            catch { /* sayaç güncelleme hatası yok sayılır */ }
-                            return res;
+                            Logger.Twitter("⚠️ Dahili thread success doğrulanamadı (/status/ veya parça sayısı yok). Playwright fallback deneniyor...");
                         }
                         else if (res.status == "cancelled")
                         {
@@ -858,15 +881,23 @@ namespace XiDeAI_Pro.Services
 
                 if (result != null && result.status == "success")
                 {
-                    try
+                    if (!HasVerifiedThreadResult(result, tweets.Count))
                     {
-                        var cfg = ConfigManager.Current;
-                        cfg.CheckReset();
-                        cfg.DailyTotalTweetCount += tweets.Count;
-                        cfg.MonthlyTotalTweetCount += tweets.Count;
-                        ConfigManager.Save();
+                        result.status = "error";
+                        result.message = "Thread success doğrulanamadı: /status/ URL veya tam parça sayısı yok.";
                     }
-                    catch { /* sayaç güncelleme hatası yok sayılır */ }
+                    else
+                    {
+                        try
+                        {
+                            var cfg = ConfigManager.Current;
+                            cfg.CheckReset();
+                            cfg.DailyTotalTweetCount += tweets.Count;
+                            cfg.MonthlyTotalTweetCount += tweets.Count;
+                            ConfigManager.Save();
+                        }
+                        catch { /* sayaç güncelleme hatası yok sayılır */ }
+                    }
                 }
 
                 return result ?? new SocialIntelResult { status = "error", text = "Empty response" };
@@ -884,6 +915,19 @@ namespace XiDeAI_Pro.Services
                     try { File.Delete(tempFile); } catch { }
                 }
             }
+        }
+
+        private static bool HasVerifiedTweetUrl(SocialIntelResult result)
+        {
+            string url = !string.IsNullOrWhiteSpace(result.tweet_url) ? result.tweet_url : result.link;
+            return !string.IsNullOrWhiteSpace(url) && url.Contains("/status/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasVerifiedThreadResult(SocialIntelResult result, int expectedCount)
+        {
+            if (!HasVerifiedTweetUrl(result)) return false;
+            if (expectedCount <= 1) return true;
+            return result.posted_count >= expectedCount && result.total_chunks >= expectedCount;
         }
 
         public async Task<SocialIntelResult> ReplyToTweetAsync(string url, string text)

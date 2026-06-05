@@ -423,13 +423,14 @@ class XDaemonPlaywright:
                 pre_post_baseline = self._last_known_tweet_id
                 tweet_url = await self._extract_latest_tweet_url(min_id=pre_post_baseline)
                 if "/status/" not in tweet_url:
-                    print(f"WARNING: Tweet URL verification failed: {tweet_url}", file=sys.stderr)
+                    print(f"ERROR: Tweet URL verification failed: {tweet_url}", file=sys.stderr)
+                    return {"status": "error", "message": f"Tweet post verification failed: no /status/ URL. Got: {tweet_url}"}
                 else:
                     # Update baseline for next post
                     m_id = re.search(r'/status/(\d+)', tweet_url)
                     if m_id:
                         self._last_known_tweet_id = max(self._last_known_tweet_id, int(m_id.group(1)))
-                return {"status": "success", "tweet_url": tweet_url, "text": text}
+                return {"status": "success", "tweet_url": tweet_url, "posted_count": 1, "total_chunks": 1, "text": text}
 
             except PlaywrightTimeoutError as e:
                 if attempt == 3:
@@ -1004,25 +1005,16 @@ class XDaemonPlaywright:
         total_replies = len(numbered_chunks) - 1  # exclude first tweet
         if failed_parts:
             print(f"[playwright_daemon] Thread completed with {len(failed_parts)} failed part(s): parts {failed_parts}", flush=True)
-            if posted_count == 1 and len(failed_parts) == total_replies:
-                # ALL replies failed — only the first tweet was posted. This is a partial failure.
-                return {
-                    "status": "error",
-                    "message": f"Thread incomplete: only first tweet posted. {total_replies} reply tweet(s) failed (parts: {failed_parts}).",
-                    "tweet_url": first_res.get("tweet_url"),
-                    "posted_count": posted_count,
-                    "total_chunks": len(numbered_chunks),
-                }
-            # Partial success: first tweet + some replies posted, but not all
+            # Partial success is still an error for the caller: the requested thread is incomplete.
             return {
-                "status": "success",
+                "status": "error",
                 "message": f"Thread partially posted: {posted_count}/{len(numbered_chunks)} tweets succeeded. Failed parts: {failed_parts}.",
                 "tweet_url": first_res.get("tweet_url"),
                 "posted_count": posted_count,
                 "total_chunks": len(numbered_chunks),
             }
 
-        return {"status": "success", "tweet_url": first_res.get("tweet_url")}
+        return {"status": "success", "tweet_url": first_res.get("tweet_url"), "posted_count": posted_count, "total_chunks": len(numbered_chunks)}
 
 async def main():
     parser = argparse.ArgumentParser()
@@ -1053,8 +1045,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
 
 
 

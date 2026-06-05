@@ -431,9 +431,7 @@ namespace XiDeAI_Pro.Services
             string marketData = indicesData;
             if (!string.IsNullOrWhiteSpace(eodSnapshot))
                 marketData += $"\n\nGUN SONU KAPANIŞ OZETI:\n{eodSnapshot}";
-            if (!string.IsNullOrWhiteSpace(topVolume))
-                marketData += $"\n\nEN COK ISLEM GORENLER:\n{topVolume}";
-            return await SendRequest(_prompts.GetMarketClosePrompt("BIST", marketData, topGainers, topLosers, nabizUyarilari));
+            return await SendRequest(_prompts.GetMarketClosePrompt("BIST", marketData, topGainers, topLosers, topVolume, nabizUyarilari));
         }
 
         private string CleanTweetContent(string raw, int maxLength = 200)

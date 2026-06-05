@@ -1,6 +1,6 @@
-> **Version:** 5.2.9 (Preflight Docs)
-> **Architecture:** Hybrid (C# WinForms + Python Playwright Thread Engine + Selenium Research Fallback + WebView2 Bridge)
-> **Last Updated:** 2026-06-04
+> **Version:** 5.3.0 (Posting Architecture)
+> **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
+> **Last Updated:** 2026-06-06
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 
@@ -18,16 +18,17 @@ Proje 4 ana katmandan oluşur:
 4.  **Intelligence Layer (AI):** LM Studio (Yerel Model, Birincil) + Gemini/Perplexity (Yedek/Bulut) entegrasyonu.
 
 ### ✅ Canonical Publishing Flow (Tek Gerçek Hat)
-1. `SocialIntelService.PostThreadAsync` payload üretir (`preserve_chunks=true`).
-2. `ThreadPipeline.cs` sinyal ve haber thread parçalarını normalize eder, lead tweet üretir.
-3. `playwright_daemon.py` ilk tweeti yayınlar, sonra reply-chain ile devam eder.
-4. URL yakalama kendi profile timeline/toast üzerinden yapılır (rastgele timeline linki engellenir).
-5. C# sonuç kontrolü yalnızca `result.status == success` ise başarı sayar/loglar.
+1. Modüller sadece içerik üretir; gönderimi `PostingService` yapar.
+2. `PostingService.PostTweetAsync` / `PostThreadAsync` tüm tweet/thread payloadlarını normalize eder ve `SocialIntelService` alt motoruna iletir.
+3. `SocialIntelService` canonical olarak `Scripts/playwright_daemon.py` kullanır; WebView2 internal bridge debug-only bırakılmıştır.
+4. `playwright_daemon.py` gerçek `/status/<id>` URL yakalamadan success dönmez; thread için `posted_count == total_chunks` beklenir.
+5. C# tarafında success sadece `PostingService.IsVerifiedTweet/IsVerifiedThread` doğrulamasından sonra kabul edilir.
 
 ### ❌ Kaçınılacak Eski Davranışlar
 - Aynı işlemde hem fail hem success logu yazmak.
 - C# tarafından hazırlanmış thread parçalarını Python'da gereksiz yeniden parçalamak.
 - Thread sayaçlarını parça sayısı yerine sabit +1 artırmak.
+- WebView2 modal kapandı veya butona tıklandı diye post'u başarı saymak.
 
 ---
 
@@ -38,6 +39,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 | Servis Dosyası | Temel Görevleri | Bağlı Olduğu Python Script |
 | :--- | :--- | :--- |
 | **`SocialIntelService.cs`** | **Ana X (Twitter) Köprüsü.** Daemon-first mimari ile işlem yapar. `StartDaemonAsync()`, `DaemonRequestAsync()` metodları. | `x_daemon.py`, `social_intel.py` |
+| **`PostingService.cs`** | **v5.3.0 Canonical gönderim servisi.** Tüm modüller için tek tweet/thread doğrulama kapısı. `/status/` URL ve thread parça sayısı doğrulanmadan success dönmez. | `playwright_daemon.py` |
 | **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır, daemon'ı başlatır, durdurur ve birbirine bağlar. | - |
 | `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. **v4.2.2:** Two-Step News metodları eklendi. | - |
 | `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi — benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak günceller. | - |
@@ -64,12 +66,18 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.2.2)** Daemon'dan post alınınca `engagement/10` formülüyle `InfluencerControlService.UpdateScore()` çağrılır — etkin fenomenler üste çıkar.
 - **(v5.2.2)** Genel arama parse hatasında handle boş kalırsa tweet atlanır (eski: `X-User` fallback kaldırıldı).
 - **(v5.2.3)** `IsBadSocialResult(author, content, url)`: kendi hesap, bot çıktısı (`Piyasa Görüşleri`, `Teknik Analizim`, `XiDeAI`), `ERROR_404` ve ana sayfa URL sonuçlarını filtreler.
-- `PostTweet(text)` / `PostThreadAsync(tweets)`: Tweet atar. Önce dahili WebView2'yi dener, başarısız olursa Python'a düşer (Fallback).
+- `PostTweet(text)` / `PostThreadAsync(tweets)`: Düşük seviye Playwright posting köprüsü. **v5.3.0:** WebView2 internal bridge canonical yoldan çıkarıldı; `/status/` URL ve `posted_count/total_chunks` doğrulaması zorunlu.
 - `CheckSafety(actionType)`: **(v4.6.0)** Güvenlik kontrolü yapar (Hız limiti ve günlük kotalar).
 - `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
 
+#### `PostingService.cs`
+- **(v5.3.0)** `PostTweetAsync(text, mediaPath, module)`: Tekil tweetleri canonical Playwright hattına gönderir, gerçek `/status/` URL yoksa hata döndürür.
+- **(v5.3.0)** `PostThreadAsync(parts, mediaPath, module)`: Thread parçalarını `ThreadPipeline.EnsureWithinLimit` ile normalize eder; tüm parçalar gönderilmeden success dönmez.
+- **(v5.3.0)** `IsVerifiedTweet` / `IsVerifiedThread`: Uygulama genelinde tek başarı standardı.
+
 #### `ThreadService.cs`
 - **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
+- **(v5.3.0)** Sinyal, batch, günlük/haftalık rapor threadleri `PostingService` üzerinden gönderilir.
 
 #### `LogFileWatcher.cs`
 - **(v5.2.3)** `LoadSeenKeys(path)`: servis başlarken mevcut açık sinyalleri hafızaya alır, geçmiş satırları tekrar tetiklemez.
@@ -95,6 +103,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 #### `MainForm.cs`
 - **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
 - **(v5.1.1)** `PostMarketCloseSummary()`: `Market_Pulse_Alarm.txt` okunarak bugünün nabız alarmları `pulseAnomalies` string'ine toplanır ve `GenerateMarketCloseTableTweet` zincirine iletilir.
+- **(v5.3.0)** Sabah motivasyon ve gün sonu raporu `_tweetedToday` içine sadece doğrulanmış başarıdan sonra işlenir; `*_PENDING` guard eklendi.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -307,7 +316,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

@@ -1,0 +1,85 @@
+# XiDeAI Pro - Project Manifest v5.3.0
+
+**Release Date:** 2026-06-06
+**Version:** 5.3.0
+**Build:** Source stabilization / canonical posting architecture
+**Setup:** `Output/XiDeAI_v5.3.0_Setup.exe` after Windows publish
+
+---
+
+## Bu Sürümde Ne Değişti? (v5.3.0)
+
+### 1. Canonical PostingService Mimarisi
+**Amaç:** Üstat paneli, sabah motivasyon, sinyal, manuel analiz, haber ve gün sonu modüllerinin farklı gönderim yolları kullanmasını engellemek.
+
+- **`Services/PostingService.cs`:** Yeni merkezi gönderim facade'u eklendi.
+- Tüm modüller içerik üretmeye devam eder; gönderim ve doğrulama tek yerde yapılır.
+- `PostTweetAsync` ve `PostThreadAsync` yalnızca gerçek X `/status/<id>` URL doğrulaması ile success kabul eder.
+- Thread success için `posted_count >= expectedCount` ve `total_chunks >= expectedCount` zorunludur.
+
+### 2. Eski WebView2 Internal Bridge Debug-Only Hale Getirildi
+**Amaç:** Modal kapandı veya buton click döndü diye gerçek post oluşmadan başarı loglanmasını engellemek.
+
+- **`Services/SocialIntelService.cs`:** `PostTweet` ve `PostThreadAsync` artık canonical olarak Playwright subprocess hattını kullanır.
+- Internal `OnPostTweetRequested` / `OnPostThreadRequested` bridge'i canonical gönderim yolundan çıkarıldı.
+- Playwright sonucu doğrulanamazsa üst modüller başarısızlık görür; yanlış success logu basılmaz.
+
+### 3. Üstat Paneli ve Otomatik Guru Paylaşımı
+**Amaç:** Üstat panelinde "thread yayınlandı" denmesine rağmen gerçekte paylaşım olmaması sorununu çözmek.
+
+- **`MainForm.ApproveSelectedThread`:** Artık `PostingService.PostThreadAsync(..., "GuruPanel")` kullanır.
+- Başarı mesajında gerçek tweet URL'si ve parça sayısı gösterilir.
+- **Guru automation:** Otomatik paylaşım sonucu kontrol edilir; başarısızlık loglanır.
+
+### 4. Sabah Motivasyon Tweet Retry Mantığı
+**Amaç:** Sabah motivasyon tweeti başarısızken günlük işaretin erken atılması ve retry'nin engellenmesi sorununu çözmek.
+
+- **`MainForm.PostMorningMotivation`:** `bool` döndürür; başarı sadece doğrulanmış X postundan sonra kabul edilir.
+- `_tweetedToday` artık önce `MORNING_MOTIVATION_PENDING` kullanır.
+- `MORNING_MOTIVATION` sadece gerçek başarıdan sonra eklenir.
+- Spam key `MOTIVATION/DAILY` olarak standartlaştırıldı.
+
+### 5. Gün Sonu Özeti: Yükselen/Düşen/Hacim Veri Akışı
+**Amaç:** Gün sonu thread'inde yükselen/düşen tablosu ve hacim bilgisinin eksik kalmasını engellemek.
+
+- **`Scripts/social_intel.py`:** `Market_Movers.txt` parser regex ile güçlendirildi.
+- `YÜKSELENLER` ve `DÜŞENLER` bölümlerinden `Symbol`, `ChangePercent`, `Volume` alanları çıkarılır.
+- `get_top_volume()` önce `Market_Movers.txt` birleşik listesini hacme göre sıralar; BigPara sadece fallback'tir.
+- **`Services/GeminiService.cs` / `PromptManager.cs`:** `topVolume` ayrı prompt bölümü olarak gönderilir.
+- Prompt'a `HACIM LIDERLERI (EN COK ISLEM GORENLER)` bölümü ve hacim liderleri tweet'i eklendi.
+- `BuildStockTable` fiyat yoksa `-`, hacim varsa kompakt `M/B` formatı kullanır.
+
+### 6. Playwright Doğrulama Kontratı Sertleştirildi
+**Amaç:** Partial thread veya URL yakalanamayan tekil tweet'in success sayılmasını engellemek.
+
+- **`Scripts/playwright_daemon.py`:** Tekil tweette `/status/` URL alınamazsa `error` döner.
+- Partial thread artık `success` değil `error` döner.
+- Başarılı thread sonuçları `tweet_url`, `posted_count`, `total_chunks` döndürür.
+
+---
+
+## Değişen Dosyalar
+
+| Dosya | Değişiklik |
+|---|---|
+| `Services/PostingService.cs` | Yeni canonical gönderim servisi |
+| `Services/SocialIntelService.cs` | Playwright-only canonical posting, verification enforcement |
+| `Services/ThreadService.cs` | Sinyal/rapor threadleri PostingService'e yönlendirildi |
+| `Services/NewsEngine.cs` | Haber thread gönderimi PostingService'e yönlendirildi |
+| `Services/SignalEngine.cs` | Batch/generic signal posting PostingService'e yönlendirildi |
+| `Services/TrendEngagementService.cs` | Trend tweetleri PostingService'e yönlendirildi |
+| `MainForm.cs` | Üstat, motivasyon, gün sonu, manuel/haber UI gönderimleri PostingService'e yönlendirildi |
+| `Scripts/playwright_daemon.py` | Tekil tweet ve partial thread success doğrulaması sertleştirildi |
+| `Scripts/social_intel.py` | `Market_Movers.txt` parser, hacim fallback ve C# uyumlu JSON output |
+| `Services/GeminiService.cs` | Gün sonu `topVolume` ayrı prompt parametresi |
+| `Services/PromptManager.cs` | Hacim liderleri prompt bölümü ve thread yapısı |
+| `Services/OperationEngine.cs` | Rapor formatında hacim ve fiyat-yoksa `-` gösterimi |
+| `XiDeAI_Pro.csproj`, `setup.iss`, `version.json` | Sürüm `5.3.0` |
+
+---
+
+## Doğrulama
+
+- `python3 -m py_compile Scripts/social_intel.py Scripts/playwright_daemon.py` geçti.
+- `git diff --check` geçti.
+- `.NET build` Linux ortamında `dotnet` bulunmadığı için çalıştırılamadı; Windows build gereklidir.

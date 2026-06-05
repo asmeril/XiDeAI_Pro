@@ -450,7 +450,7 @@ Sadece ""WORTHY"" veya ""SKIP"" yaz, baska bir sey yazma.
             return prompt;
         }
 
-        public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string nabizUyarilari = "")
+        public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string topVolume = "", string nabizUyarilari = "")
         {
             string nabizSection = string.IsNullOrEmpty(nabizUyarilari)
                 ? ""
@@ -461,6 +461,7 @@ Sadece ""WORTHY"" veya ""SKIP"" yaz, baska bir sey yazma.
 
             string gainersSection = !string.IsNullOrEmpty(topPerformers)    ? $"GUNUN YILDIZLARI (EN COK YUKSELENLER):\n{topPerformers}\n\n" : "";
             string losersSection  = !string.IsNullOrEmpty(bottomPerformers) ? $"GUNUN KAZAZEDELERI (EN COK DUSENLER):\n{bottomPerformers}\n\n" : "";
+            string volumeSection  = !string.IsNullOrEmpty(topVolume)        ? $"HACIM LIDERLERI (EN COK ISLEM GORENLER):\n{topVolume}\n\n" : "";
 
             return $@"### KIMLIK:
 Sen BIST'in en keskin kalemini kullanan bagimsiz piyasa analistisin.
@@ -481,7 +482,7 @@ CIKTI FORMATI (KESIN KURAL):
 ### PIYASA VERILERI:
 {marketData}
 
-{gainersSection}{losersSection}{nabizSection}
+{gainersSection}{losersSection}{volumeSection}{nabizSection}
 
 ### KANCA KURALI (ZORUNLU - 1. TWEET):
 Ilk tweet okuyucuyu durdurmalı. Bunun icin asagidaki verilerden EN CARPICI olanı sec:
@@ -496,14 +497,14 @@ Soru bırak: 'Neden?', 'Ardinda ne var?', 'Yarin ne olur?' gibi.
 3. SON TWEET: 'Yarin hangi seviyeyi izliyorum?' sorusu + takip et / bildirimleri ac cagrisi.
 4. Hashtag SADECE son tweet'e: #BIST100 #Borsa #BorsaKapanis
 
-### THREAD YAPISI (6-7 tweet):
+### THREAD YAPISI (7 tweet):
 Tweet 1: \U0001F525 KANCA — gunun EN CARPICI ani veya rakamı; soru bırak (280 krktr alti)
 Tweet 2: \U0001F4CA Endeksler — XU100 kapanis fiyati + gunluk degisim + hacim + XU030/XU050 karsilastirmasi
 Tweet 3: \U0001F680 Gunun yildizlari — one cikan yukselenler; kisa neden
 Tweet 4: \U0001F480 Gunun kazazedeleri — one cikan dusenler; kisa neden
-Tweet 5: \U0001F534 NABIZ ANLARI — gun ici hacimli kirilimlari Smart Money diliyle (sadece nabız verisi varsa; yoksa bu tweet'i atlayip yarinki bakisa gec)
-Tweet 6: \U0001F52E Yarinki bakis — izlenecek kritik seviyeler ve beklenti
-Tweet 7: \U0001F4CC CTA — takip cagrisi, soru, RT istegi + #BIST100 #Borsa #BorsaKapanis";
+Tweet 5: \U0001F4B5 Hacim liderleri — en cok islem gorenleri ve hacim yogunlugunu mutlaka anlat
+Tweet 6: \U0001F534 NABIZ ANLARI — gun ici hacimli kirilimlari Smart Money diliyle (sadece nabız verisi varsa; yoksa yarinki bakisa gec)
+Tweet 7: \U0001F52E Yarinki bakis + CTA — kritik seviyeler, soru, takip/RT cagrisi + #BIST100 #Borsa #BorsaKapanis";
         }
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
         {
@@ -1475,7 +1476,4 @@ Sadece tweet metnini yaz, başka açıklama yapma.";
         }
     }
 }
-
-
-
 

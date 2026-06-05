@@ -327,7 +327,20 @@ namespace XiDeAI_Pro.Services
         private string FormatStockTable(List<StockData> stocks, string title)
         {
             if (stocks == null || stocks.Count == 0) return $"{title}: Veri yok.";
-            return title + ":\n" + string.Join("\n", stocks.Take(5).Select(s => $"• ${s.Symbol}: {s.Close} (%{s.ChangePercent})"));
+            return title + ":\n" + string.Join("\n", stocks.Take(5).Select(s =>
+            {
+                string price = s.Close > 0 ? s.Close.ToString("0.00") : "-";
+                string volume = s.Volume > 0 ? FormatCompactVolume(s.Volume) : "-";
+                return $"• ${s.Symbol}: {price} (%{s.ChangePercent:0.0}) Hacim:{volume}";
+            }));
+        }
+
+        private static string FormatCompactVolume(long volume)
+        {
+            if (volume >= 1_000_000_000) return (volume / 1_000_000_000m).ToString("0.0") + "B";
+            if (volume >= 1_000_000) return (volume / 1_000_000m).ToString("0.0") + "M";
+            if (volume >= 1_000) return (volume / 1_000m).ToString("0") + "K";
+            return volume.ToString();
         }
 
         /// <summary>
@@ -400,4 +413,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

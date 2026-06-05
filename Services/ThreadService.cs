@@ -16,6 +16,7 @@ namespace XiDeAI_Pro.Services
         private readonly SocialIntelService _socialIntel;
         private readonly InfluencerControlService _influencerControl;
         private readonly StatsEngine? _stats;
+        private readonly PostingService _posting;
 
         // Batch debounce/dedupe state (static to guard across instances)
         private static readonly object _batchLock = new object();
@@ -41,13 +42,14 @@ namespace XiDeAI_Pro.Services
             public string Prediction { get; set; } = "";
         }
         
-        public ThreadService(TwitterService twitter, GeminiService gemini, SocialIntelService socialIntel, InfluencerControlService influencerControl, StatsEngine? stats = null)
+        public ThreadService(TwitterService twitter, GeminiService gemini, SocialIntelService socialIntel, InfluencerControlService influencerControl, StatsEngine? stats = null, PostingService? posting = null)
         {
             _twitter = twitter;
             _gemini = gemini;
             _socialIntel = socialIntel;
             _influencerControl = influencerControl;
             _stats = stats;
+            _posting = posting ?? new PostingService(socialIntel, stats);
             LoadAnalysisHistory();
         }
         
@@ -143,6 +145,7 @@ namespace XiDeAI_Pro.Services
             _gemini = gemini;
             _socialIntel = socialIntel;
             _influencerControl = influencerControl;
+            _posting = new PostingService(socialIntel);
             LoadAnalysisHistory();
         }
 
@@ -169,7 +172,7 @@ namespace XiDeAI_Pro.Services
                   if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
                  tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
-                  var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
+                  var result = await _posting.PostThreadAsync(tweets, chartImagePath, "HybridEngine");
                  
                  if (result.status == "success")
                  {
@@ -306,7 +309,7 @@ namespace XiDeAI_Pro.Services
                 tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
                 // Send via Selenium (Cookies)
-                var result = await _socialIntel.PostThreadAsync(tweets, chartImagePath);
+                var result = await _posting.PostThreadAsync(tweets, chartImagePath, "ThreadService");
                 
                 // LOG the result for debugging (with partial success detection)
                 Logger.Twitter($"Thread Result: status={result.status}, message={result.message}, text={result.text}");
@@ -586,7 +589,7 @@ namespace XiDeAI_Pro.Services
                 tweets.Add(tweet2);
                 tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
-                var result = await _socialIntel.PostThreadAsync(tweets);
+                var result = await _posting.PostThreadAsync(tweets, null, "BatchSignal");
 
                 return result.status == "success";
             }
@@ -613,7 +616,7 @@ namespace XiDeAI_Pro.Services
                 
                 for(int i=0; i<tweets.Count; i++) tweets[i] = SanitizeXContent(tweets[i]);
 
-                var result = await _socialIntel.PostThreadAsync(tweets);
+                var result = await _posting.PostThreadAsync(tweets, null, "HiveIntel");
                 if (result.status == "success")
                 {
                      _stats?.RecordTweet("HiveIntel", tweets.Count, "", tweets.FirstOrDefault() ?? "");
@@ -970,7 +973,7 @@ namespace XiDeAI_Pro.Services
                                $"{trends}" + DISCLAIMER;
                 tweets.Add(tweet6);
 
-                var result = await _socialIntel.PostThreadAsync(tweets);
+                var result = await _posting.PostThreadAsync(tweets, null, "DailyReport");
                 return result.status == "success";
             }
             catch { return false; }
@@ -1001,7 +1004,7 @@ namespace XiDeAI_Pro.Services
                 top3Text += $"\n📌 Haftaya hazır olun!\n\n{trends}" + DISCLAIMER;
                 tweets.Add(top3Text);
 
-                var result = await _socialIntel.PostThreadAsync(tweets);
+                var result = await _posting.PostThreadAsync(tweets, null, "WeeklyReport");
                 return result.status == "success";
             }
             catch { return false; }
@@ -1173,4 +1176,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

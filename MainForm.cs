@@ -2236,14 +2236,14 @@ namespace XiDeAI_Pro
             }
         }
 
-        private async Task PostMorningMotivation()
+        private async Task<bool> PostMorningMotivation()
         {
             try
             {
                 if (ConfigManager.Current.SpamProtectMotivation && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
                 {
                     Log($"🛡️ Spam protection (Motivation): {reason}", "Twitter");
-                    return;
+                    return false;
                 }
                 Log("☀️ Posting Morning Motivation...", "Twitter");
                 UpdateBotStatus("📊 Günlük Motivasyon Paylaşılıyor...");
@@ -2259,11 +2259,12 @@ namespace XiDeAI_Pro
 
                 if (ConfigManager.Current.AutoTweet)
                 {
-                    var webResult = await _opManager.SocialIntel.PostTweet(tweet);
+                    var webResult = await _opManager.Posting.PostTweetAsync(tweet, null, "MorningMotivation");
                     if (webResult != null && webResult.status == "success")
                     {
                         Log("✅ Motivation tweet sent (WebView)!", "Twitter");
-                        _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION");
+                        _opManager.Spam.RecordTweet("MOTIVATION", "DAILY");
+                        return true;
                     }
                     else
                     {
@@ -2272,30 +2273,33 @@ namespace XiDeAI_Pro
                 }
                 else
                 {
-                    string? sentUrl = await _opManager.Twitter.SendTweetAsync(tweet);
-                    if (!string.IsNullOrEmpty(sentUrl)) 
-                    { 
-                        Log("✅ Motivation tweet sent (API)!", "Twitter"); 
-                        _opManager.Spam.RecordTweet("MOTIVATION", "MOTIVATION"); 
+                    var apiResult = await _opManager.Posting.PostTweetAsync(tweet, null, "MorningMotivation");
+                    if (apiResult.status == "success")
+                    {
+                        Log("✅ Motivation tweet sent (API)!", "Twitter");
+                        _opManager.Spam.RecordTweet("MOTIVATION", "DAILY");
+                        return true;
                     }
-                    else Log($"❌ Motivation tweet failed: {_opManager.Twitter.LastError}", "Twitter");
+                    else Log($"❌ Motivation tweet failed: {apiResult.ErrorMessage}", "Twitter");
                 }
                 UpdateBotStatus("IDLE");
+                return false;
             }
             catch (Exception ex)
             {
                 Log($"❌ PostMorningMotivation Kritik Hata: {ex.Message}\n{ex.StackTrace}", "System");
+                return false;
             }
         }
 
-        private async Task PostMarketCloseSummary()
+        private async Task<bool> PostMarketCloseSummary()
         {
             try
             {
                 if (ConfigManager.Current.SpamProtectReports && !_opManager.Spam.CanPostGeneral(out string reason, isCritical: true))
                 {
                     Log($"🛡️ Spam protection (Kapanış Özeti): {reason}", "Twitter");
-                    return;
+                    return false;
                 }
                 Log("🌆 Posting Market Close Summary with Tables...", "Twitter");
                 
@@ -2343,13 +2347,14 @@ namespace XiDeAI_Pro
                     if (tweets.Count > 0)
                     {
                         Log($"🚀 Market Close Summary: {tweets.Count} tweets thread identified. Posting...", "Twitter");
-                        var result = await _opManager.SocialIntel.PostThreadAsync(tweets);
+                        var result = await _opManager.Posting.PostThreadAsync(tweets, null, "MarketClose");
                         
                         if (result != null && result.status == "success")
                         {
                             Log($"✅ Market Close Summary thread sent successfully!", "Twitter");
                             for (int i = 0; i < tweets.Count; i++) _opManager.Spam.RecordTweet("REPORT", "CLOSE");
                             Log($"✅ Market Close Summary completed ({tweets.Count} tweets sent)!", "Twitter");
+                            return true;
                         }
                         else
                         {
@@ -2361,10 +2366,12 @@ namespace XiDeAI_Pro
                 {
                     Log($"❌ Market Close Summary Error: {ex.Message}", "Twitter");
                 }
+                return false;
             }
             catch (Exception ex)
             {
                 Log($"❌ PostMarketCloseSummary Kritik Hata: {ex.Message}\n{ex.StackTrace}", "System");
+                return false;
             }
         }
 
@@ -2384,8 +2391,8 @@ namespace XiDeAI_Pro
             // Format: | Symbol | Fiyat   | +/- % |  (total ~35 chars max per line)
             
             sb.AppendLine(title);
-            sb.AppendLine("| Hisse | Fiyat | %   |");
-            sb.AppendLine("|-------|-------|-----|");
+            sb.AppendLine("| Hisse | Fiyat | % | Hacim |");
+            sb.AppendLine("|-------|-------|---|-------|");
             
             // Take top 5 for compact display (fit in tweet)
             int count = Math.Min(stocks.Count, 5);
@@ -2395,15 +2402,24 @@ namespace XiDeAI_Pro
                 
                 // Format: Symbol (max 6 chars), Price (compact), Change (max 5 chars)
                 string symbol = stock.Symbol.Length > 6 ? stock.Symbol.Substring(0, 6) : stock.Symbol;
-                string price = stock.Close >= 1000 ? (stock.Close / 1000).ToString("F1") + "K" : stock.Close.ToString("F2");
+                string price = stock.Close <= 0 ? "-" : stock.Close >= 1000 ? (stock.Close / 1000).ToString("F1") + "K" : stock.Close.ToString("F2");
                 string changeStr = stock.ChangePercent >= 0 
                     ? $"+{stock.ChangePercent:F1}" 
                     : $"{stock.ChangePercent:F1}";
+                string volume = stock.Volume > 0 ? FormatCompactVolume(stock.Volume) : "-";
                 
-                sb.AppendLine($"|{symbol,7}|{price,7}|{changeStr,5}|");
+                sb.AppendLine($"|{symbol,7}|{price,7}|{changeStr,5}|{volume,7}|");
             }
 
             return sb.ToString();
+        }
+
+        private static string FormatCompactVolume(long volume)
+        {
+            if (volume >= 1_000_000_000) return (volume / 1_000_000_000m).ToString("0.0") + "B";
+            if (volume >= 1_000_000) return (volume / 1_000_000m).ToString("0.0") + "M";
+            if (volume >= 1_000) return (volume / 1_000m).ToString("0") + "K";
+            return volume.ToString();
         }
 
         private void CheckSchedule()
@@ -2432,21 +2448,38 @@ namespace XiDeAI_Pro
             }
             
             // v4.0.1 FIX: Morning Motivation Tweet (09:30)
-            if (now.Hour == 9 && now.Minute >= 30 && now.Minute < 35 && !_tweetedToday.Contains("MORNING_MOTIVATION"))
+            if (now.Hour == 9 && now.Minute >= 30 && now.Minute < 35 &&
+                !_tweetedToday.Contains("MORNING_MOTIVATION") && !_tweetedToday.Contains("MORNING_MOTIVATION_PENDING"))
             {
-                _tweetedToday.Add("MORNING_MOTIVATION");
                 Log("☀️ Sabah motivasyon tweeti zamanı...", "System");
-                _ = PostMorningMotivation();
+                _tweetedToday.Add("MORNING_MOTIVATION_PENDING");
+                _ = PostMorningMotivation().ContinueWith(t =>
+                {
+                    bool success = t.Status == TaskStatus.RanToCompletion && t.Result;
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        _tweetedToday.Remove("MORNING_MOTIVATION_PENDING");
+                        if (success) _tweetedToday.Add("MORNING_MOTIVATION");
+                    }));
+                });
             }
             
             // v4.0.1 FIX: Market Close Summary (18:15-18:20) - Only on weekdays
             if (now.Hour == 18 && now.Minute >= 15 && now.Minute < 20 && 
                 now.DayOfWeek != DayOfWeek.Saturday && now.DayOfWeek != DayOfWeek.Sunday &&
-                !_tweetedToday.Contains("CLOSE_REPORT"))
+                !_tweetedToday.Contains("CLOSE_REPORT") && !_tweetedToday.Contains("CLOSE_REPORT_PENDING"))
             {
-                _tweetedToday.Add("CLOSE_REPORT");
                 Log("📊 Gün sonu raporu zamanı...", "System");
-                _ = PostMarketCloseSummary();
+                _tweetedToday.Add("CLOSE_REPORT_PENDING");
+                _ = PostMarketCloseSummary().ContinueWith(t =>
+                {
+                    bool success = t.Status == TaskStatus.RanToCompletion && t.Result;
+                    this.BeginInvoke(new Action(() =>
+                    {
+                        _tweetedToday.Remove("CLOSE_REPORT_PENDING");
+                        if (success) _tweetedToday.Add("CLOSE_REPORT");
+                    }));
+                });
             }
         }
 
@@ -3700,7 +3733,7 @@ namespace XiDeAI_Pro
                     var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
                     if (tweets.Count >= 2)
                     {
-                        result = await _opManager.SocialIntel.PostThreadAsync(tweets);
+                        result = await _opManager.Posting.PostThreadAsync(tweets, null, "NewsUI");
                         if (result.status == "success")
                         {
                             LogNews("✅ Premium News Thread (2-tweet) sent!");
@@ -3714,7 +3747,7 @@ namespace XiDeAI_Pro
                     else
                     {
                         LogNews("⚠️ Premium format parse failed, fallback to single tweet");
-                        result = await _opManager.SocialIntel.PostTweet(analysis);
+                        result = await _opManager.Posting.PostTweetAsync(analysis, null, "NewsUI");
                         if (result.status == "success")
                         {
                             LogNews("✅ News Tweet sent!");
@@ -3728,7 +3761,7 @@ namespace XiDeAI_Pro
                     LogNews("🧵 Content long, converting to News Thread...");
                     var tweets = ThreadPipeline.BuildNewsThread(news, analysis);
 
-                    result = await _opManager.SocialIntel.PostThreadAsync(tweets);
+                    result = await _opManager.Posting.PostThreadAsync(tweets, null, "NewsUI");
                     if (result.status == "success")
                     {
                         LogNews("✅ News Thread sent!");
@@ -3746,7 +3779,7 @@ namespace XiDeAI_Pro
                     if (content.Length > 280)
                         content = content.Substring(0, 277) + "...";
                     
-                    result = await _opManager.SocialIntel.PostTweet(content);
+                    result = await _opManager.Posting.PostTweetAsync(content, null, "NewsUI");
                     if (result.status == "success")
                     {
                         LogNews("✅ News Tweet sent!");
@@ -4615,7 +4648,8 @@ namespace XiDeAI_Pro
                 _opManager.SocialIntel!,
                 _opManager.Gemini!,
                 _opManager.Telegram!,
-                _opManager.Stats!
+                _opManager.Stats!,
+                _opManager.Posting!
             );
 
             // Wire events
@@ -4852,7 +4886,7 @@ namespace XiDeAI_Pro
                              }
                              Log($"📸 Medya yolu: {mediaPath ?? "YOK"}", "Twitter");
                              
-                             var res = await _opManager.SocialIntel.PostTweet(rtbAnalysisResult.Text, mediaPath);
+                             var res = await _opManager.Posting.PostTweetAsync(rtbAnalysisResult.Text, mediaPath, "ManualAnalysis");
                              
                              if (res.status == "success")
                              {
@@ -4860,24 +4894,11 @@ namespace XiDeAI_Pro
                                  _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
                                  MessageBox.Show("✅ Tweet gönderildi (Web)!");
                              }
-                             else
-                             {
-                                 Log($"⚠️ Web başarısız: {res.ErrorMessage}. API fallback deneniyor...", "Twitter");
-                                 // Fallback to API
-                                 btnTweetAnalysis.Text = "⚠️ API ile deneniyor...";
-                                 string? sentUrl = await _opManager.Twitter.SendTweetAsync(rtbAnalysisResult.Text);
-                                 if(!string.IsNullOrEmpty(sentUrl))
-                                 {
-                                     Log("✅ Tweet gönderildi (API Fallback)!", "Twitter");
-                                     _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                                     MessageBox.Show("✅ Tweet gönderildi (API - Medyasız)!");
-                                 }
-                                 else
-                                 {
-                                     Log($"❌ Her iki yöntem de başarısız! Web: {res.ErrorMessage} | API: {_opManager.Twitter.LastError}", "Twitter");
-                                     MessageBox.Show($"❌ Başarısız!\nWeb: {res.ErrorMessage}\nAPI: {_opManager.Twitter.LastError}");
-                                 }
-                             }
+                              else
+                              {
+                                  Log($"❌ Manuel analiz paylaşımı başarısız: {res.ErrorMessage}", "Twitter");
+                                  MessageBox.Show($"❌ Başarısız!\n{res.ErrorMessage}");
+                              }
                          }
                      }
                      catch (Exception ex)
@@ -5172,17 +5193,17 @@ namespace XiDeAI_Pro
             // Post
             var tweets = ThreadPipeline.ParseParts(content, 280);
                                 
-            var result = await _opManager.SocialIntel.PostThreadAsync(tweets, imgPath);
+            var result = await _opManager.Posting.PostThreadAsync(tweets, imgPath, "GuruPanel");
             
             if (result != null && result.status == "success")
             {
-                Log("✅ Thread başarıyla yayınlandı!", "Twitter");
+                Log($"✅ Thread başarıyla yayınlandı! URL: {result.tweet_url} ({result.posted_count}/{result.total_chunks})", "Twitter");
                 // SAFETY FIX: Check if row still exists and belongs to grid
                 if (dgvGuruApproval != null && !row.IsNewRow && dgvGuruApproval.Rows.Contains(row))
                 {
                     dgvGuruApproval.Rows.Remove(row);
                 }
-                MessageBox.Show("Thread yayınlandı!");
+                MessageBox.Show($"Thread yayınlandı!\n{result.tweet_url}");
             }
             else
             {
@@ -5577,7 +5598,11 @@ namespace XiDeAI_Pro
                         {
                             Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
                             var tweets = ThreadPipeline.ParseParts(thread, 280);
-                            await _opManager.SocialIntel.PostThreadAsync(tweets, chartPath);
+                            var postResult = await _opManager.Posting.PostThreadAsync(tweets, chartPath, "GuruAutomation");
+                            if (postResult.status != "success")
+                            {
+                                Log($"⚠️ Üstat otomatik paylaşım başarısız: {postResult.ErrorMessage}", "Social");
+                            }
                             // S9: Otomasyon sonrası temp dosyayı temizle
                             if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
                             {
@@ -5989,4 +6014,3 @@ namespace XiDeAI_Pro
         }
     }
 }
-

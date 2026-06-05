@@ -1,8 +1,11 @@
 {
-    "version": "5.2.9",
-    "build_number": 5290,
-    "lastUpdate": "2026-06-03T12:00:00Z",
+    "version": "5.3.0",
+    "build_number": 5300,
+    "lastUpdate": "2026-06-06T00:00:00Z",
     "changelog": [
+        "v5.3.0: ARCH: Canonical PostingService ile tum moduller tek dogrulanmis Playwright gonderim hattina alindi",
+        "v5.3.0: FIX: Guru paneli, sabah motivasyon ve gun sonu threadleri icin /status URL + posted_count dogrulamasi zorunlu",
+        "v5.3.0: EOD: Market_Movers.txt yukselen/dusen/hacim parser ve promptta HACIM LIDERLERI bolumu eklendi",
         "v5.2.9: THREAD: Playwright thread gonderim stabilite - dogrulama, retry ve timeout 480s iyilestirmeleri",
         "v5.2.9: NEWS: TeFo.txt dogrulanmis BIST sektor haritasi ve haber prompt sembol halusinasyon fixleri",
         "v5.2.4: FIX: Restored robust click logic in playwright_daemon.py to prevent pointer intercept failures on replies",

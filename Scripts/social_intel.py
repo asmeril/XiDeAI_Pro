@@ -2336,26 +2336,28 @@ def _parse_market_movers_file():
         content = open(movers_path, encoding="cp1254", errors="replace").read()
         gainers, losers = [], []
         section = None
+        row_re = re.compile(r"^\s*\d+\.\s+([A-Z0-9\-]+)\s+([+-]\d+(?:,\d+)?)%.*?Hacim:([\d\.]+)", re.IGNORECASE)
         for line in content.splitlines():
-            if "YÜKSELENLER" in line:
+            upper_line = line.upper()
+            if "YÜKSELENLER" in upper_line or "YUKSELENLER" in upper_line:
                 section = "g"
-            elif "DÜŞENLER" in line:
+            elif "DÜŞENLER" in upper_line or "DUSENLER" in upper_line:
                 section = "l"
             elif section and line.strip() and not line.startswith("=") and not line.startswith("-") and not line.startswith("["):
-                # Format: " 1. THYAO     +3.45%  Hacim:12345678"
-                parts = line.split()
-                if len(parts) >= 3:
-                    try:
-                        symbol = parts[1]
-                        pct_str = parts[2].replace("+", "").replace("%", "").replace(",", ".")
-                        pct = float(pct_str)
-                        entry = {"symbol": symbol, "change_percent": pct, "name": symbol}
-                        if section == "g":
-                            gainers.append(entry)
-                        else:
-                            losers.append(entry)
-                    except Exception:
-                        pass
+                m = row_re.search(line)
+                if not m:
+                    continue
+                try:
+                    symbol = m.group(1).upper()
+                    pct = float(m.group(2).replace(",", "."))
+                    volume = int(m.group(3).replace(".", ""))
+                    entry = {"Symbol": symbol, "Close": 0, "ChangePercent": pct, "Volume": volume, "name": symbol}
+                    if section == "g":
+                        gainers.append(entry)
+                    else:
+                        losers.append(entry)
+                except Exception:
+                    pass
         if gainers or losers:
             return {"gainers": gainers, "losers": losers}
     except Exception:
@@ -2367,8 +2369,7 @@ def get_top_gainers():
     """İlk olarak iDeal'in yerel Market_Movers.txt dosyasını dene; yoksa bigpara'dan çek."""
     local = _parse_market_movers_file()
     if local and local.get("gainers"):
-        data = [{"symbol": e["symbol"], "name": e["name"], "change_percent": e["change_percent"],
-                 "price": "", "volume": ""} for e in local["gainers"][:20]]
+        data = local["gainers"][:20]
         return {"status": "success", "data": data}
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-artan-hisseler/")
 
@@ -2376,13 +2377,18 @@ def get_top_losers():
     """İlk olarak iDeal'in yerel Market_Movers.txt dosyasını dene; yoksa bigpara'dan çek."""
     local = _parse_market_movers_file()
     if local and local.get("losers"):
-        data = [{"symbol": e["symbol"], "name": e["name"], "change_percent": e["change_percent"],
-                 "price": "", "volume": ""} for e in local["losers"][:20]]
+        data = local["losers"][:20]
         return {"status": "success", "data": data}
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-azalanlar/")
 
 def get_top_volume():
     """Scrape BIST100 most active (volume)"""
+    local = _parse_market_movers_file()
+    if local:
+        combined = (local.get("gainers") or []) + (local.get("losers") or [])
+        combined.sort(key=lambda x: x.get("Volume", 0), reverse=True)
+        if combined:
+            return {"status": "success", "data": combined[:20], "source": "Market_Movers"}
     return scrape_bigpara_market_list("https://bigpara.hurriyet.com.tr/borsa/en-cok-islem-gorenler-tl/")
 
 def get_stock_prices(symbols):
