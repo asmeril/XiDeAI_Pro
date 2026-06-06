@@ -20,6 +20,7 @@ namespace XiDeAI_Pro.Services
         private readonly PerformanceTracker _performance;
         private readonly ThreadService _threadSvc;
         private readonly PriceFetchService _priceFetch;
+        private readonly PostingService _posting;
 
         public event Action<string, string>? OnLog;
         public event Action<string>? OnStatusUpdate;
@@ -36,7 +37,8 @@ namespace XiDeAI_Pro.Services
             StatsEngine stats,
             PerformanceTracker performance,
             ThreadService threadSvc,
-            PriceFetchService priceFetch)
+            PriceFetchService priceFetch,
+            PostingService? posting = null)
         {
             _gemini = gemini;
             _socialIntel = socialIntel;
@@ -47,6 +49,7 @@ namespace XiDeAI_Pro.Services
             _performance = performance;
             _threadSvc = threadSvc;
             _priceFetch = priceFetch;
+            _posting = posting ?? new PostingService(socialIntel, stats);
         }
 
         public async Task RunMorningMotivation()
@@ -139,7 +142,7 @@ namespace XiDeAI_Pro.Services
                 if (tweets.Count > 0)
                 {
                     OnStatusUpdate?.Invoke($"🚀 Market Close Summary: {tweets.Count} tweets thread identifying. Posting...");
-                    var result = await _socialIntel.PostThreadAsync(tweets);
+                    var result = await _posting.PostThreadAsync(tweets, null, "OperationEngine.MarketClose");
                     
                     if (result != null && result.status == "success")
                     {
@@ -301,8 +304,8 @@ namespace XiDeAI_Pro.Services
         private async Task<bool> ExecuteScheduledTweet(string content, string category)
         {
             // TwitterService centrally handles both Selenium/WebView2 and API Fallback
-            var res = await _twitter.SendTweetAsync(content);
-            return !string.IsNullOrEmpty(res);
+            var res = await _posting.PostTweetAsync(content, null, $"OperationEngine.{category}");
+            return res.status == "success";
         }
 
         private void LogRetry(string name, int count, string error, Func<Task> retryAction)

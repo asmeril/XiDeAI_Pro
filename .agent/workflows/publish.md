@@ -26,6 +26,7 @@ Format: `MAJOR.MINOR.PATCH`
 - [ ] `social_intel.py` → `get_top_gainers/losers` önce `Market_Movers.txt` deniyor, fallback bigpara
 - [ ] `playwright_daemon.py` → `THREAD_EMOJI = "\U0001F9F5"` (mojibake değil)
 - [ ] PromptManager.cs `GetMarketClosePrompt` → `nabizUyarilari` parametresi, encoding bozukluğu yok
+- [ ] `PostingService.cs` → tüm production tweet/thread gönderimleri için canonical kapı; `/status/` URL ve `posted_count/total_chunks` doğrulaması zorunlu
 
 ---
 
@@ -110,6 +111,9 @@ git push origin master
 | Prompt encoding bozukluğu (? karakterleri) | ✅ Düzeltildi — unicode escape | v5.2.8 |
 | "Pulse" ngilizce terim | ✅ Türkçeleştirildi — "Nabız Uyarısı / Anlık Kırılım" | v5.2.8 |
 | Kanca (hook) tweet'i oluşmuyordu | ✅ Düzeltildi — KANCA KURALI prompt bölümü | v5.2.8 |
+| WebView2 modal kapanınca false success | ✅ Düzeltildi — canonical PostingService + Playwright doğrulama | v5.3.0 |
+| Guru/sabah/gün sonu farklı gönderim yolları | ✅ Düzeltildi — tüm production modüller tek doğrulanmış posting hattına yönlendi | v5.3.0 |
+| Market_Movers hacim verisi thread'e girmiyordu | ✅ Düzeltildi — hacim parser + HACIM LIDERLERI prompt bölümü | v5.3.0 |
 
 ---
 

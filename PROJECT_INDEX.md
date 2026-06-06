@@ -38,7 +38,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 
 | Servis Dosyası | Temel Görevleri | Bağlı Olduğu Python Script |
 | :--- | :--- | :--- |
-| **`SocialIntelService.cs`** | **Ana X (Twitter) Köprüsü.** Daemon-first mimari ile işlem yapar. `StartDaemonAsync()`, `DaemonRequestAsync()` metodları. | `x_daemon.py`, `social_intel.py` |
+| **`SocialIntelService.cs`** | **Düşük seviye X (Twitter) köprüsü.** PostingService tarafından çağrılır; Playwright subprocess ile doğrulanmış gönderim yapar. Araştırma/interaction için daemon ve Selenium fallback içerir. | `playwright_daemon.py`, `x_daemon.py`, `social_intel.py` |
 | **`PostingService.cs`** | **v5.3.0 Canonical gönderim servisi.** Tüm modüller için tek tweet/thread doğrulama kapısı. `/status/` URL ve thread parça sayısı doğrulanmadan success dönmez. | `playwright_daemon.py` |
 | **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır, daemon'ı başlatır, durdurur ve birbirine bağlar. | - |
 | `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. **v4.2.2:** Two-Step News metodları eklendi. | - |
@@ -69,11 +69,18 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - `PostTweet(text)` / `PostThreadAsync(tweets)`: Düşük seviye Playwright posting köprüsü. **v5.3.0:** WebView2 internal bridge canonical yoldan çıkarıldı; `/status/` URL ve `posted_count/total_chunks` doğrulaması zorunlu.
 - `CheckSafety(actionType)`: **(v4.6.0)** Güvenlik kontrolü yapar (Hız limiti ve günlük kotalar).
 - `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
+- **(v5.3.0)** `PostTweet`/`PostThreadAsync` yalnızca `PostingService` tarafından production gönderim için kullanılmalıdır; internal WebView2 bridge canonical yoldan çıkarıldı.
 
 #### `PostingService.cs`
 - **(v5.3.0)** `PostTweetAsync(text, mediaPath, module)`: Tekil tweetleri canonical Playwright hattına gönderir, gerçek `/status/` URL yoksa hata döndürür.
 - **(v5.3.0)** `PostThreadAsync(parts, mediaPath, module)`: Thread parçalarını `ThreadPipeline.EnsureWithinLimit` ile normalize eder; tüm parçalar gönderilmeden success dönmez.
 - **(v5.3.0)** `IsVerifiedTweet` / `IsVerifiedThread`: Uygulama genelinde tek başarı standardı.
+
+#### `FanZoneService.cs`
+- **(v5.3.0)** Kritik hesap taramasında tweet URL'si işlem öncesi değil `ProcessTweet` içinde dedupe edilir; like/RT başarı ikonları yalnızca gerçek `status=success` dönerse işaretlenir.
+
+#### `InteractionEngine.cs`
+- **(v5.3.0)** `RunTargetedCheck(category)` artık `Influencer.Handle` değerlerini gönderir; önceki `string.Join(targets)` class-name üretme hatası giderildi.
 
 #### `ThreadService.cs`
 - **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
@@ -104,6 +111,9 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
 - **(v5.1.1)** `PostMarketCloseSummary()`: `Market_Pulse_Alarm.txt` okunarak bugünün nabız alarmları `pulseAnomalies` string'ine toplanır ve `GenerateMarketCloseTableTweet` zincirine iletilir.
 - **(v5.3.0)** Sabah motivasyon ve gün sonu raporu `_tweetedToday` içine sadece doğrulanmış başarıdan sonra işlenir; `*_PENDING` guard eklendi.
+- **(v5.3.0)** Fenomen silme UI'ı `InfluencerControlService.DeleteInfluencer()` kullanır; kopya liste üzerinden silme hatası giderildi.
+- **(v5.3.0)** Telegram `/ONAY` etkileşim onayı reply sonucunu kontrol eder; başarısızsa pending kayıt silinmez.
+- **(v5.3.0)** Manuel analiz tweet butonu sadece başarılı analiz sonucunda aktif olur.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -316,7 +326,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

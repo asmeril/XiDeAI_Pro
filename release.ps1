@@ -1,9 +1,11 @@
 # XiDeAI Release Automation Script
-# Usage: .\release.ps1 -Version 3.8.0 -Changelog "HIVE Protocol Phase 1 & 2"
+# Usage: .\release.ps1 -Version 5.3.0 -Changelog "Canonical PostingService, verified posting"
 
 param (
-    [string]$Version = "5.2.2",
-    [string]$Changelog = "v5.2.2: mention fix, engagement score, scan context, IndicatorGuide AI, last tweet CTA"
+    [Parameter(Mandatory=$true)]
+    [string]$Version,
+    [Parameter(Mandatory=$true)]
+    [string]$Changelog
 )
 
 $ErrorActionPreference = "Stop"
@@ -137,18 +139,28 @@ if ($LASTEXITCODE -ne 0) { Write-Error "Installer Compilation Failed!" }
 Write-Host "Installer Created!" -ForegroundColor Green
 
 # ==========================================
-# 5. GENERATE UPDATE INFO (version.json)
+# 5. GENERATE VERSION INFO (canonical version.json)
 # ==========================================
-$jsonPath = "$SetupOutputDir\version.json"
-$date = Get-Date -Format "yyyy-MM-dd"
-$jsonContent = @{
-    version     = $Version
-    releaseDate = $date
-    changelog   = $Changelog
-} | ConvertTo-Json -Depth 2
+$changelogItems = @()
+try {
+    if (Test-Path "$ProjectDir\version.json") {
+        $existingVersionJson = Get-Content "$ProjectDir\version.json" -Raw | ConvertFrom-Json
+        if ($existingVersionJson.changelog -is [System.Array]) { $changelogItems += $existingVersionJson.changelog }
+    }
+} catch { }
+$releaseLine = "v$Version: $Changelog"
+$changelogItems = @($releaseLine) + @($changelogItems | Where-Object { $_ -ne $releaseLine })
+$jsonContent = [ordered]@{
+    version = $Version
+    build_number = [int](($Version -replace '\.', '') + '0')
+    lastUpdate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    changelog = $changelogItems
+} | ConvertTo-Json -Depth 5
 
-Set-Content -Path $jsonPath -Value $jsonContent
-Write-Host "version.json generated at $jsonPath" -ForegroundColor Green
+Set-Content -Path "$ProjectDir\version.json" -Value $jsonContent -Encoding UTF8
+Set-Content -Path "$PublishDir\version.json" -Value $jsonContent -Encoding UTF8
+Set-Content -Path "$SetupOutputDir\version.json" -Value $jsonContent -Encoding UTF8
+Write-Host "version.json generated in project, publish and output." -ForegroundColor Green
 
 Write-Host ""
 Write-Host "RELEASE $Version COMPLETED SUCCESSFULLY!" -ForegroundColor Cyan

@@ -1022,6 +1022,7 @@ def cmd_post_thread(params):
 
         # ── Kalan tweetler: reply olarak ─────────────────────────────────────
         last_url = first_url
+        posted_count = 1
         for i, tweet_text in enumerate(tweets[1:], 2):
             log(f"[Thread] Posting tweet {i}/{len(tweets)} as reply to: {last_url}")
             reply_url = _post_single_tweet(driver, tweet_text, reply_to_url=last_url)
@@ -1033,10 +1034,11 @@ def cmd_post_thread(params):
 
             log(f"[Thread] ✅ Tweet {i} posted: {reply_url}")
             last_url = reply_url
+            posted_count += 1
             time.sleep(4)  # Her tweet arasında bekle
 
         log(f"✅ Thread posted successfully ({len(tweets)} parts) via reply-chain")
-        return {"status": "success", "message": f"Thread posted ({len(tweets)} tweets)"}
+        return {"status": "success", "message": f"Thread posted ({len(tweets)} tweets)", "tweet_url": first_url, "posted_count": posted_count, "total_chunks": len(tweets)}
 
     except Exception as e:
         log(f"Post thread FATAL error: {type(e).__name__}: {e}")
@@ -1247,4 +1249,3 @@ if __name__ == "__main__":
     log("X Daemon v1.0")
     log("=" * 50)
     run_server()
-

@@ -43,7 +43,8 @@ namespace XiDeAI_Pro.Services
             try 
             {
                 var result = await _socialIntel.PostTweet(text);
-                if (result != null && result.status == "success")
+                string verifiedUrl = !string.IsNullOrWhiteSpace(result?.tweet_url) ? result.tweet_url : result?.link ?? string.Empty;
+                if (result != null && result.status == "success" && verifiedUrl.Contains("/status/", StringComparison.OrdinalIgnoreCase))
                 {
                     // Increment Total Counts (Selenium)
                     var cfg = ConfigManager.Current;
@@ -55,18 +56,18 @@ namespace XiDeAI_Pro.Services
                     cfg.Safety.LastTweetTime = DateTime.Now;
                     
                     ConfigManager.Save();
-                    return result.link; // Return the URL
+                    return verifiedUrl;
                 }
                 
-                LastError = "Selenium Error: " + result?.ErrorMessage;
+                LastError = "Tweet doğrulanamadı: " + (result?.ErrorMessage ?? "status URL yok");
             }
             catch (Exception ex)
             {
                 LastError = "Selenium Exception: " + ex.Message;
             }
             
-            // 2. Fallback to API
-            if (SendTweet(text)) return "API_POSTED"; // API doesn't return link easily in v3 code
+            // API fallback disabled for automation: it cannot return a verified /status/ URL.
+            LastError = string.IsNullOrWhiteSpace(LastError) ? "API fallback disabled: verified status URL required." : LastError;
             return null;
         }
 

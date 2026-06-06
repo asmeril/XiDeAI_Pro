@@ -1,7 +1,7 @@
-; XiDeAI Pro Setup Script v5.2.2 (Optimized)
+; XiDeAI Pro Setup Script v5.3.0 (legacy helper; prefer setup.iss)
 [Setup]
 AppName=XiDeAI Pro
-#define AppVersion "5.2.2"
+#define AppVersion "5.3.0"
 AppVersion={#AppVersion}
 DefaultDirName={autopf}\XiDeAI Pro
 DefaultGroupName=XiDeAI Pro
@@ -9,7 +9,7 @@ UninstallDisplayIcon={app}\XiDeAI_Pro.exe
 Compression=lzma2
 SolidCompression=yes
 OutputDir=Setup_Output
-OutputBaseFilename=XiDeAI_Pro_v{#AppVersion}_Setup
+OutputBaseFilename=XiDeAI_Pro_v{#AppVersion}_Setup_LEGACY
 SetupIconFile=xideai_icon.ico
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
@@ -27,6 +27,5 @@ Name: "{autodesktop}\XiDeAI Pro"; Filename: "{app}\XiDeAI_Pro.exe"; Tasks: deskt
 
 [Run]
 Filename: "{app}\XiDeAI_Pro.exe"; Description: "{cm:LaunchProgram,XiDeAI Pro}"; Flags: nowait postinstall skipifsilent
-
 
 

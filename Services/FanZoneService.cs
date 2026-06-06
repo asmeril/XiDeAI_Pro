@@ -164,7 +164,7 @@ namespace XiDeAI_Pro.Services
                     {
                         foreach (var post in posts)
                         {
-                            if (!string.IsNullOrEmpty(post.Url) && AddToSeen(post.Url))
+                            if (!string.IsNullOrEmpty(post.Url))
                             {
                                 await ProcessTweet(post, account, DetermineSourceType(account));
                             }
@@ -288,17 +288,17 @@ namespace XiDeAI_Pro.Services
                 // Herkesin tweetini beğen (Fan hariç, veya yüksek etkileşimli Fan)
                 if (sourceType != "Fan")
                 {
-                    await _socialIntel.LikeTweet(tweet.Url);
-                    liked = true;
-                    LogAction?.Invoke($"❤️ [{sourceType}] Like yapıldı ({tweet.Handle})");
+                    var likeRes = await _socialIntel.LikeTweet(tweet.Url);
+                    liked = likeRes.status == "success";
+                    LogAction?.Invoke(liked ? $"❤️ [{sourceType}] Like yapıldı ({tweet.Handle})" : $"❌ Like Hatası: {likeRes.ErrorMessage}");
                 }
 
                 // Resmi hesapları Retweetle
                 if (sourceType == "Resmi")
                 {
-                    await _socialIntel.Retweet(tweet.Url);
-                    retweeted = true;
-                    LogAction?.Invoke($"🔄 [{sourceType}] RT yapıldı ({tweet.Handle})");
+                    var rtRes = await _socialIntel.Retweet(tweet.Url);
+                    retweeted = rtRes.status == "success";
+                    LogAction?.Invoke(retweeted ? $"🔄 [{sourceType}] RT yapıldı ({tweet.Handle})" : $"❌ RT Hatası: {rtRes.ErrorMessage}");
                 }
 
                 // v4.5.3: Hybrid Quote RT (Sporcu veya yüksek etkileşimli içerikler)

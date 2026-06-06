@@ -159,7 +159,7 @@ namespace XiDeAI_Pro.Services
                     }
                     else
                     {
-                        OnLog?.Invoke($"❌ Tweet paylaşılamadı: {result.text}", "Trend");
+                        OnLog?.Invoke($"❌ Tweet paylaşılamadı: {result.ErrorMessage}", "Trend");
                     }
                 }
 

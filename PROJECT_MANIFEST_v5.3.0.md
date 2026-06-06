@@ -56,6 +56,23 @@
 - Partial thread artık `success` değil `error` döner.
 - Başarılı thread sonuçları `tweet_url`, `posted_count`, `total_chunks` döndürür.
 
+### 7. FanZone, Interaction ve Fenomen Yönetimi Stabilizasyonu
+**Amaç:** Fenerbahçe/FanZone ve etkileşim modüllerindeki false success ve veri güncelleme hatalarını gidermek.
+
+- **`Services/FanZoneService.cs`:** Kritik hesap taramasında tweet URL'si işlem öncesi `seen` yapılmaz; `ProcessTweet` tek dedupe noktasıdır.
+- Like/RT ikonları yalnızca `LikeTweet` / `Retweet` sonucu `status=success` ise işaretlenir.
+- **`Services/InteractionEngine.cs`:** Toplu etkileşim hedefleri artık `Influencer.Handle` üzerinden gönderilir; class-name string üretme hatası giderildi.
+- **`MainForm.cs`:** Fenomen silme UI'ı `InfluencerControlService.DeleteInfluencer()` kullanır; kopya liste üzerinden silme hatası giderildi.
+
+### 8. Telegram, Guru ve History Güvenliği
+**Amaç:** Onay sonrası başarısız işlemlerin sessizce kaybolmasını ve geçmiş sekmesinde eksik kategori görünmesini engellemek.
+
+- **Telegram `/ONAY`:** Reply sonucu kontrol edilir; başarısızsa pending etkileşim kaydı silinmez ve Telegram'a hata döner.
+- **Guru persistence:** Kaynak tweet yalnızca otomatik paylaşım başarılıysa veya onay gridine draft eklendiyse processed işaretlenir.
+- **`GuruPersistenceService.cs`:** `processed_guru_tweets.json` LocalAppData/XiDeAI altına taşındı.
+- **History tab:** `FanZone`, `Trend`, `Bot`, `Operation`, `Error`, `Warning` filtreleri eklendi; async filtre yarışları request-id ile engellendi.
+- **Manual Analysis:** Tweet butonu yalnızca başarılı analizde aktif olur; hata metni paylaşımı engellendi.
+
 ---
 
 ## Değişen Dosyalar
@@ -68,6 +85,9 @@
 | `Services/NewsEngine.cs` | Haber thread gönderimi PostingService'e yönlendirildi |
 | `Services/SignalEngine.cs` | Batch/generic signal posting PostingService'e yönlendirildi |
 | `Services/TrendEngagementService.cs` | Trend tweetleri PostingService'e yönlendirildi |
+| `Services/FanZoneService.cs` | FanZone dedupe ve like/RT success kontrolü düzeltildi |
+| `Services/InteractionEngine.cs` | Toplu etkileşimde gerçek handle listesi gönderimi |
+| `Services/GuruPersistenceService.cs` | Processed guru dosyası LocalAppData'ya taşındı |
 | `MainForm.cs` | Üstat, motivasyon, gün sonu, manuel/haber UI gönderimleri PostingService'e yönlendirildi |
 | `Scripts/playwright_daemon.py` | Tekil tweet ve partial thread success doğrulaması sertleştirildi |
 | `Scripts/social_intel.py` | `Market_Movers.txt` parser, hacim fallback ve C# uyumlu JSON output |

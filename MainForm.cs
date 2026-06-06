@@ -36,6 +36,7 @@ namespace XiDeAI_Pro
         private System.Windows.Forms.Timer _scheduleTimer = null!; // Main Dashboard/Quota Timer
         private DateTime _lastStatsUpdate = DateTime.MinValue;
         private long _lastProcessedUpdateId = 0;
+        private int _historyLoadRequestId = 0;
         private HashSet<string> _signalMemory = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
         // Cache for Manual Analysis (Telegram)
@@ -1190,7 +1191,7 @@ namespace XiDeAI_Pro
                 BackColor = Color.FromArgb(60, 60, 60), 
                 ForeColor = Color.White 
             };
-            _historyModuleFilter.Items.AddRange(new object[] { "Tümü", "System", "Twitter", "Social", "AI", "Telegram", "News", "Signal" });
+            _historyModuleFilter.Items.AddRange(new object[] { "Tümü", "System", "Twitter", "Social", "AI", "Telegram", "News", "Signal", "FanZone", "Trend", "Bot", "Operation", "Error", "Warning" });
             _historyModuleFilter.SelectedIndex = 0;
             _historyModuleFilter.SelectedIndexChanged += (s, e) => LoadActivityHistory();
             topPanel.Controls.Add(_historyModuleFilter);
@@ -1369,6 +1370,7 @@ namespace XiDeAI_Pro
             InitializeHistoryPanel();
 
             if (_historyLogView == null) return;
+            int requestId = System.Threading.Interlocked.Increment(ref _historyLoadRequestId);
 
             // Clear immediately to show feedback
             _historyLogView.Clear();
@@ -1440,7 +1442,7 @@ namespace XiDeAI_Pro
                 });
 
                 // Update UI
-                if (_historyLogView != null && !this.IsDisposed)
+                if (requestId == _historyLoadRequestId && _historyLogView != null && !this.IsDisposed && this.IsHandleCreated)
                 {
                     _historyLogView.Clear();
                     _historyLogView.Text = historyText;
@@ -1448,7 +1450,7 @@ namespace XiDeAI_Pro
             }
             catch (Exception ex)
             {
-                if (_historyLogView != null && !this.IsDisposed)
+                if (requestId == _historyLoadRequestId && _historyLogView != null && !this.IsDisposed && this.IsHandleCreated)
                     _historyLogView.Text = "Hata: " + ex.Message;
             }
         }
@@ -2456,6 +2458,7 @@ namespace XiDeAI_Pro
                 _ = PostMorningMotivation().ContinueWith(t =>
                 {
                     bool success = t.Status == TaskStatus.RanToCompletion && t.Result;
+                    if (IsDisposed || !IsHandleCreated) return;
                     this.BeginInvoke(new Action(() =>
                     {
                         _tweetedToday.Remove("MORNING_MOTIVATION_PENDING");
@@ -2474,6 +2477,7 @@ namespace XiDeAI_Pro
                 _ = PostMarketCloseSummary().ContinueWith(t =>
                 {
                     bool success = t.Status == TaskStatus.RanToCompletion && t.Result;
+                    if (IsDisposed || !IsHandleCreated) return;
                     this.BeginInvoke(new Action(() =>
                     {
                         _tweetedToday.Remove("CLOSE_REPORT_PENDING");
@@ -4516,10 +4520,19 @@ namespace XiDeAI_Pro
 
                                 if (id > 0)
                                 {
-                                    if (_pendingInteractionDict.TryRemove(id, out var pending))
+                                    if (_pendingInteractionDict.TryGetValue(id, out var pending))
                                     {
                                         await _opManager.Telegram.SendMessageAsync($"✅ {id} onaylandı. Yanıtlanıyor...");
-                                        await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
+                                        var replyResult = await _opManager.SocialIntel.ReplyToTweetAsync(pending.Url, pending.Text);
+                                        if (replyResult.status == "success")
+                                        {
+                                            _pendingInteractionDict.TryRemove(id, out _);
+                                            await _opManager.Telegram.SendMessageAsync($"✅ Yanıt gönderildi: {replyResult.tweet_url}");
+                                        }
+                                        else
+                                        {
+                                            await _opManager.Telegram.SendMessageAsync($"❌ Yanıt gönderilemedi: {replyResult.ErrorMessage}");
+                                        }
                                     }
                                     else await _opManager.Telegram.SendMessageAsync($"⚠️ ID:{id} yok.");
                                 }
@@ -5560,6 +5573,7 @@ namespace XiDeAI_Pro
             }
 
             Log($"✅ {items.Count} hisse tespit edildi. ({tableName}) Analizler ve grafikler hazırlanıyor...", "System");
+            bool processedSuccessfully = false;
 
             foreach (var (symbol, period) in items)
             {
@@ -5603,6 +5617,10 @@ namespace XiDeAI_Pro
                             {
                                 Log($"⚠️ Üstat otomatik paylaşım başarısız: {postResult.ErrorMessage}", "Social");
                             }
+                            else
+                            {
+                                processedSuccessfully = true;
+                            }
                             // S9: Otomasyon sonrası temp dosyayı temizle
                             if (!string.IsNullOrEmpty(chartPath) && File.Exists(chartPath))
                             {
@@ -5614,6 +5632,7 @@ namespace XiDeAI_Pro
                             // Add to Approval Grid
                             string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
                             dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
+                            processedSuccessfully = true;
                             Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
                             
                             // S4: Üstat sekmesine yönlendir (Bot sekmesi değil)
@@ -5628,7 +5647,7 @@ namespace XiDeAI_Pro
             }
 
             // S10: Başarılı işlem sonrası URL'yi işlenmiş olarak kaydet
-            if (!string.IsNullOrEmpty(post.Url))
+            if (processedSuccessfully && !string.IsNullOrEmpty(post.Url))
                 _opManager.GuruPersistence.MarkAsProcessed(post.Url);
         }
         private void InitializeFenerbahcePanel()

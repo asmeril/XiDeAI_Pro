@@ -12,7 +12,9 @@ namespace XiDeAI_Pro.Services
 
         public GuruPersistenceService()
         {
-            _filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "processed_guru_tweets.json");
+            string appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
+            Directory.CreateDirectory(appData);
+            _filePath = Path.Combine(appData, "processed_guru_tweets.json");
             _processedUrls = LoadUrls();
         }
 
@@ -60,4 +62,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

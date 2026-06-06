@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace XiDeAI_Pro.Services
@@ -59,7 +60,15 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 2. Select top N targets for this cycle
-                string handles = string.Join(",", targets);
+                string handles = string.Join(",", targets
+                    .Select(t => t.Handle)
+                    .Where(h => !string.IsNullOrWhiteSpace(h))
+                    .Select(h => h.Trim()));
+                if (string.IsNullOrWhiteSpace(handles))
+                {
+                    OnLog?.Invoke($"⚠️ {category} için geçerli handle bulunamadı.", "Interaction");
+                    return;
+                }
                 OnLog?.Invoke($"🔍 {targets.Count} fenomen kontrol ediliyor...", "Interaction");
 
                 // 3. Execute bulk interaction via social_intel.py (now fixed with strict handle check)
@@ -165,4 +174,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-
