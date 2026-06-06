@@ -94,6 +94,9 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 #### `SignalParser.cs`
 - **(v5.2.3)** `ParseDbLine(line, strategyOverride)`: 12 kolonlu iDeal DB satırlarını strict parse eder; `D` periyodu `G` olarak normalize edilir; `SymbolNormalizer` ile canonical sembol kullanılır.
 
+#### `SignalPersistenceService.cs`
+- **(v5.3.0)** Processed key artık `Symbol|Strategy|Period|Durum|DetectedAt` tabanlıdır; aynı sembol/periyotta farklı strateji veya yeni tarihli sinyal yanlışlıkla bastırılmaz.
+
 #### `SymbolNormalizer.cs`
 - **(v5.2.3)** `NormalizeSignalSymbol(rawSymbol)`: `VIP'VIP-VAKBN` ve benzeri bozuk prefixleri temizleyerek canonical BIST sembolü üretir.
 - **(v5.2.3)** `IsKnownBistSymbol(symbol)`: `Config/symbols_bist.txt` üzerinden sembol doğrular; config yoksa makul BIST formatına fallback yapar.
@@ -326,7 +329,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

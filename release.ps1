@@ -76,6 +76,24 @@ Set-Content -Path $InstallerScript -Value $issContent
 
 Write-Host "Versions updated to $Version" -ForegroundColor Green
 
+# Generate canonical project version.json before publish so it is packaged into installer.
+$changelogItems = @()
+try {
+    if (Test-Path "$ProjectDir\version.json") {
+        $existingVersionJson = Get-Content "$ProjectDir\version.json" -Raw | ConvertFrom-Json
+        if ($existingVersionJson.changelog -is [System.Array]) { $changelogItems += $existingVersionJson.changelog }
+    }
+} catch { }
+$releaseLine = "v$Version: $Changelog"
+$changelogItems = @($releaseLine) + @($changelogItems | Where-Object { $_ -ne $releaseLine })
+$jsonContent = [ordered]@{
+    version = $Version
+    build_number = [int](($Version -replace '\.', '') + '0')
+    lastUpdate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    changelog = $changelogItems
+} | ConvertTo-Json -Depth 5
+Set-Content -Path "$ProjectDir\version.json" -Value $jsonContent -Encoding UTF8
+
 # ==========================================
 # 3. BUILD PROJECT
 # ==========================================
@@ -110,6 +128,7 @@ if (Test-Path "$ProjectDir\Scripts") {
     Remove-Item -Path "$ScriptsDest\screenshots" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "$ScriptsDest\__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
     Get-ChildItem -Path $ScriptsDest -Include "__pycache__", "*.pyc", "*.png", "*.log" -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $ScriptsDest -Include "test_*.py", "debug_*.py", "temp_*.py", "fix_*.py", "inspect_*.py", "create_test_*.py" -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
 
     Write-Host "✅ Scripts folder copied and cleaned." -ForegroundColor Green
 }
@@ -129,6 +148,9 @@ else {
     Write-Warning "⚠️ Config folder not found!"
 }
 
+# Ensure canonical version metadata is inside publish folder before Inno Setup packages it.
+Set-Content -Path "$PublishDir\version.json" -Value $jsonContent -Encoding UTF8
+
 # ==========================================
 # 4. CREATE INSTALLER
 # ==========================================
@@ -141,22 +163,6 @@ Write-Host "Installer Created!" -ForegroundColor Green
 # ==========================================
 # 5. GENERATE VERSION INFO (canonical version.json)
 # ==========================================
-$changelogItems = @()
-try {
-    if (Test-Path "$ProjectDir\version.json") {
-        $existingVersionJson = Get-Content "$ProjectDir\version.json" -Raw | ConvertFrom-Json
-        if ($existingVersionJson.changelog -is [System.Array]) { $changelogItems += $existingVersionJson.changelog }
-    }
-} catch { }
-$releaseLine = "v$Version: $Changelog"
-$changelogItems = @($releaseLine) + @($changelogItems | Where-Object { $_ -ne $releaseLine })
-$jsonContent = [ordered]@{
-    version = $Version
-    build_number = [int](($Version -replace '\.', '') + '0')
-    lastUpdate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-    changelog = $changelogItems
-} | ConvertTo-Json -Depth 5
-
 Set-Content -Path "$ProjectDir\version.json" -Value $jsonContent -Encoding UTF8
 Set-Content -Path "$PublishDir\version.json" -Value $jsonContent -Encoding UTF8
 Set-Content -Path "$SetupOutputDir\version.json" -Value $jsonContent -Encoding UTF8

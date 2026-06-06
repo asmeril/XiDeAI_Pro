@@ -346,7 +346,7 @@ namespace XiDeAI_Pro.Services
                 OnLog?.Invoke($"📡 Hybrid Processing: {sig.Symbol} | Strategy: {sig.Strategy} | Tier: {sig.Tier} | Durum: {sig.Durum}{(sig.IsRoket ? " 🚀" : "")}", "HybridEngine");
                 
                 // 1. GLOBAL DEDUPLICATION
-                if (_persistence.IsProcessed(sig.Symbol, sig.Period))
+                if (_persistence.IsProcessed(sig))
                 {
                     OnLog?.Invoke($"⏭️ Mükerrer Sinyal: {sig.Symbol} ({sig.Strategy})", "Engine");
                     return;
@@ -491,7 +491,7 @@ namespace XiDeAI_Pro.Services
 
                 if (sent)
                 {
-                    _persistence.MarkAsProcessed(sig.Symbol, sig.Period);
+                    _persistence.MarkAsProcessed(sig);
                     _spam.RecordTweet(sig.Symbol, sig.Strategy);
                     OnLog?.Invoke($"✅ Başarılı: {sig.Symbol} (Tier: {sig.Tier})", "Twitter");
                 }

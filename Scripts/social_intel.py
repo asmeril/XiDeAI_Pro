@@ -46,7 +46,7 @@ except:
 class ChromeDriverPool:
     """Singleton driver pool to reuse Chrome instances (3-5s savings per operation)"""
     _driver = None
-    _lock = threading.Lock()
+    _lock = threading.RLock()
     _creation_time = None
     _max_age = 3600  # 1 hour, then recreate
     
@@ -58,7 +58,12 @@ class ChromeDriverPool:
                 age = time.time() - cls._creation_time
                 if age > cls._max_age:
                     print(f"[POOL] Driver age={age:.0f}s, recreating...", file=sys.stderr)
-                    cls.close()
+                    try:
+                        cls._driver.quit()
+                    except:
+                        pass
+                    cls._driver = None
+                    cls._creation_time = None
             
             if cls._driver is None:
                 print("[POOL] Creating new driver...", file=sys.stderr)
@@ -588,12 +593,16 @@ def load_cookies(driver):
         if json_file.exists():
             try:
                 import json
-                cookies = json.loads(json_file.read_text())
+                cookies = json.loads(json_file.read_text(encoding="utf-8-sig"))
                 added_count = 0
                 for c in cookies:
+                    name = c.get('name', c.get('Name'))
+                    value = c.get('value', c.get('Value'))
+                    if not name or value is None:
+                        continue
                     cookie_dict = {
-                        'name': c.get('name', c.get('Name')),
-                        'value': c.get('value', c.get('Value')),
+                        'name': name,
+                        'value': value,
                         'domain': c.get('domain', c.get('Domain')),
                         'path': c.get('path', c.get('Path', '/')),
                     }
@@ -2092,8 +2101,8 @@ def post_thread_chain(tweets, media_path=None):
             except Exception as e:
                 print(f"Profile URL method: {e}", file=sys.stderr)
 
-            print("WARNING: Could not get tweet URL", file=sys.stderr)
-            return "https://x.com/home"
+            print("ERROR: Could not get tweet URL", file=sys.stderr)
+            return None
 
         except Exception as e:
             print(f"_post_one error: {type(e).__name__}: {e}", file=sys.stderr)
@@ -2122,27 +2131,31 @@ def post_thread_chain(tweets, media_path=None):
 
         if not first_url:
             return {"status": "error", "message": "First tweet failed"}
+        if "/status/" not in first_url:
+            return {"status": "error", "message": f"First tweet URL verification failed: {first_url}"}
 
         print(f"[Thread] ✅ Tweet 1 posted: {first_url}", file=sys.stderr)
         time.sleep(4)
 
         # ── Kalan tweetler ───────────────────────────────────────────────────
         last_url = first_url
+        posted_count = 1
         for i, tweet_text in enumerate(tweets[1:], 2):
             print(f"[Thread] Posting tweet {i}/{len(tweets)} as reply...", file=sys.stderr)
             reply_url = _post_one(driver, tweet_text, reply_to_url=last_url)
 
             if not reply_url:
-                print(f"[Thread] WARNING: Tweet {i} failed", file=sys.stderr)
-                time.sleep(3)
-                reply_url = last_url  # aynı URL'e retry
+                return {"status": "error", "message": f"Tweet {i} failed"}
+            if "/status/" not in reply_url:
+                return {"status": "error", "message": f"Tweet {i} URL verification failed: {reply_url}"}
 
             print(f"[Thread] ✅ Tweet {i} posted", file=sys.stderr)
             last_url = reply_url
+            posted_count += 1
             time.sleep(4)
 
         print(f"✅ Thread posted successfully ({len(tweets)} parts)", file=sys.stderr)
-        return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!", "url": first_url}
+        return {"status": "success", "message": f"Thread with {len(tweets)} tweets posted!", "tweet_url": first_url, "posted_count": posted_count, "total_chunks": len(tweets)}
 
     except Exception as e:
         import traceback

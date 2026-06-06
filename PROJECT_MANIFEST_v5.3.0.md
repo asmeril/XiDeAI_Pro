@@ -88,6 +88,9 @@
 | `Services/FanZoneService.cs` | FanZone dedupe ve like/RT success kontrolü düzeltildi |
 | `Services/InteractionEngine.cs` | Toplu etkileşimde gerçek handle listesi gönderimi |
 | `Services/GuruPersistenceService.cs` | Processed guru dosyası LocalAppData'ya taşındı |
+| `Services/SignalPersistenceService.cs` | Sinyal dedupe anahtarı strategy/status/tarih ile genişletildi |
+| `Services/Logger.cs` | Log timestamp formatı yıl içerecek şekilde güncellendi |
+| `Services/TwitterService.cs` | Doğrulanmamış API fallback success kapatıldı |
 | `MainForm.cs` | Üstat, motivasyon, gün sonu, manuel/haber UI gönderimleri PostingService'e yönlendirildi |
 | `Scripts/playwright_daemon.py` | Tekil tweet ve partial thread success doğrulaması sertleştirildi |
 | `Scripts/social_intel.py` | `Market_Movers.txt` parser, hacim fallback ve C# uyumlu JSON output |
@@ -95,6 +98,7 @@
 | `Services/PromptManager.cs` | Hacim liderleri prompt bölümü ve thread yapısı |
 | `Services/OperationEngine.cs` | Rapor formatında hacim ve fiyat-yoksa `-` gösterimi |
 | `XiDeAI_Pro.csproj`, `setup.iss`, `version.json` | Sürüm `5.3.0` |
+| `release.ps1`, `build_cmd.ps1`, `.agent/workflows/publish.md` | Release workflow stale version ve paketleme riskleri giderildi |
 
 ---
 

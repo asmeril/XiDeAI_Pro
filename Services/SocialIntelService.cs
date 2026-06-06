@@ -693,7 +693,7 @@ namespace XiDeAI_Pro.Services
             if (text.Length > 280)
             {
                 Logger.Twitter($"⚠️ Tekil tweet metni 280 karakteri aşıyor ({text.Length}). Otomatik olarak Thread'e dönüştürülüyor.");
-                return await PostThreadAsync(new List<string> { text }, mediaPath);
+                return await PostThreadAsync(ThreadPipeline.EnsureWithinLimit(new[] { text }, 280), mediaPath);
             }
 
             // Internal WebView2 bridge can report success without a verified /status/ URL.
@@ -709,7 +709,6 @@ namespace XiDeAI_Pro.Services
                         if (HasVerifiedTweetUrl(res))
                         {
                             ConfigManager.AddWebUsage();
-                            _stats?.RecordTweet("SocialIntel", 1, "", text);
                             return res;
                         }
                         Logger.Twitter("⚠️ Dahili tweet success doğrulanamadı (/status/ URL yok). Playwright fallback deneniyor...");
@@ -752,7 +751,6 @@ namespace XiDeAI_Pro.Services
                      else
                      {
                          ConfigManager.AddWebUsage();
-                         _stats?.RecordTweet("SocialIntel", 1, "", text);
                      }
                 }
                 

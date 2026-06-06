@@ -704,7 +704,7 @@ namespace XiDeAI_Pro
             AttachHoverEffect(btnTestTwitter, Color.DeepSkyBlue, Color.FromArgb(29, 161, 242));
             btnTestTwitter.Click += async (s, ev) => { 
                 ConfigManager.Current.TwitterApiKey = txtApiKey.Text; ConfigManager.Current.TwitterApiSecret = txtApiSecret.Text; ConfigManager.Current.TwitterAccessToken = txtAccessToken.Text; ConfigManager.Current.TwitterTokenSecret = txtTokenSecret.Text;
-                btnTestTwitter.Text = "⏳ ..."; await Task.Run(() => { var (ok, msg) = _opManager.Twitter.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTwitter.Text = "🐦 X Bağlantısını Test Et";
+                btnTestTwitter.Text = "⏳ ..."; await Task.Run(() => { var (ok, msg) = _opManager.Twitter.TestConnection(); this.Invoke(new Action(() => MessageBox.Show(msg))); }); btnTestTwitter.Text = "🐦 X Bağlantısını Test Et";
             };
             flowPermanent.Controls.Add(btnTestTwitter);
 
@@ -718,7 +718,7 @@ namespace XiDeAI_Pro
             AttachHoverEffect(btnTestTelegram, Color.DeepSkyBlue, Color.FromArgb(0, 136, 204));
             btnTestTelegram.Click += async (s, ev) => {
                  ConfigManager.Current.TelegramBotToken = txtTelToken.Text; ConfigManager.Current.TelegramChatId = txtTelChatId.Text;
-                 btnTestTelegram.Text = "⏳ ..."; await Task.Run(async () => { var (ok, msg) = await _opManager.Telegram.TestConnection(); this.Invoke(() => MessageBox.Show(msg)); }); btnTestTelegram.Text = "📱 Telegram Test";
+                 btnTestTelegram.Text = "⏳ ..."; await Task.Run(async () => { var (ok, msg) = await _opManager.Telegram.TestConnection(); this.Invoke(new Action(() => MessageBox.Show(msg))); }); btnTestTelegram.Text = "📱 Telegram Test";
             };
             flowPermanent.Controls.Add(btnTestTelegram);
 
@@ -758,10 +758,10 @@ namespace XiDeAI_Pro
                 btnTestTargets.Enabled = false;
                 await Task.Run(async () => {
                    var result = await _opManager.SocialIntel.InteractWithTargets(ConfigManager.Current.TargetAccounts);
-                   this.Invoke(() => {
+                   this.Invoke(new Action(() => {
                        var msg = string.Join("\n", result.data.Select(x => $"{x.Key}: {x.Value}"));
                        MessageBox.Show($"Sonuç:\n{msg}", "Etkileşim Raporu");
-                   });
+                   }));
                 });
                 btnTestTargets.Text = "⚡ Hedef Etkileşim Testi";
                 btnTestTargets.Enabled = true;
@@ -810,7 +810,7 @@ namespace XiDeAI_Pro
                      var models = await _opManager.Gemini.GetAvailableModels(key);
                      if (models != null && models.Count > 0)
                      {
-                         this.Invoke(() => {
+                         this.Invoke(new Action(() => {
                              cmbGeminiModel.Items.Clear();
                              foreach(var m in models) cmbGeminiModel.Items.Add(m);
                              cmbGeminiModel.SelectedIndex = 0;
@@ -820,7 +820,7 @@ namespace XiDeAI_Pro
                                  cmbGeminiModel.SelectedItem = ConfigManager.Current.GeminiModel;
                                  
                              MessageBox.Show($"✅ {models.Count} model bulundu ve listeye eklendi!");
-                         });
+                         }));
                          
                          // Test standard connection with selected model
                          var selectedModel = cmbGeminiModel.SelectedItem as string;
@@ -832,10 +832,10 @@ namespace XiDeAI_Pro
                      }
                      else
                      {
-                         this.Invoke(() => MessageBox.Show($"⚠️ Model bulunamadı veya hata oluştu.\nHata: {_opManager.Gemini.LastError}"));
+                         this.Invoke(new Action(() => MessageBox.Show($"⚠️ Model bulunamadı veya hata oluştu.\nHata: {_opManager.Gemini.LastError}")));
                      }
                  } catch (Exception ex) {
-                     this.Invoke(() => MessageBox.Show($"Hata: {ex.Message}"));
+                     this.Invoke(new Action(() => MessageBox.Show($"Hata: {ex.Message}")));
                  }
                  
                  btnTestGemini.Text = "🤖 AI Test / Model Bul";
@@ -877,11 +877,11 @@ namespace XiDeAI_Pro
                             System.Text.Encoding.UTF8, "application/json");
                         var resp = await hc.PostAsync(uri.TrimEnd('/') + "/chat/completions", payload);
                         string respBody = await resp.Content.ReadAsStringAsync();
-                        this.Invoke(() => MessageBox.Show(resp.IsSuccessStatusCode
+                        this.Invoke(new Action(() => MessageBox.Show(resp.IsSuccessStatusCode
                             ? $"✅ Bağlantı başarılı!\nModel: {model}\nDurum: {(int)resp.StatusCode}"
-                            : $"❌ Hata: {(int)resp.StatusCode}\n{respBody}"));
+                            : $"❌ Hata: {(int)resp.StatusCode}\n{respBody}")));
                     } catch (Exception ex) {
-                        this.Invoke(() => MessageBox.Show($"❌ Bağlanamadı: {ex.Message}\n\nLM Studio'da Local Server başlatıldı mı?"));
+                        this.Invoke(new Action(() => MessageBox.Show($"❌ Bağlanamadı: {ex.Message}\n\nLM Studio'da Local Server başlatıldı mı?")));
                     }
                 });
                 btnTestLMStudio.Text = "🧩 LM Studio Bağlantısını Test Et";
@@ -1306,7 +1306,7 @@ namespace XiDeAI_Pro
 
         private void AddNewsCard(NewsItem news, string? analysis = null, string status = "PUBLISHED")
         {
-            if (this.InvokeRequired) { this.Invoke(() => AddNewsCard(news, analysis, status)); return; }
+            if (this.InvokeRequired) { this.Invoke(new Action(() => AddNewsCard(news, analysis, status))); return; }
 
             if (!_newsInitialized)
             {
@@ -1337,9 +1337,17 @@ namespace XiDeAI_Pro
                 var btnApprove = new Button { Text = "✅ ONAYLA", Dock = DockStyle.Right, Width = 80, BackColor = Color.Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold) };
                 btnApprove.FlatAppearance.BorderSize = 0;
                 btnApprove.Click += async (s, e) => {
-                    targetPanel.Controls.Remove(card);
-                    await _opManager.NewsEng.ForcePostNews(news, analysis ?? "", news.Category, news.IncludesAnalysis);
-                    // Moved to published automatically by NewsEngine event, but we can double check
+                    btnApprove.Enabled = false;
+                    var (success, message) = await _opManager.NewsEng.ForcePostNews(news, analysis ?? "", news.Category, news.IncludesAnalysis);
+                    if (success)
+                    {
+                        targetPanel.Controls.Remove(card);
+                    }
+                    else
+                    {
+                        btnApprove.Enabled = true;
+                        MessageBox.Show($"Haber yayınlanamadı:\n{message}");
+                    }
                 };
                 
                 var btnReject = new Button { Text = "🗑️ REDDET", Dock = DockStyle.Right, Width = 80, BackColor = Color.Red, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 7, FontStyle.Bold), Margin = new Padding(0,0,5,0) };
@@ -1396,6 +1404,8 @@ namespace XiDeAI_Pro
                         if (parts.Length < 3) continue;
 
                         string moduleName = parts[parts.Length - 1]; // e.g. "System" from "Log_2024-01-01_System"
+                        DateTime fileDate = DateTime.MinValue;
+                        if (parts.Length >= 3) DateTime.TryParse(parts[1], out fileDate);
                         
                         // Apply filter
                         if (filter != "Tümü" && !string.Equals(moduleName, filter, StringComparison.OrdinalIgnoreCase))
@@ -1418,8 +1428,11 @@ namespace XiDeAI_Pro
                                     {
                                         string tsStr = timePart[0].TrimStart('[');
                                         // Attempt to parse, but fallback to file date if fail
-                                        if (DateTime.TryParseExact(tsStr, "dd.MM HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out var dt))
+                                        if (DateTime.TryParseExact(tsStr, "yyyy-MM-dd HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out var dt) ||
+                                            DateTime.TryParseExact(tsStr, "dd.MM HH:mm:ss", null, System.Globalization.DateTimeStyles.None, out dt))
                                         {
+                                            if (dt.Year == DateTime.Now.Year && fileDate != DateTime.MinValue && tsStr.Length < 12)
+                                                dt = fileDate.Date.Add(dt.TimeOfDay);
                                             allLines.Add((dt, moduleName, logLine));
                                         }
                                     }
@@ -4043,11 +4056,13 @@ namespace XiDeAI_Pro
                     picScreenshot.Image = null;
                 }
                 
-                btnTweetAnalysis.Enabled = true;
+                btnTweetAnalysis.Enabled = _lastAnalysisResult != null && _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ReportText);
             }
             catch (Exception ex)
             {
+                _lastAnalysisResult = null;
                 rtbAnalysisResult.Text = "Hata: " + ex.Message;
+                btnTweetAnalysis.Enabled = false;
             }
             finally
             {
@@ -4446,7 +4461,7 @@ namespace XiDeAI_Pro
 
                                 if (id > 0)
                                 {
-                                    if (_pendingNewsDict.TryRemove(id, out var pending))
+                                    if (_pendingNewsDict.TryGetValue(id, out var pending))
                                     {
                                         await _opManager.Telegram.SendMessageAsync($"⏳ {id} onaylandı. Yayınlanıyor...");
                                         try
@@ -4454,6 +4469,7 @@ namespace XiDeAI_Pro
                                              var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary, pending.item.Category, pending.item.IncludesAnalysis);
                                             if (success)
                                             {
+                                                _pendingNewsDict.TryRemove(id, out _);
                                                 await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI! {pending.item.Title}");
                                                 Logger.News($"✅ Haber başarıyla yayınlandı: {pending.item.Title}");
                                             }
@@ -4474,7 +4490,7 @@ namespace XiDeAI_Pro
                                 else if (_pendingNewsDict.Count == 1)
                                 {
                                     var first = _pendingNewsDict.ElementAt(0);
-                                    if (_pendingNewsDict.TryRemove(first.Key, out var pending))
+                                    if (_pendingNewsDict.TryGetValue(first.Key, out var pending))
                                     {
                                         await _opManager.Telegram.SendMessageAsync($"⏳ Onaylandı: {pending.item.Title}");
                                         try
@@ -4482,6 +4498,7 @@ namespace XiDeAI_Pro
                                              var (success, message) = await _opManager.NewsEng.ForcePostNews(pending.item, pending.summary, pending.item.Category, pending.item.IncludesAnalysis);
                                             if (success)
                                             {
+                                                _pendingNewsDict.TryRemove(first.Key, out _);
                                                 await _opManager.Telegram.SendMessageAsync($"✅ BAŞARILI!");
                                             }
                                             else

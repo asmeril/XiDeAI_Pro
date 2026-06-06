@@ -176,7 +176,6 @@ namespace XiDeAI_Pro.Services
                  
                  if (result.status == "success")
                  {
-                    _stats?.RecordTweet("HybridEngine", tweets.Count, signal.Symbol, tweets[0]);
                     return (true, "");
                  }
                  return (false, result.message ?? result.text);
@@ -324,8 +323,6 @@ namespace XiDeAI_Pro.Services
                     
                     // Record in stats engine by module
                     var threadContent = string.Join(" ", tweets).Substring(0, Math.Min(150, string.Join(" ", tweets).Length));
-                    _stats?.RecordTweet("ThreadService", tweets.Count, signal.Symbol, threadContent);
-                    
                     return (true, "");
                 }
                 
@@ -619,7 +616,6 @@ namespace XiDeAI_Pro.Services
                 var result = await _posting.PostThreadAsync(tweets, null, "HiveIntel");
                 if (result.status == "success")
                 {
-                     _stats?.RecordTweet("HiveIntel", tweets.Count, "", tweets.FirstOrDefault() ?? "");
                      return true;
                 }
                 return false;

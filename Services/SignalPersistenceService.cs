@@ -68,9 +68,28 @@ namespace XiDeAI_Pro.Services
             }
         }
 
+        public bool IsProcessed(SignalData signal)
+        {
+            string key = BuildSignalKey(signal);
+            lock (_lock)
+            {
+                return _processedKeys.Contains(key);
+            }
+        }
+
         public void MarkAsProcessed(string symbol, string period)
         {
             string key = $"{symbol}|{period}".ToUpperInvariant();
+            MarkKeyAsProcessed(key);
+        }
+
+        public void MarkAsProcessed(SignalData signal)
+        {
+            MarkKeyAsProcessed(BuildSignalKey(signal));
+        }
+
+        private void MarkKeyAsProcessed(string key)
+        {
             bool changed = false;
             lock (_lock)
             {
@@ -83,6 +102,12 @@ namespace XiDeAI_Pro.Services
             if (changed) SaveMemory();
         }
 
+        private static string BuildSignalKey(SignalData signal)
+        {
+            string dateKey = signal.DetectedAt == DateTime.MinValue ? "NO_DATE" : signal.DetectedAt.ToString("yyyyMMddHHmmss");
+            return $"{signal.Symbol}|{signal.Strategy}|{signal.Period}|{signal.Durum}|{dateKey}".ToUpperInvariant();
+        }
+
         public void Clear()
         {
             lock (_lock)
@@ -93,4 +118,3 @@ namespace XiDeAI_Pro.Services
         }
     }
 }
-

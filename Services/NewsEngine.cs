@@ -405,10 +405,6 @@ namespace XiDeAI_Pro.Services
                 _spam.RecordTweet("NEWS_THREAD", symbols);
                 OnLog?.Invoke($"✅ Haber Paylaşıldı: {item.Title}", "Twitter");
                 
-                // Record tweets in stats engine
-                int partCount = normalizedParts.Count;
-                _stats.RecordTweet("NewsEngine", partCount, item.Link, item.Title ?? string.Empty);
-                
                 // Kalıcı hafızaya PUBLISHED olarak kaydet (gerçek skor ve kategori ile)
                 _persistence.AddParsedNews(item.Title ?? string.Empty, item.Source ?? string.Empty, item.Link ?? string.Empty, score, true, "PUBLISHED");
                 

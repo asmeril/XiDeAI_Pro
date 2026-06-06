@@ -83,7 +83,6 @@ namespace XiDeAI_Pro.Services
                     _stats.RecordActivity("Operation", "Morning Motivation Posted", true);
                     _motivationRetry = 0;
                     _spam.RecordTweet("MOTIVATION", "DAILY");
-                    _stats.RecordTweet("Motivation", 1, "", tweet);
                 }
                 else throw new Exception("Motivation tweet failed to post.");
             }
@@ -264,7 +263,6 @@ namespace XiDeAI_Pro.Services
                 if (ok)
                 {
                     _spam.RecordTweet("REPORT", "DAILY_UNIFIED");
-                    _stats.RecordTweet("DailyReport", 1, "", "Unified Daily Report Thread");
                     OnLog?.Invoke("✅ Birleşik Günlük Rapor başarıyla yayınlandı.", "Operation");
                 }
             }
@@ -291,7 +289,6 @@ namespace XiDeAI_Pro.Services
                     if (ok) 
                     {
                         _spam.RecordTweet("REPORT", "WEEKLY");
-                        _stats.RecordTweet("WeeklyReport", 1, "", "Weekly Report Thread");
                     }
                 }
             }

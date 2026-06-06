@@ -51,7 +51,7 @@ namespace XiDeAI_Pro.Services
                 string date = DateTime.Now.ToString("yyyy-MM-dd");
                 string filename = $"Log_{date}_{category}.txt";
                 string path = Path.Combine(LogDir, filename);
-                string timestamp = DateTime.Now.ToString("dd.MM HH:mm:ss");
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 string levelTag = level switch
                 {
                     LogLevel.Debug => "[DBG]",
@@ -124,4 +124,3 @@ namespace XiDeAI_Pro.Services
             Log(category, $"❌ {ex.GetType().Name}: {ex.Message}", LogLevel.Error);
     }
 }
-

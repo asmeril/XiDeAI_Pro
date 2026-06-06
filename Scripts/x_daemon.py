@@ -190,7 +190,7 @@ def _create_driver():
         if json_file.exists():
             try:
                 import json
-                data = json.loads(json_file.read_text())
+                data = json.loads(json_file.read_text(encoding="utf-8-sig"))
                 use_ua = None
                 use_hints = None
                 
@@ -258,12 +258,16 @@ def _load_cookies(driver):
         if json_file.exists():
             try:
                 import json
-                cookies = json.loads(json_file.read_text())
+                cookies = json.loads(json_file.read_text(encoding="utf-8-sig"))
                 added_count = 0
                 for c in cookies:
+                    name = c.get('name', c.get('Name'))
+                    value = c.get('value', c.get('Value'))
+                    if not name or value is None:
+                        continue
                     cookie_dict = {
-                        'name': c.get('name', c.get('Name')),
-                        'value': c.get('value', c.get('Value')),
+                        'name': name,
+                        'value': value,
                         'domain': c.get('domain', c.get('Domain')),
                         'path': c.get('path', c.get('Path', '/')),
                     }
