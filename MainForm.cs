@@ -2354,7 +2354,7 @@ namespace XiDeAI_Pro
                     if (string.IsNullOrEmpty(tweetSet)) 
                     {
                         Log("❌ AI Gün sonu özeti üretemedi (Zaman aşımı veya hata). Tweet atılamadı.", "Twitter");
-                        return;
+                        return false;
                     }
 
                     var tweets = ThreadPipeline.ParseParts(tweetSet, 280);

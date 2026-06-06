@@ -381,11 +381,21 @@ class XDaemonPlaywright:
                     raise PlaywrightTimeoutError("Post button disabled or not found. Text might be invalid/empty.")
 
                 await self._click_publish(post_button, "single")
+                
+                # Wait a bit for React to process the click, then press Enter as backup
+                await self._sleep(1.0)
+                if "compose" in self.page.url:
+                    # Still on compose - try Enter key as fallback submit
+                    try:
+                        await self.page.keyboard.press("Enter")
+                    except:
+                        pass
+                    await self._sleep(0.5)
 
                 # Wait for X to navigate AWAY from compose page (confirms tweet submitted).
                 # X always redirects after a successful post; if it stays on /compose, it failed.
                 navigated = False
-                for _ in range(20):  # up to 10s in 0.5s steps
+                for _ in range(30):  # up to 15s in 0.5s steps (increased from 10s)
                     await self._sleep(0.5)
                     if "compose" not in self.page.url:
                         navigated = True
