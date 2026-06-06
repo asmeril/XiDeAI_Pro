@@ -84,7 +84,7 @@ try {
         if ($existingVersionJson.changelog -is [System.Array]) { $changelogItems += $existingVersionJson.changelog }
     }
 } catch { }
-$releaseLine = "v$Version: $Changelog"
+$releaseLine = "v${Version}: $Changelog"
 $changelogItems = @($releaseLine) + @($changelogItems | Where-Object { $_ -ne $releaseLine })
 $jsonContent = [ordered]@{
     version = $Version
