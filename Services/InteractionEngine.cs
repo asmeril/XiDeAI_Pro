@@ -162,7 +162,6 @@ namespace XiDeAI_Pro.Services
                                        $"Onaylamak için 'ONAYLA' yazın.";
                     
                     await _telegram.SendMessageAsync(approvalMsg);
-                    _socialIntel.Memory.RecordInteraction(post.Url);
                     _stats.RecordActivity("Interaction", $"Viral reply proposed [{category}]: {post.Handle}", true, topic);
                     OnLog?.Invoke($"✅ Yanıt önerisi Telegram'a gönderildi: @{post.Handle} [{category}]", "Interaction");
                 }

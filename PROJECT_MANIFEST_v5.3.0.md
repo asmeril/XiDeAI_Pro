@@ -121,3 +121,14 @@
 - Sabah motivasyon prompt'u 120-220 karaktere çekildi ve Playwright single-post için Ctrl+Enter fallback eklendi.
 - AutoBenchmark varsayılan olarak kapatıldı (`EnableAutoBenchmark=false`) ve üretim Gemini quota gürültüsü azaltıldı.
 - Telegram `/STATUS` kuyruk sayılarını gösterir, `/HELP` komutu eklendi, `/TWEETLE` canonical PostingService kullanır.
+
+---
+
+## v5.3.2 Etkileşim Modülü Notları
+
+- Bot Etkileşim tabı yalnız checkbox'a bağlı pasif moddan çıkarıldı; manuel `Şimdi Tara`, `BIST Fenomen`, `Kripto Fenomen`, `Durum` kontrolleri eklendi.
+- Timer checkbox'a bağlı kalır; manuel UI/Telegram taraması checkbox kapalıyken de tek seferlik çalıştırılabilir.
+- Filtreleme gevşetildi: adaylar takipçi veya etkileşim veya relevance veya içerik derinliği kriterlerinden biriyle listeye girebilir.
+- Aynı taramada en iyi 3 viral aday için AI yanıt önerisi üretilip Telegram ve UI grid'e düşer.
+- Telegram komutları eklendi: `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle`.
+- Etkileşim memory artık öneri aşamasında değil, yanıt gerçekten gönderildikten sonra işaretlenir.

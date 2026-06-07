@@ -8,9 +8,9 @@
     <ApplicationIcon>xideai_icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>XiDeAI_Pro</AssemblyName>
-    <Version>5.3.1</Version>
-    <AssemblyVersion>5.3.1.0</AssemblyVersion>
-    <FileVersion>5.3.1.0</FileVersion>
+    <Version>5.3.2</Version>
+    <AssemblyVersion>5.3.2.0</AssemblyVersion>
+    <FileVersion>5.3.2.0</FileVersion>
     <Company>XiDeAI</Company>
     <Product>XiDeAI Pro</Product>
     <Description>XiDeAI Pro - AI-Powered Trading Assistant</Description>
@@ -38,7 +38,6 @@
     </None>
   </ItemGroup>
 </Project>
-
 
 
 

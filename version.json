@@ -1,8 +1,9 @@
 {
-    "version": "5.3.1",
-    "build_number": 5310,
-    "lastUpdate": "2026-06-07T23:30:00Z",
+    "version": "5.3.2",
+    "build_number": 5320,
+    "lastUpdate": "2026-06-08T00:10:00Z",
     "changelog": [
+        "v5.3.2: INTERACTION: Bot tab manuel tarama/hedef etkileşim/durum kontrolleri, Telegram /BOTDURUM /ETKILESIMTARA /ETKILESIMTEST komutlari ve gevsek viral filtreler",
         "v5.3.1: FIX: Haber pending esigi 9+, breaking/son dakika auto-post, manuel analiz UI thread uyumu, LM Studio vision native input fix, motivasyon retry ve benchmark kapatma",
         "v5.3.0: v5.3.0: Centralized PostingService canonical mimarisi, sabah motivasyon ve gurupaylasimi stabilizasyonu",
         "v5.3.0: ARCH: Canonical PostingService ile tum moduller tek dogrulanmis Playwright gonderim hattina alindi",

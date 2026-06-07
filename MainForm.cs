@@ -2185,13 +2185,12 @@ namespace XiDeAI_Pro
             Log("🚀 Watcher Service Started...");
             Log($"📁 İzleniyor: C:\\iDeal\\Sinyal_Log_Database.txt (Alpha/PreMove DB)");
             
-            // v4.0 Bot Interaction Activation (DISABLED PER USER REQUEST)
-            // if (_botTimer != null) {
-            //     _botTimer.Start();
-            //     Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
-            //     // Run immediate check
-            //     Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
-            // }
+            if (ConfigManager.Current.BotInteractionEnabled && _botTimer != null)
+            {
+                _botTimer.Start();
+                Log("🤖 Bot Interaction Timer Started (15 min interval).", "System");
+                _ = Task.Run(async() => { await Task.Delay(5000); await CheckForInteractions(); });
+            }
 
             // --- MANUAL START FOR X MODULES ---
             Task.Run(async () => {
@@ -4177,19 +4176,10 @@ namespace XiDeAI_Pro
             else
                 lblBotStatus.Text = status;
         }
-        private async Task CheckForInteractions()
+        private async Task CheckForInteractions(bool force = false)
         {
-            if (_opManager.Interaction != null)
-            {
-                UpdateBotStatus("🎯 Hedef kitle etkileşimi...");
-                await _opManager.Interaction.RunTargetedCheck("BIST");
-                await Task.Delay(1000 * 30);
-                await _opManager.Interaction.RunTargetedCheck("CRYPTO");
-                UpdateBotStatus("IDLE");
-            }
-            
             var cfg = ConfigManager.Current;
-            if (!cfg.BotInteractionEnabled)
+            if (!force && !cfg.BotInteractionEnabled)
             {
                 UpdateBotStatus("⏸️ Bot devre dışı");
                 return;
@@ -4197,6 +4187,14 @@ namespace XiDeAI_Pro
 
             try
             {
+                if (_opManager.Interaction != null)
+                {
+                    UpdateBotStatus("🎯 Hedef kitle etkileşimi...");
+                    await _opManager.Interaction.RunTargetedCheck("BIST");
+                    await Task.Delay(1000 * 5);
+                    await _opManager.Interaction.RunTargetedCheck("CRYPTO");
+                }
+
                 // v4.2.1: Round-Robin Category Rotation
                 string currentCategory = _searchCategories[_currentSearchCategoryIndex];
                 _currentSearchCategoryIndex = (_currentSearchCategoryIndex + 1) % _searchCategories.Length;
@@ -4226,28 +4224,30 @@ namespace XiDeAI_Pro
                 // 2. Find viral tweet with filters (Web scraping - not API)
                 var posts = await _opManager.SocialIntel.FindInfluencerAnalyses(searchTopic + $" min_faves:{cfg.BotMinFavorites}", SocialIntelService.DetectMarket(searchTopic));
                 
-                // 3. Apply filters from Config
+                // 3. Apply relaxed filters from Config
                 var now = DateTime.Now;
+                int maxAgeHours = Math.Max(cfg.BotMaxTweetAgeHours, 48);
                 var filteredPosts = posts
                     .Where(p => !_tweetedToday.Contains(p.Url))
-                     .Where(p => p.PostDate > DateTime.MinValue && (now - p.PostDate).TotalHours < cfg.BotMaxTweetAgeHours)
-                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers)
-                    .OrderByDescending(p => p.Engagement)
+                    .Where(p => p.PostDate == DateTime.MinValue || (now - p.PostDate).TotalHours < maxAgeHours)
+                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 100 || p.Content.Length > 120)
+                    .OrderByDescending(p => p.Engagement + p.RelevanceScore + Math.Min(p.FollowerCount / 1000, 100))
+                    .Take(5)
                     .ToList();
                 
                 if (filteredPosts.Count == 0)
                 {
-                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı (≥{cfg.BotMinFollowers} takipçi, <{cfg.BotMaxTweetAgeHours}h).");
+                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı. Ham sonuç: {posts.Count}, eşik: takipçi≥{cfg.BotMinFollowers} veya etkileşim≥{cfg.BotMinFavorites} veya relevance≥100, yaş<{maxAgeHours}h.");
                     UpdateBotStatus("⚠️ Filtre uyumsuz");
                     return;
                 }
-                
-                var post = filteredPosts[0];
-                UpdateBotStatus($"💡 AI yanıt üretiyor (Two-Step)...");
-                
-                // v4.2.0: Two-Step Logic (Category Detection + Categorized Reply)
-                var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, post.Handle);
-                    
+
+                int added = 0;
+                foreach (var post in filteredPosts.Take(3))
+                {
+                    UpdateBotStatus($"💡 AI yanıt üretiyor: @{post.Handle}");
+                    var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, post.Handle);
+
                     if (!string.IsNullOrEmpty(reply))
                     {
                         int id = Interlocked.Increment(ref _interactionIdCounter);
@@ -4262,6 +4262,7 @@ namespace XiDeAI_Pro
                         string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {post.Handle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
                         await _opManager.Telegram.SendMessageAsync(msg);
                         LogSocial($"🤖 @{post.Handle} için öneri gönderildi (Telegram & UI)");
+                        added++;
 
                         // 2. Add to UI Grid (Bot Approval Panel)
                         if (dgvBotApproval != null && !dgvBotApproval.IsDisposed)
@@ -4279,11 +4280,10 @@ namespace XiDeAI_Pro
                             }));
                         }
 
-                     }
-                     else
-                     {
-                         UpdateBotStatus("⚠️ AI yanıt üretelemedi");
-                     }
+                    }
+                }
+
+                UpdateBotStatus(added > 0 ? $"✅ {added} etkileşim adayı listelendi" : "⚠️ AI yanıt üretemedi");
                  }
                  catch (Exception ex) { LogSocial($"Bot Loop Hata: {ex.Message}"); }
         }
@@ -4449,7 +4449,45 @@ namespace XiDeAI_Pro
                                 "`/ONAYHABER ID` - bekleyen haberi yayınlar\n" +
                                 "`/REDHABER ID` - bekleyen haberi reddeder\n" +
                                 "`/ONAY ID` - bekleyen etkileşim yanıtını gönderir\n" +
-                                "`/RED ID` - bekleyen etkileşimi iptal eder");
+                                "`/RED ID` - bekleyen etkileşimi iptal eder\n" +
+                                "`/BOTDURUM` - bot etkileşim durumunu gösterir\n" +
+                                "`/ETKILESIMTARA` - viral aday taraması başlatır\n" +
+                                "`/ETKILESIMTEST @hesap` - hedef hesap son tweet etkileşim testi");
+                            break;
+
+                        case "/BOTDURUM":
+                            await _opManager.Telegram.SendMessageAsync($"🤖 *Bot Etkileşim Durumu*\n\n" +
+                                $"Aktif: {ConfigManager.Current.BotInteractionEnabled}\n" +
+                                $"Bekleyen yanıt: {_pendingInteractionDict.Count}\n" +
+                                $"Min takipçi: {ConfigManager.Current.BotMinFollowers}\n" +
+                                $"Min etkileşim: {ConfigManager.Current.BotMinFavorites}\n" +
+                                $"Max yaş: {ConfigManager.Current.BotMaxTweetAgeHours} saat");
+                            break;
+
+                        case "/ETKILESIMTARA":
+                            {
+                                int before = _pendingInteractionDict.Count;
+                                await _opManager.Telegram.SendMessageAsync("🔍 Etkileşim taraması başlatılıyor...");
+                                await CheckForInteractions(force: true);
+                                int added = _pendingInteractionDict.Count - before;
+                                await _opManager.Telegram.SendMessageAsync($"✅ Tarama tamamlandı. Yeni aday: {Math.Max(0, added)}, toplam bekleyen: {_pendingInteractionDict.Count}");
+                            }
+                            break;
+
+                        case "/ETKILESIMTEST":
+                            {
+                                string target = args.Trim();
+                                if (string.IsNullOrWhiteSpace(target))
+                                {
+                                    await _opManager.Telegram.SendMessageAsync("⚠️ Kullanım: `/ETKILESIMTEST @hesap`");
+                                    break;
+                                }
+                                await _opManager.Telegram.SendMessageAsync($"🧪 {target} için hedef etkileşim testi başlatılıyor...");
+                                var result = await _opManager.SocialIntel.InteractWithTargets(target);
+                                await _opManager.Telegram.SendMessageAsync(result.status == "success"
+                                    ? $"✅ Test tamamlandı: {result.message}"
+                                    : $"❌ Test başarısız: {result.message}");
+                            }
                             break;
 
                         case "/ONAY_HABER":
@@ -4544,6 +4582,7 @@ namespace XiDeAI_Pro
                                         if (replyResult.status == "success")
                                         {
                                             _pendingInteractionDict.TryRemove(id, out _);
+                                            _opManager.SocialIntel.Memory.RecordInteraction(pending.Url);
                                             await _opManager.Telegram.SendMessageAsync($"✅ Yanıt gönderildi: {replyResult.tweet_url}");
                                         }
                                         else
@@ -4996,7 +5035,23 @@ namespace XiDeAI_Pro
 
             // CheckBox
             chkBotEnabled = new CheckBox { Text = "✅ Bot Etkileşimi Aktif (Durdurmak için tiki kaldırın)", Location = new Point(10, y), Width = 400, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Checked = ConfigManager.Current.BotInteractionEnabled };
-            chkBotEnabled.CheckedChanged += (s, e) => { ConfigManager.Current.BotInteractionEnabled = chkBotEnabled.Checked; ConfigManager.Save(); };
+            chkBotEnabled.CheckedChanged += (s, e) => {
+                ConfigManager.Current.BotInteractionEnabled = chkBotEnabled.Checked;
+                ConfigManager.Save();
+                if (_botTimer != null)
+                {
+                    if (chkBotEnabled.Checked)
+                    {
+                        _botTimer.Start();
+                        Log("🤖 Bot Interaction Timer Started.", "System");
+                    }
+                    else
+                    {
+                        _botTimer.Stop();
+                        Log("🤖 Bot Interaction Timer Stopped.", "System");
+                    }
+                }
+            };
             pnlSettings.Controls.Add(chkBotEnabled);
             y += 30;
 
@@ -5033,6 +5088,26 @@ namespace XiDeAI_Pro
             lblBotStatus = new Label { Text = "⏳ Bekleniyor...", Location = new Point(10, y), Width = 600, ForeColor = Color.Gray, Font = new Font("Segoe UI", 9, FontStyle.Italic) };
             pnlSettings.Controls.Add(lblBotStatus);
             y += 25;
+
+            var flowBotActions = new FlowLayoutPanel { Location = new Point(10, y), Width = 820, Height = 42, FlowDirection = FlowDirection.LeftToRight };
+            var btnScanNow = new Button { Text = "🔍 Şimdi Tara", Width = 130, Height = 34, BackColor = Color.DodgerBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnScanNow.Click += async (s, e) => await CheckForInteractions(force: true);
+            flowBotActions.Controls.Add(btnScanNow);
+
+            var btnTargetBist = new Button { Text = "🎯 BIST Fenomen", Width = 140, Height = 34, BackColor = Color.MediumSeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnTargetBist.Click += async (s, e) => { UpdateBotStatus("🎯 BIST hedefleri etkileşimde..."); await _opManager.Interaction.RunTargetedCheck("BIST"); UpdateBotStatus("IDLE"); };
+            flowBotActions.Controls.Add(btnTargetBist);
+
+            var btnTargetCrypto = new Button { Text = "₿ Kripto Fenomen", Width = 150, Height = 34, BackColor = Color.DarkOrange, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnTargetCrypto.Click += async (s, e) => { UpdateBotStatus("₿ Kripto hedefleri etkileşimde..."); await _opManager.Interaction.RunTargetedCheck("CRYPTO"); UpdateBotStatus("IDLE"); };
+            flowBotActions.Controls.Add(btnTargetCrypto);
+
+            var btnInteractionStatus = new Button { Text = "📊 Durum", Width = 90, Height = 34, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnInteractionStatus.Click += (s, e) => MessageBox.Show($"Bekleyen yanıt: {_pendingInteractionDict.Count}\nBot aktif: {ConfigManager.Current.BotInteractionEnabled}\nMin takipçi: {ConfigManager.Current.BotMinFollowers}\nMin etkileşim: {ConfigManager.Current.BotMinFavorites}\nMax yaş: {ConfigManager.Current.BotMaxTweetAgeHours} saat", "Etkileşim Durumu");
+            flowBotActions.Controls.Add(btnInteractionStatus);
+
+            pnlSettings.Controls.Add(flowBotActions);
+            y += 50;
 
             // Log
             pnlSettings.Controls.Add(new Label { Text = "📜 İşlem Logu:", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Silver });
@@ -5147,7 +5222,11 @@ namespace XiDeAI_Pro
                 
                 // Remove from dict
                 var kvp = _pendingInteractionDict.FirstOrDefault(x => x.Value.Url == url);
-                if (kvp.Value != null) _pendingInteractionDict.TryRemove(kvp.Key, out _);
+                if (kvp.Value != null)
+                {
+                    _pendingInteractionDict.TryRemove(kvp.Key, out _);
+                    _opManager.SocialIntel.Memory.RecordInteraction(url);
+                }
                 
                 MessageBox.Show("Yanıt Başarıyla Gönderildi!");
             }

@@ -102,9 +102,9 @@ namespace XiDeAI_Pro.Config
         // BOT ETKİLEŞİM AYARLARI
         public bool BotInteractionEnabled { get; set; } = false; // Bot aktif mi
         public string BotTopicKeywords { get; set; } = "borsa,bist,dolar,ekonomi,atatürk,fenerbahçe"; // Virgülle ayrılmış
-        public int BotMinFollowers { get; set; } = 5000; // Min takipçi
-        public int BotMinFavorites { get; set; } = 200; // Min beğeni
-        public int BotMaxTweetAgeHours { get; set; } = 24; // Max tweet yaşı (saat)
+        public int BotMinFollowers { get; set; } = 1000; // Min takipçi
+        public int BotMinFavorites { get; set; } = 50; // Min beğeni/etkileşim
+        public int BotMaxTweetAgeHours { get; set; } = 48; // Max tweet yaşı (saat)
         
         // v4.5.3: Kategori Bazlı Arama Kelimeleri (Round-Robin) - Updated with X Trend Research
         public Dictionary<string, List<string>> CategorySearchKeywords { get; set; } = new()
