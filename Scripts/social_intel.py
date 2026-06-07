@@ -740,6 +740,18 @@ def normalize_status_url(url):
         return url.rstrip("/")
     return f"https://x.com/{m.group(1)}/status/{m.group(2)}"
 
+def extract_status_owner(url):
+    m = re.search(r"https?://(?:twitter|x)\.com/([^/]+)/status/\d+", url or "", re.IGNORECASE)
+    return m.group(1).lower() if m else ""
+
+def parse_x_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
 def is_own_handle(handle):
     current = (os.environ.get("X_USER") or "").strip().lstrip("@").lower()
     candidate = (handle or "").strip().lstrip("@").lower()
@@ -2541,8 +2553,8 @@ def quote_retweet(url, text):
     except Exception as e:
         return {"status": "error", "message": f"Quote RT error: {str(e)}"}
 
-def interact_with_targets(targets):
-    """Like + RT the last tweet of target accounts
+def interact_with_targets(targets, max_age_hours=6, allow_retweet=False):
+    """Like fresh original tweets from target accounts. RT is opt-in only.
     targets_str: comma-separated handles (e.g., "@handle1,@handle2" or "handle1,2")
     """
     if not has_cookie_file():
@@ -2577,6 +2589,8 @@ def interact_with_targets(targets):
                     last_err = e
             return False, last_err
         
+        max_age_hours = max(1, min(int(max_age_hours or 6), 24))
+
         for handle in handles:
             try:
                 # Go to profile
@@ -2585,36 +2599,25 @@ def interact_with_targets(targets):
                 driver.get(profile_url)
                 time.sleep(random.uniform(2, 4))
                 
-                # Find first tweet (excluding pins, replies, retweets - only original tweets)
-                tweet_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/status/']")
-                if not tweet_links:
+                # Find first fresh original tweet owned by the target handle.
+                articles = driver.find_elements(By.TAG_NAME, "article")
+                if not articles:
                     results[handle] = "No tweets found"
                     continue
-                
-                # Get first original (non-retweet, non-reply, non-pinned) tweet
+
                 found_tweet_url = None
-                for link in tweet_links[:30]:  # Check first 30
-                    href = link.get_attribute("href")
-                    if href and '/status/' in href:
-                        # Check if this is a reply, retweet, or pinned
-                        parent = link
+                now_utc = datetime.now(timezone.utc)
+                for parent in articles[:20]:
+                    try:
                         is_reply = False
                         is_retweet = False
                         is_pinned = False
-                        
+
                         try:
-                            # Go up to find tweet container (max 8 levels)
-                            for _ in range(8):
-                                parent = parent.find_element(By.XPATH, "..")
-                            
                             container_text = parent.text.lower()
-                            
-                            # v2.1 Improved Filtering
-                            # 1. Skip pinned
                             if "pinned" in container_text or "sabitlendi" in container_text:
                                 is_pinned = True
-                            
-                            # 2. Skip replies - Check for "replying to" or multiple social contexts
+
                             social_context = ""
                             try:
                                 social_context = parent.find_element(By.CSS_SELECTOR, "[data-testid='socialContext']").text.lower()
@@ -2625,25 +2628,43 @@ def interact_with_targets(targets):
                                 "başlık olarak" in container_text):
                                 is_reply = True
                             
-                            # 3. Skip retweets
                             if "retweeted" in container_text or "retweet'ledi" in container_text or "retweet" in social_context:
-                                # Ensure it's not "Retweeted your tweet"
                                 if not ("retweeted your" in container_text):
                                     is_retweet = True
-                            
-                            # 4. Final safety: If the username mentioned in the context is NOT the handle, it's likely a RT or Reply
-                            # (Advanced check omitted for stability unless needed)
 
                             if is_pinned or is_reply or is_retweet: 
                                 continue
                         except:
                             pass
-                        
+
+                        time_el = parent.find_element(By.TAG_NAME, "time")
+                        tweet_dt = parse_x_datetime(time_el.get_attribute("datetime"))
+                        if not tweet_dt:
+                            continue
+                        age_hours = (now_utc - tweet_dt).total_seconds() / 3600
+                        if age_hours < -1:
+                            continue
+                        if age_hours > max_age_hours:
+                            results[handle] = f"Skipped stale tweet ({age_hours:.1f}h old, max {max_age_hours}h)"
+                            continue
+
+                        href = ""
+                        for link in parent.find_elements(By.CSS_SELECTOR, "a[href*='/status/']"):
+                            candidate = normalize_status_url(link.get_attribute("href") or "")
+                            owner = extract_status_owner(candidate)
+                            if candidate and owner == handle.lower():
+                                href = candidate
+                                break
+                        if not href:
+                            continue
+
                         found_tweet_url = href
                         break
+                    except Exception:
+                        continue
                 
                 if not found_tweet_url:
-                    results[handle] = "No suitable tweet found"
+                    results[handle] = results.get(handle, "No fresh original tweet found")
                     continue
                 
                 # Navigate to tweet
@@ -2659,10 +2680,14 @@ def interact_with_targets(targets):
                 ]
                 ok_like, err_like = click_first(like_selectors, timeout=6)
                 if ok_like:
-                    time.sleep(random.uniform(0.5, 1))
-                    results[handle] = "✅ Like + Attempting RT"
+                    time.sleep(random.uniform(4, 8))
+                    results[handle] = f"✅ Like only: {found_tweet_url}"
                 else:
                     results[handle] = "⚠️ Like button not found"
+
+                if not allow_retweet:
+                    time.sleep(random.uniform(18, 35))
+                    continue
 
                 # Retweet button: similar fallbacks
                 rt_selectors = [
@@ -2673,7 +2698,7 @@ def interact_with_targets(targets):
                 ]
                 ok_rt, err_rt = click_first(rt_selectors, timeout=6)
                 if ok_rt:
-                    time.sleep(random.uniform(0.5, 1.5))
+                    time.sleep(random.uniform(6, 12))
                     # Confirm RT if modal appears
                     confirm_selectors = [
                         "[data-testid='retweetConfirm']",
@@ -2685,7 +2710,7 @@ def interact_with_targets(targets):
                 else:
                     results[handle] += " (RT failed)"
                 
-                time.sleep(random.uniform(2, 4))
+                time.sleep(random.uniform(20, 45))
                 
             except Exception as e:
                 results[handle] = f"Error: {str(e)}"
@@ -2834,6 +2859,8 @@ if __name__ == "__main__":
     # Interact Targets
     cmd_interact = subparsers.add_parser("interact_with_targets", parents=[parent_parser])
     cmd_interact.add_argument("--targets", required=True)
+    cmd_interact.add_argument("--max-age-hours", type=int, default=6)
+    cmd_interact.add_argument("--allow-retweet", action="store_true")
 
     # Post Thread
     cmd_thread = subparsers.add_parser("post_thread", parents=[parent_parser])
@@ -2987,7 +3014,7 @@ if __name__ == "__main__":
 
         elif args.command == "interact_with_targets":
             targets = args.targets if hasattr(args, 'targets') and args.targets else ""
-            print(json.dumps(interact_with_targets(targets)))
+            print(json.dumps(interact_with_targets(targets, getattr(args, 'max_age_hours', 6), getattr(args, 'allow_retweet', False))))
 
         elif args.command == "reply_tweet":
             text_content = args.text

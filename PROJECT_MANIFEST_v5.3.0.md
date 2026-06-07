@@ -132,3 +132,14 @@
 - Aynı taramada en iyi 3 viral aday için AI yanıt önerisi üretilip Telegram ve UI grid'e düşer.
 - Telegram komutları eklendi: `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle`.
 - Etkileşim memory artık öneri aşamasında değil, yanıt gerçekten gönderildikten sonra işaretlenir.
+
+---
+
+## v5.3.3 Etkileşim Güvenlik Notları
+
+- Otomatik bot döngüsünden direkt Like/RT kaldırıldı; zamanlayıcı artık sadece onaylı reply adayı üretir.
+- Manuel hedef fenomen Like/RT akışı en fazla 3 hedefle sınırlıdır.
+- `interact_with_targets` yalnız son 6 saat içindeki, hedef hesaba ait, özgün tweetlerde aksiyon dener.
+- Manuel hedef etkileşim yavaş moda alındı; varsayılan aksiyon sadece Like, otomatik RT kapalıdır.
+- Reply adaylarında `X-User`, tarihsiz/eski tweet, status URL'siz sonuç ve bahis/casino/boosting benzeri spam içerikler elenir.
+- Eski config değerleri yüklenirken bot tweet yaşı 12 saat, min etkileşim 100 olacak şekilde normalize edilir.

@@ -63,13 +63,14 @@ namespace XiDeAI_Pro.Services
                 string handles = string.Join(",", targets
                     .Select(t => t.Handle)
                     .Where(h => !string.IsNullOrWhiteSpace(h))
-                    .Select(h => h.Trim()));
+                    .Select(h => h.Trim())
+                    .Take(1));
                 if (string.IsNullOrWhiteSpace(handles))
                 {
                     OnLog?.Invoke($"⚠️ {category} için geçerli handle bulunamadı.", "Interaction");
                     return;
                 }
-                OnLog?.Invoke($"🔍 {targets.Count} fenomen kontrol ediliyor...", "Interaction");
+                OnLog?.Invoke($"🔍 {category}: tek fenomen kontrol ediliyor; sadece son 6 saatteki özgün tweetlere yavaş modda Like denenir. Otomatik RT kapalı.", "Interaction");
 
                 // 3. Execute bulk interaction via social_intel.py (now fixed with strict handle check)
                 var result = await _socialIntel.InteractWithTargets(handles);

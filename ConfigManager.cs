@@ -103,8 +103,8 @@ namespace XiDeAI_Pro.Config
         public bool BotInteractionEnabled { get; set; } = false; // Bot aktif mi
         public string BotTopicKeywords { get; set; } = "borsa,bist,dolar,ekonomi,atatürk,fenerbahçe"; // Virgülle ayrılmış
         public int BotMinFollowers { get; set; } = 1000; // Min takipçi
-        public int BotMinFavorites { get; set; } = 50; // Min beğeni/etkileşim
-        public int BotMaxTweetAgeHours { get; set; } = 48; // Max tweet yaşı (saat)
+        public int BotMinFavorites { get; set; } = 100; // Min beğeni/etkileşim
+        public int BotMaxTweetAgeHours { get; set; } = 12; // Max tweet yaşı (saat)
         
         // v4.5.3: Kategori Bazlı Arama Kelimeleri (Round-Robin) - Updated with X Trend Research
         public Dictionary<string, List<string>> CategorySearchKeywords { get; set; } = new()
@@ -236,6 +236,27 @@ namespace XiDeAI_Pro.Config
         
         public static AppSettings Current { get; private set; } = new AppSettings();
 
+        private static bool NormalizeRuntimeSettings()
+        {
+            bool saveNeeded = false;
+            if (Current.MinNewsImportance < 9)
+            {
+                Current.MinNewsImportance = 9;
+                saveNeeded = true;
+            }
+            if (Current.BotMaxTweetAgeHours > 12 || Current.BotMaxTweetAgeHours < 1)
+            {
+                Current.BotMaxTweetAgeHours = 12;
+                saveNeeded = true;
+            }
+            if (Current.BotMinFavorites < 100)
+            {
+                Current.BotMinFavorites = 100;
+                saveNeeded = true;
+            }
+            return saveNeeded;
+        }
+
         public static void AddWebUsage()
         {
             Current.CheckReset();
@@ -285,11 +306,7 @@ namespace XiDeAI_Pro.Config
                         }
                     }
 
-                    if (Current.MinNewsImportance < 9)
-                    {
-                        Current.MinNewsImportance = 9;
-                        saveNeeded = true;
-                    }
+                    saveNeeded |= NormalizeRuntimeSettings();
 
                     if (saveNeeded)
                     {
@@ -311,7 +328,7 @@ namespace XiDeAI_Pro.Config
                 {
                     string json = File.ReadAllText(LegacyConfigPath);
                     Current = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-                    if (Current.MinNewsImportance < 9) Current.MinNewsImportance = 9;
+                    NormalizeRuntimeSettings();
                     
                     // Immediately encrypt and save to new format
                     Save();

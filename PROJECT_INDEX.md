@@ -1,4 +1,4 @@
-> **Version:** 5.3.2 (Interaction Module Controls)
+> **Version:** 5.3.3 (Interaction Safety Guards)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -82,6 +82,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 #### `InteractionEngine.cs`
 - **(v5.3.0)** `RunTargetedCheck(category)` artık `Influencer.Handle` değerlerini gönderir; önceki `string.Join(targets)` class-name üretme hatası giderildi.
 - **(v5.3.2)** Viral reply adayları öneri aşamasında interaction memory'ye yazılmaz; sadece onaylı yanıt gerçek başarıyla gönderildikten sonra işaretlenir.
+- **(v5.3.3)** Otomatik bot döngüsünden direkt Like/RT kaldırıldı. Hedef fenomen etkileşimi sadece manuel tetiklenir; varsayılan aksiyon yavaş modda Like-only, Python tarafında son 6 saat + gerçek tweet sahibi filtresi zorunludur.
 
 #### `ThreadService.cs`
 - **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
@@ -120,6 +121,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.3.0)** Manuel analiz tweet butonu sadece başarılı analiz sonucunda aktif olur.
 - **(v5.3.2)** Bot Etkileşim tabına manuel `Şimdi Tara`, `BIST Fenomen`, `Kripto Fenomen`, `Durum` kontrolleri eklendi; checkbox timer'ı başlatır/durdurur.
 - **(v5.3.2)** `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle` Telegram komutları eklendi.
+- **(v5.3.3)** `CheckForInteractions()` artık otomatik Like/RT yapmaz; yalnızca taze, geçerli handle'lı, spam olmayan tweetler için onaylı reply adayı üretir.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -332,8 +334,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
-
 
 
 

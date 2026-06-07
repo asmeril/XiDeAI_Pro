@@ -1308,7 +1308,7 @@ namespace XiDeAI_Pro.Services
                  if(users.Length == 0) return new SocialIntelInteractResult { status = "error", message = "No users provided" };
                  
                  string usersArg = string.Join(",", users);
-                 string args = $"\"{_scriptPath}\" interact_with_targets --targets \"{usersArg}\"";
+                 string args = $"\"{_scriptPath}\" interact_with_targets --targets \"{usersArg}\" --max-age-hours 6";
                  string json = await RunPythonScript(args);
                  
                  var result = JsonSerializer.Deserialize<SocialIntelInteractResult>(json);

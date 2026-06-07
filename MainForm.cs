@@ -3364,6 +3364,10 @@ namespace XiDeAI_Pro
                 searchBuilder.AppendLine("            let safeHandle = handleText.includes('@') ? '@' + handleText.split('@')[1].split('\\n')[0].split(' ')[0] : '';");
                 searchBuilder.AppendLine("            ");
                 searchBuilder.AppendLine("            // FALLBACK HANDLE: If standard User-Names fails");
+                searchBuilder.AppendLine("            if ((!safeHandle || safeHandle === 'X-User') && url) {");
+                searchBuilder.AppendLine("                const ownerMatch = url.match(/x\\.com\\/([^/]+)\\/status\\//i);");
+                searchBuilder.AppendLine("                if (ownerMatch && ownerMatch[1]) safeHandle = '@' + ownerMatch[1];");
+                searchBuilder.AppendLine("            }");
                 searchBuilder.AppendLine("            if (!safeHandle || safeHandle === 'X-User') {");
                 searchBuilder.AppendLine("                const links = Array.from(art.querySelectorAll('a[role=\"link\"]'));");
                 searchBuilder.AppendLine("                for (let l of links) {");
@@ -4187,14 +4191,6 @@ namespace XiDeAI_Pro
 
             try
             {
-                if (_opManager.Interaction != null)
-                {
-                    UpdateBotStatus("🎯 Hedef kitle etkileşimi...");
-                    await _opManager.Interaction.RunTargetedCheck("BIST");
-                    await Task.Delay(1000 * 5);
-                    await _opManager.Interaction.RunTargetedCheck("CRYPTO");
-                }
-
                 // v4.2.1: Round-Robin Category Rotation
                 string currentCategory = _searchCategories[_currentSearchCategoryIndex];
                 _currentSearchCategoryIndex = (_currentSearchCategoryIndex + 1) % _searchCategories.Length;
@@ -4226,18 +4222,73 @@ namespace XiDeAI_Pro
                 
                 // 3. Apply relaxed filters from Config
                 var now = DateTime.Now;
-                int maxAgeHours = Math.Max(cfg.BotMaxTweetAgeHours, 48);
+                int maxAgeHours = Math.Clamp(cfg.BotMaxTweetAgeHours, 1, 12);
+                string GetHandleFromStatusUrl(string url)
+                {
+                    try
+                    {
+                        var uri = new Uri(url);
+                        var parts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 2 && parts[1].Equals("status", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return "@" + parts[0];
+                        }
+                    }
+                    catch { }
+                    return string.Empty;
+                }
+
+                bool IsPlaceholderHandle(string handle)
+                {
+                    var clean = (handle ?? string.Empty).Trim().TrimStart('@');
+                    return string.IsNullOrWhiteSpace(clean) || clean.Equals("X-User", StringComparison.OrdinalIgnoreCase) || clean.Equals("Unknown", StringComparison.OrdinalIgnoreCase);
+                }
+
+                string GetEffectiveHandle(InfluencerPost post)
+                {
+                    if (!IsPlaceholderHandle(post.Handle)) return post.Handle.StartsWith("@") ? post.Handle : "@" + post.Handle;
+                    return GetHandleFromStatusUrl(post.Url);
+                }
+
+                foreach (var post in posts)
+                {
+                    var effectiveHandle = GetEffectiveHandle(post);
+                    if (!string.IsNullOrWhiteSpace(effectiveHandle)) post.Handle = effectiveHandle;
+                }
+
+                bool IsFresh(DateTime postDate)
+                {
+                    if (postDate == DateTime.MinValue) return false;
+                    var ageHours = (now.ToUniversalTime() - postDate.ToUniversalTime()).TotalHours;
+                    return ageHours >= -1 && ageHours <= maxAgeHours;
+                }
+
+                bool HasUsableAuthor(InfluencerPost post)
+                {
+                    return !IsPlaceholderHandle(GetEffectiveHandle(post));
+                }
+
+                bool IsSafeInteractionContent(string content)
+                {
+                    var lower = (content ?? "").ToLowerInvariant();
+                    string[] blocked = { "bahis", "casino", "slot", "deneme bonus", "betkolik", "boosting", "followers", "whatsapp", "telegram grub" };
+                    return !blocked.Any(lower.Contains);
+                }
+
                 var filteredPosts = posts
                     .Where(p => !_tweetedToday.Contains(p.Url))
-                    .Where(p => p.PostDate == DateTime.MinValue || (now - p.PostDate).TotalHours < maxAgeHours)
-                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 100 || p.Content.Length > 120)
+                    .Where(p => !string.IsNullOrWhiteSpace(p.Url) && p.Url.Contains("/status/"))
+                    .Where(HasUsableAuthor)
+                    .Where(p => IsFresh(p.PostDate))
+                    .Where(p => IsSafeInteractionContent(p.Content))
+                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 120 || p.Content.Length > 160)
                     .OrderByDescending(p => p.Engagement + p.RelevanceScore + Math.Min(p.FollowerCount / 1000, 100))
                     .Take(5)
                     .ToList();
                 
                 if (filteredPosts.Count == 0)
                 {
-                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı. Ham sonuç: {posts.Count}, eşik: takipçi≥{cfg.BotMinFollowers} veya etkileşim≥{cfg.BotMinFavorites} veya relevance≥100, yaş<{maxAgeHours}h.");
+                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı. Ham sonuç: {posts.Count}, eşik: geçerli handle + /status URL + yaş≤{maxAgeHours}h + spam değil + takipçi≥{cfg.BotMinFollowers}/etkileşim≥{cfg.BotMinFavorites}/relevance≥120.");
                     UpdateBotStatus("⚠️ Filtre uyumsuz");
                     return;
                 }
@@ -4245,23 +4296,24 @@ namespace XiDeAI_Pro
                 int added = 0;
                 foreach (var post in filteredPosts.Take(3))
                 {
-                    UpdateBotStatus($"💡 AI yanıt üretiyor: @{post.Handle}");
-                    var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, post.Handle);
+                    var displayHandle = post.Handle.StartsWith("@") ? post.Handle : "@" + post.Handle;
+                    UpdateBotStatus($"💡 AI yanıt üretiyor: {displayHandle}");
+                    var (category, reply) = await _opManager.Gemini.GenerateTwoStepReply(post.Content, displayHandle.TrimStart('@'));
 
                     if (!string.IsNullOrEmpty(reply))
                     {
                         int id = Interlocked.Increment(ref _interactionIdCounter);
                         _pendingInteractionDict[id] = new InteractionState { Url = post.Url, Text = reply, Time = DateTime.Now };
                         _tweetedToday.Add(post.Url); // Mark as proposed
-                        UpdateBotStatus($"⏳ Telegram/UI onayı bekleniyor [ID: {id}] ({category}: @{post.Handle})");
+                        UpdateBotStatus($"⏳ Telegram/UI onayı bekleniyor [ID: {id}] ({category}: {displayHandle})");
                         
                         string safeContent = post.Content.Replace("\"", "'");
                         string displayContent = safeContent.Length > 200 ? safeContent.Substring(0, 197) + "..." : safeContent;
 
                         // 1. Send Telegram Msg
-                        string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {post.Handle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
+                        string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {displayHandle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
                         await _opManager.Telegram.SendMessageAsync(msg);
-                        LogSocial($"🤖 @{post.Handle} için öneri gönderildi (Telegram & UI)");
+                        LogSocial($"🤖 {displayHandle} için öneri gönderildi (Telegram & UI)");
                         added++;
 
                         // 2. Add to UI Grid (Bot Approval Panel)
@@ -4271,7 +4323,7 @@ namespace XiDeAI_Pro
                                 // Columns: Time, User, Reply, Status, Url
                                 dgvBotApproval.Rows.Insert(0, 
                                     DateTime.Now.ToString("HH:mm"), 
-                                    $"@{post.Handle}", 
+                                    displayHandle,
                                     $"{reply.Substring(0, Math.Min(reply.Length, 50))}...", 
                                     "Bekliyor", 
                                     post.Url, // Url column
