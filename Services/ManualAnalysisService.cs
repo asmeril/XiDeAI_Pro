@@ -174,7 +174,7 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 3. Search for influencer posts
-                // Adım 1: VIP listesinden ara → bulamazsan genel X araması → bulamazsan fallback handle
+                // Mention yalnızca sembolle ilişkisi doğrulanan gerçek X postlarından yapılır.
                 var influencerPosts = new List<InfluencerPost>();
                 try
                 {
@@ -309,28 +309,21 @@ namespace XiDeAI_Pro.Services
                         .Take(3)
                         .ToList();
 
-                    var citationList = new List<string>();
-                    for (int i = 0; i < topPosts.Count; i++)
-                    {
-                        var post = topPosts[i];
-                        string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
-                        citationList.Add($"{prefix} @{post.Handle}: {post.Content?.Trim()}");
-                    }
+                        var citationList = new List<string>();
+                        for (int i = 0; i < topPosts.Count; i++)
+                        {
+                            var post = topPosts[i];
+                            string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
+                            string cleanHandle = (post.Handle ?? "").Trim().TrimStart('@');
+                            string sourceUrl = string.IsNullOrWhiteSpace(post.Url) ? "URL yok" : post.Url;
+                            citationList.Add($"{prefix} @{cleanHandle}: {post.Content?.Trim()}\nKaynak tweet: {sourceUrl}");
+                        }
                     influencerContext = string.Join("\n", citationList);
                     Log($"✅ influencerContext hazır: {topPosts.Count} fenomen, baş mention → @{topPosts[0].Handle}");
                 }
                 else
                 {
-                    // Adım 3: Hiç post bulunamazsa fenomen modülündeki top handle'ları öner
-                    var fallbackHandles = _influencerControl?.GetTopInfluencers(symbol, 3);
-                    if (fallbackHandles != null && fallbackHandles.Count > 0)
-                    {
-                        influencerContext = $"[X'te {symbol} için spesifik yorum bulunamadı. " +
-                            $"Bu sembol/piyasa için fenomen modülündeki analistler: " +
-                            string.Join(", ", fallbackHandles.Select(h => $"@{h}")) +
-                            $"]\nBu handle'lardan birini, kendi analizine en uygun olanı seçerek 3. tweet'te doğal şekilde mention et.";
-                        Log($"⚠️ Fallback mention: {string.Join(", ", fallbackHandles)}");
-                    }
+                    Log($"ℹ️ {symbol} için doğrulanmış X yorumu bulunamadı; manuel analizde mention kapalı.");
                 }
 
                 if (screenshotPath != null && File.Exists(screenshotPath))
@@ -396,6 +389,7 @@ namespace XiDeAI_Pro.Services
                         else
                         {
                             result.ShortThread = shortThread;
+                            result.ReportText = shortThread;
                             Log("✅ Short thread başarıyla oluşturuldu (4 tweet).");
                         }
                     }

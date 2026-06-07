@@ -107,3 +107,17 @@
 - `python3 -m py_compile Scripts/social_intel.py Scripts/playwright_daemon.py` geçti.
 - `git diff --check` geçti.
 - `.NET build` Linux ortamında `dotnet` bulunmadığı için çalıştırılamadı; Windows build gereklidir.
+
+---
+
+## v5.3.1 Ek Stabilizasyon Notları
+
+- Haber pending eşiği 9+ olarak ayarlandı; 7-8 skorlar `SKIPPED_LOW_SCORE` olarak history'ye düşer, onay kuyruğunu şişirmez.
+- Son dakika / breaking haberler skor 9+ ise otomatik yayınlanır; skor 10 çok kritik haberler otomatik yayınlanır.
+- Farklı kaynaklardan gelen aynı haberler için token tabanlı başlık benzerliği eklendi.
+- Manuel analizde UI artık thread olarak yayınlanacak metni gösterir; ThreadService ekstra header/footer eklemeden PostingService ile paylaşır.
+- Manuel analiz mention'ları sadece doğrulanmış X postlarından gelir; mention yapılan hesabın kaynak tweet URL'si prompt'a eklenir.
+- LM Studio native vision input formatı `type=text` + `type=image` olarak düzeltildi.
+- Sabah motivasyon prompt'u 120-220 karaktere çekildi ve Playwright single-post için Ctrl+Enter fallback eklendi.
+- AutoBenchmark varsayılan olarak kapatıldı (`EnableAutoBenchmark=false`) ve üretim Gemini quota gürültüsü azaltıldı.
+- Telegram `/STATUS` kuyruk sayılarını gösterir, `/HELP` komutu eklendi, `/TWEETLE` canonical PostingService kullanır.

@@ -738,7 +738,7 @@ namespace XiDeAI_Pro.Services
                 string visibilityFlag = IsVisibleMode ? " --visible" : "";
                 string args = $"\"{playwrightScript}\" post_tweet --file \"{tempFile}\"{visibilityFlag}";
                 
-                string json = await RunPythonScript(args, null, null, 120); // 120s timeout for single tweet
+                string json = await RunPythonScript(args, null, null, 180); // single tweet can need retries on X compose
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 
                 if (result != null && result.status == "success")

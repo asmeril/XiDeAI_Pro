@@ -1988,8 +1988,9 @@ namespace XiDeAI_Pro
                 // v4.0.1: Initialize daily auto-benchmark timer (runs at 03:00)
                 _opManager.InitializeDailyBenchmarkTimer();
                 
-                // v4.5.3: Run benchmark on startup for optimal model selection
-                _ = _opManager.RunAutoModelBenchmarkAsync();
+                // Production default: benchmark is disabled unless explicitly enabled in config.
+                if (ConfigManager.Current.EnableAutoBenchmark)
+                    _ = _opManager.RunAutoModelBenchmarkAsync();
 
                 // Initial Profile Stats Catch-up
                 _ = UpdateProfileStats();
@@ -4021,9 +4022,11 @@ namespace XiDeAI_Pro
                 
                 if (_lastAnalysisResult != null)
                 {
-                    rtbAnalysisResult.Text = _lastAnalysisResult.ReportText;
+                    rtbAnalysisResult.Text = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
+                        ? _lastAnalysisResult.ShortThread
+                        : _lastAnalysisResult.ReportText;
                     // Auto-enable thread mode if success
-                    chkPostAsThread.Checked = _lastAnalysisResult.Success;
+                    chkPostAsThread.Checked = _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread);
                     
                     // Load screenshot into PictureBox if available
                     if (!string.IsNullOrEmpty(_lastAnalysisResult.ScreenshotPath) && 
@@ -4396,44 +4399,27 @@ namespace XiDeAI_Pro
                                 Logger.Sys($"🧵 /TWEETLE: {_lastAnalysisSymbol} için Thread hazırlanıyor...");
                                 await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* paylaşılıyor...");
                                 
-                                var sig = new SignalData 
-                                { 
-                                    Symbol = _lastAnalysisSymbol, 
-                                    Price = _lastAnalysisResult.PriceInfo?.Price ?? 0,
-                                    Score = 30,
-                                    Analysis = _lastAnalysisResult.ReportText,
-                                    Source = "MANUEL",
-                                    Strategy = "Telegram",
-                                    Period = "240",
-                                    Basis = "TL"
-                                };
-                                
-                                // Enrich
-                                 _opManager.ManualAnalysis.EnrichSignalWithResult(sig, _lastAnalysisResult, "TL");
-                                
-                                Logger.Sys("🧵 /TWEETLE: PostSignalThread çağrılıyor...");
-                                var (sent, errorMsg) = await _opManager.ThreadSvc.PostSignalThread(
-                                    sig, 
-                                    _lastAnalysisResult.ScreenshotPath ?? "", 
-                                    _lastAnalysisResult.TvLink ?? "", 
-                                    ConfigManager.Current.DailyTrends, 
-                                    customAnalysis: _lastAnalysisResult.ReportText, 
-                                    influencerPosts: _lastAnalysisResult.InfluencerPosts
-                                );
-                                
-                                Logger.Sys($"🧵 /TWEETLE: PostSignalThread Sonucu - Sent: {sent}, Error: {errorMsg ?? "YOK"}");
-                                
-                                if (sent)
+                                string threadText = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
+                                    ? _lastAnalysisResult.ShortThread
+                                    : _lastAnalysisResult.ReportText;
+                                var tweets = ThreadPipeline.ParseParts(threadText, 280);
+
+                                Logger.Sys("🧵 /TWEETLE: PostingService çağrılıyor...");
+                                var postResult = await _opManager.Posting.PostThreadAsync(tweets, _lastAnalysisResult.ScreenshotPath, "TelegramManualAnalysis");
+
+                                Logger.Sys($"🧵 /TWEETLE: PostingService Sonucu - Status: {postResult.status}, Error: {postResult.ErrorMessage}");
+
+                                if (postResult.status == "success")
                                 {
                                      Logger.Sys("✅ /TWEETLE: Başarıyla gönderildi.");
-                                     await _opManager.Telegram.SendMessageAsync($"✅ *PAYLAŞILDI!*");
+                                     await _opManager.Telegram.SendMessageAsync($"✅ *PAYLAŞILDI!*\n{postResult.tweet_url}");
                                      _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
                                 }
                                 else
                                 {
-                                     Logger.Sys($"❌ /TWEETLE: Gönderim hatası: {errorMsg}");
-                                     await _opManager.Telegram.SendMessageAsync($"❌ Hata: {errorMsg}");
-                                     Logger.Telegram($"❌ Paylaşım Hatası: {errorMsg}");
+                                     Logger.Sys($"❌ /TWEETLE: Gönderim hatası: {postResult.ErrorMessage}");
+                                     await _opManager.Telegram.SendMessageAsync($"❌ Hata: {postResult.ErrorMessage}");
+                                     Logger.Telegram($"❌ Paylaşım Hatası: {postResult.ErrorMessage}");
                                 }
                             }
                             catch (Exception tEx)
@@ -4448,8 +4434,22 @@ namespace XiDeAI_Pro
                             var statusMsg = $"🤖 *SİSTEM DURUMU*\n\n" +
                                             $"🕒 Uptime: {(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm")}\n" +
                                             $"📅 Tweetler: {_tweetedToday.Count}\n" +
+                                            $"📰 Onay bekleyen haber: {_pendingNewsDict.Count}\n" +
+                                            $"💬 Onay bekleyen etkileşim: {_pendingInteractionDict.Count}\n" +
                                             $"📥 Son Update ID: {_lastProcessedUpdateId}";
                             await _opManager.Telegram.SendMessageAsync(statusMsg);
+                            break;
+
+                        case "/HELP":
+                        case "/YARDIM":
+                            await _opManager.Telegram.SendMessageAsync("🤖 *XiDeAI Telegram Komutları*\n\n" +
+                                "`/STATUS` - sistem ve kuyruk durumu\n" +
+                                "`/ANALIZ SEMBOL [PERIYOT]` - manuel analiz başlatır\n" +
+                                "`/THREAD` veya `/TWEETLE` - son analizi paylaşır\n" +
+                                "`/ONAYHABER ID` - bekleyen haberi yayınlar\n" +
+                                "`/REDHABER ID` - bekleyen haberi reddeder\n" +
+                                "`/ONAY ID` - bekleyen etkileşim yanıtını gönderir\n" +
+                                "`/RED ID` - bekleyen etkileşimi iptal eder");
                             break;
 
                         case "/ONAY_HABER":
@@ -4857,7 +4857,6 @@ namespace XiDeAI_Pro
                             var analysisText = !string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread)
                                 ? _lastAnalysisResult!.ShortThread
                                 : rtbAnalysisResult.Text;
-                             var pInfo = _lastAnalysisResult?.PriceInfo;
                              var scrPath = _lastAnalysisResult?.ScreenshotPath;
                              // Ensure media exists; otherwise skip image to avoid upload failure
                              if (string.IsNullOrEmpty(scrPath) || !File.Exists(scrPath))
@@ -4865,39 +4864,19 @@ namespace XiDeAI_Pro
                                  Log("⚠️ Screenshot bulunamadı veya silinmiş, görselsiz gönderiliyor.", "Twitter");
                                  scrPath = null;
                              }
-                             var tvLink = _lastAnalysisResult?.TvLink ?? "";
-                             var influencerPosts = _lastAnalysisResult?.InfluencerPosts; // Get cached influencer posts
-                             
-                             // Get selected period from combobox
-                             string selectedPeriod = cmbTimeframe.SelectedItem?.ToString() ?? "60";
-                             
-                             var sig = new SignalData 
-                             { 
-                                 Symbol = txtAnalysisSymbol.Text.ToUpper(), 
-                                 Price = pInfo?.Price ?? 0,
-                                 Score = 30, 
-                                 Analysis = analysisText,
-                                 Source = "MANUEL",
-                                 Strategy = "Teknik Analiz",
-                                 Period = selectedPeriod,
-                                 Basis = cmbBasis.SelectedItem?.ToString() ?? "TL"
-                             };
-                             
-                             _opManager.ManualAnalysis.EnrichSignalWithResult(sig, _lastAnalysisResult!, sig.Basis);
-                             
-                             var chartPath = scrPath ?? string.Empty;
-                              var (sent, errorMsg) = await _opManager.ThreadSvc.PostSignalThread(sig, chartPath, tvLink, ConfigManager.Current.DailyTrends, customAnalysis: analysisText, influencerPosts: influencerPosts);
-                              
-                              if(sent)
+                             var tweets = ThreadPipeline.ParseParts(analysisText, 280);
+                             var postResult = await _opManager.Posting.PostThreadAsync(tweets, scrPath, "ManualAnalysisThread");
+
+                              if(postResult.status == "success")
                               {
-                                  Log("✅ Thread başarıyla yayınlandı!", "Twitter");
+                                  Log($"✅ Thread başarıyla yayınlandı! URL: {postResult.tweet_url}", "Twitter");
                                   _opManager.Spam.RecordTweet("MANUAL", "MANUAL");
-                                  MessageBox.Show("Thread yayınlandı!");
+                                  MessageBox.Show($"Thread yayınlandı!\n{postResult.tweet_url}");
                               }
                               else
                               {
-                                  Log($"❌ Thread hatası: {errorMsg}", "Twitter");
-                                  MessageBox.Show("Hata oluştu: " + errorMsg);
+                                  Log($"❌ Thread hatası: {postResult.ErrorMessage}", "Twitter");
+                                  MessageBox.Show("Hata oluştu: " + postResult.ErrorMessage);
                               }
                          }
                          else

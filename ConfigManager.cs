@@ -129,7 +129,7 @@ namespace XiDeAI_Pro.Config
         };
 
         // HABER ANALİZ AYARLARI
-        public int MinNewsImportance { get; set; } = 4; // v2.8: Varsayılan 4 (Sadece Kritik Haberler)
+        public int MinNewsImportance { get; set; } = 9; // v5.3.1: Pending/onay eşiği 9+; 7-8 sadece history SKIPPED
         public bool AutoPostBreakingNews { get; set; } = true; 
         
         // v3.8.2: Debugging & Test Mode
@@ -150,6 +150,7 @@ namespace XiDeAI_Pro.Config
         public string PerplexityModel { get; set; } = "sonar"; // "sonar" or "sonar-pro"
         public bool EnableMultiModel { get; set; } = true; // Enable intelligent model selection
         public bool EnableAutoFallback { get; set; } = true; // Auto-fallback to alternative models
+        public bool EnableAutoBenchmark { get; set; } = false; // Production default: avoid Gemini quota spam
         public bool IsGuruAutomationEnabled { get; set; } = false; // Phase 4.1: Guru Automation Toggle
         public string GuruHandle { get; set; } = "@EFELERiiNEFESi3"; // Phase 4.1: Takip edilen üstat handle'ı
         public bool EnableMetaTeacher { get; set; } = false; // Phase 1 (Hive): Enables Meta-Teacher Analysis Logic
@@ -284,6 +285,12 @@ namespace XiDeAI_Pro.Config
                         }
                     }
 
+                    if (Current.MinNewsImportance < 9)
+                    {
+                        Current.MinNewsImportance = 9;
+                        saveNeeded = true;
+                    }
+
                     if (saveNeeded)
                     {
                         Save();
@@ -304,6 +311,7 @@ namespace XiDeAI_Pro.Config
                 {
                     string json = File.ReadAllText(LegacyConfigPath);
                     Current = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    if (Current.MinNewsImportance < 9) Current.MinNewsImportance = 9;
                     
                     // Immediately encrypt and save to new format
                     Save();

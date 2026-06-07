@@ -59,7 +59,7 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
             string citationSection = string.IsNullOrEmpty(influencerCitations)
                 ? ""
                 : $"\n\nFENOMENLERİN DURUMU (SENTİMENT):\n{influencerCitations}\n" +
-                  "KURAL: Bu fenomenleri analizine doğal @kullaniciadi olarak entegre et. Eğer bu fenomenler aşırı Bullish (pozitif) ise sen risklerden bahset ve Contrarian (aykırı) ol, Bearish ise fırsatları grafik üzerinden göstererek onlara meydan oku veya destekle. Hikayeyi zenginleştir.";
+                  "KURAL: Sadece yukarıda verilen @handle'ları kullan. Mention yaparsan aynı tweet içinde veya hemen ardından Kaynak tweet URL'sini de ekle. Listede olmayan hiçbir @mention ekleme.";
 
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
 
@@ -75,16 +75,15 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
 - Bu istekte ekran görüntüsü yok. Sadece verilen fiyat, gösterge, haber ve piyasa bağlamını kullan.
 - Görmediğin mum, RSI/MACD uyumsuzluğu, OB/FVG veya destek/direnç seviyesini uydurma.";
 
-            return $@"### KMLK:
-Sen {symbol} grafiğini açtın, bir şey dikkatini çekti. Bunu Twitter'da paylaşıyorsun.
-Ses tonu: bir arkadaşına analiz anlatıyormuşsun gibi. Samimi, net, gereksiz kelime yok.
+            return $@"### KIMLIK:
+Sen {symbol} icin profesyonel teknik rapor hazirlayan deneyimli bir piyasa analistisin.
+Bu cikti kullanicinin ekranda okuyacagi detayli analizdir; tweet degil.
 
 ### NASIL YAZACAKSIN:
-- lk tweet: tek bir gözlem veya soru ile gir. Genel girişler yasak.
-- Grafik okuma: OB, FVG, RSI, MACD — bunları açıklamadan somut fiyatla kullan. Örnek: '11.76 OB kırılırsa 12.60 açık.'
-- Son tweet: net karar + takipçiyi düşündüren bir soru.
-- Cümleler kısa, maksimum 15 kelime.
-- Haber veya fenomen varsa doğal bir cümlede geç, paragraf ayırma.
+- 5 bolumlu detayli rapor yaz: Ozet, Grafik Okuma, Seviyeler, Senaryolar, Risk/Plan.
+- OB, FVG, RSI, MACD, pivot ve destek/direnc seviyelerini somut rakamlarla acikla.
+- Gormedigin veriyi uydurma; belirsizse belirsiz de.
+- Haber veya fenomen varsa kaynakli bicimde ayri satirda belirt.
 
 ### YASAK SÖZCÜKLER:
 fısıltı alış, akıllı para, likidite avı, premove sahnesi, yayını germek,
@@ -101,10 +100,13 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
 {visualSection}
 
 ### FORMAT:
-- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
-- Son parçaya ekle: ⚠️ Yatırım tavsiyesi değildir.
-- Hashtag sadece son tweete: kripto ise #BTCUSDT #Kripto, BIST ise #Borsa #BIST100.
-- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşünü yazmaya davet eden bir soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
+1) KISA OZET
+2) GRAFIK OKUMA
+3) KRITIK SEVIYELER
+4) SENARYOLAR
+5) RISK VE PLAN
+
+Son satir: ⚠️ Yatırım tavsiyesi değildir.";
         }
 
         public string GetNewsAnalysisPrompt(string newsContent, string source)
@@ -151,7 +153,7 @@ INTERNAL_SCORE: 5
 GOREV: '{topic}' konusunda yatirimcilar icin ilham verici bir tweet yaz.
 
 GEREKLILIKLER:
-1. Tweet 200-280 karakter olmali
+1. Tweet 120-220 karakter olmali; tek tweet olarak gönderilecek, thread'e dönmeyecek.
 2. Profesyonel ama samimi bir dil kullan
 3. Pratik bir oneride bulun veya bir gercegi hatırlat
 4. Uygun bir emoji ile basla (Ornek: 💪, 🎯, 🧠, 💎)
@@ -722,7 +724,8 @@ GEÇMİŞ HAFIZA: {historyNote}
                 : $@"
 
 ### 👥 FENOMEN GÖRÜŞLERİ (Tweet 3'te kısaca sentezle):
-{influencerContext}";
+{influencerContext}
+KURAL: Bir @handle mention edersen, o fenomenin Kaynak tweet URL'sini de ayni tweet icinde veya hemen sonunda ekle. Kaynak URL yoksa mention kullanma.";
 
             return $@"### KİMLİK: Sen piyasanın nabzını tutan, takipçileriyle samimi bir dil kuran deneyimli bir trader'sın.
 Senin olayın sıkıcı analizler değil; insanları meraklandıran, hikaye anlatan, sonunda aksiyon aldıran thread'ler yazmak.
@@ -1476,4 +1479,3 @@ Sadece tweet metnini yaz, başka açıklama yapma.";
         }
     }
 }
-

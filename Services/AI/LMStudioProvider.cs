@@ -238,7 +238,7 @@ namespace XiDeAI_Pro.Services.AI
                     ? BuildNoThinkPrompt(prompt)
                     : new object[]
                     {
-                        new { type = "message", content = BuildNoThinkPrompt(prompt) },
+                        new { type = "text", text = BuildNoThinkPrompt(prompt) },
                         new { type = "image", data_url = imageDataUrl }
                     };
 

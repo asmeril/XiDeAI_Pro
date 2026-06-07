@@ -463,6 +463,12 @@ namespace XiDeAI_Pro.Services
         /// </summary>
         public void InitializeDailyBenchmarkTimer()
         {
+            if (!ConfigManager.Current.EnableAutoBenchmark)
+            {
+                Logger.Sys("[ModelBenchmark] ⏸️ Otomatik benchmark kapalı (EnableAutoBenchmark=false). Yerel model öncelikli çalışacak.");
+                return;
+            }
+
             // Calculate time until 03:00
             var now = DateTime.Now;
             var next3AM = now.Date.AddHours(3);
@@ -488,6 +494,11 @@ namespace XiDeAI_Pro.Services
             try
             {
                 var apiKey = ConfigManager.Current.GeminiApiKey;
+                if (!ConfigManager.Current.EnableAutoBenchmark)
+                {
+                    Logger.AI("[AutoBenchmark] ⏸️ EnableAutoBenchmark=false, benchmark atlandı.");
+                    return;
+                }
                 if (string.IsNullOrEmpty(apiKey))
                 {
                     Logger.AI("[AutoBenchmark] ⚠️ Gemini API Key yok, benchmark atlanıyor.");

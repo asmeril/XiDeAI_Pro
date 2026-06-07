@@ -147,22 +147,23 @@ namespace XiDeAI_Pro.Services
                     }
                 }
 
+                bool isBreaking = IsBreakingNews(item);
+
                 // v4.8.0: ANTI-HALLUCINATION / SAFETY GUARDRAIL
                 // Felaket, deprem, afet gibi konularda AI'ın otomatik 10/10 puan vermesini ezer.
                 string[] riskKeywords = { "deprem", "sel ", " yangın", "felaket", "tatbikat", "terör", "şehit", "cinayet", "operasyon", "patlama", "saldırı", "bombalı", " kaza ", "can kaybı" };
                 bool hasRisk = riskKeywords.Any(k => lowerTitle.Contains(k) || (item.Description ?? "").ToLower().Contains(k));
-                if (hasRisk && score >= 9) // Eğer riskli ise ve otomatik yayınlanacak (9-10) ise
+                if (hasRisk && score >= 9 && !isBreaking) // breaking/çok kritik haberler hariç hassas içerik onaya düşer
                 {
                     OnLog?.Invoke($"🚨 GÜVENLİK FİLTRESİ: Hassas/Afet içerik tespit edildi. Otomatik paylaşım iptal, Onay havuzuna alındı. (Orijinal Skor: {score}/10)", "NewsEngine");
-                    score = 8; // Onay Bekleyenlere (PENDING) yönlendir
-                    status = "PENDING_NEWS_ONLY";
+                    score = Math.Min(score, 9);
+                    status = "PENDING_WITH_ANALYSIS";
                 }
 
                 // 3. Action Decision based on Score (1-10 Scale)
-                // < 7: REJECT
-                // 7-8: PENDING_NEWS_ONLY (Onaylı, sadece haber)
-                // 9: PENDING_WITH_ANALYSIS (Onaylı, haber + analiz)
-                // 10: AUTO_POST_WITH_ANALYSIS (Otomatik, haber + analiz)
+                // < 9: SKIP/REJECT (pending kuyruğunu şişirme)
+                // 9: PENDING_WITH_ANALYSIS
+                // 10 veya son dakika + 9+: AUTO_POST_WITH_ANALYSIS
 
                 if (score < 7 || status == "REJECT")
                 {
@@ -172,7 +173,7 @@ namespace XiDeAI_Pro.Services
                     return;
                 }
 
-                if (status == "AUTO_POST_WITH_ANALYSIS" || score >= 10)
+                if (status == "AUTO_POST_WITH_ANALYSIS" || score >= 10 || (isBreaking && score >= 9))
                 {
                     item.IncludesAnalysis = true;
                     // OTOMATİK PAYLAŞ - HABER + ANALİZ
@@ -208,14 +209,8 @@ namespace XiDeAI_Pro.Services
 
                 if (status == "PENDING_NEWS_ONLY" || (score >= 7 && score <= 8))
                 {
-                    item.IncludesAnalysis = false;
-                    // v4.6.20: Sessiz saatler (gece) koruması artık onaya düşen haberleri YUTMAYACAK.
-                    // UI Onay Bekleyenler sekmesinde birikecek. Kullanıcı sabah uyanıp onaylayabilir.
-
-                    // ONAY GEREKTİRİYOR - SADECE HABER
-                    OnLog?.Invoke($"📋 Haber Onaya Düştü (Skor: {score}/10, Sadece Haber): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
-                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, false); // false = no analysis
+                    OnLog?.Invoke($"🧹 Haber düşük/orta önemde, onay kuyruğuna alınmadı (Skor: {score}/10): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "SKIPPED_LOW_SCORE");
                     return;
                 }
             }
@@ -242,6 +237,20 @@ namespace XiDeAI_Pro.Services
 
             string title = System.Text.RegularExpressions.Regex.Replace(item.Title ?? string.Empty, @"\s+", " ").Trim().ToLowerInvariant();
             return $"title:{item.Source}:{title}";
+        }
+
+        private static bool IsBreakingNews(NewsItem item)
+        {
+            string text = $"{item.Title} {item.Description}".ToLowerInvariant();
+            if (item.IsFlash) return true;
+            string[] markers =
+            {
+                "son dakika", "breaking", "flash", "acil", "sıcak gelişme", "sicak gelisme",
+                "füze saldırısı", "fuze saldirisi", "savaş başladı", "savas basladi",
+                "ateşkes", "ateskes", "merkez bankası faiz", "tcmb faiz", "fed faiz",
+                "devre kesti", "borsa kapandı", "piyasa kapandı"
+            };
+            return markers.Any(m => text.Contains(m));
         }
 
         private void CleanupInflightNews()

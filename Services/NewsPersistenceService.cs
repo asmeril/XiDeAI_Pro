@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
+using System.Text;
 using Newtonsoft.Json;
 
 namespace XiDeAI_Pro.Services
@@ -88,7 +90,7 @@ namespace XiDeAI_Pro.Services
             lock (_lock)
             {
                 return _history
-                    .Where(x => x.ImportanceScore >= 7) // Score 7+ (Önemli haberler — gerçek aralık 7-10)
+                    .Where(x => x.ImportanceScore >= 9 || x.Status == "PUBLISHED") // v5.3.1: yalnız yüksek önem veya yayınlanmış haberler
                     .OrderByDescending(x => x.ProcessedAt)
                     .Take(count)
                     .ToList();
@@ -116,6 +118,13 @@ namespace XiDeAI_Pro.Services
                     if (similarity * 100 >= SIMILARITY_THRESHOLD)
                     {
                         reason = $"Benzer haber bulundu: '{item.Title}' (%{similarity*100:F1} benzerlik)";
+                        return true;
+                    }
+
+                    double tokenSimilarity = TokenSimilarity(cleanTitle, storedTitle);
+                    if (tokenSimilarity >= 0.72)
+                    {
+                        reason = $"Benzer haber bulundu: '{item.Title}' (token %{tokenSimilarity * 100:F1} benzerlik)";
                         return true;
                     }
                 }
@@ -184,9 +193,44 @@ namespace XiDeAI_Pro.Services
         private static string NormalizeTitle(string title)
         {
             if (string.IsNullOrEmpty(title)) return string.Empty;
-            // Replace any sequence of whitespace (including \r\n, \n, \t) with a single space
-            return System.Text.RegularExpressions.Regex
-                .Replace(title.Trim(), @"[\r\n\t]+|\s{2,}", " ");
+            string normalized = RemoveDiacritics(title.Trim().ToLowerInvariant());
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"https?://\S+", " ");
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\s+-\s+.*$", "");
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[\r\n\t]+|\s{2,}", " ");
+            return normalized.Trim();
+        }
+
+        private static string RemoveDiacritics(string text)
+        {
+            string formD = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (char ch in formD)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(ch);
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC)
+                .Replace('ı', 'i').Replace('ğ', 'g').Replace('ü', 'u')
+                .Replace('ş', 's').Replace('ö', 'o').Replace('ç', 'c');
+        }
+
+        private static double TokenSimilarity(string a, string b)
+        {
+            var stop = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "ve", "ile", "icin", "için", "bir", "son", "dakika", "haber", "haberi",
+                "the", "and", "of", "to", "in", "on"
+            };
+            var A = System.Text.RegularExpressions.Regex.Split(a, @"\W+")
+                .Where(t => t.Length >= 3 && !stop.Contains(t))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var B = System.Text.RegularExpressions.Regex.Split(b, @"\W+")
+                .Where(t => t.Length >= 3 && !stop.Contains(t))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (A.Count == 0 || B.Count == 0) return 0;
+            int intersection = A.Intersect(B, StringComparer.OrdinalIgnoreCase).Count();
+            int union = A.Union(B, StringComparer.OrdinalIgnoreCase).Count();
+            return union == 0 ? 0 : (double)intersection / union;
         }
 
         private static string NormalizeUrl(string url)

@@ -402,6 +402,18 @@ class XDaemonPlaywright:
                         break
 
                 if not navigated:
+                    try:
+                        await self.page.keyboard.press("Control+Enter")
+                        await self._sleep(1.5)
+                        for _ in range(16):
+                            await self._sleep(0.5)
+                            if "compose" not in self.page.url:
+                                navigated = True
+                                break
+                    except Exception:
+                        pass
+
+                if not navigated:
                     # Still on compose page — check for error toast before retrying
                     toast = self.page.locator("div[data-testid='toast']")
                     for t_idx in range(await toast.count()):
@@ -1055,6 +1067,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 
 
