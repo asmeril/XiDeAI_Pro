@@ -114,7 +114,7 @@ namespace XiDeAI_Pro
         private RichTextBox rtbGuruPreview = null!;
         private RichTextBox rtbBotPreview = null!; // New for Bot Tab
         private int _currentSearchCategoryIndex = 0; // v4.2.1: Round-Robin Category Rotation
-        private readonly string[] _searchCategories = { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" };
+        private readonly string[] _searchCategories = { "FINANS" };
         private List<(NewsItem item, string? analysis, string status)> _newsBuffer = new List<(NewsItem item, string? analysis, string status)>();
 
 
@@ -4300,8 +4300,32 @@ namespace XiDeAI_Pro
                 bool IsSafeInteractionContent(string content)
                 {
                     var lower = (content ?? "").ToLowerInvariant();
-                    string[] blocked = { "bahis", "casino", "slot", "deneme bonus", "betkolik", "boosting", "followers", "whatsapp", "telegram grub" };
+                    string[] blocked =
+                    {
+                        "bahis", "casino", "slot", "deneme bonus", "betkolik", "boosting", "followers", "whatsapp", "telegram grub",
+                        "giveaway", "airdrop", " ödül", "odul", "reward", "rewards", "rt +", "rt ve", "retweet", "beğen & rt", "begen & rt",
+                        "arkadaşlarını etiket", "arkadaslarini etiket", "join ", " promo", "bonus", "çekiliş", "cekilis", "free ", "kazanın", "kazanin",
+                        "usdt kazan", "reklam yapılıyor", "lidl plus", "kampanya"
+                    };
                     return !blocked.Any(lower.Contains);
+                }
+
+                bool HasFinanceIntent(string content)
+                {
+                    var lower = (content ?? "").ToLowerInvariant();
+                    string[] financeTerms =
+                    {
+                        "borsa", "bist", "xu100", "hisse", "halka arz", "kap", "tavan", "taban", "endeks", "tcmb", "faiz", "enflasyon",
+                        "dolar", "usdtry", "eurtry", "altın", "altin", "gram", "ons", "xau", "petrol", "brent", "tahvil", "fon",
+                        "bitcoin", "btc", "ethereum", "eth", "kripto", "crypto", "binance", "coin", "usdt", "defi", "etf",
+                        "$btc", "$eth", "#btc", "#eth", "#bist", "#borsa", "#bitcoin", "#kripto"
+                    };
+                    return financeTerms.Any(lower.Contains);
+                }
+
+                string FormatFollowerLabel(int followerCount)
+                {
+                    return followerCount > 0 ? $"{followerCount:N0} takipçi" : "takipçi sayısı okunamadı";
                 }
 
                 var filteredPosts = posts
@@ -4310,14 +4334,15 @@ namespace XiDeAI_Pro
                     .Where(HasUsableAuthor)
                     .Where(p => IsFresh(p.PostDate))
                     .Where(p => IsSafeInteractionContent(p.Content))
-                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 120 || p.Content.Length > 160)
+                    .Where(p => HasFinanceIntent(p.Content))
+                    .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 140)
                     .OrderByDescending(p => p.Engagement + p.RelevanceScore + Math.Min(p.FollowerCount / 1000, 100))
                     .Take(5)
                     .ToList();
                 
                 if (filteredPosts.Count == 0)
                 {
-                    LogSocial($"⚠️ Filtrelere uygun tweet bulunamadı. Ham sonuç: {posts.Count}, eşik: geçerli handle + /status URL + yaş≤{maxAgeHours}h + spam değil + takipçi≥{cfg.BotMinFollowers}/etkileşim≥{cfg.BotMinFavorites}/relevance≥120.");
+                    LogSocial($"⚠️ Filtrelere uygun finans tweeti bulunamadı. Ham sonuç: {posts.Count}, eşik: geçerli handle + /status URL + yaş≤{maxAgeHours}h + promo/giveaway değil + finans niyeti + takipçi≥{cfg.BotMinFollowers}/etkileşim≥{cfg.BotMinFavorites}/relevance≥140.");
                     UpdateBotStatus("⚠️ Filtre uyumsuz");
                     return;
                 }
@@ -4338,9 +4363,10 @@ namespace XiDeAI_Pro
                         
                         string safeContent = post.Content.Replace("\"", "'");
                         string displayContent = safeContent.Length > 200 ? safeContent.Substring(0, 197) + "..." : safeContent;
+                        string followerLabel = FormatFollowerLabel(post.FollowerCount);
 
                         // 1. Send Telegram Msg
-                        string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {displayHandle} ({post.FollowerCount:N0} takipçi)\n\uD83D\uDD17 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için */ONAY {id}*\n❌ İptal için */RED {id}*";
+                        string msg = $"🤖 *FIRSAT BULUNDU!*\n\n👤 Kullanıcı: {displayHandle} ({followerLabel})\n🔗 [Tweeti Görüntüle]({post.Url})\n\n📝 *Tweet İçeriği:*\n_{displayContent}_\n\n💡 *ÖNERİLEN YANIT:*\n\"{reply}\"\n\n✏️ Yanıtı düzenlemek için yeni metni yazın\n✅ Onaylamak için `/ONAY_{id}`\n❌ İptal için `/RED_{id}`";
                         await _opManager.Telegram.SendMessageAsync(msg);
                         LogSocial($"🤖 {displayHandle} için öneri gönderildi (Telegram & UI)");
                         added++;
@@ -4422,6 +4448,13 @@ namespace XiDeAI_Pro
                     string[] parts = msgText.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                     string command = parts[0].ToUpper();
                     string args = parts.Length > 1 ? parts[1] : "";
+
+                    var compactCommand = System.Text.RegularExpressions.Regex.Match(command, @"^/(ONAY|RED|IPTAL|ONAYHABER|REDHABER)_(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (compactCommand.Success)
+                    {
+                        command = "/" + compactCommand.Groups[1].Value.ToUpperInvariant();
+                        args = compactCommand.Groups[2].Value;
+                    }
 
                     Logger.Telegram($"⌨️ Komut Çalıştırılıyor: {command} {args}");
 

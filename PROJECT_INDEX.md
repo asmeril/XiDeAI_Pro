@@ -1,4 +1,4 @@
-> **Version:** 5.4.1 (Signal Status & Repeat Flow)
+> **Version:** 5.4.2 (Interaction Candidate Quality)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -133,6 +133,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.3.9)** Tek tweet manuel paylaşımı 280+ karakteri otomatik thread'e çevirmez; kullanıcı açıkça thread modunu seçmek zorundadır.
 - **(v5.4.0)** Manuel analiz short-thread formatı 4-8 parçaya çıkarıldı; ilk 2 tweet kısa özet/devam rehberi, sonraki tweetler seviye/teyit/risk detaylarıdır. 120 karakter altı parçalar geçersiz sayılır.
 - **(v5.4.1)** Aynı sembol için 7 gün içinde tekrar sinyal gelirse detaylı analiz yerine önceki analize atıf yapan 1-2 tweetlik pekiştirme thread'i paylaşılır.
+- **(v5.4.2)** Etkileşim adayları otomatikte yalnız finans niyeti taşıyan tweetlerden seçilir; promo/giveaway/RT çağrısı hard-block edilir ve Telegram komutları `/ONAY_ID` formatına alınır.
 
 #### `NewsEngine.cs`
 - **(v5.3.6)** Haber threadleri en fazla 3 parçaya sınırlandı; son parçada haber özeti/YTD güvenliği zorunlu hale getirildi.
@@ -349,7 +350,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

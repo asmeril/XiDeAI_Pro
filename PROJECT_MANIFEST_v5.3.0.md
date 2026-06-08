@@ -219,3 +219,13 @@
 - Sinyal promptlarında `patlama yakında`, `likidite avı`, `duyum` ve iç durum kodları yasaklandı.
 - Aynı sembol için son 7 günde thread varsa tekrar gelen sinyal detaylı analiz açmaz; önceki analize atıf yapan 1-2 tweetlik pekiştirme paylaşır.
 - Tekrar sinyal spam kontrolü sembol cooldown yerine genel paylaşım temposuna bakar, böylece kısa pekiştirme yapılabilir ama hesap spamlenmez.
+
+---
+
+## v5.4.2 Etkileşim Aday Kalitesi Notları
+
+- Otomatik etkileşim taraması yalnız `FINANS` kategorisinde çalışır; gündelik/mizah/kültür/milli/motivasyon tweetleri otomatik reply dışına alındı.
+- Aday tweetlerde finans niyeti zorunlu hale geldi; yalnız uzun içerik veya relevance skoru yeterli değildir.
+- Promo, giveaway, airdrop, ödül, RT/like çağrısı, bonus ve kampanya içerikleri hard-block edilir.
+- Takipçi sayısı parse edilemezse Telegram'da `0 takipçi` yerine `takipçi sayısı okunamadı` gösterilir.
+- Etkileşim onay komutları tıklanınca ID kaybolmasın diye `/ONAY_ID` ve `/RED_ID` formatına alındı; eski `/ONAY ID` formatı da desteklenir.
