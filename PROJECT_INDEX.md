@@ -1,4 +1,4 @@
-> **Version:** 5.4.3 (Guru Panel Guardrails)
+> **Version:** 5.4.4 (Signal Table & Guru Panel UX)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -135,6 +135,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.4.1)** Aynı sembol için 7 gün içinde tekrar sinyal gelirse detaylı analiz yerine önceki analize atıf yapan 1-2 tweetlik pekiştirme thread'i paylaşılır.
 - **(v5.4.2)** Etkileşim adayları otomatikte yalnız finans niyeti taşıyan tweetlerden seçilir; promo/giveaway/RT çağrısı hard-block edilir ve Telegram komutları `/ONAY_ID` formatına alınır.
 - **(v5.4.3)** Üstat paneli yalnız `GuruHandle` mention'ına izin verir; kaynak tarama tweet URL'si zorunludur ve hoca saygısı ölçülü teknik analiz diline çekildi.
+- **(v5.4.4)** Sinyal tablosu `Tarih/Saat` gösterir ve `Durum` alanı gerçek sinyal durumunu takipçi dostu metinle yansıtır; üstat paneli önizleme alanı büyütüldü ve taslak/yayın/red geçmişi eklendi.
 
 #### `NewsEngine.cs`
 - **(v5.3.6)** Haber threadleri en fazla 3 parçaya sınırlandı; son parçada haber özeti/YTD güvenliği zorunlu hale getirildi.
@@ -351,7 +352,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

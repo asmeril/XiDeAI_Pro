@@ -239,3 +239,14 @@
 - Kaynak tarama tweet URL'si thread içinde zorunludur; eksikse otomatik eklenir.
 - Üstat otomatik paylaşımı 3-6 parça ve kaynak URL kontrolünden geçmezse iptal edilir.
 - `Smart Money`, `likidite avı`, `muazzam`, `efsane`, `nokta atışı`, `usta işi` gibi abartılı/persona ifadeleri temizlenir.
+
+---
+
+## v5.4.4 Sinyal Tablosu ve Üstat Paneli UX Notları
+
+- Sinyal takip tablosunda `Saat` kolonu `Tarih/Saat` olarak değiştirildi.
+- Canlı ve geçmiş sinyaller artık `dd.MM HH:mm` formatında görünür.
+- Sinyal tablosundaki `Durum` kolonu gerçek sinyal durumunu takipçi dostu metinle gösterir; eski kayıtlarda durum yoksa `Durum kaydı yok` yazılır.
+- Performance history kayıtlarına `Durum` alanı eklendi.
+- Üstat panelinde canlı akış alanı küçültülerek onay/önizleme bölümü büyütüldü; onay listesi üstte, geniş görsel+metin önizleme altta gösterilir.
+- Üstat paneli taslak/yayın/red geçmişi `guru_history.json` dosyasına kaydedilir ve `Geçmiş` butonundan görüntülenebilir.

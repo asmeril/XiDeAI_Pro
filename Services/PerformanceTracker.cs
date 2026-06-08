@@ -34,6 +34,7 @@ namespace XiDeAI_Pro.Services
                 EntryPrice = sig.Price,
                 Score = sig.Score,
                 EntryTime = DateTime.Now,
+                Durum = sig.Durum,
                 
                 // Rich Data
                 Open = sig.Open,
@@ -245,6 +246,7 @@ namespace XiDeAI_Pro.Services
         public string Symbol { get; set; } = "";
         public string Strategy { get; set; } = "";
         public string Period { get; set; } = "";
+        public string Durum { get; set; } = "";
         public decimal EntryPrice { get; set; }
         public decimal ClosingPrice { get; set; }
         public int Score { get; set; }
@@ -340,4 +342,3 @@ namespace XiDeAI_Pro.Services
         public decimal MaxLoss { get; set; }
     }
 }
-

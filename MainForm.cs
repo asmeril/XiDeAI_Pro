@@ -657,7 +657,7 @@ namespace XiDeAI_Pro
             dgvSignals.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
 
             // Columns
-            dgvSignals.Columns.Add("Time", "Saat");
+            dgvSignals.Columns.Add("Time", "Tarih/Saat");
             dgvSignals.Columns.Add("Source", "Kaynak");
             dgvSignals.Columns.Add("Symbol", "Sembol");
             dgvSignals.Columns.Add("Period", "Periyot");
@@ -665,7 +665,7 @@ namespace XiDeAI_Pro
             dgvSignals.Columns.Add("Status", "Durum");
 
             // Column Widths
-            dgvSignals.Columns["Time"].Width = 80;
+            dgvSignals.Columns["Time"].Width = 125;
             dgvSignals.Columns["Source"].Width = 80;
             dgvSignals.Columns["Symbol"].Width = 80;
             dgvSignals.Columns["Period"].Width = 60;
@@ -5445,6 +5445,9 @@ namespace XiDeAI_Pro
             if (result != null && result.status == "success")
             {
                 Log($"✅ Thread başarıyla yayınlandı! URL: {result.tweet_url} ({result.posted_count}/{result.total_chunks})", "Twitter");
+                string sourceUrl = dgvGuruApproval.Columns.Contains("SourceUrl") ? row.Cells["SourceUrl"].Value?.ToString() ?? "" : "";
+                string symbol = row.Cells["Symbol"].Value?.ToString() ?? "";
+                _opManager.GuruPersistence.RecordHistory(symbol, "PUBLISHED", sourceUrl, content);
                 // SAFETY FIX: Check if row still exists and belongs to grid
                 if (dgvGuruApproval != null && !row.IsNewRow && dgvGuruApproval.Rows.Contains(row))
                 {
@@ -5464,22 +5467,50 @@ namespace XiDeAI_Pro
             var row = dgvGuruApproval.SelectedRows[0];
             if (MessageBox.Show("Bu taslağı silmek istediğinize emin misiniz?", "Onay", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
+                string sourceUrl = dgvGuruApproval.Columns.Contains("SourceUrl") ? row.Cells["SourceUrl"].Value?.ToString() ?? "" : "";
+                string symbol = row.Cells["Symbol"].Value?.ToString() ?? "";
+                string content = row.Cells["Content"].Value?.ToString() ?? "";
+                _opManager.GuruPersistence.RecordHistory(symbol, "REJECTED", sourceUrl, content);
                 dgvGuruApproval.Rows.Remove(row);
             }
         }
+
+        private void ShowGuruHistory()
+        {
+            var history = _opManager.GuruPersistence.GetRecentHistory(30);
+            if (history.Count == 0)
+            {
+                MessageBox.Show("Üstat paneli geçmiş kaydı bulunmuyor.", "Üstat Geçmişi");
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var item in history)
+            {
+                sb.AppendLine($"{item.Timestamp:dd.MM HH:mm} | {item.Symbol} | {item.Status}");
+                if (!string.IsNullOrWhiteSpace(item.SourceUrl)) sb.AppendLine(item.SourceUrl);
+                if (!string.IsNullOrWhiteSpace(item.ContentPreview))
+                {
+                    string preview = item.ContentPreview.Replace("\r", " ").Replace("\n", " ");
+                    sb.AppendLine(preview.Substring(0, Math.Min(180, preview.Length)) + (preview.Length > 180 ? "..." : ""));
+                }
+                sb.AppendLine();
+            }
+            MessageBox.Show(sb.ToString(), "Üstat Geçmişi");
+        }
+
         private void AddSignalToGrid(SignalData sig, string? overrideTime = null)
         {
             if (dgvSignals == null || dgvSignals.IsDisposed) return;
 
             try
             {
-                // v5.1.7: Status Determination Fix (It's not published yet, just entering the pipeline)
-                string status = "📥 İşleme Alındı"; 
+                string status = GetSignalStatusDisplay(sig);
                 // Color coding
                 Color rowColor = Color.FromArgb(35, 35, 40);
                 Color statusColor = Color.Cyan;
 
-                string timeDisplay = overrideTime ?? DateTime.Now.ToString("HH:mm:ss");
+                string timeDisplay = overrideTime ?? (sig.DetectedAt == DateTime.MinValue ? DateTime.Now : sig.DetectedAt).ToString("dd.MM HH:mm");
 
                 int idx = dgvSignals.Rows.Add(
                     timeDisplay,
@@ -5525,9 +5556,10 @@ namespace XiDeAI_Pro
                         Price = rec.EntryPrice,
                         Score = rec.Score,
                         Source = rec.Source,
+                        Durum = rec.Durum,
                         DetectedAt = rec.EntryTime
                     };
-                    AddSignalToGrid(sig, rec.EntryTime.ToString("HH:mm:ss"));
+                    AddSignalToGrid(sig, rec.EntryTime.ToString("dd.MM HH:mm"));
                 }
                 
                 if (dgvSignals.Rows.Count > 0)
@@ -5539,6 +5571,18 @@ namespace XiDeAI_Pro
             {
                 Log($"⚠️ Geçmiş sinyaller yüklenirken hata: {ex.Message}", "System");
             }
+        }
+
+        private static string GetSignalStatusDisplay(SignalData sig)
+        {
+            return sig.Durum?.ToUpperInvariant() switch
+            {
+                "AKTIF" => "🟢 Sinyal canlı, teyit aranıyor",
+                "PULLBACK_ADAY" => "🟡 Geri çekilme takibi, acele yok",
+                "KAPALI" => "⚪ Sinyal kapanmış",
+                "" or null => "⚫ Durum kaydı yok",
+                _ => sig.Durum
+            };
         }
 
 
@@ -5561,7 +5605,7 @@ namespace XiDeAI_Pro
             };
             pnlGuruCenter.Controls.Add(lblTitle);
 
-            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 300, BackColor = Color.FromArgb(40,40,40) };
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 220, BackColor = Color.FromArgb(40,40,40) };
             
             // --- TOP: Live Feed (Guru Tweets) ---
             var tlpFeed = new TableLayoutPanel {
@@ -5666,10 +5710,14 @@ namespace XiDeAI_Pro
             var btnDelete = new Button { Text = "❌ Sil", Dock = DockStyle.Right, Width = 80, BackColor = Color.Maroon, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             btnDelete.Click += (s,e) => RejectSelectedThread();
             headerPanel.Controls.Add(btnDelete);
+
+            var btnGuruHistory = new Button { Text = "📜 Geçmiş", Dock = DockStyle.Right, Width = 100, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            btnGuruHistory.Click += (s, e) => ShowGuruHistory();
+            headerPanel.Controls.Add(btnGuruHistory);
             
             pnlReview.Controls.Add(headerPanel);
 
-            var approvalSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 600 };
+            var approvalSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 180 };
 
             dgvGuruApproval = new DataGridView { 
                 Dock = DockStyle.Fill, 
@@ -5702,7 +5750,7 @@ namespace XiDeAI_Pro
             
             // Preview
             var pnlPreview = new Panel { Dock = DockStyle.Fill };
-            var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 200, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
+            var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 280, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
             rtbGuruPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20,20,20), ForeColor = Color.White, BorderStyle = BorderStyle.None, ReadOnly = false };
             var btnPublish = new Button { Text = "✅ YAYINLA", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
             btnPublish.Click += async (s,e) => await ApproveSelectedThread();
@@ -5873,6 +5921,7 @@ namespace XiDeAI_Pro
                             // Add to Approval Grid
                             string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
                             dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath, post.Url);
+                            _opManager.GuruPersistence.RecordHistory(symbol, "DRAFT", post.Url, thread);
                             processedSuccessfully = true;
                             Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
                             
