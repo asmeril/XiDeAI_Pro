@@ -293,17 +293,26 @@ namespace XiDeAI_Pro.Services
                 string hashtagString = string.Join(" ", ExtractUniqueHashtags(trends, signal.Symbol, fullAnalysis));
                 
                 string strategyLabel = signal.Strategy.Contains("Analiz") ? signal.Strategy : signal.Strategy + " analizi";
-                string tweet4 = $"{quotes}\n\n" +
-                                $"✅ SONUÇ: {strategyLabel} tamamlandı.\n\n" +
-                                $"{hashtagString}\n\n" +
-                                $"Emeğe saygı için ❤️ Beğen + 🔁 RT" + DISCLAIMER;
+                string conclusion = $"✅ SONUÇ: {strategyLabel}. Plan net: seviye, teyit ve risk birlikte izlenmeli.\n\n" +
+                                    $"{hashtagString}" + DISCLAIMER;
+                string tweet4 = string.IsNullOrWhiteSpace(quotes) ? conclusion : $"{quotes}\n\n{conclusion}";
                 
                 // v3.2: Smart Quote - If we have a high-relevance quote URL, append it to the end to trigger X Quote rendering
                 if (!string.IsNullOrEmpty(quoteUrl))
                 {
                     tweet4 += $"\n\n{quoteUrl}";
                 }
+                if (tweet4.Length > 280 && !string.IsNullOrWhiteSpace(quotes))
+                {
+                    tweet4 = conclusion;
+                    if (!string.IsNullOrEmpty(quoteUrl) && tweet4.Length + quoteUrl.Length + 2 <= 280)
+                    {
+                        tweet4 += $"\n\n{quoteUrl}";
+                    }
+                }
+                if (tweet4.Length > 280) tweet4 = ThreadService.SplitText(tweet4, 280).First();
                 
+                if (tweets.Count > 3) tweets = tweets.Take(3).ToList();
                 tweets.Add(tweet4);
                 tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 

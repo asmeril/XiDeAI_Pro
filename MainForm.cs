@@ -2357,7 +2357,14 @@ namespace XiDeAI_Pro
                         return false;
                     }
 
-                    var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
+                    var tweets = ThreadPipeline.ParseParts(tweetSet, 280).Take(4).ToList();
+                    if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
+                    {
+                        const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
+                        var baseText = tweets[^1].Trim();
+                        if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
+                        tweets[^1] = baseText + suffix;
+                    }
 
                     if (tweets.Count > 0)
                     {
@@ -4451,10 +4458,19 @@ namespace XiDeAI_Pro
                                 Logger.Sys($"🧵 /TWEETLE: {_lastAnalysisSymbol} için Thread hazırlanıyor...");
                                 await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* paylaşılıyor...");
                                 
-                                string threadText = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
-                                    ? _lastAnalysisResult.ShortThread
-                                    : _lastAnalysisResult.ReportText;
+                                if (string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread))
+                                {
+                                    await _opManager.Telegram.SendMessageAsync("⚠️ Paylaşılabilir kısa thread üretilemedi. Detay raporu X'e thread olarak gönderilmeyecek.");
+                                    break;
+                                }
+
+                                string threadText = _lastAnalysisResult.ShortThread;
                                 var tweets = ThreadPipeline.ParseParts(threadText, 280);
+                                if (tweets.Count == 0 || tweets.Count > 4)
+                                {
+                                    await _opManager.Telegram.SendMessageAsync($"⚠️ Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
+                                    break;
+                                }
 
                                 Logger.Sys("🧵 /TWEETLE: PostingService çağrılıyor...");
                                 var postResult = await _opManager.Posting.PostThreadAsync(tweets, _lastAnalysisResult.ScreenshotPath, "TelegramManualAnalysis");
@@ -4945,9 +4961,13 @@ namespace XiDeAI_Pro
                              btnTweetAnalysis.Text = "🧵 Thread Hazırlanıyor...";
                              Log("🧵 Thread modunda tweet gönderiliyor...", "Twitter");
                              
-                            var analysisText = !string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread)
-                                ? _lastAnalysisResult!.ShortThread
-                                : rtbAnalysisResult.Text;
+                            if (string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread))
+                            {
+                                MessageBox.Show("Paylaşılabilir kısa thread üretilemedi. Detay raporu X'e thread olarak gönderilmeyecek.");
+                                return;
+                            }
+
+                            var analysisText = _lastAnalysisResult!.ShortThread;
                              var scrPath = _lastAnalysisResult?.ScreenshotPath;
                              // Ensure media exists; otherwise skip image to avoid upload failure
                              if (string.IsNullOrEmpty(scrPath) || !File.Exists(scrPath))
@@ -4956,6 +4976,11 @@ namespace XiDeAI_Pro
                                  scrPath = null;
                              }
                              var tweets = ThreadPipeline.ParseParts(analysisText, 280);
+                             if (tweets.Count == 0 || tweets.Count > 4)
+                             {
+                                 MessageBox.Show($"Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
+                                 return;
+                             }
                              var postResult = await _opManager.Posting.PostThreadAsync(tweets, scrPath, "ManualAnalysisThread");
 
                               if(postResult.status == "success")

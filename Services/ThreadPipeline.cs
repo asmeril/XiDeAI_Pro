@@ -17,14 +17,23 @@ namespace XiDeAI_Pro.Services
 
             // The AI content should already follow the "Hook -> Storytelling ->
             // Engagement" structure as defined in PromptManager.cs.
-            var parsedParts = ParseParts(aiThreadContent, 275);
-            if (LooksLikePromptLeak(aiThreadContent) && parsedParts.Count > 6)
+            var allParts = ParseParts(aiThreadContent, 275);
+            if (LooksLikePromptLeak(aiThreadContent) && allParts.Count > 6)
             {
                 return new List<string>();
             }
+            var parsedParts = allParts.Take(3).ToList();
 
             tweets.AddRange(parsedParts);
             MergeShortTailParts(tweets, minimumLength: 80, preserveFirstTweet: true, maxLength: 280);
+            if (tweets.Count > 4) tweets = tweets.Take(4).ToList();
+            if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
+            {
+                const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir.";
+                var baseText = tweets[^1].Trim();
+                if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
+                tweets[^1] = baseText + suffix;
+            }
             return EnsureWithinLimit(tweets, 280);
         }
 
@@ -127,7 +136,7 @@ namespace XiDeAI_Pro.Services
             };
 
             string headerTag = string.IsNullOrWhiteSpace(accountHandle) ? "🇹🇷" : $"🇹🇷 @{accountHandle} |";
-            return $"{headerTag} #{cleanSymbol} ({periodStr}) Teknik Analizim\n\n" +
+            return $"{headerTag} #{cleanSymbol} ({periodStr}) sinyal notu\n\n" +
                    $"💰 Fiyat: {signal.Price:N2} {currency}\n" +
                    $"📊 Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}";
         }

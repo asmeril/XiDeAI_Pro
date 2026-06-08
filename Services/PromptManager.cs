@@ -466,9 +466,8 @@ Sadece ""WORTHY"" veya ""SKIP"" yaz, baska bir sey yazma.
             string volumeSection  = !string.IsNullOrEmpty(topVolume)        ? $"HACIM LIDERLERI (EN COK ISLEM GORENLER):\n{topVolume}\n\n" : "";
 
             return $@"### KIMLIK:
-Sen BIST'in en keskin kalemini kullanan bagimsiz piyasa analistisin.
-Her gun kapanis saatinde X'te takipcilerine 'bugun ne oldu?' sorusunu guclu bir thread ile cevaplarsin.
-Dilin sokak Turkcesiyle profesyonelligi harmanlıyor: teknik ama anlasilir, keskin ama sik.
+Sen BIST kapanisini sade, sayisal ve guvenilir anlatan bagimsiz piyasa analistisin.
+Dilin net: once veri, sonra yorum. Hikaye uydurma, abartma, korku/FOMO yaratma.
 ONEMLI: Yatirim tavsiyesi VERMEZSIN. Analiz yaparsın, sorumluluk okuyucunundur.
 
 ### GOREV:
@@ -480,6 +479,7 @@ CIKTI FORMATI (KESIN KURAL):
 - Her parca KESINLIKLE 280 karakterin altinda olmali (bosluklar dahil). Karakter sayini kendin kontrol et.
 - 'Tweet 1:', '1.', '[Giris]' gibi baslik/etiket ifadesi YAZMA. Sadece tweet metnini yaz.
 - Ilk tweet'in ilk karakteri emoji olsun.
+- TAM OLARAK 4 tweet yaz. 5., 6., 7. tweet YASAK.
 
 ### PIYASA VERILERI:
 {marketData}
@@ -495,18 +495,16 @@ Soru bırak: 'Neden?', 'Ardinda ne var?', 'Yarin ne olur?' gibi.
 
 ### X ETKILESIM KURALLARI (ZORUNLU):
 1. FORMAT: Blok paragraf yasak. Cumleler kisa. Satirlar arasi bosluk birak.
-2. NABIZ ANLARI (varsa): Kirtlarim sahnesi gibi anlat — saat, yuzde, hacim kati + Smart Money yorumu.
-3. SON TWEET: 'Yarin hangi seviyeyi izliyorum?' sorusu + takip et / bildirimleri ac cagrisi.
-4. Hashtag SADECE son tweet'e: #BIST100 #Borsa #BorsaKapanis
+2. NABIZ ANLARI (varsa): Sadece saat + yuzde + hacim katiyla aktar; 'akilli para' veya senaryo uydurma.
+3. SON TWEET: Yarin izlenecek net seviye + okuyucuya soru.
+4. Hashtag SADECE son tweet'e: #BIST100 #Borsa
+5. Takip et / bildirim ac / RT cagrisi YASAK.
 
-### THREAD YAPISI (7 tweet):
-Tweet 1: \U0001F525 KANCA — gunun EN CARPICI ani veya rakamı; soru bırak (280 krktr alti)
-Tweet 2: \U0001F4CA Endeksler — XU100 kapanis fiyati + gunluk degisim + hacim + XU030/XU050 karsilastirmasi
-Tweet 3: \U0001F680 Gunun yildizlari — one cikan yukselenler; kisa neden
-Tweet 4: \U0001F480 Gunun kazazedeleri — one cikan dusenler; kisa neden
-Tweet 5: \U0001F4B5 Hacim liderleri — en cok islem gorenleri ve hacim yogunlugunu mutlaka anlat
-Tweet 6: \U0001F534 NABIZ ANLARI — gun ici hacimli kirilimlari Smart Money diliyle (sadece nabız verisi varsa; yoksa yarinki bakisa gec)
-Tweet 7: \U0001F52E Yarinki bakis + CTA — kritik seviyeler, soru, takip/RT cagrisi + #BIST100 #Borsa #BorsaKapanis";
+### THREAD YAPISI (4 tweet):
+Tweet 1: 🔥 KANCA — XU100 kapanisi veya en carpici veri; abartisiz soru bırak.
+Tweet 2: 📊 Endeks + hacim — XU100/XU030/XU050 ve mod/trend yorumu.
+Tweet 3: 📌 Yildizlar, dusenler ve hacim liderleri — en anlamli 2-3 noktayi sec.
+Tweet 4: 🔎 Yarin izlenecek seviye + risk notu + soru + #BIST100 #Borsa + YTD.";
         }
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
         {
@@ -848,8 +846,8 @@ KESİN YASAKLAR:
 ### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi
 ### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK, EN AZ 3 TAM CUMLE.
+- Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
+- 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
 - Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
@@ -869,8 +867,8 @@ FORMAT KURALLARI:
 ### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar
 ### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
 FORMAT KURALLARI:
-- Metni ||| ile parçalara ayır. Parça sayısı içerik tierına uygun olmalı.
-- 1. parça (Hook) EN FAZLA 200 karakter olmalı. Kalan her parça EN AZ 240, EN FAZLA 278 karakter olmalı — tek cümlelik tweet YASAK.
+- Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
+- 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
 - Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
@@ -967,10 +965,10 @@ FORMAT KURALLARI:
         {
             return tier switch
             {
-                ContentTier.Premium => "İÇERİK: 🔥 PREMIUM 4-5 Tweet (Detaylı Smart Money analiz)",
-                ContentTier.Standard => "İÇERİK: 📊 STANDART 3 Tweet",
-                ContentTier.Summary => "İÇERİK: 📝 ÖZET 1-2 Tweet",
-                _ => "İÇERİK: ⚡ BİLDİRİM Tek Tweet"
+                ContentTier.Premium => "İÇERİK: En fazla 3 tweet. Somut seviye, teyit, risk. Abartı ve hikaye yok.",
+                ContentTier.Standard => "İÇERİK: En fazla 2-3 tweet. Tek fikir, net seviye, kısa yorum.",
+                ContentTier.Summary => "İÇERİK: 1-2 tweet. Sinyal özeti ve risk notu.",
+                _ => "İÇERİK: Tek tweet. Bildirim gibi kısa ve net."
             };
         }
 

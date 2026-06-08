@@ -136,7 +136,14 @@ namespace XiDeAI_Pro.Services
 
                 bool anySent = false;
 
-                var tweets = ThreadPipeline.ParseParts(tweetSet, 280);
+                var tweets = ThreadPipeline.ParseParts(tweetSet, 280).Take(4).ToList();
+                if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
+                {
+                    const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
+                    var baseText = tweets[^1].Trim();
+                    if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
+                    tweets[^1] = baseText + suffix;
+                }
 
                 if (tweets.Count > 0)
                 {

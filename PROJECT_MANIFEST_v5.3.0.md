@@ -143,3 +143,13 @@
 - Manuel hedef etkileşim yavaş moda alındı; varsayılan aksiyon sadece Like, otomatik RT kapalıdır.
 - Reply adaylarında `X-User`, tarihsiz/eski tweet, status URL'siz sonuç ve bahis/casino/boosting benzeri spam içerikler elenir.
 - Eski config değerleri yüklenirken bot tweet yaşı 12 saat, min etkileşim 100 olacak şekilde normalize edilir.
+
+---
+
+## v5.3.4 İçerik Kalite Notları
+
+- Manuel analiz X paylaşımı artık sadece 4 parçalık `ShortThread` ile yapılır; detay rapor fallback'i kapatıldı. 20 parçalık manuel analiz thread'i engellendi.
+- Sinyal threadleri en fazla 4 parçaya indirildi; promptlar kısa, seviye/teyit/risk odaklı hale getirildi.
+- Sinyal sonuç tweetlerinde `Beğen + RT` çağrısı kaldırıldı.
+- Gün sonu özeti 7 tweetlik dramatik format yerine 4 tweetlik factual kapanış formatına çekildi.
+- Gün sonu özeti paylaşımında 4 parçalık üst sınır ve YTD/hashtag güvenliği eklendi.

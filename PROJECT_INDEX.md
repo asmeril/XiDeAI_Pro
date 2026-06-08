@@ -1,4 +1,4 @@
-> **Version:** 5.3.3 (Interaction Safety Guards)
+> **Version:** 5.3.4 (Content Quality Guardrails)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -87,6 +87,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 #### `ThreadService.cs`
 - **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
 - **(v5.3.0)** Sinyal, batch, günlük/haftalık rapor threadleri `PostingService` üzerinden gönderilir.
+- **(v5.3.4)** Sinyal threadleri en fazla 4 parça ile sınırlandı; beğeni/RT çağrısı kaldırıldı, sonuç tweeti seviye/teyit/risk diline çekildi.
 
 #### `LogFileWatcher.cs`
 - **(v5.2.3)** `LoadSeenKeys(path)`: servis başlarken mevcut açık sinyalleri hafızaya alır, geçmiş satırları tekrar tetiklemez.
@@ -122,6 +123,8 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.3.2)** Bot Etkileşim tabına manuel `Şimdi Tara`, `BIST Fenomen`, `Kripto Fenomen`, `Durum` kontrolleri eklendi; checkbox timer'ı başlatır/durdurur.
 - **(v5.3.2)** `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle` Telegram komutları eklendi.
 - **(v5.3.3)** `CheckForInteractions()` artık otomatik Like/RT yapmaz; yalnızca taze, geçerli handle'lı, spam olmayan tweetler için onaylı reply adayı üretir.
+- **(v5.3.4)** Manuel analiz paylaşımı sadece doğrulanmış 4 parçalık `ShortThread` ile yapılır; detay rapor artık X thread'e fallback edilmez.
+- **(v5.3.4)** Gün sonu özeti paylaşımı en fazla 4 tweet ile sınırlandı; factual kapanış formatı ve YTD güvenliği zorunlu.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -334,7 +337,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 
