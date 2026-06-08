@@ -4494,7 +4494,7 @@ namespace XiDeAI_Pro
 
                                 string threadText = _lastAnalysisResult.ShortThread;
                                 var tweets = ThreadPipeline.ParseParts(threadText, 280);
-                                if (tweets.Count == 0 || tweets.Count > 4)
+                                if (tweets.Count < 4 || tweets.Count > 8)
                                 {
                                     await _opManager.Telegram.SendMessageAsync($"⚠️ Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
                                     break;
@@ -5004,7 +5004,7 @@ namespace XiDeAI_Pro
                                  scrPath = null;
                              }
                              var tweets = ThreadPipeline.ParseParts(analysisText, 280);
-                             if (tweets.Count == 0 || tweets.Count > 4)
+                             if (tweets.Count < 4 || tweets.Count > 8)
                              {
                                  MessageBox.Show($"Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
                                  return;

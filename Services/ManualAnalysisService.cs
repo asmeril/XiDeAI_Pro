@@ -42,7 +42,7 @@ namespace XiDeAI_Pro.Services
         public List<InfluencerPost> InfluencerPosts { get; set; } = new List<InfluencerPost>();
         public PivotData? PivotData { get; set; }
         /// <summary>
-        /// Short thread format (4 tweets) for X posting
+        /// Short thread format (4-8 tweets) for X posting
         /// </summary>
         public string ShortThread { get; set; } = "";
     }
@@ -347,10 +347,10 @@ namespace XiDeAI_Pro.Services
                 Log("✅ AI analizi oluşturuldu.");
                 result.ReportText = analysis;
 
-                // === YENI: SHORT THREAD FORMAT (4 Tweet) ===
+                // === SHORT THREAD FORMAT (4-8 Tweet) ===
                 try
                 {
-                    Log("🐦 [SHORT THREAD] 4 tweet'lik kısa thread oluşturuluyor...");
+                    Log("🐦 [SHORT THREAD] 4-8 tweet arası sıkı thread oluşturuluyor...");
                     
                     // Get last week's successful analysis for history callback
                     string lastWeekAnalysis = _geminiService.GetLastWeekSuccessfulAnalysis(symbol);
@@ -390,7 +390,8 @@ namespace XiDeAI_Pro.Services
                         {
                             result.ShortThread = shortThread;
                             result.ReportText = shortThread;
-                            Log("✅ Short thread başarıyla oluşturuldu (4 tweet).");
+                            var partCount = ThreadPipeline.ParseParts(shortThread, 280).Count;
+                            Log($"✅ Short thread başarıyla oluşturuldu ({partCount} tweet).");
                         }
                     }
                 }
@@ -463,8 +464,13 @@ namespace XiDeAI_Pro.Services
             }
 
             var parts = ThreadPipeline.ParseParts(normalized, 280);
-            // Kesinlikle 4 parça olmalı (ne az ne fazla)
-            if (parts.Count != 4)
+            // Yayınlanabilir manuel analiz 4-8 parça arasında olmalı.
+            if (parts.Count < 4 || parts.Count > 8)
+            {
+                return true;
+            }
+
+            if (parts.Any(part => part.Trim().Length < 120))
             {
                 return true;
             }

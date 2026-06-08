@@ -199,3 +199,13 @@
 - Manuel analizde uzun detay rapor tek tweet butonundan 19-20 parçalık thread'e dönüşemez.
 - Manuel analiz paylaşım butonu sadece geçerli `ShortThread` üretildiyse aktif kalır.
 - Thread paylaşımı yalnız kullanıcı açıkça `Zincir (Thread)` seçerse yapılır ve 4 parça güvenlik kontrolünden geçer.
+
+---
+
+## v5.4.0 Manuel Thread Format Notları
+
+- IdealSmartNotifier analiz yapısından alınan `Fiyat Durumu / Teknik Röntgen / Destek-Direnç / Oyun Planı` yaklaşımı manuel short-thread promptuna uyarlandı.
+- Manuel analiz paylaşımı artık 4-8 tweet arası olabilir; 4 tweet'e zorlanmaz.
+- İlk 2 tweet kısa özet ve devam rehberi olarak çalışır; sonraki tweetler seviye, teyit, risk ve kaynak sentezini sıkı paketler.
+- 120 karakterden kısa, yarım cümle veya Markdown başlığı taşıyan parçalar geçersiz sayılır.
+- Amaç: 19 parçalık ham rapor yerine 4-8 parçalık okunabilir X thread'i üretmek.
