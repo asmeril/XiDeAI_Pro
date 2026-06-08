@@ -153,3 +153,13 @@
 - Sinyal sonuç tweetlerinde `Beğen + RT` çağrısı kaldırıldı.
 - Gün sonu özeti 7 tweetlik dramatik format yerine 4 tweetlik factual kapanış formatına çekildi.
 - Gün sonu özeti paylaşımında 4 parçalık üst sınır ve YTD/hashtag güvenliği eklendi.
+
+---
+
+## v5.3.5 Analiz Dili ve Telegram Parite Notları
+
+- Analiz kimliği `usta trader / piyasa kurdu / finans fenomeni` personasından çıkarılıp sade `seviye + teyit + risk` diline çekildi.
+- Yerel fenomen örneklerinden çıkarılan gözleme göre kısa cümle, sayı/seviye, düşük emoji ve az hashtag önceliklendirildi.
+- Manuel kısa thread promptunda FOMO, gizem, clickbait ve rol yapma dili yasaklandı.
+- Telegram `/ANALIZ SYMBOL [PERIOD] [BASIS]` artık UI ile aynı `TradingViewChartId` akışını kullanır; üçüncü argüman baz seçimi olarak çalışır.
+- Telegram dinamik analiz mesajlarında Markdown parse hatası olursa mesaj otomatik plain-text olarak tekrar gönderilir.

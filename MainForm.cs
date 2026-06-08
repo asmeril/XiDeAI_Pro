@@ -4414,21 +4414,27 @@ namespace XiDeAI_Pro
                                  return;
                             }
                             
-                            string symbol = args.Split(' ')[0];
-                            string period = args.Contains(" ") ? args.Split(' ')[1] : "240";
+                            var analysisArgs = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            string symbol = analysisArgs[0];
+                            string period = analysisArgs.Length > 1 ? analysisArgs[1] : "240";
+                            string basis = analysisArgs.Length > 2 ? analysisArgs[2].ToUpperInvariant() : "TL";
                             if (period == "G") period = "Daily";
 
                             string market = SymbolData.DetectMarket(symbol);
                             Logger.Telegram($"🔍 {symbol} analizi isteniyor... (Pazar: {market})");
-                            await _opManager.Telegram.SendMessageAsync($"🔍 *{symbol.ToUpper()}* analizi başlatılıyor [{market} - {period}dk]...");
+                            await _opManager.Telegram.SendMessageAsync($"🔍 *{symbol.ToUpper()}* analizi başlatılıyor [{market} - {period}dk - {basis}]...");
                             
                             _lastAnalysisSymbol = symbol.ToUpper();
-                            _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, market, period, "", "TL");
+                            string chartId = ConfigManager.Current.TradingViewChartId ?? "";
+                            _lastAnalysisResult = await _opManager.ManualAnalysis.PerformManualAnalysis(symbol, market, period, chartId, basis);
                             
                             if (_lastAnalysisResult.Success)
                             {
                                 Logger.Telegram($"✅ {symbol} analizi tamamlandı.");
-                                string report = $"📊 *ANALİZ RAPORU: {symbol.ToUpper()}*\n\n{_lastAnalysisResult.ReportText}\n\n🔗 Grafik: {_lastAnalysisResult.TvLink}\n\n🐦 Paylaşmak için: */TWEETLE*";
+                                string shareable = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
+                                    ? _lastAnalysisResult.ShortThread
+                                    : "Paylaşılabilir kısa thread üretilemedi; detay rapor X'e gönderilmeyecek.";
+                                string report = $"📊 ANALİZ: {symbol.ToUpper()}\n\n{shareable}\n\n🔗 Grafik: {_lastAnalysisResult.TvLink}\n\n🐦 Paylaşmak için: /TWEETLE";
                                 await _opManager.Telegram.SendMessageAsync(report);
                             }
                             else

@@ -126,6 +126,25 @@ namespace XiDeAI_Pro.Services
                 {
                     string errorDetail = await response.Content.ReadAsStringAsync();
                     Logger.Telegram($"❌ Telegram API Hatası (sendMessage): {response.StatusCode} - {errorDetail}");
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && errorDetail.Contains("parse entities", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var plainPayload = new
+                        {
+                            chat_id = chatId,
+                            text = message
+                        };
+                        string plainJson = JsonSerializer.Serialize(plainPayload);
+                        var plainContent = new StringContent(plainJson, System.Text.Encoding.UTF8, "application/json");
+                        var plainResponse = await _client.PostAsync(_baseUrl + "sendMessage", plainContent);
+                        if (plainResponse.IsSuccessStatusCode)
+                        {
+                            Logger.Telegram("✅ Telegram mesajı Markdown olmadan gönderildi.");
+                            return (true, "");
+                        }
+                        string plainError = await plainResponse.Content.ReadAsStringAsync();
+                        Logger.Telegram($"❌ Telegram plain-text retry hatası: {plainResponse.StatusCode} - {plainError}");
+                    }
                     
                     if ((int)response.StatusCode == 429)
                     {
