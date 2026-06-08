@@ -229,3 +229,13 @@
 - Promo, giveaway, airdrop, ödül, RT/like çağrısı, bonus ve kampanya içerikleri hard-block edilir.
 - Takipçi sayısı parse edilemezse Telegram'da `0 takipçi` yerine `takipçi sayısı okunamadı` gösterilir.
 - Etkileşim onay komutları tıklanınca ID kaybolmasın diye `/ONAY_ID` ve `/RED_ID` formatına alındı; eski `/ONAY ID` formatı da desteklenir.
+
+---
+
+## v5.4.3 Üstat Paneli Guardrail Notları
+
+- Üstat panelinde hocaya ve taramasına saygı ölçülü biçimde dile getirilir; analiz bağımsız seviye/teyit/risk planı olarak kurulur.
+- Thread içinde sadece `ConfigManager.GuruHandle` mention edilebilir; diğer tüm `@mention` ifadeleri temizlenir.
+- Kaynak tarama tweet URL'si thread içinde zorunludur; eksikse otomatik eklenir.
+- Üstat otomatik paylaşımı 3-6 parça ve kaynak URL kontrolünden geçmezse iptal edilir.
+- `Smart Money`, `likidite avı`, `muazzam`, `efsane`, `nokta atışı`, `usta işi` gibi abartılı/persona ifadeleri temizlenir.

@@ -5425,7 +5425,20 @@ namespace XiDeAI_Pro
             Log("🧵 Thread onaylandı, yayınlanıyor...", "Twitter");
             
             // Post
+            string rowStatus = row.Cells["Status"].Value?.ToString() ?? "";
+            if (rowStatus.Contains("Hoca", StringComparison.OrdinalIgnoreCase))
+            {
+                string sourceUrl = dgvGuruApproval.Columns.Contains("SourceUrl") ? row.Cells["SourceUrl"].Value?.ToString() ?? "" : "";
+                content = NormalizeGuruThreadContent(content, ConfigManager.Current.GuruHandle, sourceUrl);
+                rtbGuruPreview.Text = content;
+            }
+
             var tweets = ThreadPipeline.ParseParts(content, 280);
+            if (rowStatus.Contains("Hoca", StringComparison.OrdinalIgnoreCase) && (tweets.Count < 3 || tweets.Count > 6 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase))))
+            {
+                MessageBox.Show($"Üstat thread formatı güvenli değil ({tweets.Count} parça veya kaynak URL eksik). Lütfen düzenleyin.");
+                return;
+            }
                                 
             var result = await _opManager.Posting.PostThreadAsync(tweets, imgPath, "GuruPanel");
             
@@ -5682,6 +5695,7 @@ namespace XiDeAI_Pro
             dgvGuruApproval.Columns.Add("Status", "Durum");
             dgvGuruApproval.Columns.Add("Content", "C"); dgvGuruApproval.Columns["Content"].Visible=false;
             dgvGuruApproval.Columns.Add("ImagePath", "I"); dgvGuruApproval.Columns["ImagePath"].Visible=false;
+            dgvGuruApproval.Columns.Add("SourceUrl", "S"); dgvGuruApproval.Columns["SourceUrl"].Visible=false;
             dgvGuruApproval.RowTemplate.Height = 35;
             
             approvalSplit.Panel1.Controls.Add(dgvGuruApproval);
@@ -5825,7 +5839,8 @@ namespace XiDeAI_Pro
                 {
                     Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
                     string guruHandle = ConfigManager.Current.GuruHandle;
-                    var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, post.Handle, post.Url, tableName, guruHandle, techContext, chartPath);
+                    var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, guruHandle, post.Url, tableName, "Efelerin Efesi", techContext, chartPath);
+                    if (!string.IsNullOrEmpty(thread)) thread = NormalizeGuruThreadContent(thread, guruHandle, post.Url);
                     
                     if (!string.IsNullOrEmpty(thread))
                     {
@@ -5833,6 +5848,11 @@ namespace XiDeAI_Pro
                         {
                             Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
                             var tweets = ThreadPipeline.ParseParts(thread, 280);
+                            if (tweets.Count < 3 || tweets.Count > 6 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                Log($"⚠️ Üstat otomatik paylaşım iptal: format güvenli değil ({tweets.Count} parça veya kaynak URL eksik).", "Social");
+                                continue;
+                            }
                             var postResult = await _opManager.Posting.PostThreadAsync(tweets, chartPath, "GuruAutomation");
                             if (postResult.status != "success")
                             {
@@ -5852,7 +5872,7 @@ namespace XiDeAI_Pro
                         {
                             // Add to Approval Grid
                             string snippet = thread.Length > 50 ? thread.Substring(0, 50) + "..." : thread;
-                            dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath);
+                            dgvGuruApproval.Rows.Add(DateTime.Now.ToString("HH:mm"), symbol, snippet, "Hazır (Hoca)", thread, chartPath, post.Url);
                             processedSuccessfully = true;
                             Log($"💾 #{symbol} threadi 'Üstat Merkezi -> Onay Bekleyenler' listesine eklendi.", "Social");
                             
@@ -5871,6 +5891,45 @@ namespace XiDeAI_Pro
             if (processedSuccessfully && !string.IsNullOrEmpty(post.Url))
                 _opManager.GuruPersistence.MarkAsProcessed(post.Url);
         }
+
+        private static string NormalizeGuruThreadContent(string thread, string guruHandle, string sourceUrl)
+        {
+            if (string.IsNullOrWhiteSpace(thread)) return string.Empty;
+
+            string cleanGuru = (guruHandle ?? "@EFELERiiNEFESi3").Trim().TrimStart('@');
+            string normalized = System.Text.RegularExpressions.Regex.Replace(thread, @"@([A-Za-z0-9_]+)", m =>
+            {
+                string handle = m.Groups[1].Value;
+                return handle.Equals(cleanGuru, StringComparison.OrdinalIgnoreCase) ? "@" + handle : handle;
+            });
+
+            normalized = normalized
+                .Replace("Smart Money", "teknik yapı", StringComparison.OrdinalIgnoreCase)
+                .Replace("likidite avı", "risk bölgesi", StringComparison.OrdinalIgnoreCase)
+                .Replace("muazzam", "dikkate değer", StringComparison.OrdinalIgnoreCase)
+                .Replace("efsane", "önemli", StringComparison.OrdinalIgnoreCase)
+                .Replace("nokta atışı", "dikkat çeken", StringComparison.OrdinalIgnoreCase)
+                .Replace("usta işi", "teknik", StringComparison.OrdinalIgnoreCase)
+                .Replace("piyasa kurdu", "analist", StringComparison.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(sourceUrl) && !normalized.Contains(sourceUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = ThreadPipeline.ParseParts(normalized, 280);
+                string sourceLine = $"Kaynak tarama: {sourceUrl}";
+                if (parts.Count > 0 && parts[^1].Length + sourceLine.Length + 2 <= 280)
+                {
+                    parts[^1] = parts[^1].TrimEnd() + "\n" + sourceLine;
+                }
+                else
+                {
+                    parts.Add(sourceLine + "\n⚠️ Yatırım tavsiyesi değildir.");
+                }
+                normalized = string.Join("\n|||\n", parts);
+            }
+
+            return normalized.Trim();
+        }
+
         private void InitializeFenerbahcePanel()
         {
             if (_fenerbahceInitialized) return;

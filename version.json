@@ -1,8 +1,9 @@
 {
-    "version": "5.4.2",
-    "build_number": 5420,
-    "lastUpdate": "2026-06-09T00:15:00Z",
+    "version": "5.4.3",
+    "build_number": 5430,
+    "lastUpdate": "2026-06-09T00:35:00Z",
     "changelog": [
+        "v5.4.3: GURU: Üstat paneli dili hocaya saygılı ama ölçülü hale getirildi; sadece hoca mention'ı ve kaynak tarama tweet URL'si zorunlu",
         "v5.4.2: INTERACTION: Otomatik adaylar finans odaklı ve promo/giveaway hard-block; Telegram onay komutları /ONAY_ID formatıyla tıklanabilir",
         "v5.4.1: SIGNAL: AKTIF/PULLBACK_ADAY iç durumları takipçi dostu takip notuna çevrildi; tekrar sinyallerde 1-2 tweetlik pekiştirme akışı eklendi",
         "v5.4.0: MANUAL THREAD: IdealSmartNotifier analiz yapısından esinlenen 4-8 tweet formatı; ilk 2 tweet özet, devamı seviye/teyit/risk, 120 karakter altı parça yasak",

@@ -188,7 +188,9 @@ namespace XiDeAI_Pro.Services
         public async Task<string?> GenerateGuruHonoringThread(string symbol, string period, string guruHandle, string originalTweetUrl, string tableName = "EFE HMA", string guruName = "Efelerin Efesi", string technicalContext = "", string? imagePath = null, string visualContext = "", string priceContext = "", string marketOverview = "", string newsContext = "")
         {
             string indicatorContext = string.Join("\n", new[] { technicalContext, LoadIndicatorGuideContext() }.Where(x => !string.IsNullOrWhiteSpace(x)));
-            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, indicatorContext, guruName, guruHandle, $"{guruName} (@{guruHandle}) - {tableName}\nKaynak: {originalTweetUrl}", visualContext, marketOverview, newsContext);
+            string cleanGuruHandle = string.IsNullOrWhiteSpace(guruHandle) ? "@EFELERiiNEFESi3" : guruHandle.Trim();
+            if (!cleanGuruHandle.StartsWith("@")) cleanGuruHandle = "@" + cleanGuruHandle;
+            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, indicatorContext, guruName, cleanGuruHandle, $"{guruName} ({cleanGuruHandle}) - {tableName}\nKaynak tarama: {originalTweetUrl}", visualContext, marketOverview, newsContext);
             return await SendMultimodalRequest(prompt, imagePath);
         }
 

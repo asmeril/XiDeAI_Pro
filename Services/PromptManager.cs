@@ -504,28 +504,21 @@ Tweet 4: 🔎 Yarin izlenecek seviye + risk notu + soru + #BIST100 #Borsa + YTD.
         }
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
         {
-            // v3.9.2: Tweet giriş çeşitliliği (Randomizasyon + Hoca Handle + Tarama Adı)
-            // guruHandle zaten başında @ ile gelir.
-            string[] introStyles = new[]
-            {
-                $"{guruHandle} hocamızın {strategy} taramasından süzülen #{symbol}'i bir de biz inceleyelim...",
-                $"{guruHandle} hocamızın efsane {strategy} listesi yine konuştu! #{symbol} teknik analizi yayında:",
-                $"Hocamızın {strategy} taraması bu sefer çok özel bir sinyal yakaladı... #{symbol} tahtasında hareketlilik var.",
-                $"#{symbol} için beklenen sinyal nihayet geldi... {guruHandle} hocamızın {strategy} taramasından geçen bu hissede, Smart Money'nin izini sürelim!",
-                $"{guruHandle} hocamızın nokta atışı {strategy} taraması yine mi hedefi bulacak? #{symbol} teknik detaylarına birlikte bakalım:"
-            };
-            
-            string selectedStyle = introStyles[new Random().Next(introStyles.Length)];
+            string cleanGuruHandle = string.IsNullOrWhiteSpace(guruHandle) ? "@EFELERiiNEFESi3" : guruHandle.Trim();
+            if (!cleanGuruHandle.StartsWith("@")) cleanGuruHandle = "@" + cleanGuruHandle;
 
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPİYASA GENEL DURUMU:\n{marketOverview}\nKURAL: Bu üstadın sinyalini mevcut piyasa trendiyle kıyasla.";
             string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}";
 
-            return $@"### KİMLİK: Sen 'Efelerin Efesi' ekolüne saygı duyan, teknik analizi sanat gibi işleyen bir üstatsın.
-@{guruHandle} hocamızın vizyonuna hayranlık duyuyorsun ama analizin kalbini 'Smart Money' kavramlarıyla dolduruyorsun.
-Giriş tarzın, hocanın handle'ını ({guruHandle}) ve tarama tablosunun adını ({strategy}) MUTLAKA içermeli.
+            return $@"### KİMLİK:
+Sen {cleanGuruHandle} hocamızın taramalarına saygı duyan ama kendi teknik değerlendirmesini bağımsız yapan sade bir piyasa analistisin.
+Hocanın taramasını değerli bir radar olarak görürsün; analizi ise seviyeler, teyit ve risk üzerinden kendin kurarsın.
 
-### GÖREV: #{symbol} için {guruHandle} hocamızın taramasını referans alarak, muazzam kalitede bir teknik analiz threadi yaz.
-Giriş tarzın: {selectedStyle}
+### GÖREV:
+#{symbol} için {strategy} taramasından gelen tabloyu X'e uygun 3-6 tweetlik bir thread'e çevir.
+İlk tweette {cleanGuruHandle} hocamın {strategy} taramasına duyulan güven ve saygıyı ölçülü biçimde belirt.
+Thread içinde yalnızca {cleanGuruHandle} mention edilebilir. Başka hiçbir @mention yazma.
+Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu URL alıntı/quote bağlamı için zorunludur.
 
 ### ANALİZ-VERİLERİ:
 - Sembol: #{symbol}
@@ -540,25 +533,26 @@ Giriş tarzın: {selectedStyle}
 {guruCitation}
 
 ### ANALIZ KURALLARI:
-1. GIRIS: Seçilen stili kullan, asla robotik olma.
-2. DERIN TEKNIK: 
-   - Grafik analizinden ({visualContext}) gelen verileri MUTLAKA kullan. 
-   - MSB, FVG, OB, Likidite kavramlarını doğal bir şekilde erit.
-   - Teknik argümanlarla (RSI, Destek vb.) destekle.
-3. KAPANIS: Motivasyon verici, samimi ve yatırım tavsiyesi içermeyen bir final.
+1. GİRİŞ: Hocanın taramasına saygı + sembolün neden izlemeye değer olduğu.
+2. TEKNİK PLAN: Fiyat, ana destek, ana direnç, teyit ve invalidasyon.
+3. GÖRSEL: Grafik analizinden gelen gerçek seviyeleri kullan; görmediğin şeyi uydurma.
+4. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi' gibi ifadeler yok. Saygılı ama ölçülü ol.
+5. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
 
 ### CIKTI FORMATI (SADECE TWEET METINLERINI YAZ):
-...buraya sadece 1. tweet (Max 280 Karakter)...
+Tweet 1: Hocaya/taramaya ölçülü atıf + ana fikir.
 |||
-...buraya sadece 2. tweet (Max 280 Karakter)...
+Tweet 2-5: Teknik plan, destek/direnç, teyit, risk.
 |||
-...buraya sadece 3. tweet (Max 280 Karakter)...
+Son tweet: Net plan + kaynak tarama URL'si + YTD.
 
 KESIN YASAKLAR:
 - Her bir parça KESİNLİKLE 280 karakterden KISA olmalıdır. Twitter limitlerine uymak hayati önemdedir.
 - ""(Birinci Tweet Metni)"" veya ""(...)"" gibi yönlendirme ifadelerini ASLA çıktıya yazma.
 - 'Tweet 1:', '[...]' gibi başlıkları ASLA kullanma.
-- Giriş cümlen, seçilen stile ({selectedStyle}) uygun olmalı.";
+- {cleanGuruHandle} dışında hiçbir @mention kullanma.
+- Smart Money, likidite avı, fısıltı, piyasa kurdu, usta işi, muazzam, efsane, nokta atışı ifadelerini kullanma.
+- Kaynak tarama URL'sini yazmadan bitirme.";
         }
 
         public string GetPerformanceReportPrompt(string reportData, string bestSymbol, string worstSymbol)
