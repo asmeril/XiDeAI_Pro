@@ -181,3 +181,12 @@
 - Haber onay mesajları uzun Markdown formatından çıkarıldı; kısa, düz metin ve karar odaklı formata alındı.
 - Başlık, kaynak, özet, gerekçe ve link alanları kırpılıp Markdown bozabilecek karakterlerden temizlenir.
 - `/ONAYHABER ID` ve `/REDHABER ID` komutları düz metin olarak gösterilir; Telegram parse hatası riski azaltıldı.
+
+---
+
+## v5.3.8 Haber Onay Gürültüsü Notları
+
+- Telegram haber onay spamini kesmek için normal skor 9 haberler artık onaya düşmez.
+- Normal skor 9 haberler `SKIPPED_REVIEW` olarak history'ye yazılır; istenirse sonradan incelenebilir.
+- Sadece skor 10 veya breaking/son dakika skor 9+ haberler otomatik paylaşım yoluna girer.
+- Eski config `MinNewsImportance < 10` ise yüklemede 10'a normalize edilir.

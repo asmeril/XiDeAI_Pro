@@ -1,4 +1,4 @@
-> **Version:** 5.3.7 (Telegram News Approval UX)
+> **Version:** 5.3.8 (News Approval Noise Control)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -132,6 +132,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 
 #### `NewsEngine.cs`
 - **(v5.3.6)** Haber threadleri en fazla 3 parçaya sınırlandı; son parçada haber özeti/YTD güvenliği zorunlu hale getirildi.
+- **(v5.3.8)** Normal skor 9 haberler Telegram onayına düşmez; `SKIPPED_REVIEW` history'ye yazılır. Yalnız skor 10 veya breaking 9+ auto-post olur.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -344,7 +345,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

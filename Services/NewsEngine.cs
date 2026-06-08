@@ -161,9 +161,9 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 3. Action Decision based on Score (1-10 Scale)
-                // < 9: SKIP/REJECT (pending kuyruğunu şişirme)
-                // 9: PENDING_WITH_ANALYSIS
-                // 10 veya son dakika + 9+: AUTO_POST_WITH_ANALYSIS
+                // 7-8: SKIP/REVIEW history only
+                // 9: high score but no Telegram approval spam; history only
+                // 10 or breaking 9+: AUTO_POST_WITH_ANALYSIS
 
                 if (score < 7 || status == "REJECT")
                 {
@@ -197,13 +197,9 @@ namespace XiDeAI_Pro.Services
 
                 if (status == "PENDING_WITH_ANALYSIS" || score == 9)
                 {
-                    item.IncludesAnalysis = true;
-                    // v4.6.20: Sessiz saatler kontrolü (gece) iptal edildi, haberler çöpe atılmak yerine onay havuzunda bekleyecek.
-
-                    // ONAY GEREKTİRİYOR - HABER + ANALİZ
-                    OnLog?.Invoke($"📊 Haber Onaya Düştü (Skor: {score}/10, Analiz Dahil): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "PENDING");
-                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, true); // true = with analysis
+                    item.IncludesAnalysis = false;
+                    OnLog?.Invoke($"🧹 Haber yüksek skor ama Telegram onayına düşmedi (Skor: {score}/10): {item.Title}", "NewsEngine");
+                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "SKIPPED_REVIEW");
                     return;
                 }
 

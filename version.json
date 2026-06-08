@@ -1,8 +1,9 @@
 {
-    "version": "5.3.7",
-    "build_number": 5370,
-    "lastUpdate": "2026-06-08T20:20:00Z",
+    "version": "5.3.8",
+    "build_number": 5380,
+    "lastUpdate": "2026-06-08T20:35:00Z",
     "changelog": [
+        "v5.3.8: NEWS: Telegram haber onay spamini kesmek için normal 9 skorlar sessiz review history'ye alınır; sadece 10 veya breaking 9+ auto-post olur",
         "v5.3.7: TELEGRAM: Haber onay bildirimleri kısa, düz metin ve karar odaklı formata alındı; uzun reasoning/summary Markdown riski azaltıldı",
         "v5.3.6: QUALITY: Haber threadleri sade editör dili ve max 3 tweet sınırına alındı; etkileşim yanıtları nötr kısa editör tonu ve SKIP güvenliği kullanır",
         "v5.3.5: TONE: Analiz kimliği sade seviye/teyit/risk diline çekildi; Telegram /ANALIZ UI ile aynı chartId akışını kullanır ve Markdown hatasında plain-text retry yapar",

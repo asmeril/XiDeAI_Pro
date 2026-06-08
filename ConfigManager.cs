@@ -129,7 +129,7 @@ namespace XiDeAI_Pro.Config
         };
 
         // HABER ANALİZ AYARLARI
-        public int MinNewsImportance { get; set; } = 9; // v5.3.1: Pending/onay eşiği 9+; 7-8 sadece history SKIPPED
+        public int MinNewsImportance { get; set; } = 10; // v5.3.8: Telegram onay spamini engelle; 9 sessiz review, 10/breaking auto
         public bool AutoPostBreakingNews { get; set; } = true; 
         
         // v3.8.2: Debugging & Test Mode
@@ -239,9 +239,9 @@ namespace XiDeAI_Pro.Config
         private static bool NormalizeRuntimeSettings()
         {
             bool saveNeeded = false;
-            if (Current.MinNewsImportance < 9)
+            if (Current.MinNewsImportance < 10)
             {
-                Current.MinNewsImportance = 9;
+                Current.MinNewsImportance = 10;
                 saveNeeded = true;
             }
             if (Current.BotMaxTweetAgeHours > 12 || Current.BotMaxTweetAgeHours < 1)
