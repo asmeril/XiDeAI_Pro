@@ -138,7 +138,18 @@ namespace XiDeAI_Pro.Services
             string headerTag = string.IsNullOrWhiteSpace(accountHandle) ? "🇹🇷" : $"🇹🇷 @{accountHandle} |";
             return $"{headerTag} #{cleanSymbol} ({periodStr}) sinyal notu\n\n" +
                    $"💰 Fiyat: {signal.Price:N2} {currency}\n" +
-                   $"📊 Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}";
+                   $"📊 Takip notu: {GetPublicSignalState(signal)}{(signal.IsRoket ? " 🚀" : "")}";
+        }
+
+        private static string GetPublicSignalState(SignalData signal)
+        {
+            return signal.Durum?.ToUpperInvariant() switch
+            {
+                "AKTIF" => "Sinyal canlı, teyit aranıyor",
+                "PULLBACK_ADAY" => "Geri çekilme takibi, acele yok",
+                "KAPALI" => "Sinyal kapanmış, paylaşım izleme amaçlı",
+                _ => "İzleme listesinde"
+            };
         }
 
         private static string BuildNewsLeadTweet(NewsItem item)

@@ -356,6 +356,38 @@ namespace XiDeAI_Pro.Services
                 bool isWorthAnalyzing = await CheckSignalQualityWithAI(sig);
                 if (!isWorthAnalyzing) return;
 
+                var previousThread = _memory?.GetLatestThreadContext(sig.Symbol, 7);
+                if (previousThread.HasValue)
+                {
+                    if (ConfigManager.Current.SpamProtectSignals && !_spam.CanPostGeneral(out string repeatReason))
+                    {
+                        OnLog?.Invoke($"🛡️ Tekrar sinyal spam filtresi: {repeatReason}", "Engine");
+                        return;
+                    }
+
+                    OnLog?.Invoke($"🔁 Tekrar sinyal: {sig.Symbol}. Detaylı analiz yerine kısa pekiştirme paylaşılacak.", "Engine");
+                    _performance.RecordSignal(sig);
+                    OnSignalProcessed?.Invoke(sig);
+                    OnStatusUpdate?.Invoke($"{sig.Symbol} tekrar sinyali kısa pekiştirme olarak hazırlanıyor...");
+
+                    string? repeatScreenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period);
+                    var repeatTweets = BuildReinforcementThread(sig, previousThread.Value.Timestamp, previousThread.Value.Content);
+                    var repeatResult = await _posting.PostThreadAsync(repeatTweets, repeatScreenshotPath, "SignalReinforcement");
+                    if (repeatResult.status == "success")
+                    {
+                        _persistence.MarkAsProcessed(sig);
+                        _spam.RecordTweet(sig.Symbol, sig.Strategy + "_REPEAT");
+                        _memory?.RecordThreadPosted(sig.Symbol, string.Join("\n---\n", repeatTweets));
+                        OnLog?.Invoke($"✅ Tekrar sinyal pekiştirmesi paylaşıldı: {sig.Symbol}", "Twitter");
+                    }
+                    else
+                    {
+                        _spam.RecordTweet(sig.Symbol, sig.Strategy + "_REPEAT_FAILED");
+                        OnLog?.Invoke($"❌ Tekrar sinyal paylaşım hatası: {repeatResult.ErrorMessage}", "Twitter");
+                    }
+                    return;
+                }
+
                 // 3. Spam/Cooldown Check
                 if (ConfigManager.Current.SpamProtectSignals)
                 {
@@ -366,13 +398,6 @@ namespace XiDeAI_Pro.Services
                     }
                 }
 
-                // 3.5 WEEKLY LIMIT
-                if (_memory != null && _memory.GetWeeklyThreadCount(sig.Symbol) >= 1)
-                {
-                    OnLog?.Invoke($"🛡️ Haftalık Limit Dolu: {sig.Symbol}", "Engine");
-                    return;
-                }
-
                 _performance.RecordSignal(sig);
                 OnSignalProcessed?.Invoke(sig); 
                 OnStatusUpdate?.Invoke($"{sig.Symbol} (Tier: {sig.Tier}) analiz ediliyor...");
@@ -381,7 +406,7 @@ namespace XiDeAI_Pro.Services
                 string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period); // Parallel candidate
 
                 // Context Preparation
-                string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Durum: {sig.Durum}{(sig.IsRoket ? " (Roket 🚀)" : "")}";
+                string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Takip notu: {GetPublicSignalState(sig)}{(sig.IsRoket ? " (Roket 🚀)" : "")}";
 
                 // Strateji bazlı tarama kriteri bağlamı
                 string scanCriteria = sig.Strategy switch
@@ -493,6 +518,7 @@ namespace XiDeAI_Pro.Services
                 {
                     _persistence.MarkAsProcessed(sig);
                     _spam.RecordTweet(sig.Symbol, sig.Strategy);
+                    _memory?.RecordThreadPosted(sig.Symbol, aiContent);
                     OnLog?.Invoke($"✅ Başarılı: {sig.Symbol} (Tier: {sig.Tier})", "Twitter");
                 }
                 else
@@ -506,6 +532,47 @@ namespace XiDeAI_Pro.Services
             {
                 OnLog?.Invoke($"❌ SignalEngine Error: {ex.Message}", "System");
             }
+        }
+
+        private static List<string> BuildReinforcementThread(SignalData sig, DateTime previousAt, string previousContent)
+        {
+            string cleanSymbol = sig.Symbol.Replace("VIP-", "").Replace("VIP'", "").Trim();
+            string state = GetPublicSignalState(sig);
+            string when = previousAt.Date == DateTime.Now.Date ? $"bugün {previousAt:HH:mm}" : $"{previousAt:dd.MM HH:mm}";
+            string levels = ExtractLevelHint(previousContent);
+
+            var tweets = new List<string>
+            {
+                $"#{cleanSymbol} tekrar taramaya düştü. {when} paylaşılan ana plan değişmedi; bu yeni kayıt önceki senaryoyu izlemeye değer kılıyor. Fiyat: {sig.Price:0.00} {sig.Basis}. Takip notu: {state}.",
+                string.IsNullOrWhiteSpace(levels)
+                    ? $"Detaylı analizi tekrar açmıyorum. Bu sinyal önceki planı pekiştiriyor: teyit gelmeden acele yok, risk seviyesi bozulursa izleme iptal. Siz hangi kapanışı teyit sayarsınız? ⚠️ YTD"
+                    : $"Önceki analizde öne çıkan seviyeler: {levels}. Yeni sinyal bu bölgelerin hâlâ izlenmesi gerektiğini söylüyor. Teyit gelmeden işlem kovalamam. Siz hangi kapanışı beklersiniz? ⚠️ YTD"
+            };
+
+            return ThreadPipeline.EnsureWithinLimit(tweets, 280).Take(2).ToList();
+        }
+
+        private static string GetPublicSignalState(SignalData signal)
+        {
+            return signal.Durum?.ToUpperInvariant() switch
+            {
+                "AKTIF" => "Sinyal canlı, teyit aranıyor",
+                "PULLBACK_ADAY" => "Geri çekilme takibi, acele yok",
+                "KAPALI" => "Sinyal kapanmış",
+                _ => "İzleme listesinde"
+            };
+        }
+
+        private static string ExtractLevelHint(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return string.Empty;
+            var matches = System.Text.RegularExpressions.Regex.Matches(content, @"\b\d{1,4}(?:[,.]\d{1,2})?\b")
+                .Select(m => m.Value)
+                .Where(x => !x.StartsWith("202"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(4)
+                .ToList();
+            return string.Join(" / ", matches);
         }
 
         private static string StripUnapprovedMentions(string content, HashSet<string> allowedHandles, out List<string> removedHandles)

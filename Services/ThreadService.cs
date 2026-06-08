@@ -559,7 +559,7 @@ namespace XiDeAI_Pro.Services
                 // Add rows (Compact format)
                 foreach(var s in signals.Take(5))
                 {
-                    tweet1 += $"👉 #{CleanSymbolForX(s.Symbol)} {s.Price:N2} TL | {s.Strategy} | Durum: {s.Durum}{(s.IsRoket ? " 🚀" : "")}\n";
+                    tweet1 += $"👉 #{CleanSymbolForX(s.Symbol)} {s.Price:N2} TL | {s.Strategy} | {GetPublicSignalState(s)}{(s.IsRoket ? " 🚀" : "")}\n";
                 }
                 
                 if (signals.Count > 5) tweet1 += $"...ve {signals.Count - 5} diğer hisse.\n";
@@ -576,7 +576,7 @@ namespace XiDeAI_Pro.Services
                 foreach(var sym in topSymbols)
                 {
                     var sig = signals.First(s => s.Symbol == sym);
-                    var bias = sig.IsRoket ? "Roket İvmesi 🚀" : sig.Durum == "AKTIF" ? "Güçlü" : "Temkinli (Pullback)";
+                    var bias = sig.IsRoket ? "Roket ivmesi 🚀" : GetPublicSignalState(sig);
                     tweet2 += $"📌 #{CleanSymbolForX(sym)} | Fiyat: {sig.Price:N2} TL | {bias}\n";
                 }
 
@@ -644,7 +644,7 @@ namespace XiDeAI_Pro.Services
             try
             {
                 // Manuel Analysis gibi grafik oku
-                var priceContext = $"Fiyat: {signal.Price:N2} TL, Strateji: {signal.Strategy}, Durum: {signal.Durum}{(signal.IsRoket ? " 🚀" : "")}";
+                var priceContext = $"Fiyat: {signal.Price:N2} TL, Strateji: {signal.Strategy}, Takip notu: {GetPublicSignalState(signal)}{(signal.IsRoket ? " 🚀" : "")}";
                 
                 // Influencer araştırması (DB → X)
                 var influencerPosts = new List<InfluencerPost>();
@@ -669,7 +669,7 @@ namespace XiDeAI_Pro.Services
                         signal.Symbol, 
                         signal.Market, 
                         priceContext + (historyContext != null ? $"\n\n📜 GEÇMIŞ ANALİZ:\n{historyContext}" : ""),
-                        $"Strateji: {signal.Strategy}, Durum: {signal.Durum}", 
+                        $"Strateji: {signal.Strategy}, Takip notu: {GetPublicSignalState(signal)}",
                         influencerPosts
                     );
                     
@@ -752,6 +752,17 @@ namespace XiDeAI_Pro.Services
                    $"🔹 RSI: Güçlü momentum 📈\n" +
                    $"🔹 Hacim: Ortalamanın üstünde 🔥\n" +
                    $"🔹 {signal.Strategy}: Tüm kriterler sağlandı ✅";
+        }
+
+        private static string GetPublicSignalState(SignalData signal)
+        {
+            return signal.Durum?.ToUpperInvariant() switch
+            {
+                "AKTIF" => "Sinyal canlı, teyit aranıyor",
+                "PULLBACK_ADAY" => "Geri çekilme takibi, acele yok",
+                "KAPALI" => "Sinyal kapanmış",
+                _ => "İzleme listesinde"
+            };
         }
 
         /// <summary>

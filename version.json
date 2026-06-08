@@ -1,8 +1,9 @@
 {
-    "version": "5.4.0",
-    "build_number": 5400,
-    "lastUpdate": "2026-06-08T23:40:00Z",
+    "version": "5.4.1",
+    "build_number": 5410,
+    "lastUpdate": "2026-06-08T23:55:00Z",
     "changelog": [
+        "v5.4.1: SIGNAL: AKTIF/PULLBACK_ADAY iç durumları takipçi dostu takip notuna çevrildi; tekrar sinyallerde 1-2 tweetlik pekiştirme akışı eklendi",
         "v5.4.0: MANUAL THREAD: IdealSmartNotifier analiz yapısından esinlenen 4-8 tweet formatı; ilk 2 tweet özet, devamı seviye/teyit/risk, 120 karakter altı parça yasak",
         "v5.3.9: MANUAL: Tek tweet paylaşımında 280+ karakter otomatik thread'e çevrilmez; manuel analiz paylaşımı short-thread güvenliğine zorlanır",
         "v5.3.8: NEWS: Telegram haber onay spamini kesmek için normal 9 skorlar sessiz review history'ye alınır; sadece 10 veya breaking 9+ auto-post olur",

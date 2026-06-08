@@ -840,20 +840,22 @@ KESİN YASAKLAR:
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
+            string publicState = GetPublicSignalState(sig);
 
             return $@"### KİMLİK: 15 yıllık BIST trader. Grafik okur, sayıyla konuşur. Klişe yok.
 ### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
-### SİNYAL: {roketBadge}Durum: {sig.Durum}, Periyot: 60dk
+### SİNYAL: {roketBadge}Takip notu: {publicState}, Periyot: 60dk
 ### VERİLER: {priceContext}
 ### ALPHA BAĞLAMI: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar dar bant/squeeze ve ortalamanın 1.5x+ üstünde hacim tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
-### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi
+### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi, patlama yakında, duyum
 ### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
 - 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
 - Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
-- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
+- İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
+- SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";
         }
 
         private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
@@ -861,20 +863,33 @@ FORMAT KURALLARI:
             string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT - DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
+            string publicState = GetPublicSignalState(sig);
 
             return $@"### KİMLİK: 15 yıllık BIST trader. Erken uyarı, somut seviye, net karar.
 ### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
-### SİNYAL: Durum: {sig.Durum}, Periyot: Günlük
+### SİNYAL: Takip notu: {publicState}, Periyot: Günlük
 ### VERİLER: {priceContext}
 ### PREMOVE BAĞLAMI: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
-### YASAK SÖZCÜKLER: fısıltı alış, akıllı para, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar
+### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, patlama yakında, duyum
 ### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
 FORMAT KURALLARI:
 - Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
 - 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
 - Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
-- SON TWEET ZORUNLU: Net karar (AL / İZLE / BEKLE) + takipçiyi görüşe davet eden soru. Örnek: 'Stop nereye koyarsınız?' veya 'Bu seviyeden beklentiniz nedir? 👇'";
+- İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
+- SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";
+        }
+
+        private static string GetPublicSignalState(SignalData signal)
+        {
+            return signal.Durum?.ToUpperInvariant() switch
+            {
+                "AKTIF" => "Sinyal canlı, teyit aranıyor",
+                "PULLBACK_ADAY" => "Geri çekilme takibi, acele yok",
+                "KAPALI" => "Sinyal kapanmış, paylaşma; sadece kayıt",
+                _ => "İzleme listesinde"
+            };
         }
 
         private string GetKingBombaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string type)

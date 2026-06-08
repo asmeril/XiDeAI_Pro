@@ -209,3 +209,13 @@
 - İlk 2 tweet kısa özet ve devam rehberi olarak çalışır; sonraki tweetler seviye, teyit, risk ve kaynak sentezini sıkı paketler.
 - 120 karakterden kısa, yarım cümle veya Markdown başlığı taşıyan parçalar geçersiz sayılır.
 - Amaç: 19 parçalık ham rapor yerine 4-8 parçalık okunabilir X thread'i üretmek.
+
+---
+
+## v5.4.1 Sinyal Durum ve Tekrar Akışı Notları
+
+- Sinyal threadlerinde ham `AKTIF` ve `PULLBACK_ADAY` ifadeleri takipçiye gösterilmez.
+- `AKTIF` → `Sinyal canlı, teyit aranıyor`; `PULLBACK_ADAY` → `Geri çekilme takibi, acele yok` olarak yazılır.
+- Sinyal promptlarında `patlama yakında`, `likidite avı`, `duyum` ve iç durum kodları yasaklandı.
+- Aynı sembol için son 7 günde thread varsa tekrar gelen sinyal detaylı analiz açmaz; önceki analize atıf yapan 1-2 tweetlik pekiştirme paylaşır.
+- Tekrar sinyal spam kontrolü sembol cooldown yerine genel paylaşım temposuna bakar, böylece kısa pekiştirme yapılabilir ama hesap spamlenmez.

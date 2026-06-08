@@ -292,6 +292,20 @@ namespace XiDeAI_Pro.Services
                 .Count(h => h.Timestamp >= weekStart && h.Strategy.Contains("THREAD", StringComparison.OrdinalIgnoreCase));
         }
 
+        public (DateTime Timestamp, string Strategy, string Content)? GetLatestThreadContext(string symbol, int maxDays = 7)
+        {
+            if (string.IsNullOrEmpty(symbol) || !_analysisMemory.ContainsKey(symbol))
+                return null;
+
+            var cutoff = DateTime.Now.AddDays(-maxDays);
+            var latest = _analysisMemory[symbol]
+                .Where(h => h.Timestamp >= cutoff && h.Strategy.Contains("THREAD", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(h => h.Timestamp)
+                .FirstOrDefault();
+
+            return latest == null ? null : (latest.Timestamp, latest.Strategy, latest.Content);
+        }
+
         /// <summary>
         /// Thread gönderildiğinde hafızaya kaydet (haftalık kontrol için)
         /// </summary>
@@ -385,4 +399,3 @@ namespace XiDeAI_Pro.Services
         public List<string> RelatedSymbols { get; set; } = new List<string>();
     }
 }
-
