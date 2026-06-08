@@ -163,3 +163,13 @@
 - Manuel kısa thread promptunda FOMO, gizem, clickbait ve rol yapma dili yasaklandı.
 - Telegram `/ANALIZ SYMBOL [PERIOD] [BASIS]` artık UI ile aynı `TradingViewChartId` akışını kullanır; üçüncü argüman baz seçimi olarak çalışır.
 - Telegram dinamik analiz mesajlarında Markdown parse hatası olursa mesaj otomatik plain-text olarak tekrar gönderilir.
+
+---
+
+## v5.3.6 Haber ve Etkileşim Cevap Kalitesi Notları
+
+- Haber promptlarının üstüne sade haber editörü guardrail'i eklendi: olay, kaynak, olası etki; clickbait/FOMO/takip/RT çağrısı yok.
+- Haber threadleri en fazla 3 tweet ile sınırlandı ve son tweet haber özeti/YTD güvenliği taşır.
+- Flaş haber promptundaki takip/bildirim/RT çağrısı kaldırıldı.
+- Etkileşim botu kategoriye göre `gönül elçisi`, `dert ortağı`, `kafa dengi` gibi personas kullanmaz; tüm cevaplar nötr, kısa ve ölçülü editör tonuna çekildi.
+- Reply üretimi `SKIP` dönerse öneri/aksiyon oluşturulmaz; hassas, alakasız, küfürlü veya belirsiz tweetlere cevap verilmez.

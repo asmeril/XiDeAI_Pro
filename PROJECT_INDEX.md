@@ -1,4 +1,4 @@
-> **Version:** 5.3.5 (Analysis Tone & Telegram Parity)
+> **Version:** 5.3.6 (News & Reply Quality Guardrails)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -127,6 +127,10 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.3.4)** Gün sonu özeti paylaşımı en fazla 4 tweet ile sınırlandı; factual kapanış formatı ve YTD güvenliği zorunlu.
 - **(v5.3.5)** Telegram `/ANALIZ` UI ile aynı `TradingViewChartId` akışını kullanır; opsiyonel üçüncü argüman baz (`TL/USD/EUR/XU100`) olarak alınır.
 - **(v5.3.5)** Analiz kimliği sade, seviye/teyit/risk odaklı tona çekildi; fenomen persona/clickbait/FOMO dili azaltıldı.
+- **(v5.3.6)** Etkileşim reply üretimi kategori personası yerine nötr kısa editör tonu kullanır; hassas/alakasız içerikte `SKIP` cevabı aksiyonu iptal eder.
+
+#### `NewsEngine.cs`
+- **(v5.3.6)** Haber threadleri en fazla 3 parçaya sınırlandı; son parçada haber özeti/YTD güvenliği zorunlu hale getirildi.
 
 #### `PerformanceTracker.cs`
 - `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
@@ -339,7 +343,6 @@ Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
 | :--- | :--- |
 | **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
 | **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
-
 
 
 

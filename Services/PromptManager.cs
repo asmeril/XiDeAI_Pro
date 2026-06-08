@@ -174,13 +174,14 @@ Simdi '{topic}' konusunda benzer bir tweet olustur.";
 
         public string GetReplyGenerationPrompt(string originalTweet, string tweetAuthor, string contextNotes = "")
         {
-            return $@"KİMLİK: Sen XiDeAI Pro'nun uzman analistisin. Nazik ve yardımcı bir karakterin var. 
-GÖREV: @{tweetAuthor} kullanıcısına insani, sıcak ve yardımcı bir yanıt yaz.
+            return $@"KİMLİK: Sen kısa, saygılı ve ölçülü X yanıtları yazan bir editörsün.
+GÖREV: @{tweetAuthor} kullanıcısının tweetine tek cümlelik doğal bir yanıt yaz.
 
 ÜSLUP:
-- Robot gibi ""Size nasıl yardımcı olabilirim?"" deme. 
-- Yardımcı ve nezaketli bir dil kullan.
-- Tanıtım yapma, doğrudan soru/tweet içeriğine odaklan.
+- Rol yapma, kendini tanıtma, marka adı kullanma.
+- Yargılamadan, tweetin ana fikrine kısa katkı ver.
+- Kesin hüküm, yatırım tavsiyesi, siyasi polemik, terapi dili veya fazla samimiyet yok.
+- Tweet hassas, belirsiz, küfürlü, yas/sağlık/siyaset ağırlıklı veya alakasızsa sadece SKIP yaz.
 
 ORİJİNAL TWEET (@{tweetAuthor}):
 {originalTweet}
@@ -188,10 +189,10 @@ ORİJİNAL TWEET (@{tweetAuthor}):
 {(!string.IsNullOrEmpty(contextNotes) ? $"EK NOTLAR:\n{contextNotes}\n" : "")}
 
 KURALLAR:
-1. Maks 200 karakter.
-2. @{tweetAuthor} etiketini unutma.
-3. Yatırım tavsiyesi vermeme kuralını nazikçe hatırla (YTD).
-4. KESİNLİKLE kendi kimliğini (yaş vb.) açıklama.";
+1. Maks 160 karakter.
+2. @mention zorunlu değil; doğal değilse kullanma.
+3. Emoji en fazla 1, hashtag yok.
+4. Finans ise seviye/risk/teyit dilini kullan; gerekiyorsa kısa YTD ekle.";
         }
 
         // ===========================
@@ -224,16 +225,7 @@ CEVAP: Sadece kategori adını yaz (Örn: FINANS). Başka açıklama yapma.";
         /// </summary>
         public string GetCategorizedReplyPrompt(string category, string tweetContent, string tweetAuthor)
         {
-            return category.ToUpper() switch
-            {
-                "FINANS" => GetFinansReplyPrompt(tweetContent, tweetAuthor),
-                "KULTUR_EGLENCE" => GetKulturEglenceReplyPrompt(tweetContent, tweetAuthor),
-                "MILLI_TOPLUM" => GetMilliToplumReplyPrompt(tweetContent, tweetAuthor),
-                "BILGE_KULTUR" => GetBilgeKulturReplyPrompt(tweetContent, tweetAuthor),
-                "INSAN_RUH" => GetInsanRuhReplyPrompt(tweetContent, tweetAuthor),
-                "GUNLUK_MIZAH" => GetGunlukMizahReplyPrompt(tweetContent, tweetAuthor),
-                _ => GetReplyGenerationPrompt(tweetContent, tweetAuthor) // Fallback to generic
-            };
+            return GetReplyGenerationPrompt(tweetContent, tweetAuthor, $"Kategori: {category}");
         }
 
         private string GetFinansReplyPrompt(string tweetContent, string tweetAuthor)
@@ -335,13 +327,13 @@ CEVAP:";
         {
             return category.ToUpper() switch
             {
-                "FINANS" => (0.4, 0.9, 40, 150),
-                "MILLI_TOPLUM" => (0.5, 0.95, 40, 150),
-                "BILGE_KULTUR" => (0.65, 0.95, 40, 180),
-                "INSAN_RUH" => (0.85, 0.95, 60, 180),
-                "KULTUR_EGLENCE" => (0.9, 0.95, 60, 160),
-                "GUNLUK_MIZAH" => (0.95, 1.0, 80, 150),
-                _ => (0.5, 0.95, 40, 200) // Default/Fallback
+                "FINANS" => (0.25, 0.8, 30, 90),
+                "MILLI_TOPLUM" => (0.25, 0.8, 30, 80),
+                "BILGE_KULTUR" => (0.3, 0.8, 30, 90),
+                "INSAN_RUH" => (0.25, 0.8, 30, 80),
+                "KULTUR_EGLENCE" => (0.3, 0.8, 30, 90),
+                "GUNLUK_MIZAH" => (0.35, 0.85, 30, 80),
+                _ => (0.3, 0.8, 30, 90) // Default/Fallback
             };
         }
 
@@ -1062,9 +1054,9 @@ KURALLAR:
         {
             // v5.1.3: Flash/SON DAKİKA haberler için garantili 2-tweet format
             if (isFlash)
-                return GetFlashNewsAnalysisPrompt(title, source, link, category, description);
+                return GetNewsToneGuard() + "\n\n" + GetFlashNewsAnalysisPrompt(title, source, link, category, description);
 
-            return category.ToUpper() switch
+            string prompt = category.ToUpper() switch
             {
                 "EKONOMI"     => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
                 "SIYASET"     => GetSiyasetNewsAnalysisPrompt(title, source, link, description, isFlash),
@@ -1076,6 +1068,18 @@ KURALLAR:
                 "YASAM"       => GetYasamNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
                 _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap) // Fallback
             };
+            return GetNewsToneGuard() + "\n\n" + prompt;
+        }
+
+        private string GetNewsToneGuard()
+        {
+            return @"### HABER DİLİ ÜST KURALI:
+- Sade haber editörü gibi yaz: olay, kaynak, olası etki.
+- Kaynakta olmayan veri, sembol, hedef fiyat veya nedensellik uydurma.
+- Clickbait, hamaset, korku/FOMO, 'takip et', 'bildirim aç', 'RT' çağrısı yasak.
+- En fazla 3 tweet üret. Her tweet 240 karakteri aşmasın.
+- Link ilk tweette yer alsın. Son tweette kısa kaynak/YTD notu olsun.
+- BIST sembolü sadece verilen sektör haritasında açıkça varsa yaz.";
         }
 
         private string GetFlashNewsAnalysisPrompt(string title, string source, string link, string category, string? description = null)
@@ -1105,7 +1109,7 @@ Tweet 1 ({catEmoji} 🚨 SON DAKİKA):  270 kar. max.
 Haberi çarpıcı bir cümleyle özetle + kaynağı belirt + linki ekle ({link})
 |||
 Tweet 2 (⚡ ETKİ ANALİZİ): 270 kar. max.
-Bu haberin piyasaya/topluma 1-2 cümle etkisi + net CTA (Takip et, bildirimleri ac, RT)
+Bu haberin piyasaya/topluma 1-2 cümle olası etkisi. CTA, takip veya RT çağrısı yazma.
 ⚠️ Haber özetidir, yatırım tavsiyesi değildir.
 
 KATi KURALLAR:

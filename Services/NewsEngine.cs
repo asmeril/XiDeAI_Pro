@@ -316,7 +316,14 @@ namespace XiDeAI_Pro.Services
             }
             else
             {
-                normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent);
+                normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent).Take(3).ToList();
+                if (normalizedParts.Count > 0 && !normalizedParts[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase) && !normalizedParts[^1].Contains("haber özetidir", StringComparison.OrdinalIgnoreCase))
+                {
+                    const string suffix = "\n\n⚠️ Haber özetidir, yatırım tavsiyesi değildir.";
+                    var baseText = normalizedParts[^1].Trim();
+                    if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
+                    normalizedParts[^1] = baseText + suffix;
+                }
             }
             if (normalizedParts.Count > 1 && threadContent != null && !threadContent.Contains("|||"))
             {

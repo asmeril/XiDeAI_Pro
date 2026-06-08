@@ -368,6 +368,10 @@ namespace XiDeAI_Pro.Services
         {
             string category = await DetectTweetCategory(tweetContent);
             string? reply = await GenerateCategorizedReply(category, tweetContent, authorHandle);
+            if (string.IsNullOrWhiteSpace(reply) || reply.Trim().Equals("SKIP", StringComparison.OrdinalIgnoreCase))
+            {
+                return (category, null);
+            }
             return (category, reply);
         }
 
