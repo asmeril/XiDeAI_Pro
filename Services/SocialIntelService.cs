@@ -689,11 +689,10 @@ namespace XiDeAI_Pro.Services
 
         public async Task<SocialIntelResult> PostTweet(string text, string? mediaPath = null)
         {
-            // v4.6.2: If simple tweet exceeds 280 chars, automatically convert to Trade/Thread mode
             if (text.Length > 280)
             {
-                Logger.Twitter($"⚠️ Tekil tweet metni 280 karakteri aşıyor ({text.Length}). Otomatik olarak Thread'e dönüştürülüyor.");
-                return await PostThreadAsync(ThreadPipeline.EnsureWithinLimit(new[] { text }, 280), mediaPath);
+                Logger.Twitter($"❌ Tekil tweet metni 280 karakteri aşıyor ({text.Length}); otomatik thread dönüşümü kapalı.");
+                return new SocialIntelResult { status = "error", message = "Tweet 280 karakteri aşıyor; thread gönderimi açıkça kullanılmalı." };
             }
 
             // Internal WebView2 bridge can report success without a verified /status/ URL.

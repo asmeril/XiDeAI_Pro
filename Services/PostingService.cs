@@ -26,7 +26,7 @@ namespace XiDeAI_Pro.Services
                 return Error("Tweet payload is empty.");
 
             if (text.Trim().Length > 280)
-                return await PostThreadAsync(new[] { text.Trim() }, mediaPath, module);
+                return Error($"Tek tweet 280 karakteri aşıyor ({text.Trim().Length}). Thread paylaşımı için PostThreadAsync kullanılmalı.");
 
             var result = await _socialIntel.PostTweet(text.Trim(), mediaPath);
             if (!IsVerifiedTweet(result))

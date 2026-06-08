@@ -190,3 +190,12 @@
 - Normal skor 9 haberler `SKIPPED_REVIEW` olarak history'ye yazılır; istenirse sonradan incelenebilir.
 - Sadece skor 10 veya breaking/son dakika skor 9+ haberler otomatik paylaşım yoluna girer.
 - Eski config `MinNewsImportance < 10` ise yüklemede 10'a normalize edilir.
+
+---
+
+## v5.3.9 Manuel Paylaşım Güvenliği Notları
+
+- Tek tweet paylaşımı 280+ karakterde artık otomatik thread'e çevrilmez.
+- Manuel analizde uzun detay rapor tek tweet butonundan 19-20 parçalık thread'e dönüşemez.
+- Manuel analiz paylaşım butonu sadece geçerli `ShortThread` üretildiyse aktif kalır.
+- Thread paylaşımı yalnız kullanıcı açıkça `Zincir (Thread)` seçerse yapılır ve 4 parça güvenlik kontrolünden geçer.

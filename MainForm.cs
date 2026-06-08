@@ -4091,7 +4091,7 @@ namespace XiDeAI_Pro
                     picScreenshot.Image = null;
                 }
                 
-                btnTweetAnalysis.Enabled = _lastAnalysisResult != null && _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ReportText);
+                btnTweetAnalysis.Enabled = _lastAnalysisResult != null && _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread);
             }
             catch (Exception ex)
             {
@@ -5023,11 +5023,19 @@ namespace XiDeAI_Pro
                                   MessageBox.Show("Hata oluştu: " + postResult.ErrorMessage);
                               }
                          }
-                         else
-                         {
-                             btnTweetAnalysis.Enabled = false;
-                             btnTweetAnalysis.Text = "⏳ Web üzerinden gönderiliyor...";
-                             Log("🐦 Tek tweet gönderiliyor (Web/Selenium)...", "Twitter");
+                          else
+                          {
+                              btnTweetAnalysis.Enabled = false;
+                              btnTweetAnalysis.Text = "⏳ Web üzerinden gönderiliyor...";
+                              Log("🐦 Tek tweet gönderiliyor (Web/Selenium)...", "Twitter");
+
+                              string singleText = rtbAnalysisResult.Text.Trim();
+                              if (singleText.Length > 280)
+                              {
+                                  Log($"⚠️ Tek tweet metni 280 karakteri aşıyor ({singleText.Length}). Otomatik thread'e çevrilmeyecek.", "Twitter");
+                                  MessageBox.Show("Bu içerik tek tweet için çok uzun. Lütfen 'Zincir (Thread)' seçeneğini kullanın; detay rapor otomatik thread'e çevrilmeyecek.");
+                                  return;
+                              }
                              
                              // Web/Selenium First
                              // Pass media path explicitly (only if file exists)
@@ -5039,7 +5047,7 @@ namespace XiDeAI_Pro
                              }
                              Log($"📸 Medya yolu: {mediaPath ?? "YOK"}", "Twitter");
                              
-                             var res = await _opManager.Posting.PostTweetAsync(rtbAnalysisResult.Text, mediaPath, "ManualAnalysis");
+                              var res = await _opManager.Posting.PostTweetAsync(singleText, mediaPath, "ManualAnalysis");
                              
                              if (res.status == "success")
                              {
