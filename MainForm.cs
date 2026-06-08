@@ -5841,7 +5841,8 @@ namespace XiDeAI_Pro
                 return;
             }
 
-            Log($"🎨 {ConfigManager.Current.GuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
+            string selectedGuruHandle = GetSelectedGuruHandle();
+            Log($"🎨 {selectedGuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
             
             var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(firstImageUrl);
             
@@ -5858,8 +5859,9 @@ namespace XiDeAI_Pro
             Log($"✅ {items.Count} hisse tespit edildi. ({tableName}) Analizler ve grafikler hazırlanıyor...", "System");
             bool processedSuccessfully = false;
 
-            foreach (var (symbol, period) in items)
+            foreach (var (symbol, period, reason) in items)
             {
+                string safePeriod = string.IsNullOrWhiteSpace(period) ? "G" : period;
                 // Market detection for chart & price
                 string marketPrefix = "BIST";
                 if (symbol.EndsWith("USDT") || symbol.Length > 5) marketPrefix = "BINANCE"; // Simple heuristic
@@ -5870,7 +5872,7 @@ namespace XiDeAI_Pro
                 {
                     Log($"📸 #{symbol} için TradingView grafiği yakalanıyor...", "System");
                     string tvSymbol = (marketPrefix == "BIST") ? $"BIST:{symbol}" : symbol;
-                    chartPath = await _opManager.Screenshot.CaptureChart(tvSymbol, period, ConfigManager.Current.TradingViewChartId);
+                    chartPath = await _opManager.Screenshot.CaptureChart(tvSymbol, safePeriod, ConfigManager.Current.TradingViewChartId);
                 }
                 catch (Exception ex) { Log($"⚠️ Grafik yakalanamadı: {ex.Message}", "System"); }
 
@@ -5885,9 +5887,11 @@ namespace XiDeAI_Pro
 
                 try
                 {
-                    Log($"✍️ #{symbol} ({period}) için görsel destekli thread hazırlanıyor...", "System");
-                    string guruHandle = ConfigManager.Current.GuruHandle;
-                    var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, period, guruHandle, post.Url, tableName, "Efelerin Efesi", techContext, chartPath);
+                    Log($"✍️ #{symbol} ({safePeriod}) için görsel destekli thread hazırlanıyor...", "System");
+                    string guruHandle = selectedGuruHandle;
+                    string guruName = GetGuruDisplayName(guruHandle);
+                    string enrichedContext = string.Join("\n", new[] { techContext, string.IsNullOrWhiteSpace(reason) ? "" : $"TABLO SEÇİM GEREKÇESİ: {reason}" }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    var thread = await _opManager.Gemini.GenerateGuruHonoringThread(symbol, safePeriod, guruHandle, post.Url, tableName, guruName, enrichedContext, chartPath);
                     if (!string.IsNullOrEmpty(thread)) thread = NormalizeGuruThreadContent(thread, guruHandle, post.Url);
                     
                     if (!string.IsNullOrEmpty(thread))
@@ -5977,6 +5981,19 @@ namespace XiDeAI_Pro
             }
 
             return normalized.Trim();
+        }
+
+        private string GetSelectedGuruHandle()
+        {
+            if (cmbGuruHandle != null && cmbGuruHandle.SelectedItem is string selected && !string.IsNullOrWhiteSpace(selected))
+                return selected;
+            return ConfigManager.Current.GuruHandle;
+        }
+
+        private static string GetGuruDisplayName(string guruHandle)
+        {
+            string clean = (guruHandle ?? string.Empty).Trim().TrimStart('@');
+            return clean.Equals("matisay67", StringComparison.OrdinalIgnoreCase) ? "Mehmet Atışay" : "Efelerin Efesi";
         }
 
         private void InitializeFenerbahcePanel()

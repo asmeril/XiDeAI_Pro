@@ -8,6 +8,7 @@ description: XiDeAI Pro — Build, Publish, Deploy & Git Workflow
 - [ ] Derleme hatası yok: `get_errors` ile tüm değiştirilen dosyalar kontrol edildi
 - [ ] Yeni `.cs` dosyası varsa `PROJECT_INDEX.md` → Services Map tablosuna eklendi
 - [ ] Yeni metot/özellik varsa `PROJECT_INDEX.md` → Key Classes & Methods güncellendi
+- [ ] Yeni sürüm için `PROJECT_MANIFEST_vNEW_VER.md` oluşturuldu veya mevcut manifestte neden ek bölüm kullanıldığı açıklandı
 
 ### iDeal Entegrasyon Kontrolleri
 - [ ] `C:\iDeal\TARAMA_LOG\Market_Status.txt` → format: `datetime|MOD|YON|GunlukDeg%|Score|XU030%|XU050%|XU100_Fiyat|VolKat`
@@ -114,6 +115,7 @@ git push origin master
 | WebView2 modal kapanınca false success | ✅ Düzeltildi — canonical PostingService + Playwright doğrulama | v5.3.0 |
 | Guru/sabah/gün sonu farklı gönderim yolları | ✅ Düzeltildi — tüm production modüller tek doğrulanmış posting hattına yönlendi | v5.3.0 |
 | Market_Movers hacim verisi thread'e girmiyordu | ✅ Düzeltildi — hacim parser + HACIM LIDERLERI prompt bölümü | v5.3.0 |
+| Üstat paneli tek hoca/tek tablo tipi varsayımı | ✅ Çoklu üstat + Mehmet Atışay takas/AKD/BOFA analizi eklendi | v5.4.5 |
 
 ---
 

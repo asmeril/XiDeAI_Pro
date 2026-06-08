@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Security.Cryptography;
@@ -153,6 +154,7 @@ namespace XiDeAI_Pro.Config
         public bool EnableAutoBenchmark { get; set; } = false; // Production default: avoid Gemini quota spam
         public bool IsGuruAutomationEnabled { get; set; } = false; // Phase 4.1: Guru Automation Toggle
         public string GuruHandle { get; set; } = "@EFELERiiNEFESi3"; // Phase 4.1: Takip edilen üstat handle'ı
+        public List<string> GuruHandles { get; set; } = new List<string> { "@EFELERiiNEFESi3", "@matisay67" }; // Üstat paneli çoklu kaynak
         public bool EnableMetaTeacher { get; set; } = false; // Phase 1 (Hive): Enables Meta-Teacher Analysis Logic
 
         // LM Studio / Link Support
@@ -252,6 +254,20 @@ namespace XiDeAI_Pro.Config
             if (Current.BotMinFavorites < 100)
             {
                 Current.BotMinFavorites = 100;
+                saveNeeded = true;
+            }
+            if (Current.GuruHandles == null) Current.GuruHandles = new List<string>();
+            foreach (var handle in new[] { "@EFELERiiNEFESi3", "@matisay67" })
+            {
+                if (!Current.GuruHandles.Any(h => h.Equals(handle, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Current.GuruHandles.Add(handle);
+                    saveNeeded = true;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(Current.GuruHandle) && !Current.GuruHandles.Any(h => h.Equals(Current.GuruHandle, StringComparison.OrdinalIgnoreCase)))
+            {
+                Current.GuruHandles.Insert(0, Current.GuruHandle);
                 saveNeeded = true;
             }
             return saveNeeded;

@@ -1,2 +1,2 @@
 # Build script call
-.\release.ps1 -Version "5.4.4" -Changelog "v5.4.4: Signal table date/status and guru panel history/layout improvements"
+.\release.ps1 -Version "5.4.5" -Changelog "v5.4.5: Multi-guru panel with Mehmet Atışay takas analysis flow"

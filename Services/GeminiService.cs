@@ -140,14 +140,18 @@ namespace XiDeAI_Pro.Services
             return string.Empty;
         }
 
-        public async Task<(List<(string Symbol, string Period)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
+        public async Task<(List<(string Symbol, string Period, string Reason)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
         {
-            var results = new List<(string Symbol, string Period)>();
+            var results = new List<(string Symbol, string Period, string Reason)>();
             string tableName = "Teknik Tarama Listesi";
             try
             {
                 byte[] imageBytes = await client.GetByteArrayAsync(imageUrl);
-                string prompt = @"Bu bir borsa tarama sonuç tablosudur. Lütfen 'Sembol' ve 'Periyot' sütunlarını oku. JSON formatında döndür: { ""TableName"": ""..."", ""Items"": [{""Symbol"": ""..."", ""Period"": ""...""}] }";
+                string prompt = @"Bu bir borsa/takas tarama görselidir. Önce tablo türünü anla:
+- Teknik tarama tablosu olabilir.
+- Takas/yabancı payı/fiili dolaşım/AKD/BOFA tablosu olabilir. AKD aracı kurum dağılımıdır, BOFA Bank of America'dır.
+Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç. Takas tablosunda seçim gerekçesi yabancı payı, fiili dolaşıma oran, BOFA son 2 AKD farkı veya belirgin ayrışma olmalı. Her sembol için kısa Reason yaz.
+Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Yabancı payı farkı listede öne çıkıyor""}] }";
 
                 string tempFile = Path.Combine(Path.GetTempPath(), $"guru_{Guid.NewGuid():N}.png");
                 await File.WriteAllBytesAsync(tempFile, imageBytes);
@@ -175,8 +179,9 @@ namespace XiDeAI_Pro.Services
                         foreach (var item in items.EnumerateArray())
                         {
                             string sym = item.GetProperty("Symbol").GetString() ?? "";
-                            string per = item.GetProperty("Period").GetString() ?? "";
-                            if (!string.IsNullOrEmpty(sym)) results.Add((sym, per));
+                            string per = item.TryGetProperty("Period", out var perProp) ? perProp.GetString() ?? "G" : "G";
+                            string reason = item.TryGetProperty("Reason", out var reasonProp) ? reasonProp.GetString() ?? "" : "";
+                            if (!string.IsNullOrEmpty(sym)) results.Add((sym, string.IsNullOrWhiteSpace(per) ? "G" : per, reason));
                         }
                     }
                 }

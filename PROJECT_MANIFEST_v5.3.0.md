@@ -250,3 +250,14 @@
 - Performance history kayıtlarına `Durum` alanı eklendi.
 - Üstat panelinde canlı akış alanı küçültülerek onay/önizleme bölümü büyütüldü; onay listesi üstte, geniş görsel+metin önizleme altta gösterilir.
 - Üstat paneli taslak/yayın/red geçmişi `guru_history.json` dosyasına kaydedilir ve `Geçmiş` butonundan görüntülenebilir.
+
+---
+
+## v5.4.5 Çoklu Üstat ve Takas Analizi Notları
+
+- Üstat panelinde çoklu hoca seçimi eklendi: `@EFELERiiNEFESi3` ve `@matisay67` varsayılan kaynaklardır.
+- Mehmet Atışay `@matisay67` takas/yabancı payı/AKD/BOFA analizleri için ayrı üstat kaynağı olarak eklendi.
+- Görsel tablo parse promptu artık teknik tarama ile takas/yabancı payı tablolarını ayırır.
+- Takas tablolarında analiz adayı seçimi yabancı payı, fiili dolaşım oranı/lotu, BOFA son 2 AKD farkı ve belirgin ayrışma gerekçesine göre yapılır.
+- Üstat analizi seçilen hocaya göre mention yapar; yalnız seçili hoca mention edilebilir ve kaynak tarama tweet URL'si zorunludur.
+- Takas verisinin tek başına al/sat sinyali olmadığı, fiyat/hacim/kapanış teyidi gerektiği prompt seviyesinde zorunlu hale getirildi.

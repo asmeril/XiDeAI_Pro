@@ -1,8 +1,9 @@
 {
-    "version": "5.4.4",
-    "build_number": 5440,
-    "lastUpdate": "2026-06-09T00:55:00Z",
+    "version": "5.4.5",
+    "build_number": 5450,
+    "lastUpdate": "2026-06-09T01:25:00Z",
     "changelog": [
+        "v5.4.5: GURU: Mehmet Atışay (@matisay67) takas/AKD/BOFA üstat kaynağı eklendi; çoklu hoca seçimi, takas tablosu aday seçimi ve kaynaklı analiz promptu",
         "v5.4.4: UI: Sinyal tablosu tarih+saat ve gerçek durum gösterir; üstat paneli önizleme alanı büyütüldü ve taslak/yayın/red geçmişi eklendi",
         "v5.4.3: GURU: Üstat paneli dili hocaya saygılı ama ölçülü hale getirildi; sadece hoca mention'ı ve kaynak tarama tweet URL'si zorunlu",
         "v5.4.2: INTERACTION: Otomatik adaylar finans odaklı ve promo/giveaway hard-block; Telegram onay komutları /ONAY_ID formatıyla tıklanabilir",
