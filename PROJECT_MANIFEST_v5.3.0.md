@@ -173,3 +173,11 @@
 - Flaş haber promptundaki takip/bildirim/RT çağrısı kaldırıldı.
 - Etkileşim botu kategoriye göre `gönül elçisi`, `dert ortağı`, `kafa dengi` gibi personas kullanmaz; tüm cevaplar nötr, kısa ve ölçülü editör tonuna çekildi.
 - Reply üretimi `SKIP` dönerse öneri/aksiyon oluşturulmaz; hassas, alakasız, küfürlü veya belirsiz tweetlere cevap verilmez.
+
+---
+
+## v5.3.7 Telegram Haber Onay Bildirimi Notları
+
+- Haber onay mesajları uzun Markdown formatından çıkarıldı; kısa, düz metin ve karar odaklı formata alındı.
+- Başlık, kaynak, özet, gerekçe ve link alanları kırpılıp Markdown bozabilecek karakterlerden temizlenir.
+- `/ONAYHABER ID` ve `/REDHABER ID` komutları düz metin olarak gösterilir; Telegram parse hatası riski azaltıldı.

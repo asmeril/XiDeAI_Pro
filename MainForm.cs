@@ -1892,15 +1892,37 @@ namespace XiDeAI_Pro
                     string analysisText = includesAnalysis ? "+ Analiz" : "Sadece Haber";
                     UpdateBotStatus($"⚠️ [{category}] Onay Bekliyor [ID: {id}] ({analysisText}): {news.Title}");
                     if (_newsInitialized) AddNewsCard(news, summary, "PENDING");
-                    
-                    string msg = $"⚠️ *ONAY BEKLİYOR [ID: {id}] ({score}/10)*\n\n" +
-                                 $"📂 *Kategori:* {category}\n" +
-                                 $"📰 *{news.Title}*\n" +
-                                 $"📝 *İçerik:* {analysisText}\n" +
-                                 $"🔎 *Analiz:* {reasoning}\n" +
-                                 $"📝 *Özet:* {summary}\n\n" +
-                                 $"✅ Onay: `/ONAYHABER {id}`\n" +
-                                 $"❌ Red: `/REDHABER {id}`";
+
+                    static string CleanTelegramLine(string? value, int maxLen)
+                    {
+                        string text = (value ?? string.Empty)
+                            .Replace("\r", " ")
+                            .Replace("\n", " ")
+                            .Replace("*", "")
+                            .Replace("_", "")
+                            .Replace("`", "")
+                            .Replace("[", "(")
+                            .Replace("]", ")")
+                            .Trim();
+                        while (text.Contains("  ")) text = text.Replace("  ", " ");
+                        return text.Length <= maxLen ? text : text.Substring(0, Math.Max(0, maxLen - 3)).TrimEnd() + "...";
+                    }
+
+                    string title = CleanTelegramLine(news.Title, 180);
+                    string source = CleanTelegramLine(news.Source, 80);
+                    string shortSummary = CleanTelegramLine(summary, 220);
+                    string shortReason = CleanTelegramLine(reasoning, 180);
+                    string link = CleanTelegramLine(news.Link, 220);
+
+                    string msg = $"⚠️ HABER ONAYI #{id} | Skor: {score}/10\n\n" +
+                                 $"Kategori: {category} | İçerik: {analysisText}\n" +
+                                 $"Kaynak: {source}\n\n" +
+                                 $"Başlık: {title}\n" +
+                                 (!string.IsNullOrWhiteSpace(shortSummary) ? $"Özet: {shortSummary}\n" : "") +
+                                 (!string.IsNullOrWhiteSpace(shortReason) ? $"Gerekçe: {shortReason}\n" : "") +
+                                 (!string.IsNullOrWhiteSpace(link) ? $"Link: {link}\n\n" : "\n") +
+                                 $"Onay: /ONAYHABER {id}\n" +
+                                 $"Red: /REDHABER {id}";
                     _ = _opManager.Telegram.SendMessageAsync(msg);
                 };
 
