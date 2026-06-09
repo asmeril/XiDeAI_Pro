@@ -60,7 +60,7 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
             string citationSection = string.IsNullOrEmpty(influencerCitations)
                 ? ""
                 : $"\n\nFENOMENLERİN DURUMU (SENTİMENT):\n{influencerCitations}\n" +
-                  "KURAL: Sadece yukarıda verilen @handle'ları kullan. Mention yaparsan aynı tweet içinde veya hemen ardından Kaynak tweet URL'sini de ekle. Listede olmayan hiçbir @mention ekleme.";
+                  "KURAL: En az bir doğrulanmış fenomen görüşünü analizde kaynak olarak özetle. Sadece yukarıda verilen @handle'ları kullan. Mention yaparsan aynı satırda Kaynak tweet URL'sini de ver. Listede olmayan hiçbir @mention ekleme.";
 
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
 
@@ -227,7 +227,20 @@ CEVAP: Sadece kategori adını yaz (Örn: FINANS). Başka açıklama yapma.";
         /// </summary>
         public string GetCategorizedReplyPrompt(string category, string tweetContent, string tweetAuthor)
         {
-            return GetReplyGenerationPrompt(tweetContent, tweetAuthor, $"Kategori: {category}");
+            string basePrompt = category.ToUpperInvariant() switch
+            {
+                "FINANS" => GetFinansReplyPrompt(tweetContent, tweetAuthor),
+                "KULTUR_EGLENCE" => GetKulturEglenceReplyPrompt(tweetContent, tweetAuthor),
+                "MILLI_TOPLUM" => GetMilliToplumReplyPrompt(tweetContent, tweetAuthor),
+                "BILGE_KULTUR" => GetBilgeKulturReplyPrompt(tweetContent, tweetAuthor),
+                "INSAN_RUH" => GetInsanRuhReplyPrompt(tweetContent, tweetAuthor),
+                "GUNLUK_MIZAH" => GetGunlukMizahReplyPrompt(tweetContent, tweetAuthor),
+                _ => GetReplyGenerationPrompt(tweetContent, tweetAuthor, $"Kategori: {category}")
+            };
+
+            return basePrompt + @"
+
+EK KURAL: Şablon gibi tekrar eden cevap yazma. Tweetin içindeki somut kelime, seviye, olay veya duyguya en az bir özgün referans ver. Genel 'katılıyorum/önemli nokta' cümlesi kullanma.";
         }
 
         private string GetFinansReplyPrompt(string tweetContent, string tweetAuthor)
@@ -329,13 +342,13 @@ CEVAP:";
         {
             return category.ToUpper() switch
             {
-                "FINANS" => (0.25, 0.8, 30, 90),
-                "MILLI_TOPLUM" => (0.25, 0.8, 30, 80),
-                "BILGE_KULTUR" => (0.3, 0.8, 30, 90),
-                "INSAN_RUH" => (0.25, 0.8, 30, 80),
-                "KULTUR_EGLENCE" => (0.3, 0.8, 30, 90),
-                "GUNLUK_MIZAH" => (0.35, 0.85, 30, 80),
-                _ => (0.3, 0.8, 30, 90) // Default/Fallback
+                "FINANS" => (0.45, 0.9, 40, 110),
+                "MILLI_TOPLUM" => (0.4, 0.9, 40, 100),
+                "BILGE_KULTUR" => (0.45, 0.9, 40, 110),
+                "INSAN_RUH" => (0.4, 0.9, 40, 100),
+                "KULTUR_EGLENCE" => (0.5, 0.9, 40, 110),
+                "GUNLUK_MIZAH" => (0.55, 0.92, 40, 100),
+                _ => (0.45, 0.9, 40, 110) // Default/Fallback
             };
         }
 
@@ -482,16 +495,25 @@ CIKTI FORMATI (KESIN KURAL):
 
 {gainersSection}{losersSection}{volumeSection}{nabizSection}
 
+### IDEAL/NABIZ VERI KULLANIMI (ZORUNLU):
+- Market_Status ve varsa IDEAL MARKET MOVERS verisi birincil kaynaktır.
+- Tavan yapan 2-3 hisseyi, taban yapan 2-3 hisseyi ve hacmi yüksek isimleri somut isim+yüzde ile kullan.
+- Hacim verisi Hacim: alanında rakam olarak varsa mutlaka aktar; 'hacim verisi yok' deme.
+- Hacim Katı 0,0x gibi düşükse piyasa geneli sönük, ama tekil hisselerde hacim/kutuplaşma var diye ayır.
+- Market_Pulse_Alarm boşsa bunu uydurma; onun yerine Market_Movers listesindeki tavan/taban dağılımını anlat.
+- 'Akıllı para', 'kurumsal topladı', 'likidite avı', 'devler', 'patlama' gibi kanıtsız/abartılı hikaye cümleleri yasak.
+- CRASH/NEGATIF mod varsa bunu yumuşatma; günün risk tonunu net söyle.
+
 ### KANCA KURALI (ZORUNLU - 1. TWEET):
-Ilk tweet okuyucuyu durdurmalı. Bunun icin asagidaki verilerden EN CARPICI olanı sec:
+Ilk tweet okuyucuyu durdurmalı ama boş retorik yapmamalı. Bunun icin asagidaki verilerden EN CARPICI olanı sec:
 - Gun sonu kapanıs degisim yuzdesi (%X yukseldik / %X dustuk)
 - Gunun en yuksek hacimli ani kirilim saati ve yuzdesi (nabız kayitlarından)
 - En cok yukselenin kapanis yuzdesı (tavan mu?)
-Soru bırak: 'Neden?', 'Ardinda ne var?', 'Yarin ne olur?' gibi.
+Soru bırakacaksan veri temelli olsun: 'Yarın bu ayrışma devam eder mi?' gibi. 'Neden bu kadar volatilite?' gibi boş/genel soru yazma.
 
 ### X ETKILESIM KURALLARI (ZORUNLU):
 1. FORMAT: Blok paragraf yasak. Cumleler kisa. Satirlar arasi bosluk birak.
-2. NABIZ ANLARI (varsa): Sadece saat + yuzde + hacim katiyla aktar; 'akilli para' veya senaryo uydurma.
+2. NABIZ/MOVERS: Nabız alarmı varsa saat+yüzde+hacim katıyla; yoksa tavan/taban ve hacim liderlerini isim+yüzdeyle aktar.
 3. SON TWEET: Yarin izlenecek net seviye + okuyucuya soru.
 4. Hashtag SADECE son tweet'e: #BIST100 #Borsa
 5. Takip et / bildirim ac / RT cagrisi YASAK.
@@ -499,7 +521,7 @@ Soru bırak: 'Neden?', 'Ardinda ne var?', 'Yarin ne olur?' gibi.
 ### THREAD YAPISI (4 tweet):
 Tweet 1: 🔥 KANCA — XU100 kapanisi veya en carpici veri; abartisiz soru bırak.
 Tweet 2: 📊 Endeks + hacim — XU100/XU030/XU050 ve mod/trend yorumu.
-Tweet 3: 📌 Yildizlar, dusenler ve hacim liderleri — en anlamli 2-3 noktayi sec.
+Tweet 3: 📌 iDeal movers — tavanlar, tabanlar, hacimli isimler; en anlamli 3-5 somut noktayi sec.
 Tweet 4: 🔎 Yarin izlenecek seviye + risk notu + soru + #BIST100 #Borsa + YTD.";
         }
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
@@ -709,9 +731,9 @@ GEÇMİŞ HAFIZA: {historyNote}
                 ? ""
                 : $@"
 
-### 📈 GEÇMİŞ BAŞARI (Bunu doğal bir şekilde ilk tweet'te hatırlat):
+### 📈 ÖNCEKİ ANALİZ BAĞLAMI (Tutarlılık için kullan, birebir kopyalama):
 {lastWeekAnalysis}
-Örnek kullanım: ""Geçen hafta 272 demiştim, tam oradan %15 tepki geldi 📈 Şimdi yeni bir hikaye başlıyor...""";
+KURAL: Önceki analizdeki ana seviye/yön değişmediyse bunu kısa hatırlat. Değiştiyse 'önceki plana göre şu değişti' diyerek güncelle.";
 
             string influencerSection = string.IsNullOrEmpty(influencerContext)
                 ? ""

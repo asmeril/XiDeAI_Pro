@@ -197,9 +197,9 @@ namespace XiDeAI_Pro.Services
 
                 if (status == "PENDING_WITH_ANALYSIS" || score == 9)
                 {
-                    item.IncludesAnalysis = false;
-                    OnLog?.Invoke($"🧹 Haber yüksek skor ama Telegram onayına düşmedi (Skor: {score}/10): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "SKIPPED_REVIEW");
+                    item.IncludesAnalysis = true;
+                    OnLog?.Invoke($"⚠️ Haber onay kuyruğuna alındı (Skor: {score}/10): {item.Title}", "NewsEngine");
+                    OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, item.IncludesAnalysis);
                     return;
                 }
 

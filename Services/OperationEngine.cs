@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text;
 
 namespace XiDeAI_Pro.Services
 {
@@ -136,7 +137,7 @@ namespace XiDeAI_Pro.Services
 
                 bool anySent = false;
 
-                var tweets = ThreadPipeline.ParseParts(tweetSet, 280).Take(4).ToList();
+                var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 280, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
                 if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
                 {
                     const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
@@ -360,6 +361,23 @@ namespace XiDeAI_Pro.Services
             string eodSnapshot   = "";
             string nabizUyarilari = "";
 
+            static string FieldValue(string raw)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) return "";
+                string v = raw.Trim();
+                int idx = v.IndexOf(':');
+                if (idx >= 0 && idx + 1 < v.Length) v = v.Substring(idx + 1).Trim();
+                return v;
+            }
+
+            static string NormalizeMoverLine(string raw)
+            {
+                string s = raw.Trim();
+                s = s.Replace("^TAVAN", "TAVAN").Replace("�TAVAN", "TAVAN").Replace("�TABAN", "TABAN");
+                s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ");
+                return s;
+            }
+
             try
             {
                 // ── 1. Market_Status.txt → anlık endeks durumu ──────────────────────────────
@@ -373,9 +391,14 @@ namespace XiDeAI_Pro.Services
                         string tarih = cols[0].Length >= 10 ? cols[0].Substring(0, 10) : cols[0];
                         if (DateTime.TryParse(tarih, out DateTime dt) && dt.Date == DateTime.Today)
                         {
-                            indicesData = $"XU100 Anlık | Fiyat: {cols[7]} | Değişim: %{cols[3]} | Trend: {cols[2]} | Mod: {cols[1]}";
-                            if (cols.Length >= 9) indicesData += $" | Hacim Kat: {cols[8]}x";
-                            if (cols.Length >= 6) indicesData += $"\nXU030: %{cols[5]} | XU050: %{cols[6]}";
+                            string gunluk = FieldValue(cols[3]);
+                            string xu030 = cols.Length >= 6 ? FieldValue(cols[5]) : "";
+                            string xu050 = cols.Length >= 7 ? FieldValue(cols[6]) : "";
+                            string fiyat = cols.Length >= 8 ? FieldValue(cols[7]) : "";
+                            string volKat = cols.Length >= 9 ? FieldValue(cols[8]) : "";
+                            indicesData = $"XU100 | Fiyat: {fiyat} | Günlük: {gunluk} | Trend: {cols[2]} | Mod: {cols[1]}";
+                            if (!string.IsNullOrWhiteSpace(volKat)) indicesData += $" | Hacim Katı: {volKat}";
+                            if (!string.IsNullOrWhiteSpace(xu030) || !string.IsNullOrWhiteSpace(xu050)) indicesData += $"\nXU030: {xu030} | XU050: {xu050}";
                         }
                     }
                 }
@@ -412,6 +435,37 @@ namespace XiDeAI_Pro.Services
 
                     if (alarmLines.Count > 0)
                         nabizUyarilari = string.Join("\n", alarmLines);
+                }
+            }
+            catch { }
+
+            try
+            {
+                // ── 3. Market_Movers.txt → iDeal nabız robotunun yükselen/düşen listesi ──
+                string moversFile = @"C:\iDeal\TARAMA_LOG\Market_Movers.txt";
+                if (System.IO.File.Exists(moversFile))
+                {
+                    string text;
+                    try { text = System.IO.File.ReadAllText(moversFile, Encoding.GetEncoding(1254)); }
+                    catch { text = System.IO.File.ReadAllText(moversFile); }
+
+                    if (text.Contains(DateTime.Today.ToString("yyyy-MM-dd")))
+                    {
+                        var moverRows = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(NormalizeMoverLine)
+                            .Where(l => System.Text.RegularExpressions.Regex.IsMatch(l, @"^\d+\.\s+[A-Z0-9]{2,}") && l.Contains("%") && l.Contains("Hacim:"))
+                            .ToList();
+                        var gainers = moverRows.Take(8).ToList();
+                        var losers = moverRows.Skip(20).Take(8).ToList();
+                        var moverParts = new List<string>();
+                        if (gainers.Count > 0) moverParts.Add("YUKSELENLER:\n" + string.Join("\n", gainers));
+                        if (losers.Count > 0) moverParts.Add("DUSENLER:\n" + string.Join("\n", losers));
+                        string moversText = string.Join("\n", moverParts);
+                        if (!string.IsNullOrWhiteSpace(moversText))
+                        {
+                            eodSnapshot += (string.IsNullOrWhiteSpace(eodSnapshot) ? "" : "\n") + "IDEAL MARKET MOVERS:\n" + moversText;
+                        }
+                    }
                 }
             }
             catch { }

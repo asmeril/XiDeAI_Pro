@@ -194,7 +194,7 @@ namespace XiDeAI_Pro.Services
                 InfluencerControl, 
                 Memory, 
                 NewsEng,
-                (msg) => Console.WriteLine($"[ManualAnalysis] {msg}")
+                (msg) => Logger.AI($"[ManualAnalysis] {msg}")
             );
 
             Interaction = new InteractionEngine(

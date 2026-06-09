@@ -108,6 +108,46 @@ namespace XiDeAI_Pro.Services
             return ParseParts(trimmed, limit);
         }
 
+        public static List<string> BuildCompactThread(string content, int limit = 280, int maxTweets = 8, int minUsefulLength = 120, string? finalSuffix = null)
+        {
+            var parts = ParseParts(content, limit)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToList();
+
+            if (parts.Count == 0) return parts;
+
+            for (int i = parts.Count - 1; i > 0; i--)
+            {
+                string merged = parts[i - 1].TrimEnd() + "\n\n" + parts[i].TrimStart();
+                if ((parts[i].Length < minUsefulLength || parts.Count > maxTweets) && merged.Length <= limit)
+                {
+                    parts[i - 1] = merged;
+                    parts.RemoveAt(i);
+                }
+            }
+
+            if (parts.Count > maxTweets)
+            {
+                var kept = parts.Take(maxTweets).ToList();
+                string tailNote = "Devamındaki detaylar Telegram/UI raporunda. Ana plan burada.";
+                string last = kept[^1].TrimEnd();
+                if (last.Length + tailNote.Length + 2 <= limit) kept[^1] = last + "\n" + tailNote;
+                else kept[^1] = last.Substring(0, Math.Max(0, limit - tailNote.Length - 5)).TrimEnd() + "...\n" + tailNote;
+                parts = kept;
+            }
+
+            if (!string.IsNullOrWhiteSpace(finalSuffix) && parts.Count > 0 && !parts[^1].Contains(finalSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                string suffix = finalSuffix.Trim();
+                string last = parts[^1].TrimEnd();
+                if (last.Length + suffix.Length + 2 > limit) last = last.Substring(0, Math.Max(0, limit - suffix.Length - 5)).TrimEnd() + "...";
+                parts[^1] = last + "\n\n" + suffix;
+            }
+
+            return EnsureWithinLimit(parts, limit).Take(maxTweets).ToList();
+        }
+
         public static bool TryParseCommand(string content, string commandPrefix, out string[] parts)
         {
             parts = Array.Empty<string>();

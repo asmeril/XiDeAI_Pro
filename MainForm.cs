@@ -1870,14 +1870,19 @@ namespace XiDeAI_Pro
 
                 _opManager = new OperationManager();
                 _opManager.OnLogAI += (msg) => this.Invoke((MethodInvoker)(() => LogAI(msg)));
+                _opManager.NewsTracker.LogAction = (msg, cat) => Log(msg, cat);
                 await _opManager.InitializeAllAsync(appDataDir, (msg, src) => Log(msg, src));
 
                 // Load Signal History from PerformanceTracker
                 LoadSignalHistory();
 
                 // Wire UI Specific Events
+                _opManager.SignalEng.OnLog += (msg, src) => Log(msg, src == "Twitter" ? "Twitter" : "Signal");
                 _opManager.SignalEng.OnStatusUpdate += (status) => UpdateBotStatus(status);
                 _opManager.SignalEng.OnSignalProcessed += (sig) => this.Invoke((MethodInvoker)(() => AddSignalToGrid(sig)));
+
+                _opManager.NewsEng.OnLog += (msg, src) => Log(msg, src == "System" ? "System" : "News");
+                _opManager.NewsEng.OnStatusUpdate += (status) => UpdateBotStatus(status);
 
                 _opManager.NewsEng.OnNewsProcessed += (news, summary, importance, category) => {
                     UpdateBotStatus($"📰 [{category}] Haber Yayınlandı: {news.Title}");
@@ -2379,7 +2384,7 @@ namespace XiDeAI_Pro
                         return false;
                     }
 
-                    var tweets = ThreadPipeline.ParseParts(tweetSet, 280).Take(4).ToList();
+                    var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 280, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
                     if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
                     {
                         const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
@@ -3660,7 +3665,15 @@ namespace XiDeAI_Pro
         
         private async void OnNewsReceived(NewsItem news)
         {
-            await _opManager.NewsEng.ProcessNews(news);
+            try
+            {
+                LogNews($"📥 Haber algılandı: [{news.Source}] {news.Title}");
+                await _opManager.NewsEng.ProcessNews(news);
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ OnNewsReceived Hatası: {ex.Message}", "News");
+            }
         }    
         // v2.3: NewsEngine'den gelen sonuçları kuyruğa atıp Twitter'a gönderen handler
         private void OnNewsEngineProcessed(NewsItem news, string analysis, int importance)
@@ -4057,8 +4070,9 @@ namespace XiDeAI_Pro
                     rtbAnalysisResult.Text = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
                         ? _lastAnalysisResult.ShortThread
                         : _lastAnalysisResult.ReportText;
-                    // Auto-enable thread mode if success
-                    chkPostAsThread.Checked = _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread);
+                    // Auto-enable thread mode if a shareable thread exists or detailed report is too long for one tweet.
+                    chkPostAsThread.Checked = _lastAnalysisResult.Success &&
+                        (!string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread) || (_lastAnalysisResult.ReportText?.Length ?? 0) > 280);
                     
                     // Load screenshot into PictureBox if available
                     if (!string.IsNullOrEmpty(_lastAnalysisResult.ScreenshotPath) && 
@@ -4091,7 +4105,7 @@ namespace XiDeAI_Pro
                     picScreenshot.Image = null;
                 }
                 
-                btnTweetAnalysis.Enabled = _lastAnalysisResult != null && _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread);
+                btnTweetAnalysis.Enabled = _lastAnalysisResult != null && _lastAnalysisResult.Success && !string.IsNullOrWhiteSpace(rtbAnalysisResult.Text);
             }
             catch (Exception ex)
             {
@@ -4458,6 +4472,13 @@ namespace XiDeAI_Pro
 
                     Logger.Telegram($"⌨️ Komut Çalıştırılıyor: {command} {args}");
 
+                    int ParseCommandId()
+                    {
+                        int parsedId = -1;
+                        if (!string.IsNullOrWhiteSpace(args)) int.TryParse(args.Trim(), out parsedId);
+                        return parsedId;
+                    }
+
                     try 
                     {
                         switch (command)
@@ -4519,15 +4540,11 @@ namespace XiDeAI_Pro
                                 Logger.Sys($"🧵 /TWEETLE: {_lastAnalysisSymbol} için Thread hazırlanıyor...");
                                 await _opManager.Telegram.SendMessageAsync($"🧵 *{_lastAnalysisSymbol}* paylaşılıyor...");
                                 
-                                if (string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread))
-                                {
-                                    await _opManager.Telegram.SendMessageAsync("⚠️ Paylaşılabilir kısa thread üretilemedi. Detay raporu X'e thread olarak gönderilmeyecek.");
-                                    break;
-                                }
-
-                                string threadText = _lastAnalysisResult.ShortThread;
-                                var tweets = ThreadPipeline.ParseParts(threadText, 280);
-                                if (tweets.Count < 4 || tweets.Count > 8)
+                                string threadText = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
+                                    ? _lastAnalysisResult.ShortThread
+                                    : _lastAnalysisResult.ReportText;
+                                var tweets = ThreadPipeline.BuildCompactThread(threadText, 280, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                                if (tweets.Count < 2 || tweets.Count > 8)
                                 {
                                     await _opManager.Telegram.SendMessageAsync($"⚠️ Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
                                     break;
@@ -4622,9 +4639,7 @@ namespace XiDeAI_Pro
                         case "/ONAY_HABER":
                         case "/ONAYHABER":
                             {
-                                int id = -1;
-                                var cmdParts = msgText.Split(' ');
-                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                int id = ParseCommandId();
 
                                 if (id > 0)
                                 {
@@ -4687,9 +4702,7 @@ namespace XiDeAI_Pro
                         case "/RED_HABER":
                         case "/REDHABER":
                             {
-                                int id = -1;
-                                var cmdParts = msgText.Split(' ');
-                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                int id = ParseCommandId();
                                 if (id > 0 && _pendingNewsDict.TryRemove(id, out _))
                                     await _opManager.Telegram.SendMessageAsync($"❌ {id} reddedildi.");
                                 else if (id <=0) _pendingNewsDict.Clear();
@@ -4698,9 +4711,7 @@ namespace XiDeAI_Pro
                             
                         case "/ONAY":
                              {
-                                int id = -1;
-                                var cmdParts = msgText.Split(' ');
-                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                int id = ParseCommandId();
 
                                 if (id > 0)
                                 {
@@ -4727,9 +4738,7 @@ namespace XiDeAI_Pro
                         case "/RED":
                         case "/IPTAL":
                              {
-                                int id = -1;
-                                var cmdParts = msgText.Split(' ');
-                                if (cmdParts.Length > 1) int.TryParse(cmdParts[1], out id);
+                                int id = ParseCommandId();
                                 if (id > 0 && _pendingInteractionDict.TryRemove(id, out var p))
                                 {
                                      await _opManager.Telegram.SendMessageAsync($"❌ {id} iptal.");
@@ -5022,13 +5031,9 @@ namespace XiDeAI_Pro
                              btnTweetAnalysis.Text = "🧵 Thread Hazırlanıyor...";
                              Log("🧵 Thread modunda tweet gönderiliyor...", "Twitter");
                              
-                            if (string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread))
-                            {
-                                MessageBox.Show("Paylaşılabilir kısa thread üretilemedi. Detay raporu X'e thread olarak gönderilmeyecek.");
-                                return;
-                            }
-
-                            var analysisText = _lastAnalysisResult!.ShortThread;
+                            var analysisText = !string.IsNullOrWhiteSpace(_lastAnalysisResult?.ShortThread)
+                                ? _lastAnalysisResult!.ShortThread
+                                : rtbAnalysisResult.Text;
                              var scrPath = _lastAnalysisResult?.ScreenshotPath;
                              // Ensure media exists; otherwise skip image to avoid upload failure
                              if (string.IsNullOrEmpty(scrPath) || !File.Exists(scrPath))
@@ -5036,8 +5041,8 @@ namespace XiDeAI_Pro
                                  Log("⚠️ Screenshot bulunamadı veya silinmiş, görselsiz gönderiliyor.", "Twitter");
                                  scrPath = null;
                              }
-                             var tweets = ThreadPipeline.ParseParts(analysisText, 280);
-                             if (tweets.Count < 4 || tweets.Count > 8)
+                             var tweets = ThreadPipeline.BuildCompactThread(analysisText, 280, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                             if (tweets.Count < 2 || tweets.Count > 8)
                              {
                                  MessageBox.Show($"Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
                                  return;

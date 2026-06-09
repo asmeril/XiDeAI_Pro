@@ -347,10 +347,10 @@ namespace XiDeAI_Pro.Services
                 Log("✅ AI analizi oluşturuldu.");
                 result.ReportText = analysis;
 
-                // === SHORT THREAD FORMAT (4-8 Tweet) ===
+                // === SHORT THREAD FORMAT (2-12 Tweet) ===
                 try
                 {
-                    Log("🐦 [SHORT THREAD] 4-8 tweet arası sıkı thread oluşturuluyor...");
+                    Log("🐦 [SHORT THREAD] 2-12 tweet arası paylaşılabilir thread oluşturuluyor...");
                     
                     // Get last week's successful analysis for history callback
                     string lastWeekAnalysis = _geminiService.GetLastWeekSuccessfulAnalysis(symbol);
@@ -464,13 +464,13 @@ namespace XiDeAI_Pro.Services
             }
 
             var parts = ThreadPipeline.ParseParts(normalized, 280);
-            // Yayınlanabilir manuel analiz 4-8 parça arasında olmalı.
-            if (parts.Count < 4 || parts.Count > 8)
+            // Yayınlanabilir manuel analiz 2-12 parça arasında olabilir.
+            if (parts.Count < 2 || parts.Count > 12)
             {
                 return true;
             }
 
-            if (parts.Any(part => part.Trim().Length < 120))
+            if (parts.Any(part => part.Trim().Length < 60))
             {
                 return true;
             }

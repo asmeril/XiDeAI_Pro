@@ -418,15 +418,15 @@ Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""
             string prompt = _prompts.GetNewsUnifiedScoringPrompt(title, source);
             // v5.1.4: Qwen3.6-27b /no_think'e rağmen ~400-600 token thinking harciyor.
             // Gerçek çıktı ~200 karakter ama model thinking+output için 1500 token gerekiyor.
-            // Gemini API'ye yönlendirildi:
-            return await SendGeminiRestApiRequest(prompt, maxOutputTokens: 1500);
+            // v5.4.3: Gemini free-tier kota döngüsünü önlemek için ModelManager/LMStudio hattını kullan.
+            return await SendRequest(prompt, maxOutputTokens: 1500);
         }
 
         public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
             var config = _prompts.GetNewsCategoryConfig(category);
             string sectorMap = LoadSectorMapContext();
-            return await SendGeminiRestApiRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap), config.Temp, config.TopP, config.TopK, config.MaxTokens);
+            return await SendRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap), config.Temp, config.TopP, config.TopK, config.MaxTokens);
         }
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")
@@ -465,8 +465,7 @@ Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""
                 if (_memory == null) return "";
                 string context = _memory.GetSymbolContext(symbol);
                 if (string.IsNullOrEmpty(context)) return "";
-                if (context.Contains("hedef") || context.Contains("başarı") || context.Contains("tuttu")) return context.Length > 200 ? context.Substring(0, 200) + "..." : context;
-                return "";
+                return context.Length > 900 ? context.Substring(0, 900) + "..." : context;
             } catch { return ""; }
         }
     }

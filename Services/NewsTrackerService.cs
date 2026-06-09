@@ -165,6 +165,7 @@ namespace XiDeAI_Pro.Services
             {
                 LogAction?.Invoke("🔍 Haberler taranıyor...", "News");
                 var newsList = await FetchAllNews();
+                int freshCount = 0, duplicateCount = 0, oldCount = 0;
                 // v3.8.2: Extended to 48h to capture weekend flow
                 var threshold = DateTime.Now.AddHours(-48);
 
@@ -174,7 +175,7 @@ namespace XiDeAI_Pro.Services
                 foreach (var news in newsList)
                 {
                     // v3.6.4: Skip legacy news (Recency Filter)
-                    if (news.PubDate < threshold) continue;
+                    if (news.PubDate < threshold) { oldCount++; continue; }
 
                     string cleanTitle = NormalizeTitle(news.Title);
                     bool isNewLink = !_seenLinks.Contains(news.Link);
@@ -214,9 +215,17 @@ namespace XiDeAI_Pro.Services
                         SaveHistory(); // Persist on change
 
                         // Fire event directly - queue was never processed
+                        freshCount++;
+                        LogAction?.Invoke($"🆕 Yeni haber bulundu: [{news.Source}] {news.Title}", "News");
                         OnNewsDetected?.Invoke(news);
                     }
+                    else duplicateCount++;
                 }
+                LogAction?.Invoke($"📰 Haber taraması tamamlandı. Toplam={newsList.Count}, Yeni={freshCount}, Eski={oldCount}, Mükerrer={duplicateCount}", "News");
+            }
+            catch (Exception ex)
+            {
+                LogAction?.Invoke($"❌ Haber taraması hatası: {ex.Message}", "News");
             }
             finally
             {
@@ -290,7 +299,7 @@ namespace XiDeAI_Pro.Services
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"RSS Error ({url}): {ex.Message}");
+                    LogAction?.Invoke($"⚠️ RSS Error ({url}): {ex.Message}", "News");
                 }
             }
 
