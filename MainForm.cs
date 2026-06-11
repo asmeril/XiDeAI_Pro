@@ -110,6 +110,7 @@ namespace XiDeAI_Pro
         private List<InfluencerPost> _guruPosts = new List<InfluencerPost>();
         private DataGridView dgvGuru = null!;
         private DataGridView dgvGuruApproval = null!; // Moved from Bot Tab
+        private ComboBox cmbGuruHandle = null!;
         private DataGridView dgvBotApproval = null!;
         private RichTextBox rtbGuruPreview = null!;
         private RichTextBox rtbBotPreview = null!; // New for Bot Tab
@@ -5599,16 +5600,59 @@ namespace XiDeAI_Pro
             pnlGuruCenter.Controls.Clear();
             pnlGuruCenter.Padding = new Padding(10);
             
-            // Header
-            var lblTitle = new Label { 
-                Text = $"👑 ÜSTAT TAKİP MERKEZİ - {ConfigManager.Current.GuruHandle}", 
+            // Header panel containing title and selection ComboBox
+            var pnlHeader = new Panel { 
                 Dock = DockStyle.Top, 
                 Height = 40, 
+                Padding = new Padding(0) 
+            };
+            
+            var lblTitle = new Label { 
+                Text = "👑 ÜSTAT TAKİP MERKEZİ", 
+                Dock = DockStyle.Left, 
+                Width = 280,
                 ForeColor = Color.Gold, 
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            pnlGuruCenter.Controls.Add(lblTitle);
+            pnlHeader.Controls.Add(lblTitle);
+
+            // ComboBox hoca selection
+            cmbGuruHandle = new ComboBox {
+                Dock = DockStyle.Right,
+                Width = 180,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                BackColor = Color.FromArgb(40, 40, 45),
+                ForeColor = Color.White
+            };
+            
+            if (ConfigManager.Current.GuruHandles != null)
+            {
+                foreach (var handle in ConfigManager.Current.GuruHandles)
+                {
+                    cmbGuruHandle.Items.Add(handle);
+                }
+            }
+            
+            if (cmbGuruHandle.Items.Count > 0)
+            {
+                int defaultIdx = cmbGuruHandle.Items.IndexOf(ConfigManager.Current.GuruHandle);
+                cmbGuruHandle.SelectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
+            }
+            
+            cmbGuruHandle.SelectedIndexChanged += (s, e) => {
+                var selected = cmbGuruHandle.SelectedItem?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(selected))
+                {
+                    ConfigManager.Current.GuruHandle = selected;
+                    ConfigManager.Save();
+                    Log($"Hoca değişti: {selected}", "System");
+                }
+            };
+            pnlHeader.Controls.Add(cmbGuruHandle);
+            
+            pnlGuruCenter.Controls.Add(pnlHeader);
 
             var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 220, BackColor = Color.FromArgb(40,40,40) };
             

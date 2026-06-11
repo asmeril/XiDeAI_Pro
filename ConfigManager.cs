@@ -226,6 +226,22 @@ namespace XiDeAI_Pro.Config
         public DateTime LastInteraction { get; set; }
     }
 
+    /// <summary>
+    /// Üstat profili - her üstat için benzersiz kimlik, ton ve üslup tanımı.
+    /// Config/GuruProfiles.json'dan yüklenir; yeni üstat eklemek JSON'a satır eklemek kadar kolaydır.
+    /// </summary>
+    public class GuruProfile
+    {
+        public string Name { get; set; } = "";
+        public string Identity { get; set; } = "";
+        public string ScanType { get; set; } = "";
+        public string Style { get; set; } = "";
+        public List<string> ForbiddenWords { get; set; } = new List<string>();
+        public List<string> SignaturePhrases { get; set; } = new List<string>();
+        public string AnalysisFocus { get; set; } = "";
+        public string InteractionStyle { get; set; } = "";
+    }
+
     public static class ConfigManager
     {
         // Use AppData for config files (Program Files is read-only)
@@ -369,6 +385,101 @@ namespace XiDeAI_Pro.Config
             byte[] encryptedData = ProtectedData.Protect(jsonData, null, DataProtectionScope.CurrentUser);
             
             File.WriteAllBytes(ConfigPath, encryptedData);
+        }
+
+        /// <summary>
+        /// Verilen handle için GuruProfile döndürür. Profil yoksa varsayılan profil döner.
+        /// Config/GuruProfiles.json dosyasından yüklenir (app directory'de).
+        /// </summary>
+        public static GuruProfile GetGuruProfile(string guruHandle)
+        {
+            if (string.IsNullOrWhiteSpace(guruHandle))
+                return DefaultProfile();
+
+            string handle = guruHandle.Trim().StartsWith("@") ? guruHandle.Trim() : "@" + guruHandle.Trim();
+            string lowerHandle = handle.ToLowerInvariant();
+
+            try
+            {
+                // Config/GuruProfiles.json'u hem app dizininden hem de relative yoldan dene
+                string[] candidates = new[]
+                {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", "GuruProfiles.json"),
+                    Path.Combine(AppContext.BaseDirectory, "Config", "GuruProfiles.json")
+                };
+
+                foreach (var candidate in candidates)
+                {
+                    if (!File.Exists(candidate))
+                        continue;
+
+                    try
+                    {
+                        string json = File.ReadAllText(candidate);
+                        using JsonDocument doc = JsonDocument.Parse(json);
+                        var root = doc.RootElement;
+
+                        // Handle key ile doğrudan eşleştir (case-insensitive)
+                        foreach (var prop in root.EnumerateObject())
+                        {
+                            if (prop.Name.ToLowerInvariant() == lowerHandle)
+                            {
+                                var profile = new GuruProfile();
+                                var el = prop.Value;
+
+                                profile.Name = el.TryGetProperty("Name", out var n) ? n.GetString() ?? "" : "";
+                                profile.Identity = el.TryGetProperty("Identity", out var id) ? id.GetString() ?? "" : "";
+                                profile.ScanType = el.TryGetProperty("ScanType", out var st) ? st.GetString() ?? "" : "";
+                                profile.Style = el.TryGetProperty("Style", out var s) ? s.GetString() ?? "" : "";
+                                profile.AnalysisFocus = el.TryGetProperty("AnalysisFocus", out var af) ? af.GetString() ?? "" : "";
+                                profile.InteractionStyle = el.TryGetProperty("InteractionStyle", out var is2) ? is2.GetString() ?? "" : "";
+
+                                if (el.TryGetProperty("ForbiddenWords", out var fw) && fw.ValueKind == JsonValueKind.Array)
+                                {
+                                    profile.ForbiddenWords = new List<string>();
+                                    foreach (var item in fw.EnumerateArray())
+                                        profile.ForbiddenWords.Add(item.GetString() ?? "");
+                                }
+
+                                if (el.TryGetProperty("SignaturePhrases", out var sp) && sp.ValueKind == JsonValueKind.Array)
+                                {
+                                    profile.SignaturePhrases = new List<string>();
+                                    foreach (var item in sp.EnumerateArray())
+                                        profile.SignaturePhrases.Add(item.GetString() ?? "");
+                                }
+
+                                return profile;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Console.WriteLine($"GuruProfiles.json parse error: {ex.Message}");
+                    }
+                    break; // İlk bulunan dosyayı dene, sonra çık
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"GuruProfile load error: {ex.Message}");
+            }
+
+            return DefaultProfile();
+        }
+
+        private static GuruProfile DefaultProfile()
+        {
+            return new GuruProfile
+            {
+                Name = "Üstat",
+                Identity = "Piyasa analisti",
+                ScanType = "TEKNİK",
+                Style = "Sade, net, veri odaklı",
+                ForbiddenWords = new List<string>(),
+                SignaturePhrases = new List<string>(),
+                AnalysisFocus = "",
+                InteractionStyle = ""
+            };
         }
     }
 }

@@ -110,12 +110,30 @@ namespace XiDeAI_Pro.Services
 
         public static List<string> BuildCompactThread(string content, int limit = 280, int maxTweets = 8, int minUsefulLength = 120, string? finalSuffix = null)
         {
+            // v5.4.7: 40 karakterin altındaki cok kisa tweet'leri at (bozuk AI ciktileri)
             var parts = ParseParts(content, limit)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
+                .Where(x => x.Length >= 40)  // Minimum karakter filtresi
                 .ToList();
 
             if (parts.Count == 0) return parts;
+
+            // Kisa tweet'leri bir sonrakine birlestir (calidad kontrolu)
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (parts[i].Length < 80 && i < parts.Count - 1)
+                {
+                    string merged = parts[i] + "\n\n" + parts[i + 1];
+                    if (merged.Length <= limit)
+                    {
+                        parts[i + 1] = merged;
+                        parts.RemoveAt(i);
+                        i--; // Tekrar kontrol et
+                        continue;
+                    }
+                }
+            }
 
             for (int i = parts.Count - 1; i > 0; i--)
             {

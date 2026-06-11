@@ -461,14 +461,16 @@ Sadece ""WORTHY"" veya ""SKIP"" yaz, baska bir sey yazma.
             return prompt;
         }
 
-        public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string topVolume = "", string nabizUyarilari = "")
+        public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string topVolume = "", string nabizUyarilari = "", string eodSnapshot = "")
         {
             string nabizSection = string.IsNullOrEmpty(nabizUyarilari)
                 ? ""
-                : $"\n\n\U0001F534 BUGUNKU ANLIK KIRILIMLAR (NABIZ KAYITLARI):\n{nabizUyarilari}\n" +
-                  "KURAL: Bu nabiz kayitlarindaki hacimli kirilimlari mutlaka thread'e al. " +
-                  "'Akilli Para ani pozisyon aldi', 'Panik satista kurumsal topladi', 'Likidite avi' gibi " +
-                  "hikaye diliyle, saat + yuzde + hacim katiyla anlat. Bu gunun en dramatik anlaridir.";
+                : $"\n\n🔴 BUGUNKU ANLIK KIRILIMLAR (NABIZ KAYITLARI):\n{nabizUyarilari}\n" +
+                  "KURAL: Bu nabiz kayitlarindaki hacimli kirilimlari seans yorumunda kullan. Saat + yuzde + hacim katiyla anlat.";
+
+            string eodSection = string.IsNullOrEmpty(eodSnapshot)
+                ? ""
+                : $"\n\n### EOD SNAPSHOT (iDeal Verisi - BIRINCIL KAYNAK):\n{eodSnapshot}\nKURAL: Bu veri tablosunu ilk tweet'te kullan. Global verileri (XGLD,USDTRY,BRENT,XSLV) ve hacim karsilastirmasini mutlaka goster.";
 
             string gainersSection = !string.IsNullOrEmpty(topPerformers)    ? $"GUNUN YILDIZLARI (EN COK YUKSELENLER):\n{topPerformers}\n\n" : "";
             string losersSection  = !string.IsNullOrEmpty(bottomPerformers) ? $"GUNUN KAZAZEDELERI (EN COK DUSENLER):\n{bottomPerformers}\n\n" : "";
@@ -480,78 +482,115 @@ Dilin net: once veri, sonra yorum. Hikaye uydurma, abartma, korku/FOMO yaratma.
 ONEMLI: Yatirim tavsiyesi VERMEZSIN. Analiz yaparsın, sorumluluk okuyucunundur.
 
 ### GOREV:
-Bugunun {marketType} piyasasini; endeks hareketleri, one cikan hisseler, varsa gun-ici carpici anlar ve yarinki bakis ile
+Bugunun {marketType} piyasasini; endeks hareketleri, global veriler, hacim karsilastirmasi, seans yorumu ve yarinki bakis ile
 X'te yuksek etkilesim alacak bir KAPANIS THREAD'I olarak yaz.
 
 CIKTI FORMATI (KESIN KURAL):
 - Her tweet'i ||| ayraciyla birbirinden ayir. Baska hicbir ayrac kullanma.
-- Her parca KESINLIKLE 280 karakterin altinda olmali (bosluklar dahil). Karakter sayini kendin kontrol et.
-- 'Tweet 1:', '1.', '[Giris]' gibi baslik/etiket ifadesi YAZMA. Sadece tweet metnini yaz.
+- Her parca KESINLIKLE 280 karakterin altinda olmali (bosluklar dahil).
+- 'Tweet 1:', '1.', '[Giris]' gibi baslik/etiket ifadesi YAZMA.
 - Ilk tweet'in ilk karakteri emoji olsun.
 - TAM OLARAK 4 tweet yaz. 5., 6., 7. tweet YASAK.
 
 ### PIYASA VERILERI:
 {marketData}
 
+{eodSection}
 {gainersSection}{losersSection}{volumeSection}{nabizSection}
 
-### IDEAL/NABIZ VERI KULLANIMI (ZORUNLU):
-- Market_Status ve varsa IDEAL MARKET MOVERS verisi birincil kaynaktır.
-- Tavan yapan 2-3 hisseyi, taban yapan 2-3 hisseyi ve hacmi yüksek isimleri somut isim+yüzde ile kullan.
-- Hacim verisi Hacim: alanında rakam olarak varsa mutlaka aktar; 'hacim verisi yok' deme.
-- Hacim Katı 0,0x gibi düşükse piyasa geneli sönük, ama tekil hisselerde hacim/kutuplaşma var diye ayır.
-- Market_Pulse_Alarm boşsa bunu uydurma; onun yerine Market_Movers listesindeki tavan/taban dağılımını anlat.
-- 'Akıllı para', 'kurumsal topladı', 'likidite avı', 'devler', 'patlama' gibi kanıtsız/abartılı hikaye cümleleri yasak.
-- CRASH/NEGATIF mod varsa bunu yumuşatma; günün risk tonunu net söyle.
+### THREAD YAPISI (4 TWEET - ZORUNLU SIRALAMA):
 
-### KANCA KURALI (ZORUNLU - 1. TWEET):
-Ilk tweet okuyucuyu durdurmalı ama boş retorik yapmamalı. Bunun icin asagidaki verilerden EN CARPICI olanı sec:
-- Gun sonu kapanıs degisim yuzdesi (%X yukseldik / %X dustuk)
-- Gunun en yuksek hacimli ani kirilim saati ve yuzdesi (nabız kayitlarından)
-- En cok yukselenin kapanis yuzdesı (tavan mu?)
-Soru bırakacaksan veri temelli olsun: 'Yarın bu ayrışma devam eder mi?' gibi. 'Neden bu kadar volatilite?' gibi boş/genel soru yazma.
+TWEET 1 — 📊 GUNUN VERI TABLOSU:
+  - XU100 kapanis + gunluk degisim %
+  - XU030 degisim % | XU050 degisim %
+  - XGLD fiyat (degisim%) | USDTRY fiyat (degisim%)
+  - BRENT fiyat (degisim%) | XSLV fiyat (degisim%)
+  - Hacim: Gun vs 10gun Ortalama karsilastirmasi (Xxx kat)
+  Format: Tablo gibi, her satir bir veri, emoji kullan
 
-### X ETKILESIM KURALLARI (ZORUNLU):
-1. FORMAT: Blok paragraf yasak. Cumleler kisa. Satirlar arasi bosluk birak.
-2. NABIZ/MOVERS: Nabız alarmı varsa saat+yüzde+hacim katıyla; yoksa tavan/taban ve hacim liderlerini isim+yüzdeyle aktar.
-3. SON TWEET: Yarin izlenecek net seviye + okuyucuya soru.
-4. Hashtag SADECE son tweet'e: #BIST100 #Borsa
-5. Takip et / bildirim ac / RT cagrisi YASAK.
+TWEET 2 — 📈 SEANS YORUMU:
+  - Mod (CRASH/DIKKATLI/BULL) + Trend analizi
+  - Gunun hikayesi: nabız kayıtlarindaki kırılımlari saat+yüzde+hacim katıyla anlat
+  - Hacim karsilastirmasinnin anlamı (gun > 10g ortalama ise hacimli gun, < ise sönük)
+  - Global varlıkların etki yönü (XGLD yuksekse risk off, USD yuksekse TL baskısı vb.)
 
-### THREAD YAPISI (4 tweet):
-Tweet 1: 🔥 KANCA — XU100 kapanisi veya en carpici veri; abartisiz soru bırak.
-Tweet 2: 📊 Endeks + hacim — XU100/XU030/XU050 ve mod/trend yorumu.
-Tweet 3: 📌 iDeal movers — tavanlar, tabanlar, hacimli isimler; en anlamli 3-5 somut noktayi sec.
-Tweet 4: 🔎 Yarin izlenecek seviye + risk notu + soru + #BIST100 #Borsa + YTD.";
+TWEET 3 — 📌 HISS HAREKETLERI:
+  - Tavan yapan 2-3 hisse (isim + yüzde)
+  - Taban yapan 2-3 hisse (isim + yüzde)
+  - Hacim liderleri (iDeal movers verisinden)
+  - En anlamlı 3-5 somut nokta seç
+
+TWEET 4 — 🔎 YARIN ICIN BAKIS:
+  - Yarın izlenecek net seviye (destek/direnç)
+  - Risk notu (mod'a gore)
+  - Okuyucuya soru (veri temelli, bos retorik yasak)
+  - #BIST100 #Borsa + YTD uyarısı
+
+### VERI KULLANIM KURALLARI:
+- EOD_SNAPSHOT verisi varsa BIRINCIL kaynak olarak kullan
+- Global veriler (XGLD,USDTRY,BRENT,XSLV) ilk tweet'te tablo olarak zorunlu
+- Hacim karsilastirmasi (gun vs 10g ort) her zaman goster
+- Hacim Katı 0,0x gibi düşükse 'gun sonu verisi dusuk' diye gec, 10g ortalamaya baglan
+- 'Akıllı para', 'kurumsal topladı', 'likidite avı', 'devler', 'patlama' yasak
+- CRASH/NEGATIF mod varsa yumusatma; gunun risk tonunu net soyle
+
+### X ETKILESIM KURALLARI:
+1. Blok paragraf yasak. Cumleler kisa.
+2. Hashtag SADECE son tweet'e: #BIST100 #Borsa
+3. Takip et / bildirim ac / RT cagrisi YASAK
+4. Her tweet 120-275 karakter arasi olmalı (cok kisa tweet yasak)";
         }
-        public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "")
+        public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "", string tweetContent = "")
         {
             string cleanGuruHandle = string.IsNullOrWhiteSpace(guruHandle) ? "@EFELERiiNEFESi3" : guruHandle.Trim();
             if (!cleanGuruHandle.StartsWith("@")) cleanGuruHandle = "@" + cleanGuruHandle;
 
+            // GuruProfile yükle (ConfigManager'dan)
+            var profile = Config.ConfigManager.GetGuruProfile(guruHandle);
+            // Eğer JSON'dan isim gelmediyse parametreden kullan
+            string displayName = string.IsNullOrWhiteSpace(profile.Name) ? guruName : profile.Name;
+            string identity   = string.IsNullOrWhiteSpace(profile.Identity) ? "Piyasa analisti" : profile.Identity;
+            string scanType   = string.IsNullOrWhiteSpace(profile.ScanType) ? strategy : profile.ScanType;
+            string style      = string.IsNullOrWhiteSpace(profile.Style) ? "" : profile.Style;
+            string analysisFocus = string.IsNullOrWhiteSpace(profile.AnalysisFocus) ? "" : profile.AnalysisFocus;
+            string interactionStyle = string.IsNullOrWhiteSpace(profile.InteractionStyle) ? "" : profile.InteractionStyle;
+
+            // Yasak kelimeleri birleştir (profil + genel yasaklar)
+            var allForbidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var w in profile.ForbiddenWords) allForbidden.Add(w);
+            // Genel yasaklar (her üstad için ortak)
+            foreach (var w in new[] { "akıllı para", "fısıltı alış", "likidite avı", "premove sahnesi", "yayını germek", "kurumsal ayak izi", "balinalar maliyetlendi", "sessizce birikim", "büyük hamlenin öncüsü", "akıllı paranın fiyatı toparlay", "değerli yatırımcılar", "piyasanın nabzını" })
+                allForbidden.Add(w);
+            string forbiddenList = allForbidden.Count > 0 ? string.Join(", ", allForbidden) : "";
+
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPİYASA GENEL DURUMU:\n{marketOverview}\nKURAL: Bu üstadın sinyalini mevcut piyasa trendiyle kıyasla.";
             string newsSection = string.IsNullOrEmpty(newsContext) ? "" : $"\n\nGÜNCEL HABERLER:\n{newsContext}";
 
+            // Tweet içeriği yönlendirmesi
+            string tweetContentSection = string.IsNullOrEmpty(tweetContent) ? "" : $"\n\n### ÜSTAD'IN TWEET İÇERİĞİ (YÖNLENDİRİCİ):\n{tweetContent}\nKURAL: Bu tweetin tonu, konusu ve vurguları analizin yönünü belirler. Tweet teknik tablo ise teknik odaklı, takas tablosu ise veri+teyit odaklı yaz.";
+
+            string styleSection = string.IsNullOrEmpty(style) ? "" : $"\n\n### YAZIM TARZI ({displayName} ÖZGÜ):\n{style}";
+            string focusSection = string.IsNullOrEmpty(analysisFocus) ? "" : $"\n\n### ANALİZ ODAĞI:\n{analysisFocus}";
+            string interactionSection = string.IsNullOrEmpty(interactionStyle) ? "" : $"\n\n### ETKİLEŞİM TARZI:\n{interactionStyle}";
+
             return $@"### KİMLİK:
-Sen {guruName} ({cleanGuruHandle}) hocamızın paylaşımlarına saygı duyan ama kendi teknik değerlendirmesini bağımsız yapan sade bir piyasa analistisin.
-Hocanın taramasını değerli bir radar olarak görürsün; analizi ise seviyeler, teyit ve risk üzerinden kendin kurarsın.
+Sen {displayName} ({cleanGuruHandle}) hocamızın vizyonuna saygı duyan ama kendi teknik değerlendirmesini bağımsız yapan bir piyasa analistisin.
+Kimliğin: {identity}
+Hocanın {scanType} taramasını değerli bir radar olarak görürsün; analizi ise seviyeler, teyit ve risk üzerinden kendin kurarsın.
 
 ### GÖREV:
 #{symbol} için {strategy} tablosundan gelen veriyi X'e uygun 3-6 tweetlik bir thread'e çevir.
-İlk tweette {cleanGuruHandle} hocamın {strategy} taramasına duyulan güven ve saygıyı ölçülü biçimde belirt.
+İlk tweette {cleanGuruHandle} hocamın {scanType} taramasına duyulan güven ve saygıyı ölçülü biçimde belirt.
 Thread içinde yalnızca {cleanGuruHandle} mention edilebilir. Başka hiçbir @mention yazma.
 Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu URL alıntı/quote bağlamı için zorunludur.
-
-Eğer tablo takas/yabancı payı/AKD/BOFA tablosuysa:
-- Bu verinin tek başına al/sat sinyali olmadığını belirt.
-- Neden bu sembolü seçtiğini tablo gerekçesiyle açıkla.
-- Yabancı payı, fiili dolaşım oranı/lotu, BOFA AKD farkı gibi verileri teknik grafik teyidiyle bağla.
-- Takas verisi güçlü olsa bile fiyat/hacim/kapanış teyidi aradığını açıkça yaz.
+{tweetContentSection}
+{focusSection}
+{interactionSection}
 
 ### ANALİZ-VERİLERİ:
 - Sembol: #{symbol}
 - Güncel Fiyat: {price}
-- Strateji/Tarama: {strategy}
+- Strateji/Tarama: {strategy} ({scanType})
 - Teknik Göstergeler: {indicatorContext}{marketSection}{newsSection}
 
 ### GÖRSEL-ANALİZ:
@@ -559,6 +598,7 @@ Eğer tablo takas/yabancı payı/AKD/BOFA tablosuysa:
 
 ### REFERANS-GURU:
 {guruCitation}
+{styleSection}
 
 ### ANALIZ KURALLARI:
 1. GİRİŞ: Hocanın taramasına saygı + sembolün neden izlemeye değer olduğu.
@@ -566,6 +606,9 @@ Eğer tablo takas/yabancı payı/AKD/BOFA tablosuysa:
 3. GÖRSEL: Grafik analizinden gelen gerçek seviyeleri kullan; görmediğin şeyi uydurma.
 4. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi' gibi ifadeler yok. Saygılı ama ölçülü ol.
 5. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
+
+### YASAK SÖZCÜKLER ({displayName} + Genel):
+{forbiddenList}
 
 ### CIKTI FORMATI (SADECE TWEET METINLERINI YAZ):
 Tweet 1: Hocaya/taramaya ölçülü atıf + ana fikir.
@@ -579,7 +622,6 @@ KESIN YASAKLAR:
 - ""(Birinci Tweet Metni)"" veya ""(...)"" gibi yönlendirme ifadelerini ASLA çıktıya yazma.
 - 'Tweet 1:', '[...]' gibi başlıkları ASLA kullanma.
 - {cleanGuruHandle} dışında hiçbir @mention kullanma.
-- Smart Money, likidite avı, fısıltı, piyasa kurdu, usta işi, muazzam, efsane, nokta atışı ifadelerini kullanma.
 - Kaynak tarama URL'sini yazmadan bitirme.";
         }
 

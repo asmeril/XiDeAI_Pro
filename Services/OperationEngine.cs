@@ -424,13 +424,41 @@ namespace XiDeAI_Pro.Services
                             alarmLines.Add(line);
                     }
 
-                    // EOD_SNAPSHOT parse: datetime|EOD_SNAPSHOT|MOD|GunlukDeg:X%|XU100_Kapanis:X|GunYuksek:X|GunDusuk:X|GunRange:X%|XU030Deg:X%|XU050Deg:X%|PuanScore:X
+                    // EOD_SNAPSHOT parse (v5.4.7):
+                    // datetime|EOD_SNAPSHOT|MOD|GunlukDeg:X%|XU100_Kapanis:X|GunYuksek:X|GunDusuk:X|GunRange:X%|XU030Deg:X%|XU050Deg:X%|PuanScore:X
+                    //   |GunHacim:X|Ort10gHacim:X|HacimKar:Xx|XGLD:X|XGLD_Deg:X%|USDTRY:X|USDTRY_Deg:X%|BRENT:X|BRENT_Deg:X%|XSLV:X|XSLV_Deg:X%
                     if (!string.IsNullOrEmpty(eodLine))
                     {
                         var ep = eodLine.Split('|');
-                        // ep[0]=datetime, ep[2]=mod, ep[3]=GunlukDeg, ep[4]=XU100_Kapanis, ep[5]=GunYuksek, ep[6]=GunDusuk, ep[7]=GunRange, ep[8]=XU030Deg, ep[9]=XU050Deg, ep[10]=PuanScore
-                        var eodParts = ep.Skip(2).Select(p => p.Trim()).ToArray();
-                        eodSnapshot = string.Join(" | ", eodParts);
+                        // Build structured EOD summary with all new fields
+                        var eodSb = new System.Text.StringBuilder();
+                        eodSb.AppendLine("=== GUN SONU OZET ===");
+                        
+                        if (ep.Length >= 11)
+                        {
+                            eodSb.AppendLine($"Mod: {ep[2].Trim()} | Puan: {ep[10].Trim()}");
+                            eodSb.AppendLine($"XU100: {ep[4].Trim()} | Gunluk: {ep[3].Trim()}");
+                            eodSb.AppendLine($"Yuksek: {ep[5].Trim()} | Dusuk: {ep[6].Trim()} | Range: {ep[7].Trim()}");
+                            eodSb.AppendLine($"XU030: {ep[8].Trim()} | XU050: {ep[9].Trim()}");
+                        }
+                        
+                        // Yeni alanlar: Hacim karsilastirma (ep[11]-[13])
+                        if (ep.Length >= 14)
+                        {
+                            eodSb.AppendLine($"Hacim: Gun={ep[11].Trim()} | 10g Ort={ep[12].Trim()} | Karsilastirma={ep[13].Trim()}");
+                        }
+                        
+                        // Yeni alanlar: Global veriler (ep[14]-[21])
+                        if (ep.Length >= 22)
+                        {
+                            eodSb.AppendLine("GLOBAL VERILER:");
+                            eodSb.AppendLine($"  XGLD: {ep[14].Trim()} ({ep[15].Trim()})");
+                            eodSb.AppendLine($"  USDTRY: {ep[16].Trim()} ({ep[17].Trim()})");
+                            eodSb.AppendLine($"  BRENT: {ep[18].Trim()} ({ep[19].Trim()})");
+                            eodSb.AppendLine($"  XSLV: {ep[20].Trim()} ({ep[21].Trim()})");
+                        }
+                        
+                        eodSnapshot = eodSb.ToString();
                     }
 
                     if (alarmLines.Count > 0)
