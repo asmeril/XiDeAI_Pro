@@ -1,4 +1,4 @@
-﻿# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
+# 🤖 XiDeAI Pro - Proje Geliştirme Günlüğü
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
@@ -118,3 +118,13 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 - **Tüm Exception'lar retry alıyor:** `_post_single_tweet` ve `_post_reply_in_thread`'de genel `except Exception` bloğu artık anında `return error` yerine attempt=3'e kadar retry yapıyor. Bu sayede X'in yavaş tepki verdiği durumlarda (rate limit, geçici gecikme) son tweet kaybolmuyor.
 
 
+---
+
+## 12 Haziran 2026
+
+### v5.4.7 - v5.4.9 Release
+
+**Takas ve AKD Analizi Entegrasyonu ile RSS Düzeltmeleri**
+- **v5.4.7:** Piyasa kapanış (Market Close) senaryosu baştan aşağı revize edildi. iDeal EOD_SNAPSHOT üzerinden artık hacim karşılaştırmaları, XGLD, USDTRY, BRENT ve XSLV gibi global varlık kurları günlük kapanış tablosuna yansıtılıyor. Kompakt thread kalite kontrolü eklendi (40 karakter altı metinler yoksayıldı).
+- **v5.4.8:** Haber kaynaklarındaki bozuk RSS yayınları düzeltildi. Anadolu Ajansı, TRT Haber, CNBC ve Kyodo News için URL'ler aktif uçnoktalara güncellendi.
+- **v5.4.9:** BIST Takas ve Aracı Kurum Dağılımı (AKD) analizi PromptManager'a eklendi. "Diğer" kuralı, T+2 gecikmesi ve kurumsal/bireysel oranlama mantığı, @matisay67 gibi Takas stratejili üstat taramalarında dinamik olarak LLM'e enjekte edilerek yorum kalitesi profesyonel düzeye çekildi.

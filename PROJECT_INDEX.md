@@ -1,4 +1,4 @@
-> **Version:** 5.4.5 (Multi-Guru Takas Analysis)
+> **Version:** 5.4.9 (Takas & AKD 'Diger' Kurali Entegrasyonu)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
@@ -113,6 +113,7 @@ Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` taraf
 - **(v5.2.2)** `GetSignalAnalysisPrompt`, `GetDeepManualAnalysisPrompt`, `GetDeepTechnicalAnalysisPrompt`: YASAK SÖZCÜKLER listesi eklendi (fısıltı alış, akıllı para, piyasa kurdu vb.). Son tweet ZORUNLU: AL/İZLE/BEKLE karar + soru formatı.
 - **(v5.2.2)** `GetAlphaSignalPrompt` / `GetPreMoveSignalPrompt`: Robotik ton kaldırıldı (borsa kurdu, fısıldayan vb.). Fenomen mention: varsa doğal, yoksa ekleme (zorunlu değil).
 - **(v5.2.9)** `GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap)`: `sectorMap` parametresi eklendi. `GetEkonomiNewsAnalysisPrompt`, `GetTeknolojiNewsAnalysisPrompt`, `GetYasamNewsAnalysisPrompt` BIST Sektör Haritası'nı prompt'a enjekte eder; halusinatör sembol üretimi engellendi. Her kategori prompt'u "TAM OLARAK 3 TWEET" ve `|||` zorunluluğu ile güncellendi.
+- **(v5.4.9)** `GetGuruHonoringThreadPrompt`: Takas ve AKD analizi için "Diğer" kuralı, T+2 gecikmesi ve kurumsal/bireysel oranlama mantığı (`takasRulesSection`) eklendi.
 
 #### `MainForm.cs`
 - **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
