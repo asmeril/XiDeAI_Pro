@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.4.7",
-    "build_number":  5470,
-    "lastUpdate":  "2026-06-12T04:16:55Z",
+    "version":  "5.4.9",
+    "build_number":  5490,
+    "lastUpdate":  "2026-06-12T08:34:33Z",
     "changelog":  [
+                      "v5.4.9: v5.4.9: BIST Takas ve AKD analizi \u0027Diger\u0027 kurali entegrasyonu tamamlandi. Matisay67 tablolari tam uyumlu.",
                       "v5.4.7: Market Close overhaul - tablo formati + seans yorumu + EOD snapshot + kisa tweet filtresi",
                       "v5.4.6: Config-Tabanlı Dinamik Guru Profili Sistemi",
                       "v5.4.5: v5.4.5: Multi-guru panel with Mehmet AtÄ±ÅŸay takas analysis flow",

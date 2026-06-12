@@ -573,6 +573,21 @@ TWEET 4 — 🔎 YARIN ICIN BAKIS:
             string focusSection = string.IsNullOrEmpty(analysisFocus) ? "" : $"\n\n### ANALİZ ODAĞI:\n{analysisFocus}";
             string interactionSection = string.IsNullOrEmpty(interactionStyle) ? "" : $"\n\n### ETKİLEŞİM TARZI:\n{interactionStyle}";
 
+            // Takas/AKD Analiz Kuralları (Rehberden entegrasyon)
+            string takasRulesSection = "";
+            if (scanType.Contains("TAKAS", StringComparison.OrdinalIgnoreCase) || strategy.Contains("TAKAS", StringComparison.OrdinalIgnoreCase))
+            {
+                takasRulesSection = @"
+
+### TAKAS/AKD ANALİZ KURALLARI (ZORUNLU):
+- **T+2 Gecikme Bilinci:** Takas verilerinin 2 iş günü geriden geldiğini (T+2) unutma. Yorumlarken bunu '2 gün önceki mülkiyet saklama verisi' olarak nitelendir.
+- **Kurumsal vs Bireysel Oran:** Hissedeki kurumsal takas oranının (Yatırım/Emeklilik Fonları, Citibank, Deutsche vb.) değişim trendini yorumla. Kurumsal pay artıyorsa 'malın toplanması/akümülasyon', bireysel pay artıyorsa 'dağıtım' olarak gör.
+- **AKD 'Diğer' Kuralı:** İlk 5 aracı kurum dışındaki dağınık/küçük yatırımcıları temsil eden 'Diğer' hanesini analiz et. 'Diğer Alıcı' > 'Diğer Satıcı' ise küçük yatırımcı mal alıyordur (Dağıtım/Negatif). 'Diğer Satıcı' > 'Diğer Alıcı' ise küçük yatırımcı panikle satıp büyükler topluyordur (Akümülasyon/Pozitif).
+- **AKD ve Virman:** AKD'deki günlük kurum işlemlerinin (örneğin BofA alımları) takasa hemen yansımayabileceğini, virmanla saklama bankalarına geçebileceğini belirt.
+- **Fiyat Teyidi:** Takas verisi tek başına alım sinyali değildir. Kurumsal takas güçlü olsa bile mutlaka grafik üzerinde fiyat ve hacim teyidi (destek/direnç kırılımı) arandığını vurgula.
+- **Yabancı Saklama:** Citibank ve Deutsche Bank takasındaki hareketleri yabancı ilgisi bağlamında değerlendir.";
+            }
+
             return $@"### KİMLİK:
 Sen {displayName} ({cleanGuruHandle}) hocamızın vizyonuna saygı duyan ama kendi teknik değerlendirmesini bağımsız yapan bir piyasa analistisin.
 Kimliğin: {identity}
@@ -585,7 +600,7 @@ Thread içinde yalnızca {cleanGuruHandle} mention edilebilir. Başka hiçbir @m
 Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu URL alıntı/quote bağlamı için zorunludur.
 {tweetContentSection}
 {focusSection}
-{interactionSection}
+{interactionSection}{takasRulesSection}
 
 ### ANALİZ-VERİLERİ:
 - Sembol: #{symbol}
