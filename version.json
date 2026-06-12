@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.4.6",
-    "build_number":  5460,
-    "lastUpdate":  "2026-06-11T17:23:15Z",
+    "version":  "5.4.7",
+    "build_number":  5470,
+    "lastUpdate":  "2026-06-12T04:16:55Z",
     "changelog":  [
+                      "v5.4.7: Market Close overhaul - tablo formati + seans yorumu + EOD snapshot + kisa tweet filtresi",
                       "v5.4.6: Config-Tabanlı Dinamik Guru Profili Sistemi",
                       "v5.4.5: v5.4.5: Multi-guru panel with Mehmet AtÄ±ÅŸay takas analysis flow",
                       "v5.4.5: GURU: Mehmet AtÄ±ÅŸay (@matisay67) takas/AKD/BOFA Ã¼stat kaynaÄŸÄ± eklendi; Ã§oklu hoca seÃ§imi, takas tablosu aday seÃ§imi ve kaynaklÄ± analiz promptu",

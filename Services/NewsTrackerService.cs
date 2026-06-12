@@ -31,22 +31,22 @@ namespace XiDeAI_Pro.Services
         {
             // YERLİ RESMİ & KALİTELİ KAYNAKLAR
             "https://www.bloomberght.com/rss", // Bloomberg HT
-            "https://www.aa.com.tr/tr/rss/default?cat=guncel", // AA Güncel (Makro ve Siyasi olaylar)
-            "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", // AA Ekonomi
-            "https://www.trthaber.com/xml_mobile.php", // TRT Haber Son Dakika
+            "https://www.aa.com.tr/rss", // AA Ana RSS
+            "https://www.aa.com.tr/rss/ekonomi", // AA Ekonomi
+            "https://www.trthaber.com/rss", // TRT Haber
             "https://www.dunya.com/rss", // Dünya Gazetesi (Ekonomi)
             "https://tr.investing.com/rss/news.rss", // Investing TR
-            "https://news.google.com/rss/search?q=%22Resmi+Gazete%22&hl=tr&gl=TR&ceid=TR:tr", // Resmi Gazete (Özel Google News Filtresi ile anlık yakalama)
+            "https://news.google.com/rss/search?q=%22Resmi+Gazete%22&hl=tr&gl=TR&ceid=TR:tr", // Resmi Gazete
 
             // YABANCI & GLOBAL KAYNAKLAR (Batı)
-            "https://search.cnbc.com/rs/search/combinedcms/view.xml?profile=120000346&id=10000664", // CNBC Markets
+            "https://content.rssfeed.cnbc.com/rss.cnbc.com/WWL-land-main.xml", // CNBC World
             "http://feeds.bbci.co.uk/news/world/rss.xml", // BBC World News
             "https://feeds.a.dj.com/rss/RSSWorldNews.xml", // Wall Street Journal World News
 
             // ASYA & DOĞU BLOKU RESMİ AJANSLARI (Jeopolitik Makro)
             "https://tass.com/rss/v2.xml", // TASS (Rusya Resmi Devlet Ajansı)
             "http://www.xinhuanet.com/english/rss/worldrss.xml", // Xinhua (Çin Resmi Devlet Ajansı)
-            "https://english.kyodonews.net/rss/news.xml" // Kyodo News (Japonya Lider Haber Ajansı)
+            "https://english.kyodonews.net/news/feed" // Kyodo News (Japonya)
         };
 
         private readonly HashSet<string> _seenLinks = new HashSet<string>();
