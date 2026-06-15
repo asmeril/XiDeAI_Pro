@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.4.9",
-    "build_number":  5490,
-    "lastUpdate":  "2026-06-12T08:34:33Z",
+    "version":  "5.5.0",
+    "build_number":  5500,
+    "lastUpdate":  "2026-06-15T22:26:22Z",
     "changelog":  [
+                      "v5.5.0: v5.5.0: Tekrar sinyal mantigi guncellendi (kisa tekrar / uzun atifli analiz) ve dost meclisi etiketleme hatalari giderildi.",
                       "v5.4.9: v5.4.9: BIST Takas ve AKD analizi \u0027Diger\u0027 kurali entegrasyonu tamamlandi. Matisay67 tablolari tam uyumlu.",
                       "v5.4.7: Market Close overhaul - tablo formati + seans yorumu + EOD snapshot + kisa tweet filtresi",
                       "v5.4.6: Config-Tabanlı Dinamik Guru Profili Sistemi",

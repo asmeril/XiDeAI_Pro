@@ -917,7 +917,7 @@ KESİN YASAKLAR:
 
         private string GetAlphaSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT - DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nFENOMEN GÖRÜŞLERİ (DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun. Mutlaka gerçek hesap adını (@handle) etiketleyerek kullan, 'Dost meclisi', 'X-User' gibi anlamsız isimler takma.";
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
@@ -933,7 +933,7 @@ KESİN YASAKLAR:
 FORMAT KURALLARI:
 - Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
 - 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
-- Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
+- Fenomen verisi varsa 3. tweette sadece FENOMEN GÖRÜŞLERİ içinde verilen doğrulanmış @kullanıcıadı etiketlenmelidir (Örn: '@kullaniciadi da benzer düşünüyor'); gerçek hesap adı dışında 'Dost meclisi', 'X-User' gibi kelimeler ASLA kullanma. Fenomen yoksa hiçbir mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
 - SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";
@@ -941,7 +941,7 @@ FORMAT KURALLARI:
 
         private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
         {
-            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nDOST MECLİSİ (SENTİMENT - DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun.";
+            string citationSection = string.IsNullOrEmpty(influencerCitations) ? "" : $"\n\nFENOMEN GÖRÜŞLERİ (DOĞRULANMIŞ):\n{influencerCitations}\nKURAL: Yalnız burada listelenen doğrulanmış @handle'ları kullanabilirsin. Listede olmayan hiçbir @mention ekleme. Fenomen hissiyatına göre zıt (contrarian) veya destekleyici bir argüman sun. Mutlaka gerçek hesap adını (@handle) etiketleyerek kullan, 'Dost meclisi', 'X-User' gibi anlamsız isimler takma.";
             string htfSection = string.IsNullOrEmpty(htfContext) ? "" : $"\n\nANA TREND (HTF - Günlük):\n{htfContext}\nKURAL: Sinyalin analizini yaparken Ana Trend verisini (D1/4H) göz önüne al (Top-Down Analysis).";
             string tierInstruction = GetTierInstruction(sig.Tier);
             string publicState = GetPublicSignalState(sig);
@@ -956,7 +956,7 @@ FORMAT KURALLARI:
 FORMAT KURALLARI:
 - Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
 - 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
-- Fenomen verisi varsa 3. tweette sadece DOST MECLİSİ içinde verilen doğrulanmış @kullanıcıadı mention edilebilir; yoksa veya emin değilsen hiçbir @mention ekleme.
+- Fenomen verisi varsa 3. tweette sadece FENOMEN GÖRÜŞLERİ içinde verilen doğrulanmış @kullanıcıadı etiketlenmelidir (Örn: '@kullaniciadi da benzer düşünüyor'); gerçek hesap adı dışında 'Dost meclisi', 'X-User' gibi kelimeler ASLA kullanma. Fenomen yoksa hiçbir mention ekleme.
 - Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
 - İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
 - SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";

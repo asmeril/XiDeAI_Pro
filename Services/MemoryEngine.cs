@@ -205,7 +205,7 @@ namespace XiDeAI_Pro.Services
 
         #region Legacy Analysis Memory Methods
 
-        public void StoreAnalysis(string symbol, string strategy, string content)
+        public void StoreAnalysis(string symbol, string strategy, string content, string url = "")
         {
             if (string.IsNullOrEmpty(symbol)) return;
 
@@ -217,7 +217,8 @@ namespace XiDeAI_Pro.Services
             {
                 Timestamp = DateTime.Now,
                 Strategy = strategy,
-                Content = content
+                Content = content,
+                Url = url ?? ""
             });
 
             if (history.Count > MaxHistoryPerSymbol)
@@ -292,7 +293,7 @@ namespace XiDeAI_Pro.Services
                 .Count(h => h.Timestamp >= weekStart && h.Strategy.Contains("THREAD", StringComparison.OrdinalIgnoreCase));
         }
 
-        public (DateTime Timestamp, string Strategy, string Content)? GetLatestThreadContext(string symbol, int maxDays = 7)
+        public (DateTime Timestamp, string Strategy, string Content, string Url)? GetLatestThreadContext(string symbol, int maxDays = 7)
         {
             if (string.IsNullOrEmpty(symbol) || !_analysisMemory.ContainsKey(symbol))
                 return null;
@@ -303,15 +304,15 @@ namespace XiDeAI_Pro.Services
                 .OrderByDescending(h => h.Timestamp)
                 .FirstOrDefault();
 
-            return latest == null ? null : (latest.Timestamp, latest.Strategy, latest.Content);
+            return latest == null ? null : (latest.Timestamp, latest.Strategy, latest.Content, latest.Url);
         }
 
         /// <summary>
         /// Thread gönderildiğinde hafızaya kaydet (haftalık kontrol için)
         /// </summary>
-        public void RecordThreadPosted(string symbol, string threadContent)
+        public void RecordThreadPosted(string symbol, string threadContent, string url = "")
         {
-            StoreAnalysis(symbol, "THREAD", threadContent);
+            StoreAnalysis(symbol, "THREAD", threadContent, url);
         }
 
         #endregion
@@ -384,6 +385,7 @@ namespace XiDeAI_Pro.Services
         public DateTime Timestamp { get; set; }
         public string Strategy { get; set; } = "";
         public string Content { get; set; } = "";
+        public string Url { get; set; } = "";
     }
 
     public class TweetMemoryItem

@@ -357,8 +357,10 @@ namespace XiDeAI_Pro.Services
                 if (!isWorthAnalyzing) return;
 
                 var previousThread = _memory?.GetLatestThreadContext(sig.Symbol, 7);
-                if (previousThread.HasValue)
+                bool isShortRepeat = false;
+                if (previousThread.HasValue && (DateTime.Now - previousThread.Value.Timestamp).TotalDays <= 2)
                 {
+                    isShortRepeat = true;
                     if (ConfigManager.Current.SpamProtectSignals && !_spam.CanPostGeneral(out string repeatReason))
                     {
                         OnLog?.Invoke($"🛡️ Tekrar sinyal spam filtresi: {repeatReason}", "Engine");
@@ -371,13 +373,25 @@ namespace XiDeAI_Pro.Services
                     OnStatusUpdate?.Invoke($"{sig.Symbol} tekrar sinyali kısa pekiştirme olarak hazırlanıyor...");
 
                     string? repeatScreenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period);
-                    var repeatTweets = BuildReinforcementThread(sig, previousThread.Value.Timestamp, previousThread.Value.Content);
+                    
+                    string currentLevels = "";
+                    if (!string.IsNullOrEmpty(repeatScreenshotPath))
+                    {
+                        string prompt = $"Ekteki grafikteki {sig.Symbol} için güncel destek ve direnç seviyelerini çok kısa, en fazla 15 kelimelik tek bir cümle ile belirt. Örnek format: 'Anlık destek 100, ilk direnç ise 105 seviyesinde görünüyor.' Başka hiçbir analiz veya yorum ekleme.";
+                        var levelsAi = await _gemini.SendMultimodalRequest(prompt, repeatScreenshotPath, 100);
+                        if (!string.IsNullOrWhiteSpace(levelsAi))
+                        {
+                            currentLevels = levelsAi.Trim();
+                        }
+                    }
+
+                    var repeatTweets = BuildReinforcementThread(sig, previousThread.Value.Timestamp, previousThread.Value.Url, currentLevels);
                     var repeatResult = await _posting.PostThreadAsync(repeatTweets, repeatScreenshotPath, "SignalReinforcement");
                     if (repeatResult.status == "success")
                     {
                         _persistence.MarkAsProcessed(sig);
                         _spam.RecordTweet(sig.Symbol, sig.Strategy + "_REPEAT");
-                        _memory?.RecordThreadPosted(sig.Symbol, string.Join("\n---\n", repeatTweets));
+                        _memory?.RecordThreadPosted(sig.Symbol, string.Join("\n---\n", repeatTweets), repeatResult.tweet_url);
                         OnLog?.Invoke($"✅ Tekrar sinyal pekiştirmesi paylaşıldı: {sig.Symbol}", "Twitter");
                     }
                     else
@@ -407,6 +421,11 @@ namespace XiDeAI_Pro.Services
 
                 // Context Preparation
                 string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Takip notu: {GetPublicSignalState(sig)}{(sig.IsRoket ? " (Roket 🚀)" : "")}";
+
+                if (previousThread.HasValue && !isShortRepeat)
+                {
+                    priceContext += $"\n\nÖNCEKİ ANALİZ BAĞLAMI:\nBu sembol için en son {previousThread.Value.Timestamp:dd.MM.yyyy} tarihinde analiz yapılmıştı. Eski analiz içeriği: {previousThread.Value.Content}\nYeni analizi yaparken kısaca bu eski analize atıfta bulun. Eğer önceki analizdeki destek çalışmış veya direnç/hedef vurulmuşsa, yani önceki analiz başarılı olmuşsa bunu vurgulayarak 'Önceki analizimizde belirttiğimiz gibi...' diyerek başarısından bahset.";
+                }
 
                 // Strateji bazlı tarama kriteri bağlamı
                 string scanCriteria = sig.Strategy switch
@@ -512,13 +531,13 @@ namespace XiDeAI_Pro.Services
                 // 5. Execution (New Raw Handler)
                 OnLog?.Invoke($"🧵 Paylaşılıyor: {sig.Symbol}", "Twitter");
                 
-                var (sent, errorMsg) = await _threadService.PostAIGeneratedThread(sig, aiContent, screenshotPath ?? "");
+                var (sent, errorMsg, tweetUrl) = await _threadService.PostAIGeneratedThread(sig, aiContent, screenshotPath ?? "");
 
                 if (sent)
                 {
                     _persistence.MarkAsProcessed(sig);
                     _spam.RecordTweet(sig.Symbol, sig.Strategy);
-                    _memory?.RecordThreadPosted(sig.Symbol, aiContent);
+                    _memory?.RecordThreadPosted(sig.Symbol, aiContent, tweetUrl);
                     OnLog?.Invoke($"✅ Başarılı: {sig.Symbol} (Tier: {sig.Tier})", "Twitter");
                 }
                 else
@@ -534,19 +553,18 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        private static List<string> BuildReinforcementThread(SignalData sig, DateTime previousAt, string previousContent)
+        private static List<string> BuildReinforcementThread(SignalData sig, DateTime previousAt, string previousUrl, string currentLevels)
         {
             string cleanSymbol = sig.Symbol.Replace("VIP-", "").Replace("VIP'", "").Trim();
             string state = GetPublicSignalState(sig);
             string when = previousAt.Date == DateTime.Now.Date ? $"bugün {previousAt:HH:mm}" : $"{previousAt:dd.MM HH:mm}";
-            string levels = ExtractLevelHint(previousContent);
+            string previousLinkText = string.IsNullOrEmpty(previousUrl) ? "" : $"\n\n🔗 Önceki Analiz: {previousUrl}";
+            string levelText = !string.IsNullOrWhiteSpace(currentLevels) ? $" 📊 {currentLevels}" : "";
 
             var tweets = new List<string>
             {
                 $"#{cleanSymbol} tekrar taramaya düştü. {when} paylaşılan ana plan değişmedi; bu yeni kayıt önceki senaryoyu izlemeye değer kılıyor. Fiyat: {sig.Price:0.00} {sig.Basis}. Takip notu: {state}.",
-                string.IsNullOrWhiteSpace(levels)
-                    ? $"Detaylı analizi tekrar açmıyorum. Bu sinyal önceki planı pekiştiriyor: teyit gelmeden acele yok, risk seviyesi bozulursa izleme iptal. Siz hangi kapanışı teyit sayarsınız? ⚠️ YTD"
-                    : $"Önceki analizde öne çıkan seviyeler: {levels}. Yeni sinyal bu bölgelerin hâlâ izlenmesi gerektiğini söylüyor. Teyit gelmeden işlem kovalamam. Siz hangi kapanışı beklersiniz? ⚠️ YTD"
+                $"Önceki analizde vurguladığımız plana sadık kalıyoruz.{levelText} Yeni sinyal de aynı bölgenin izlenmesi gerektiğini söylüyor. Siz hangi kapanışı beklersiniz? ⚠️ YTD{previousLinkText}"
             };
 
             return ThreadPipeline.EnsureWithinLimit(tweets, 280).Take(2).ToList();
@@ -561,18 +579,6 @@ namespace XiDeAI_Pro.Services
                 "KAPALI" => "Sinyal kapanmış",
                 _ => "İzleme listesinde"
             };
-        }
-
-        private static string ExtractLevelHint(string content)
-        {
-            if (string.IsNullOrWhiteSpace(content)) return string.Empty;
-            var matches = System.Text.RegularExpressions.Regex.Matches(content, @"\b\d{1,4}(?:[,.]\d{1,2})?\b")
-                .Select(m => m.Value)
-                .Where(x => !x.StartsWith("202"))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(4)
-                .ToList();
-            return string.Join(" / ", matches);
         }
 
         private static string StripUnapprovedMentions(string content, HashSet<string> allowedHandles, out List<string> removedHandles)

@@ -155,11 +155,11 @@ namespace XiDeAI_Pro.Services
         /// <summary>
         /// 4 parçalı sinyal thread'i - Etkileşim optimizasyonlu
         /// </summary>
-        public async Task<(bool success, string error)> PostAIGeneratedThread(SignalData signal, string aiThreadContent, string chartImagePath)
+        public async Task<(bool success, string error, string url)> PostAIGeneratedThread(SignalData signal, string aiThreadContent, string chartImagePath)
         {
              string inflightKey = BuildSignalKey(signal);
              if (!_inflightSignalPosts.TryAdd(inflightKey, DateTime.UtcNow))
-                 return (false, "Benzer thread şu an gönderiliyor.");
+                 return (false, "Benzer thread şu an gönderiliyor.", "");
 
              try
              {
@@ -169,20 +169,20 @@ namespace XiDeAI_Pro.Services
                      .ToList();
                  
                   // Fallback for single tweet if something went wrong
-                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.");
+                  if (tweets.Count == 0) return (false, "AI içerik üretmedi.", "");
                  tweets = ThreadPipeline.EnsureWithinLimit(tweets, 280);
 
                   var result = await _posting.PostThreadAsync(tweets, chartImagePath, "HybridEngine");
                  
                  if (result.status == "success")
                  {
-                    return (true, "");
+                    return (true, "", result.tweet_url ?? "");
                  }
-                 return (false, result.message ?? result.text);
+                 return (false, result.message ?? result.text, "");
              }
              catch (Exception ex)
              {
-                 return (false, ex.Message);
+                 return (false, ex.Message, "");
              }
              finally
              {

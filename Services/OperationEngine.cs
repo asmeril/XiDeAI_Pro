@@ -137,7 +137,7 @@ namespace XiDeAI_Pro.Services
 
                 bool anySent = false;
 
-                var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 280, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
+                var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 255, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
                 if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
                 {
                     const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
