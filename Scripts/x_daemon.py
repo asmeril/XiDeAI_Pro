@@ -1022,7 +1022,7 @@ def cmd_post_thread(params):
             return {"status": "error", "message": f"First tweet URL invalid: {first_url}"}
 
         log(f"[Thread] ✅ Tweet 1 posted: {first_url}")
-        time.sleep(4)  # Twitter'ın indexlemesi için bekle
+        time.sleep(12)  # Twitter'ın indexlemesi ve anti-spam için daha uzun bekle
 
         # ── Kalan tweetler: reply olarak ─────────────────────────────────────
         last_url = first_url
@@ -1039,7 +1039,7 @@ def cmd_post_thread(params):
             log(f"[Thread] ✅ Tweet {i} posted: {reply_url}")
             last_url = reply_url
             posted_count += 1
-            time.sleep(4)  # Her tweet arasında bekle
+            time.sleep(12)  # Her tweet arasında anti-spam koruması için bekle
 
         log(f"✅ Thread posted successfully ({len(tweets)} parts) via reply-chain")
         return {"status": "success", "message": f"Thread posted ({len(tweets)} tweets)", "tweet_url": first_url, "posted_count": posted_count, "total_chunks": len(tweets)}
