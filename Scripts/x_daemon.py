@@ -515,15 +515,47 @@ def cmd_search(params):
                 if (not text or len(text) < 10) and not img_url:
                     continue
                 
-                # Extract author
+                # Extract author — robust multi-fallback (v5.5.1)
                 author = ""
                 try:
                     user_el = art.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
                     handle_text = user_el.text
-                    if "@" in handle_text:
+                    # Priority 1: Regex ile @handle parse et
+                    import re as _re
+                    handle_match = _re.search(r'@(\w+)', handle_text)
+                    if handle_match:
+                        author = "@" + handle_match.group(1)
+                    elif "@" in handle_text:
                         author = "@" + handle_text.split("@")[1].split("\n")[0].split(" ")[0]
                 except:
-                    author = "X-User"
+                    pass
+                
+                # Priority 2: Tweet URL'sinden handle çıkar (x.com/USERNAME/status/...)
+                if not author or author == "@":
+                    try:
+                        import re as _re
+                        status_link = art.find_element(By.CSS_SELECTOR, "a[href*='/status/']")
+                        href = status_link.get_attribute("href") or ""
+                        url_match = _re.search(r'x\.com/(\w+)/status/', href)
+                        if url_match:
+                            author = "@" + url_match.group(1)
+                    except:
+                        pass
+                
+                # Priority 3: Tüm article text'inden @handle ara
+                if not author or author == "@":
+                    try:
+                        import re as _re
+                        full_text = art.text or ""
+                        text_match = _re.search(r'@(\w+)', full_text)
+                        if text_match:
+                            author = "@" + text_match.group(1)
+                    except:
+                        pass
+                
+                # Handle bulunamadıysa tweeti atla (X-User kirliliği oluşturma)
+                if not author or author == "@":
+                    continue
                 
                 # Extract URL and time
                 url = ""
