@@ -457,10 +457,16 @@ namespace XiDeAI_Pro.Services
                     string symUpper = sig.Symbol.ToUpperInvariant();
                     string currentUser = ConfigManager.Current.XLoginUser?.Replace("@", "").Trim() ?? "";
 
+                    // Sahte/fallback handle blocklist — bunlar gerçek fenomen değil
+                    var handleBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "X-User", "User", "X", "unknown", "anonim", "Anonymous", "nouser" };
+
                     Func<List<InfluencerPost>, List<InfluencerPost>> cleanFilter = (raw) => (raw ?? new List<InfluencerPost>())
                         .Where(p => !ContentQualityGuard.ContainsPrivateLinks(p.Content))
                         .Where(p => {
                             string h = p.Handle?.Replace("@", "").Trim() ?? "";
+                            if (string.IsNullOrWhiteSpace(h) || h.Length < 2) return false; // Tek karakter handle filtre
+                            if (handleBlocklist.Contains(h)) return false; // Sahte handle filtre
                             if (!string.IsNullOrEmpty(currentUser) && h.Equals(currentUser, StringComparison.OrdinalIgnoreCase)) return false;
                             string content = p.Content?.ToUpperInvariant() ?? "";
                             return content.Contains($"#{symUpper}") ||
@@ -495,13 +501,21 @@ namespace XiDeAI_Pro.Services
                         {
                             string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
                             string cleanHandle = topPosts[i].Handle?.TrimStart('@') ?? "";
-                            if (string.IsNullOrWhiteSpace(cleanHandle)) continue;
-                            if (!string.IsNullOrWhiteSpace(cleanHandle)) allowedMentionHandles.Add(cleanHandle);
+                            if (string.IsNullOrWhiteSpace(cleanHandle) || cleanHandle.Length < 2) continue;
+                            if (handleBlocklist.Contains(cleanHandle)) continue;
+                            allowedMentionHandles.Add(cleanHandle);
                             string cleanContent = StripUnapprovedMentions(topPosts[i].Content?.Trim() ?? "", new HashSet<string>(new[] { cleanHandle }, StringComparer.OrdinalIgnoreCase), out _);
                             lines.Add($"{prefix} @{cleanHandle}: {cleanContent}");
                         }
-                        influencerCitations = string.Join("\n", lines);
-                        OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
+                        if (lines.Count > 0)
+                        {
+                            influencerCitations = string.Join("\n", lines);
+                            OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
+                        }
+                        else
+                        {
+                            OnLog?.Invoke($"ℹ️ {sig.Symbol}: Genel aramada yorum bulundu ama geçerli handle yok; mention kapalı.", "SocialIntel");
+                        }
                     }
                     else
                     {

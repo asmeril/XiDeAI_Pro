@@ -12,7 +12,8 @@ namespace XiDeAI_Pro.Services
 {
     public class TelegramService
     {
-        private static readonly HttpClient _client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        private static readonly HttpClient _client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        private DateTime _getUpdatesBackoffUntil = DateTime.MinValue; // Rate limit backoff
         private string _baseUrl = "";
         
         // Rate Limiting
@@ -181,6 +182,12 @@ namespace XiDeAI_Pro.Services
         {
             if (string.IsNullOrEmpty(_baseUrl)) return new List<TelegramUpdateInfo>();
 
+            // Rate limit backoff: Telegram bizi engellediyse bekle
+            if (DateTime.UtcNow < _getUpdatesBackoffUntil)
+            {
+                return new List<TelegramUpdateInfo>();
+            }
+
             try
             {
                 // Fetch all updates from the given offset
@@ -189,7 +196,24 @@ namespace XiDeAI_Pro.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     string err = await response.Content.ReadAsStringAsync();
-                    Logger.Telegram($"⚠️ getUpdates Hatası: {response.StatusCode} - {err}");
+                    int statusCode = (int)response.StatusCode;
+
+                    if (statusCode == 429)
+                    {
+                        // Rate limited — 30 saniye backoff
+                        _getUpdatesBackoffUntil = DateTime.UtcNow.AddSeconds(30);
+                        Logger.Telegram($"⏳ getUpdates Rate Limit (429). 30s backoff aktif.");
+                    }
+                    else if (statusCode == 502 || statusCode == 503)
+                    {
+                        // Telegram sunucu sorunu — 15 saniye backoff
+                        _getUpdatesBackoffUntil = DateTime.UtcNow.AddSeconds(15);
+                        Logger.Telegram($"⚠️ getUpdates Sunucu Hatası ({statusCode}). 15s backoff aktif.");
+                    }
+                    else
+                    {
+                        Logger.Telegram($"⚠️ getUpdates Hatası: {response.StatusCode} - {err}");
+                    }
                     return new List<TelegramUpdateInfo>();
                 }
 
@@ -231,6 +255,13 @@ namespace XiDeAI_Pro.Services
                     }
                 }
                 return updates;
+            }
+            catch (TaskCanceledException)
+            {
+                // HttpClient timeout — Telegram yanıt vermedi, 20s backoff
+                _getUpdatesBackoffUntil = DateTime.UtcNow.AddSeconds(20);
+                Logger.Telegram($"⏳ getUpdates Timeout. 20s backoff aktif.");
+                return new List<TelegramUpdateInfo>();
             }
             catch (Exception ex)
             {
