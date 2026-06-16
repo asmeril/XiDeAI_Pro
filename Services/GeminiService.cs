@@ -150,8 +150,9 @@ namespace XiDeAI_Pro.Services
                 string prompt = @"Bu bir borsa/takas tarama görselidir. Önce tablo türünü anla:
 - Teknik tarama tablosu olabilir.
 - Takas/yabancı payı/fiili dolaşım/AKD/BOFA tablosu olabilir. AKD aracı kurum dağılımıdır, BOFA Bank of America'dır.
-Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç. Takas tablosunda seçim gerekçesi yabancı payı, fiili dolaşıma oran, BOFA son 2 AKD farkı veya belirgin ayrışma olmalı. Her sembol için kısa Reason yaz.
-Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Yabancı payı farkı listede öne çıkıyor""}] }";
+Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç. 
+ÇOK ÖNEMLİ: Seçtiğin her sembol için 'Reason' alanına SADECE kısa bir yorum DEĞİL, tabloda o hisseye ait olan TÜM sütun başlıklarını ve gerçek rakamları/yüzdeleri/değerleri (RSI, Lot miktarı, Yüzdeler vb.) eksiksiz şekilde yaz.
+Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Tablo Verileri -> BofA Net: 100.000 Lot, Diğer Satıcı: %45, Yabancı Payı: %5.2. Tablodaki bu net veriler öne çıkıyor.""}] }";
 
                 string tempFile = Path.Combine(Path.GetTempPath(), $"guru_{Guid.NewGuid():N}.png");
                 await File.WriteAllBytesAsync(tempFile, imageBytes);

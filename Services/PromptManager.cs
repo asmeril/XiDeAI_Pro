@@ -487,10 +487,10 @@ X'te yuksek etkilesim alacak bir KAPANIS THREAD'I olarak yaz.
 
 CIKTI FORMATI (KESIN KURAL):
 - Her tweet'i ||| ayraciyla birbirinden ayir. Baska hicbir ayrac kullanma.
-- Her parca KESINLIKLE 280 karakterin altinda olmali (bosluklar dahil).
+- Her parca KESINLIKLE 250 karakterin altinda olmali (bosluklar dahil). 250'yi asan tweet kesilir!
 - 'Tweet 1:', '1.', '[Giris]' gibi baslik/etiket ifadesi YAZMA.
 - Ilk tweet'in ilk karakteri emoji olsun.
-- TAM OLARAK 4 tweet yaz. 5., 6., 7. tweet YASAK.
+- TAM OLARAK 5 tweet yaz. 6., 7., 8. tweet YASAK.
 
 ### PIYASA VERILERI:
 {marketData}
@@ -498,37 +498,46 @@ CIKTI FORMATI (KESIN KURAL):
 {eodSection}
 {gainersSection}{losersSection}{volumeSection}{nabizSection}
 
-### THREAD YAPISI (4 TWEET - ZORUNLU SIRALAMA):
+### THREAD YAPISI (5 TWEET - ZORUNLU SIRALAMA):
 
 TWEET 1 — 📊 GUNUN VERI TABLOSU:
   - XU100 kapanis + gunluk degisim %
   - XU030 degisim % | XU050 degisim %
-  - XGLD fiyat (degisim%) | USDTRY fiyat (degisim%)
-  - BRENT fiyat (degisim%) | XSLV fiyat (degisim%)
-  - Hacim: Gun vs 10gun Ortalama karsilastirmasi (Xxx kat)
+  - 💰 Gram Altın (₺) fiyat (degisim%) | 🇺🇸 Dolar/TL fiyat (degisim%)
+  - 🛢️ Brent ($) fiyat (degisim%) | ⚡ Gram Gümüş (₺) fiyat (degisim%)
+  - 🔥 Hacim: Gun vs 10gun Ortalama karsilastirmasi (Xxx kat)
   Format: Tablo gibi, her satir bir veri, emoji kullan
+  ÖNEMLİ: XGLD yerine 'Gram Altın (₺)', XSLV yerine 'Gram Gümüş (₺)', USDTRY yerine 'Dolar/TL', BRENT yerine 'Brent ($)' yaz.
+  ÖNEMLİ: Mod alanında BULL yerine 'YÜKSELİŞ', CRASH yerine 'ÇÖKÜŞ', DIKKATLI yerine 'DİKKATLİ' yaz.
 
 TWEET 2 — 📈 SEANS YORUMU:
-  - Mod (CRASH/DIKKATLI/BULL) + Trend analizi
-  - Gunun hikayesi: nabız kayıtlarindaki kırılımlari saat+yüzde+hacim katıyla anlat
+  - Mod (YÜKSELİŞ/DİKKATLİ/ÇÖKÜŞ) + Trend analizi
+  - Gunun hikayesi: nabız kayıtlarındaki kırılımları saat+yüzde+hacim katıyla anlat
   - Hacim karsilastirmasinnin anlamı (gun > 10g ortalama ise hacimli gun, < ise sönük)
-  - Global varlıkların etki yönü (XGLD yuksekse risk off, USD yuksekse TL baskısı vb.)
+  - Global varlıkların etki yönü (Altın yüksekse risk off, USD yüksekse TL baskısı vb.)
 
-TWEET 3 — 📌 HISS HAREKETLERI:
+TWEET 3 — 📉 VOLATİLİTE & TEKNİK GÖRÜNÜM:
+  - Günün range % ile volatilite değerlendirmesi
+  - XU100 teknik görünüm (yukarı/aşağı/yatay)
+  - Kısa ve net: en az 2 cümle yaz, TEK CUMLELIK BOŞ tweet olmasın
+
+TWEET 4 — 📌 HİSSE HAREKETLERİ:
   - Tavan yapan 2-3 hisse (isim + yüzde)
   - Taban yapan 2-3 hisse (isim + yüzde)
   - Hacim liderleri (iDeal movers verisinden)
-  - En anlamlı 3-5 somut nokta seç
+  - DEVRİK CÜMLE KURMA. Düz ve net Türkçe yaz.
+  - Örnek: 'Tavanlar: DITAS, ESCOM (+%10). Tabanlar: IHAAS, ENSRI (-%10). Hacim lideri: THYAO.'
+  - KESTİRMEDEN YAZMA. 250 karakteri geçme, fazla hisse sıralama.
 
-TWEET 4 — 🔎 YARIN ICIN BAKIS:
+TWEET 5 — 🔎 YARIN İÇİN BAKIŞ:
   - Yarın izlenecek net seviye (destek/direnç)
-  - Risk notu (mod'a gore)
-  - Okuyucuya soru (veri temelli, bos retorik yasak)
-  - #BIST100 #Borsa + YTD uyarısı
+  - Risk notu (mod'a göre)
+  - Okuyucuya soru (veri temelli, boş retorik yasak)
+  - #BIST100 #Borsa + ⚠️ YTD uyarısı
 
 ### VERI KULLANIM KURALLARI:
 - EOD_SNAPSHOT verisi varsa BIRINCIL kaynak olarak kullan
-- Global veriler (XGLD,USDTRY,BRENT,XSLV) ilk tweet'te tablo olarak zorunlu
+- Global veriler (Gram Altın, Dolar/TL, Brent, Gram Gümüş) ilk tweet'te tablo olarak zorunlu
 - Hacim karsilastirmasi (gun vs 10g ort) her zaman goster
 - Hacim Katı 0,0x gibi düşükse 'gun sonu verisi dusuk' diye gec, 10g ortalamaya baglan
 - 'Akıllı para', 'kurumsal topladı', 'likidite avı', 'devler', 'patlama' yasak
@@ -538,7 +547,8 @@ TWEET 4 — 🔎 YARIN ICIN BAKIS:
 1. Blok paragraf yasak. Cumleler kisa.
 2. Hashtag SADECE son tweet'e: #BIST100 #Borsa
 3. Takip et / bildirim ac / RT cagrisi YASAK
-4. Her tweet 120-275 karakter arasi olmalı (cok kisa tweet yasak)";
+4. Her tweet 120-250 karakter arasi olmali (cok kisa tweet yasak)
+5. DEVRİK cümle kurma; düz ve anlaşılır Türkçe yaz.";
         }
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "", string tweetContent = "")
         {
@@ -559,7 +569,7 @@ TWEET 4 — 🔎 YARIN ICIN BAKIS:
             var allForbidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var w in profile.ForbiddenWords) allForbidden.Add(w);
             // Genel yasaklar (her üstad için ortak)
-            foreach (var w in new[] { "akıllı para", "fısıltı alış", "likidite avı", "premove sahnesi", "yayını germek", "kurumsal ayak izi", "balinalar maliyetlendi", "sessizce birikim", "büyük hamlenin öncüsü", "akıllı paranın fiyatı toparlay", "değerli yatırımcılar", "piyasanın nabzını" })
+            foreach (var w in new[] { "akıllı para", "fısıltı alış", "likidite avı", "premove sahnesi", "yayını germek", "kurumsal ayak izi", "balinalar maliyetlendi", "sessizce birikim", "büyük hamlenin öncüsü", "akıllı paranın fiyatı toparlay", "değerli yatırımcılar", "piyasanın nabzını", "smart money", "efsane", "nokta atışı", "yine konuştu", "bomba gibi", "gözüyle baktığımızda", "açısından bakarsak" })
                 allForbidden.Add(w);
             string forbiddenList = allForbidden.Count > 0 ? string.Join(", ", allForbidden) : "";
 
@@ -617,9 +627,9 @@ Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu U
 
 ### ANALIZ KURALLARI:
 1. GİRİŞ: Hocanın taramasına saygı + sembolün neden izlemeye değer olduğu.
-2. TEKNİK PLAN: Fiyat, ana destek, ana direnç, teyit ve invalidasyon.
-3. GÖRSEL: Grafik analizinden gelen gerçek seviyeleri kullan; görmediğin şeyi uydurma.
-4. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi' gibi ifadeler yok. Saygılı ama ölçülü ol.
+2. VERİ ODAKLILIK: Analizini TAMAMEN 'GÖRSEL-ANALİZ' kısmında sana iletilen Tablo Verileri (lotlar, yüzdeler, RSI vs.) üzerine kur! Eğer tabloda Takas/AKD verisi varsa bu rakamları mutlaka yoruma dahil et. Elinde tablo verisi varken uydurma 'Smart Money' veya FVG cümleleri kullanma!
+3. TEKNİK PLAN: Fiyat, ana destek, ana direnç, teyit ve invalidasyon. Grafik görselinden gelen gerçek seviyeleri kullan.
+4. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi', 'yine konuştu' gibi ifadeler kesinlikle yasak. Saygılı ama ciddi/kurumsal bir veri analisti ol.
 5. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
 
 ### YASAK SÖZCÜKLER ({displayName} + Genel):

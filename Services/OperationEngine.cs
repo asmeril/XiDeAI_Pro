@@ -434,9 +434,19 @@ namespace XiDeAI_Pro.Services
                         var eodSb = new System.Text.StringBuilder();
                         eodSb.AppendLine("=== GUN SONU OZET ===");
                         
+                        // Mod Türkçeleştirme
+                        string modRaw = ep[2].Trim();
+                        string modTr = modRaw switch
+                        {
+                            "BULL" => "YÜKSELİŞ",
+                            "CRASH" => "ÇÖKÜŞ",
+                            "DIKKATLI" => "DİKKATLİ",
+                            _ => modRaw
+                        };
+
                         if (ep.Length >= 11)
                         {
-                            eodSb.AppendLine($"Mod: {ep[2].Trim()} | Puan: {ep[10].Trim()}");
+                            eodSb.AppendLine($"Mod: {modTr} | Puan: {ep[10].Trim()}");
                             eodSb.AppendLine($"XU100: {ep[4].Trim()} | Gunluk: {ep[3].Trim()}");
                             eodSb.AppendLine($"Yuksek: {ep[5].Trim()} | Dusuk: {ep[6].Trim()} | Range: {ep[7].Trim()}");
                             eodSb.AppendLine($"XU030: {ep[8].Trim()} | XU050: {ep[9].Trim()}");
@@ -448,14 +458,14 @@ namespace XiDeAI_Pro.Services
                             eodSb.AppendLine($"Hacim: Gun={ep[11].Trim()} | 10g Ort={ep[12].Trim()} | Karsilastirma={ep[13].Trim()}");
                         }
                         
-                        // Yeni alanlar: Global veriler (ep[14]-[21])
+                        // Yeni alanlar: Global veriler (ep[14]-[21]) — Türkçe etiketlerle
                         if (ep.Length >= 22)
                         {
-                            eodSb.AppendLine("GLOBAL VERILER:");
-                            eodSb.AppendLine($"  XGLD: {ep[14].Trim()} ({ep[15].Trim()})");
-                            eodSb.AppendLine($"  USDTRY: {ep[16].Trim()} ({ep[17].Trim()})");
-                            eodSb.AppendLine($"  BRENT: {ep[18].Trim()} ({ep[19].Trim()})");
-                            eodSb.AppendLine($"  XSLV: {ep[20].Trim()} ({ep[21].Trim()})");
+                            eodSb.AppendLine("GLOBAL VERİLER:");
+                            eodSb.AppendLine($"  💰 Gram Altın (₺): {ep[14].Trim()} ({ep[15].Trim()})");
+                            eodSb.AppendLine($"  🇺🇸 Dolar/TL: {ep[16].Trim()} ({ep[17].Trim()})");
+                            eodSb.AppendLine($"  🛢️ Brent Petrol ($): {ep[18].Trim()} ({ep[19].Trim()})");
+                            eodSb.AppendLine($"  ⚡ Gram Gümüş (₺): {ep[20].Trim()} ({ep[21].Trim()})");
                         }
                         
                         eodSnapshot = eodSb.ToString();

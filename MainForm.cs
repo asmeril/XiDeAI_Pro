@@ -3400,14 +3400,15 @@ namespace XiDeAI_Pro
                 searchBuilder.AppendLine("            ");
                 searchBuilder.AppendLine("            // FALLBACK HANDLE: If standard User-Names fails");
                 searchBuilder.AppendLine("            if ((!safeHandle || safeHandle === 'X-User') && url) {");
-                searchBuilder.AppendLine("                const ownerMatch = url.match(/x\\.com\\/([^/]+)\\/status\\//i);");
+                searchBuilder.AppendLine("                const ownerMatch = url.match(/(?:x\\.com|twitter\\.com)\\/([^/]+)\\/status\\//i);");
                 searchBuilder.AppendLine("                if (ownerMatch && ownerMatch[1]) safeHandle = '@' + ownerMatch[1];");
                 searchBuilder.AppendLine("            }");
                 searchBuilder.AppendLine("            if (!safeHandle || safeHandle === 'X-User') {");
                 searchBuilder.AppendLine("                const links = Array.from(art.querySelectorAll('a[role=\"link\"]'));");
                 searchBuilder.AppendLine("                for (let l of links) {");
-                searchBuilder.AppendLine("                    if (l.href && !l.href.includes('/status/') && l.href.includes('x.com/')) {");
-                searchBuilder.AppendLine("                        safeHandle = '@' + l.href.split('x.com/')[1].split('/')[0].split('?')[0];");
+                searchBuilder.AppendLine("                    if (l.href && !l.href.includes('/status/') && (l.href.includes('x.com/') || l.href.includes('twitter.com/'))) {");
+                searchBuilder.AppendLine("                        const domainStr = l.href.includes('x.com/') ? 'x.com/' : 'twitter.com/';");
+                searchBuilder.AppendLine("                        safeHandle = '@' + l.href.split(domainStr)[1].split('/')[0].split('?')[0];");
                 searchBuilder.AppendLine("                        break;");
                 searchBuilder.AppendLine("                    }");
                 searchBuilder.AppendLine("                }");
