@@ -24,6 +24,7 @@ namespace XiDeAI_Pro.Services
             public string PivotLevels { get; set; } = ""; // P, S1-S3, R1-R3
             public string FibonacciLevels { get; set; } = ""; // %38.2, %50, %61.8
             public string TrendStructure { get; set; } = ""; // HHs/LLs, MA alignment
+            public string PatternSignals { get; set; } = ""; // Classical chart patterns
             public string SmartMoneySignals { get; set; } = ""; // Order Block, FVG, MSB
             public string VolumeAnalysis { get; set; } = ""; // Accumulation/Distribution
             public string SummaryContext { get; set; } = ""; // One-line summary for AI
@@ -93,6 +94,10 @@ Analizi en ufak detayları görecek şekilde, sistematik yapmanı istiyorum.
   - '💧 LIQ' (Liquidity Pool) - Sarı noktalı kutular
   - Gri renkte görünen OB'ler 'MITIGATED' (kullanılmış) demektir
   - Fibonacci seviyelerinin grafik üzerindeki konumlarını ve fiyatlarını doğrula.
+• Klasik formasyonları ayrıca kontrol et:
+  - Üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO, fincan-kulp
+  - Sadece mum yapısı ve trend çizgileri net görünüyorsa formasyon adı ver.
+  - Net değilse 'Belirgin formasyon yok' yaz; tahmin yürütme.
 
 ═══════════════════════════════════════════════════════
 ÇIKTI FORMATI (EKSİKSİZ DOLDUR):
@@ -102,6 +107,7 @@ RSI: [değer], [Durum], [Varsa Divergence]
 MACD: [değer], [Durum], [Varsa Divergence]
 Pivot Levels: R1=[X], R2=[Y], S1=[Z], S2=[W]
 Smart Money: [OB/FVG/BOS/CHOCH/LIQ/Mitigation ve FIB seviyeleri]
+Formasyon: [Net formasyon adı + kırılım/iptal seviyesi veya Belirgin formasyon yok]
 Trend: [Yükseliş/Düşüş/Yatay]
 
 ⚠️ ÖNEMLİ TALİMATLAR:
@@ -232,6 +238,10 @@ Trend: [Yükseliş/Düşüş/Yatay]
                     else
                         result.SmartMoneySignals = breakoutValue;
                 }
+                else if (line.Contains("Formasyon:") || line.Contains("Pattern:"))
+                {
+                    result.PatternSignals = line.Contains("Formasyon:") ? ExtractValue(line, "Formasyon:") : ExtractValue(line, "Pattern:");
+                }
                 else if (line.Contains("Trend:"))
                 {
                     result.TrendStructure = ExtractValue(line, "Trend:");
@@ -287,6 +297,16 @@ Trend: [Yükseliş/Düşüş/Yatay]
             {
                 sb.AppendLine("💰 SMART MONEY STRUCTURES:");
                 sb.AppendLine($"  {ind.SmartMoneySignals}");
+                sb.AppendLine();
+            }
+
+            // Pattern Section
+            if (!string.IsNullOrEmpty(ind.PatternSignals) &&
+                !ind.PatternSignals.Contains("yok", StringComparison.OrdinalIgnoreCase) &&
+                !ind.PatternSignals.Contains("none", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine("📐 CHART PATTERN:");
+                sb.AppendLine($"  • {ind.PatternSignals}");
                 sb.AppendLine();
             }
             

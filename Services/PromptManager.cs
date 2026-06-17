@@ -69,12 +69,13 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
             string visualSection = hasChart
                 ? @"### GÖRSEL OKUMA (Grafik ektedir):
 - Trend yönü ve güçlü/zayıf mum yapıları
+- Klasik formasyon kontrolü: üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO, fincan-kulp. Sadece net görünüyorsa yaz; yoksa 'belirgin formasyon yok' de
 - RSI ve MACD uyumsuzlukları
 - OB / FVG bölgeleri — varsa somut fiyat seviyeleri ver
 - Net destek ve direnç seviyeleri"
                 : @"### GRAFİK VERİSİ:
 - Bu istekte ekran görüntüsü yok. Sadece verilen fiyat, gösterge, haber ve piyasa bağlamını kullan.
-- Görmediğin mum, RSI/MACD uyumsuzluğu, OB/FVG veya destek/direnç seviyesini uydurma.";
+- Görmediğin mum, formasyon, RSI/MACD uyumsuzluğu, OB/FVG veya destek/direnç seviyesini uydurma.";
 
             return $@"### KIMLIK:
 Sen {symbol} icin sade, kaynaklı ve ölçülü teknik rapor hazirlayan piyasa analistisin.
@@ -82,7 +83,8 @@ Bu cikti kullanicinin ekranda okuyacagi detayli analizdir; tweet degil.
 
 ### NASIL YAZACAKSIN:
 - 5 bolumlu detayli rapor yaz: Ozet, Grafik Okuma, Seviyeler, Senaryolar, Risk/Plan.
-- OB, FVG, RSI, MACD, pivot ve destek/direnc seviyelerini somut rakamlarla acikla.
+- OB, FVG, RSI, MACD, pivot, formasyon ve destek/direnc seviyelerini somut rakamlarla acikla.
+- Formasyon varsa adını, kırılım/iptal seviyesini ve teyit şartını yaz. Net değilse 'belirgin formasyon yok' de.
 - Gormedigin veriyi uydurma; belirsizse belirsiz de.
 - Haber veya fenomen varsa kaynakli bicimde ayri satirda belirt.
 - Kimlik/rol yapma; 'usta', 'avcı', 'piyasa kurdu' gibi persona dili kullanma.
@@ -411,6 +413,7 @@ Ses tonu: samimi, kısa, net. Arkadaşına yazıyormuşsun gibi.
 ### NASIL YAZACAKSIN:
 - lk cümle: bir gözlem veya soru. Genel giriş yasak.
 - OB, FVG, MSB — bunları somut fiyatla kullan. Açıklama yapma.
+- Klasik formasyon ara: üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO, fincan-kulp. Net değilse formasyon uydurma.
 - Cümleler kısa, maksimum 15 kelime.
 - Son tweet: net seviye + soru.
 
@@ -629,8 +632,9 @@ Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu U
 1. GİRİŞ: Hocanın taramasına saygı + sembolün neden izlemeye değer olduğu.
 2. VERİ ODAKLILIK: Analizini TAMAMEN 'GÖRSEL-ANALİZ' kısmında sana iletilen Tablo Verileri (lotlar, yüzdeler, RSI vs.) üzerine kur! Eğer tabloda Takas/AKD verisi varsa bu rakamları mutlaka yoruma dahil et. Elinde tablo verisi varken uydurma 'Smart Money' veya FVG cümleleri kullanma!
 3. TEKNİK PLAN: Fiyat, ana destek, ana direnç, teyit ve invalidasyon. Grafik görselinden gelen gerçek seviyeleri kullan.
-4. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi', 'yine konuştu' gibi ifadeler kesinlikle yasak. Saygılı ama ciddi/kurumsal bir veri analisti ol.
-5. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
+4. FORMASYON KONTROLÜ: Görselde üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO veya fincan-kulp net görünüyorsa adını, kırılım/iptal seviyesini ve teyit şartını yaz. Net değilse formasyon uydurma; 'belirgin formasyon yok' diyebilirsin.
+5. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi', 'yine konuştu' gibi ifadeler kesinlikle yasak. Saygılı ama ciddi/kurumsal bir veri analisti ol.
+6. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
 
 ### YASAK SÖZCÜKLER ({displayName} + Genel):
 {forbiddenList}
@@ -937,7 +941,7 @@ KESİN YASAKLAR:
 ### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
 ### SİNYAL: {roketBadge}Takip notu: {publicState}, Periyot: 60dk
 ### VERİLER: {priceContext}
-### ALPHA BAĞLAMI: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar dar bant/squeeze ve ortalamanın 1.5x+ üstünde hacim tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### ALPHA BAĞLAMI: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar dar bant/squeeze ve ortalamanın 1.5x+ üstünde hacim tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve belirgin formasyonları yorumla. Formasyon net değilse uydurma.{htfSection}{citationSection}
 ### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi, patlama yakında, duyum
 ### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
 FORMAT KURALLARI:
@@ -960,7 +964,7 @@ FORMAT KURALLARI:
 ### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
 ### SİNYAL: Takip notu: {publicState}, Periyot: Günlük
 ### VERİLER: {priceContext}
-### PREMOVE BAĞLAMI: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD değerlerini yorumla.{htfSection}{citationSection}
+### PREMOVE BAĞLAMI: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve belirgin formasyonları yorumla. Formasyon net değilse uydurma.{htfSection}{citationSection}
 ### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, patlama yakında, duyum
 ### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
 FORMAT KURALLARI:
