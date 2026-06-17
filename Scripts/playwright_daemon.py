@@ -914,20 +914,21 @@ class XDaemonPlaywright:
         if not tweets:
             return {"status": "error", "message": "No tweets provided"}
 
-        # Preserve C# prepared parts when requested. Only split when a chunk exceeds safe limit.
+        # Preserve C# prepared parts only while leaving room for "🧵 n/N" markers.
+        max_thread_chunk_chars = 250
         chunks = []
         for tweet_text in tweets:
             tweet_text = tweet_text.replace("|||", "").strip()
             if not tweet_text:
                 continue
 
-            if preserve_chunks and self.count_x_characters(tweet_text) <= 265:
+            if preserve_chunks and self.count_x_characters(tweet_text) <= max_thread_chunk_chars:
                 chunks.append(tweet_text)
                 continue
 
             remaining = tweet_text
             while remaining:
-                if self.count_x_characters(remaining) <= 265:
+                if self.count_x_characters(remaining) <= max_thread_chunk_chars:
                     chunks.append(remaining)
                     break
 
@@ -935,10 +936,10 @@ class XDaemonPlaywright:
                 split_pos = min(180, len(remaining))
                 while split_pos < len(remaining):
                     test_chars = self.count_x_characters(remaining[:split_pos])
-                    if test_chars > 265:
+                    if test_chars > max_thread_chunk_chars:
                         split_pos -= 10
                         break
-                    if test_chars > 240:
+                    if test_chars > max_thread_chunk_chars - 25:
                         split_pos += 2
                     else:
                         split_pos += 15
@@ -1067,5 +1068,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
 

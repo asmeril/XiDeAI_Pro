@@ -137,13 +137,22 @@ namespace XiDeAI_Pro.Services
 
                 bool anySent = false;
 
-                var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 255, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
-                if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
+                var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 240, maxTweets: 5);
+                if (tweets.Count > 0)
                 {
-                    const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
+                    var additions = new List<string>();
+                    if (!tweets[^1].Contains("YTD", StringComparison.OrdinalIgnoreCase) &&
+                        !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase)) additions.Add("⚠️ YTD");
+                    if (!tweets[^1].Contains("#BIST100", StringComparison.OrdinalIgnoreCase)) additions.Add("#BIST100");
+                    if (!tweets[^1].Contains("#Borsa", StringComparison.OrdinalIgnoreCase)) additions.Add("#Borsa");
+
+                    string suffix = additions.Count > 0 ? "\n\n" + string.Join(" ", additions) : string.Empty;
                     var baseText = tweets[^1].Trim();
-                    if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
-                    tweets[^1] = baseText + suffix;
+                    if (!string.IsNullOrEmpty(suffix))
+                    {
+                        if (baseText.Length + suffix.Length > 240) baseText = baseText.Substring(0, Math.Max(0, 237 - suffix.Length)).TrimEnd() + "...";
+                        tweets[^1] = baseText + suffix;
+                    }
                 }
 
                 if (tweets.Count > 0)
