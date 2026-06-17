@@ -861,28 +861,33 @@ MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
    - Fenomen verisi VERİLMEMİŞSE @mention EKLEME — asla kendi kafandan kullanıcı adı uydurma.
 
 5. TEKNİK GÖSTERGELERİ HİKAYEYE YEDİR:
-   YANLIŞ: RSI: 28, MACD: Bullish, Pivot S1: 52.30
-   DOĞRU: Fiyat 52.35'e düşerken RSI aşırı satımdan toparladı, bu tepki ihtimalini güçlendiriyor.
-   Göstergeler sadece hikayeye katkı sağladığı zaman, cümle içinde doğal kullan.
+    YANLIŞ: RSI: 28, MACD: Bullish, Pivot S1: 52.30
+    DOĞRU: Fiyat 52.35'e düşerken RSI aşırı satımdan toparladı, bu tepki ihtimalini güçlendiriyor.
+    Göstergeler sadece hikayeye katkı sağladığı zaman, cümle içinde doğal kullan.
 
-6. PERİYOT DİSİPLİNİ ({periyot}):
-   - Kısa vade (15dk, 60dk) — Anlık tepkiler, intraday seviyeler, hızlı hareket.
-   - Orta vade (240dk, Günlük) — Günlük pivotlar, kapanış etkisi, trend.
-   - Uzun vade (Haftalık) — Makro yapı, büyük resim.
+6. FORMASYON BİLGİSİNİ ATLAMA:
+   - Grafik Analizi içinde formasyon sonucu varsa thread'de bir tweet içinde mutlaka doğal cümleyle belirt.
+   - Net formasyon yoksa bunu kısa yaz: 'belirgin formasyon yok; plan seviyelerden takip edilmeli'.
+   - Formasyon uydurma; sadece Grafik Analizi'ndeki sonucu taşı.
 
-7. THREAD YAPISI (4-8 TWEET):
-   - Tweet 1: Kısa özet; yön, ana eşik, fiyat.
-   - Tweet 2: Devam rehberi; 'detaylarda şu seviyeleri izleyeceğim' diyerek sonraki tweetlere bağla.
-   - Tweet 3: Fiyat durumu / trend röntgeni.
-   - Tweet 4: Destek ve invalidasyon.
-   - Tweet 5: Direnç ve teyit.
-   - Tweet 6: Senaryo A/B; sadece gerekiyorsa.
-   - Tweet 7: Fenomen/kaynak sentezi; sadece kaynak varsa.
-   - Tweet 8: Net plan + soru + YTD.
+7. PERİYOT DİSİPLİNİ ({periyot}):
+    - Kısa vade (15dk, 60dk) — Anlık tepkiler, intraday seviyeler, hızlı hareket.
+    - Orta vade (240dk, Günlük) — Günlük pivotlar, kapanış etkisi, trend.
+    - Uzun vade (Haftalık) — Makro yapı, büyük resim.
 
-8. EMOJİ: Dengeli kullan — her tweet'te 1-2 emoji yeterli. Abartma, profesyonel tut.
+8. THREAD YAPISI (4-8 TWEET):
+    - Tweet 1: Kısa özet; yön, ana eşik, fiyat.
+    - Tweet 2: Devam rehberi; 'detaylarda şu seviyeleri izleyeceğim' diyerek sonraki tweetlere bağla.
+    - Tweet 3: Fiyat durumu / trend röntgeni + formasyon sonucu.
+    - Tweet 4: Destek ve invalidasyon.
+    - Tweet 5: Direnç ve teyit.
+    - Tweet 6: Senaryo A/B; sadece gerekiyorsa.
+    - Tweet 7: Fenomen/kaynak sentezi; sadece kaynak varsa.
+    - Tweet 8: Net plan + soru + YTD.
 
-9. SON: Tweet 4/4'ün sonuna mutlaka şunu ekle: ⚠️ Yatırım tavsiyesi değildir.
+9. EMOJİ: Dengeli kullan — her tweet'te 1-2 emoji yeterli. Abartma, profesyonel tut.
+
+10. SON: Tweet 4/4'ün sonuna mutlaka şunu ekle: ⚠️ Yatırım tavsiyesi değildir.
 
 ═══════════════════════════════════════════════════════════════
 ÇIKTI FORMATI (BAŞLIK YOK — SADECE TWEET METİNLERİ):
