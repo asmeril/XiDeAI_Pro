@@ -5893,8 +5893,7 @@ namespace XiDeAI_Pro
 
             string selectedGuruHandle = GetSelectedGuruHandle();
             Log($"🎨 {selectedGuruHandle} tablosu AI ile analiz ediliyor: {post.Url}", "System");
-            
-            var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(firstImageUrl);
+            var (items, tableName) = await _opManager.Gemini.ParseGuruTableFromImage(firstImageUrl, post.Content);
             
             // S8: Vision model kapalıysa açıklayıcı mesaj
             if (items.Count == 0)

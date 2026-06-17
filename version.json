@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.5.2",
-    "build_number":  5520,
-    "lastUpdate":  "2026-06-16T21:29:31Z",
+    "version":  "5.5.3",
+    "build_number":  5530,
+    "lastUpdate":  "2026-06-17T04:49:18Z",
     "changelog":  [
+                      "v5.5.3: v5.5.3: Vision modeline tweet baglami eklendi",
                       "v5.5.2: v5.5.2: Ustat Modulu Takas/AKD gelistirmeleri",
                       "v5.5.0: v5.5.0: Tekrar sinyal mantigi guncellendi (kisa tekrar / uzun atifli analiz) ve dost meclisi etiketleme hatalari giderildi.",
                       "v5.4.9: v5.4.9: BIST Takas ve AKD analizi \u0027Diger\u0027 kurali entegrasyonu tamamlandi. Matisay67 tablolari tam uyumlu.",

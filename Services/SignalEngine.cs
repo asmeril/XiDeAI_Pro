@@ -505,8 +505,8 @@ namespace XiDeAI_Pro.Services
                             if (handleBlocklist.Contains(cleanHandle)) continue;
                             allowedMentionHandles.Add(cleanHandle);
                             string cleanContent = StripUnapprovedMentions(topPosts[i].Content?.Trim() ?? "", new HashSet<string>(new[] { cleanHandle }, StringComparer.OrdinalIgnoreCase), out _);
-                            string tweetUrl = topPosts[i].Url?.Trim() ?? "";
-                            string urlSuffix = !string.IsNullOrEmpty(tweetUrl) && tweetUrl.Contains("/status/") ? $" [Kaynak: {tweetUrl}]" : "";
+                            string postUrl = topPosts[i].Url?.Trim() ?? "";
+                            string urlSuffix = !string.IsNullOrEmpty(postUrl) && postUrl.Contains("/status/") ? $" [Kaynak: {postUrl}]" : "";
                             lines.Add($"{prefix} @{cleanHandle}: {cleanContent}{urlSuffix}");
                         }
                         if (lines.Count > 0)

@@ -140,19 +140,21 @@ namespace XiDeAI_Pro.Services
             return string.Empty;
         }
 
-        public async Task<(List<(string Symbol, string Period, string Reason)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl)
+        public async Task<(List<(string Symbol, string Period, string Reason)> Items, string TableName)> ParseGuruTableFromImage(string imageUrl, string tweetContent = "")
         {
             var results = new List<(string Symbol, string Period, string Reason)>();
             string tableName = "Teknik Tarama Listesi";
             try
             {
                 byte[] imageBytes = await client.GetByteArrayAsync(imageUrl);
-                string prompt = @"Bu bir borsa/takas tarama görselidir. Önce tablo türünü anla:
-- Teknik tarama tablosu olabilir.
-- Takas/yabancı payı/fiili dolaşım/AKD/BOFA tablosu olabilir. AKD aracı kurum dağılımıdır, BOFA Bank of America'dır.
+                string prompt = $@"Bu bir borsa/takas tarama görselidir. Önce görseli ve varsa şu tweet metnini birlikte analiz ederek tablonun ne olduğunu anla:
+TWEET METNİ: {tweetContent}
+
+- Tablo teknik tarama tablosu olabilir.
+- Takas/yabancı payı/fiili dolaşım/AKD/BOFA tablosu olabilir. (Örneğin tweet metninde 'yabancı payı' deniyorsa, tabloda 'Volume' yazsa bile bu bir Yabancı Payı tablosudur, hacim tablosu değildir! Tweetin anlattığı asıl bağlamı baz al.)
 Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç. 
 ÇOK ÖNEMLİ: Seçtiğin her sembol için 'Reason' alanına SADECE kısa bir yorum DEĞİL, tabloda o hisseye ait olan TÜM sütun başlıklarını ve gerçek rakamları/yüzdeleri/değerleri (RSI, Lot miktarı, Yüzdeler vb.) eksiksiz şekilde yaz.
-Period yoksa G yaz. JSON döndür: { ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Tablo Verileri -> BofA Net: 100.000 Lot, Diğer Satıcı: %45, Yabancı Payı: %5.2. Tablodaki bu net veriler öne çıkıyor.""}] }";
+Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Tablo Verileri -> BofA Net: 100.000 Lot, Diğer Satıcı: %45, Yabancı Payı: %5.2. Tablodaki bu net veriler öne çıkıyor.""}}] }}";
 
                 string tempFile = Path.Combine(Path.GetTempPath(), $"guru_{Guid.NewGuid():N}.png");
                 await File.WriteAllBytesAsync(tempFile, imageBytes);
