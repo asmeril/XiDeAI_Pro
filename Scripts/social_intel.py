@@ -1259,7 +1259,7 @@ def post_tweet(text, media_path=None):
         return {"status": "error", "message": "No cookies found. Please import cookies first."}
         
     # Run visible to avoid detection
-    driver = setup_driver(headless=False)
+    driver = setup_driver(headless=True)
     if not driver:
         return {"status": "error", "message": "Failed to start driver"}
 
@@ -1352,7 +1352,7 @@ def reply_to_tweet(tweet_url, text):
         return {"status": "error", "message": "URL is not a tweet status. Standalone tweet prevention triggered."}
 
     # CRITICAL FIX: Use bypass_pool=True for interactions to avoid collision with background scraper
-    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    driver = setup_driver(headless=True, use_undetected=True, bypass_pool=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
     
     try:
@@ -1616,7 +1616,7 @@ def like_tweet(tweet_url):
         return {"status": "error", "message": "No cookies."}
         
     # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
-    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    driver = setup_driver(headless=True, use_undetected=True, bypass_pool=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
     
     try:
@@ -1674,7 +1674,7 @@ def retweet(tweet_url):
         return {"status": "error", "message": "No cookies."}
         
     # CRITICAL: Interaction must bypass pool to avoid collision with background scraper
-    driver = setup_driver(headless=False, use_undetected=True, bypass_pool=True)
+    driver = setup_driver(headless=True, use_undetected=True, bypass_pool=True)
     if not driver: return {"status": "error", "message": "Driver fail"}
     
     try:
@@ -2121,7 +2121,7 @@ def post_thread_chain(tweets, media_path=None):
             return None
 
     # ── Driver başlat ────────────────────────────────────────────────────────
-    driver = setup_driver(headless=False)
+    driver = setup_driver(headless=True)
     if not driver:
         return {"status": "error", "message": "Failed to start driver"}
 

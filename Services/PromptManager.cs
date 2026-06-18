@@ -233,6 +233,7 @@ CEVAP: Sadece kategori adını yaz (Örn: FINANS). Başka açıklama yapma.";
             {
                 "FINANS" => GetFinansReplyPrompt(tweetContent, tweetAuthor),
                 "KULTUR_EGLENCE" => GetKulturEglenceReplyPrompt(tweetContent, tweetAuthor),
+                "SPOR" => GetSporReplyPrompt(tweetContent, tweetAuthor),
                 "MILLI_TOPLUM" => GetMilliToplumReplyPrompt(tweetContent, tweetAuthor),
                 "BILGE_KULTUR" => GetBilgeKulturReplyPrompt(tweetContent, tweetAuthor),
                 "INSAN_RUH" => GetInsanRuhReplyPrompt(tweetContent, tweetAuthor),
@@ -245,7 +246,7 @@ CEVAP: Sadece kategori adını yaz (Örn: FINANS). Başka açıklama yapma.";
 EK KURALLAR:
 1. Şablon gibi tekrar eden jenerik cevaplar yazma (""Katılıyorum"", ""Haklısın"", ""Aynen öyle"" GİBİ İFADELERİ ASLA KULLANMA). Tweetin içindeki somut bir veriyi, seviyeyi, olayı ya da duygu durumunu doğrudan hedefine alarak ona özgün bir açıyla yaklaş.
 2. Karşı tarafın düşüncesine veya analizine katılıyorsan bile sadece onaylamakla kalma, argümanı daha da ileri taşıyan somut bir veri/gözlem ekle. Katılmıyorsan, net ve akılcı bir argümanla kibarca itiraz et ve kendi doğrunu savun. (Gerçek bir dayanağın varsa çekinme).
-3. Yanıtının sonuna, etkileşimi devam ettirecek ve konuyu açacak zekice bir soru cümlesi sıkıştır. Sığ ve genelgeçer (klişe) laflardan uzak dur.";
+3. Yanıtını gereksiz yere uzatma (maksimum 2-3 kısa cümle). Sürekli her cümlenin sonunda soru sormaktan (""Peki sence?"", ""Sen ne dersin?"" vb.) KESİNLİKLE kaçın. Sadece konu gerçekten ilginç bir tartışmaya çok uygunsa nadiren soru sorabilirsin.";
 
 
 
@@ -285,6 +286,23 @@ TWEET (@{tweetAuthor}):
 CEVAP:";
         }
 
+        
+        private string GetSporReplyPrompt(string tweetContent, string tweetAuthor)
+        {
+            return $@"KİMLİK: Sen futbol, basketbol ve genel spor gündemini, transfer haberlerini ve maç sonuçlarını yakından takip eden tutkulu ama saygılı bir taraftarsın.
+GÖREV: @{tweetAuthor} kullanıcısının spor, transfer, maç, futbolcu veya kulüpler hakkındaki tweetine samimi, futbol jargonuyla ve içtenlikle yanıt ver.
+ÜSLUP VE KURALLAR:
+- Maç analizi, oyuncu performansı veya transfer duyumları üzerine doğal bir yorum yap.
+- Fanatiklik veya saygısızlık yapma, tatlı bir rekabet veya objektif spor yorumculuğu tadında konuş.
+- Tweet'in ana konusunu ön plana çıkararak mantıklı bir çıkarsama veya tahmin ekle.
+- KISITLAMALAR: Maksimum 2-3 cümle. Küfür ve hakaret kesinlikle yok.
+
+TWEET (@{tweetAuthor}):
+""{tweetContent}""
+
+CEVAP:";
+        }
+
         private string GetMilliToplumReplyPrompt(string tweetContent, string tweetAuthor)
         {
             return $@"KİMLİK: Sen vatansever, toplumsal değerlere saygılı, uyuşturucu ve kötü alışkanlıklarla mücadele eden bilinçli ve duyarlı bir bireysin.
@@ -308,7 +326,7 @@ GÖREV: @{tweetAuthor} kullanıcısının bilgi içerikli tweetine ekleme yap, i
 ÜSLUP VE KURALLAR:
 - Sıkıcı ansiklopedik bilgi verme. Merak uyandırıcı, çarpıcı ve heyecanlı konuş.
 - Eğer paylaşılan bilgi/tarih/bilim verisi yanlış veya eksikse, gerçek dayanağını göstererek kibarca doğrusunu aktar.
-- KISITLAMALAR: Kısa ve çarpıcı ol. En fazla 2 cümle.
+- KISITLAMALAR: Kısa ve çarpıcı ol. En fazla 2-3 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -603,7 +621,7 @@ TWEET 5 — 🔎 YARIN İÇİN BAKIŞ:
                 takasRulesSection = @"
 
 ### TAKAS/AKD ANALİZ KURALLARI (ZORUNLU):
-- **T+2 Gecikme Bilinci:** Takas verilerinin 2 iş günü geriden geldiğini (T+2) unutma. Yorumlarken bunu '2 gün önceki mülkiyet saklama verisi' olarak nitelendir.
+- **T+2 Gecikme Bilinci:** Takas verilerinin 2 iş günü geriden geldiğini (T+2) unutma. Yorumlarken bunu '2 gün önceki mülkiyet saklama verisi' olarak nitelendir ama farklı cümlelerle yap bunu ardışık analizlerde...
 - **Kurumsal vs Bireysel Oran:** Hissedeki kurumsal takas oranının (Yatırım/Emeklilik Fonları, Citibank, Deutsche vb.) değişim trendini yorumla. Kurumsal pay artıyorsa 'malın toplanması/akümülasyon', bireysel pay artıyorsa 'dağıtım' olarak gör.
 - **AKD 'Diğer' Kuralı:** İlk 5 aracı kurum dışındaki dağınık/küçük yatırımcıları temsil eden 'Diğer' hanesini analiz et. 'Diğer Alıcı' > 'Diğer Satıcı' ise küçük yatırımcı mal alıyordur (Dağıtım/Negatif). 'Diğer Satıcı' > 'Diğer Alıcı' ise küçük yatırımcı panikle satıp büyükler topluyordur (Akümülasyon/Pozitif).
 - **AKD ve Virman:** AKD'deki günlük kurum işlemlerinin (örneğin BofA alımları) takasa hemen yansımayabileceğini, virmanla saklama bankalarına geçebileceğini belirt.
@@ -1617,3 +1635,6 @@ Sadece tweet metnini yaz, başka açıklama yapma.";
         }
     }
 }
+
+
+

@@ -1,359 +1,363 @@
-> **Version:** 5.4.9 (Takas & AKD 'Diger' Kurali Entegrasyonu)
+﻿> **Version:** 5.4.9 (Takas & AKD 'Diger' Kurali Entegrasyonu)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-06
 
-Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
+Bu indeks, proje Ã¼zerinde Ã§alÄ±ÅŸacak yapay zeka ve geliÅŸtiriciler iÃ§in **kod tabanÄ±nÄ±n haritasÄ±nÄ±** sunar. Yeni Ã¶zellik eklerken veya hata dÃ¼zeltirken burayÄ± referans alÄ±nÄ±z.
 
 ---
 
-## 🏗️ Core Architecture (Hibrit Yapı)
+## ğŸ—ï¸ Core Architecture (Hibrit YapÄ±)
 
-Proje 4 ana katmandan oluşur:
-1.  **Orchestrator (C#):** Tüm mantığı yöneten, servisleri başlatan ve kararları veren katman. (`OperationManager`)
-2.  **Publishing Engine (Python Playwright):** Thread gönderiminde ana motor. (`playwright_daemon.py`)
+Proje 4 ana katmandan oluÅŸur:
+1.  **Orchestrator (C#):** TÃ¼m mantÄ±ÄŸÄ± yÃ¶neten, servisleri baÅŸlatan ve kararlarÄ± veren katman. (`OperationManager`)
+2.  **Publishing Engine (Python Playwright):** Thread gÃ¶nderiminde ana motor. (`playwright_daemon.py`)
 3.  **Interaction Layer (Hybrid):**
-    *   **Playwright-First (Thread/Tweet):** Gönderim işlemleri Playwright motoru ile yürür.
-    *   **WebView2 Fallback:** Kullanıcı görünürlüğü gerektiren işlemler için yedek.
-    *   **Python/Selenium Fallback:** Fenomen tarama/araştırma için halen aktif.
+    *   **Playwright-First (Thread/Tweet):** GÃ¶nderim iÅŸlemleri Playwright motoru ile yÃ¼rÃ¼r.
+    *   **WebView2 Fallback:** KullanÄ±cÄ± gÃ¶rÃ¼nÃ¼rlÃ¼ÄŸÃ¼ gerektiren iÅŸlemler iÃ§in yedek.
+    *   **Python/Selenium Fallback:** Fenomen tarama/araÅŸtÄ±rma iÃ§in halen aktif.
 4.  **Intelligence Layer (AI):** LM Studio (Yerel Model, Birincil) + Gemini/Perplexity (Yedek/Bulut) entegrasyonu.
 
-### ✅ Canonical Publishing Flow (Tek Gerçek Hat)
-1. Modüller sadece içerik üretir; gönderimi `PostingService` yapar.
-2. `PostingService.PostTweetAsync` / `PostThreadAsync` tüm tweet/thread payloadlarını normalize eder ve `SocialIntelService` alt motoruna iletir.
-3. `SocialIntelService` canonical olarak `Scripts/playwright_daemon.py` kullanır; WebView2 internal bridge debug-only bırakılmıştır.
-4. `playwright_daemon.py` gerçek `/status/<id>` URL yakalamadan success dönmez; thread için `posted_count == total_chunks` beklenir.
-5. C# tarafında success sadece `PostingService.IsVerifiedTweet/IsVerifiedThread` doğrulamasından sonra kabul edilir.
+### âœ… Canonical Publishing Flow (Tek GerÃ§ek Hat)
+1. ModÃ¼ller sadece iÃ§erik Ã¼retir; gÃ¶nderimi `PostingService` yapar.
+2. `PostingService.PostTweetAsync` / `PostThreadAsync` tÃ¼m tweet/thread payloadlarÄ±nÄ± normalize eder ve `SocialIntelService` alt motoruna iletir.
+3. `SocialIntelService` canonical olarak `Scripts/playwright_daemon.py` kullanÄ±r; WebView2 internal bridge debug-only bÄ±rakÄ±lmÄ±ÅŸtÄ±r.
+4. `playwright_daemon.py` gerÃ§ek `/status/<id>` URL yakalamadan success dÃ¶nmez; thread iÃ§in `posted_count == total_chunks` beklenir.
+5. C# tarafÄ±nda success sadece `PostingService.IsVerifiedTweet/IsVerifiedThread` doÄŸrulamasÄ±ndan sonra kabul edilir.
 
-### ❌ Kaçınılacak Eski Davranışlar
-- Aynı işlemde hem fail hem success logu yazmak.
-- C# tarafından hazırlanmış thread parçalarını Python'da gereksiz yeniden parçalamak.
-- Thread sayaçlarını parça sayısı yerine sabit +1 artırmak.
-- WebView2 modal kapandı veya butona tıklandı diye post'u başarı saymak.
+### âŒ KaÃ§Ä±nÄ±lacak Eski DavranÄ±ÅŸlar
+- AynÄ± iÅŸlemde hem fail hem success logu yazmak.
+- C# tarafÄ±ndan hazÄ±rlanmÄ±ÅŸ thread parÃ§alarÄ±nÄ± Python'da gereksiz yeniden parÃ§alamak.
+- Thread sayaÃ§larÄ±nÄ± parÃ§a sayÄ±sÄ± yerine sabit +1 artÄ±rmak.
+- WebView2 modal kapandÄ± veya butona tÄ±klandÄ± diye post'u baÅŸarÄ± saymak.
 
 ---
 
-## 📂 Services Map (C#)
+## ğŸ“‚ Services Map (C#)
 
-Tüm servisler `Services/` klasörü altındadır ve `OperationManager.cs` tarafından yönetilir.
+TÃ¼m servisler `Services/` klasÃ¶rÃ¼ altÄ±ndadÄ±r ve `OperationManager.cs` tarafÄ±ndan yÃ¶netilir.
 
-| Servis Dosyası | Temel Görevleri | Bağlı Olduğu Python Script |
+| Servis DosyasÄ± | Temel GÃ¶revleri | BaÄŸlÄ± OlduÄŸu Python Script |
 | :--- | :--- | :--- |
-| **`SocialIntelService.cs`** | **Düşük seviye X (Twitter) köprüsü.** PostingService tarafından çağrılır; Playwright subprocess ile doğrulanmış gönderim yapar. Araştırma/interaction için daemon ve Selenium fallback içerir. | `playwright_daemon.py`, `x_daemon.py`, `social_intel.py` |
-| **`PostingService.cs`** | **v5.3.0 Canonical gönderim servisi.** Tüm modüller için tek tweet/thread doğrulama kapısı. `/status/` URL ve thread parça sayısı doğrulanmadan success dönmez. | `playwright_daemon.py` |
-| **`OperationManager.cs`** | **Orkestra Şefi.** Servisleri başlatır, daemon'ı başlatır, durdurur ve birbirine bağlar. | - |
-| `GeminiService.cs` | **AI Motoru.** Promptları işler, görsel analiz yapar (Vision) ve thread üretir. **v4.2.2:** Two-Step News metodları eklendi. | - |
-| `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlı model listesi çeker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi — benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak günceller. | - |
-| `NewsEngine.cs` | **v4.2.2:** Two-Step Logic (1-10 skor, 7 kategori, SON DAKİKA boost). Haber akışını kategorize eder ve işler. **v5.1.3:** Flash haber garantili 2-tweet format (`GetFlashNewsAnalysisPrompt`); `BuildMinimalNewsTweet` — AI null dönse bile başlık+link tweet'i gönderilir; maxTokens 800/900'a yükseldi; `BuildNewsLeadTweet` link+flash tag eklendi. **v5.1.4:** CS8602 null guard — `threadContent != null &&` eklendi. |
+| **`SocialIntelService.cs`** | **DÃ¼ÅŸÃ¼k seviye X (Twitter) kÃ¶prÃ¼sÃ¼.** PostingService tarafÄ±ndan Ã§aÄŸrÄ±lÄ±r; Playwright subprocess ile doÄŸrulanmÄ±ÅŸ gÃ¶nderim yapar. AraÅŸtÄ±rma/interaction iÃ§in daemon ve Selenium fallback iÃ§erir. | `playwright_daemon.py`, `x_daemon.py`, `social_intel.py` |
+| **`PostingService.cs`** | **v5.3.0 Canonical gÃ¶nderim servisi.** TÃ¼m modÃ¼ller iÃ§in tek tweet/thread doÄŸrulama kapÄ±sÄ±. `/status/` URL ve thread parÃ§a sayÄ±sÄ± doÄŸrulanmadan success dÃ¶nmez. | `playwright_daemon.py` |
+| **`OperationManager.cs`** | **Orkestra Åefi.** Servisleri baÅŸlatÄ±r, daemon'Ä± baÅŸlatÄ±r, durdurur ve birbirine baÄŸlar. | - |
+| `GeminiService.cs` | **AI Motoru.** PromptlarÄ± iÅŸler, gÃ¶rsel analiz yapar (Vision) ve thread Ã¼retir. **v4.2.2:** Two-Step News metodlarÄ± eklendi. | - |
+| `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlÄ± model listesi Ã§eker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi â€” benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak gÃ¼nceller. | - |
+| `NewsEngine.cs` | **v4.2.2:** Two-Step Logic (1-10 skor, 7 kategori, SON DAKÄ°KA boost). Haber akÄ±ÅŸÄ±nÄ± kategorize eder ve iÅŸler. **v5.1.3:** Flash haber garantili 2-tweet format (`GetFlashNewsAnalysisPrompt`); `BuildMinimalNewsTweet` â€” AI null dÃ¶nse bile baÅŸlÄ±k+link tweet'i gÃ¶nderilir; maxTokens 800/900'a yÃ¼kseldi; `BuildNewsLeadTweet` link+flash tag eklendi. **v5.1.4:** CS8602 null guard â€” `threadContent != null &&` eklendi. |
 | `NewsTrackerService.cs` | RSS ve Twitter'dan haber tarar. **v3.8.3:** `OnNewsDetected` eventini tetikler. | `x_daemon.py` |
-| `ThreadService.cs` | Zincir (Thread) oluşturma mantığını kurar. | - |
-| `ThreadPipeline.cs` | **Merkezi Thread Hazırlayıcı.** Lead tweet, parça normalizasyonu ve ortak split kurallarını tek yerde toplar. | - |
-| `SymbolNormalizer.cs` | **v5.2.3** Merkezi sembol normalizasyonu ve BIST sembol doğrulaması. `VIP'VIP-VAKBN`, `VIP-VAKBN`, `BIST:VAKBN` gibi varyantları canonical sembole indirger; kırpılmış/bozuk sembolleri engeller. | - |
-| `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanını yönetir. **(v5.2.2)** `UpdateScore(handle, delta)` eklendi — engagement bazlı otomatik skor güncelleme (0-100 aralığı). | - |
-| `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paraların anlık fiyatını çeker. (Parallel Async). | - |
-| `SignalEngine.cs` | Sinyal işleme motoru. Sinyalleri filtreler, formatlar ve yayınlar. | - |
-| `LogFileWatcher.cs` | **v5.2.3** `Sinyal_Log_Database.txt` için snapshot tabanlı izleme. Byte-tail kaynaklı satır ortası okuma (`ACSEL→SEL`, `DEVA→VA`) engellendi. | - |
-| `SignalParser.cs` | **v5.2.3** Strict Alpha/PreMove parse. Header, `KAPALI`, bilinmeyen BIST sembolü, fiyatı sıfır ve geçersiz durumlar atlanır. | - |
-| `ModelManager.cs` | **v4.10.0** AI provider yöneticisi. Aktif provider'ı seçer, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tüm provider'ları senkronize eder. | - |
-| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'ı (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` — 4K DPI ekran görüntülerini 1024px JPEG'e dönüştürür. **v5.0.0:** `/no_think` prefix (Qwen3 reasoning bastirma), vision timeout 600s. **v5.1.3:** `reasoning_content` fallback KALDIRILDI — `content=boş`+`finish_reason=length` durumunda `null` döndürülüyor; `finish_reason=length` logu eklendi. **v5.1.4:** `AnalyzeNewsUnified` maxTokens 450→1500 (Qwen3.6-27b finish_reason=length sorunu çözüldü); prompt'a "düşünme adımı YOK" hint eklendi. |
-| `ManualAnalysisService.cs` | **v4.10.8** Manuel analiz servisi. **Yerel model aktifken:** `IndicatorExtractor` atlanır, kısa thread için ekran görüntüsü tekrar gönderilmez, ana analiz metni indicator context olarak kullanılır. | - |
+| `ThreadService.cs` | Zincir (Thread) oluÅŸturma mantÄ±ÄŸÄ±nÄ± kurar. | - |
+| `ThreadPipeline.cs` | **Merkezi Thread HazÄ±rlayÄ±cÄ±.** Lead tweet, parÃ§a normalizasyonu ve ortak split kurallarÄ±nÄ± tek yerde toplar. | - |
+| `SymbolNormalizer.cs` | **v5.2.3** Merkezi sembol normalizasyonu ve BIST sembol doÄŸrulamasÄ±. `VIP'VIP-VAKBN`, `VIP-VAKBN`, `BIST:VAKBN` gibi varyantlarÄ± canonical sembole indirger; kÄ±rpÄ±lmÄ±ÅŸ/bozuk sembolleri engeller. | - |
+| `InfluencerControlService.cs` | Takip edilecek fenomenlerin veritabanÄ±nÄ± yÃ¶netir. **(v5.2.2)** `UpdateScore(handle, delta)` eklendi â€” engagement bazlÄ± otomatik skor gÃ¼ncelleme (0-100 aralÄ±ÄŸÄ±). | - |
+| `PriceFetchService.cs` | **Fiyat Motoru.** BIST ve Kripto paralarÄ±n anlÄ±k fiyatÄ±nÄ± Ã§eker. (Parallel Async). | - |
+| `SignalEngine.cs` | Sinyal iÅŸleme motoru. Sinyalleri filtreler, formatlar ve yayÄ±nlar. | - |
+| `LogFileWatcher.cs` | **v5.2.3** `Sinyal_Log_Database.txt` iÃ§in snapshot tabanlÄ± izleme. Byte-tail kaynaklÄ± satÄ±r ortasÄ± okuma (`ACSELâ†’SEL`, `DEVAâ†’VA`) engellendi. | - |
+| `SignalParser.cs` | **v5.2.3** Strict Alpha/PreMove parse. Header, `KAPALI`, bilinmeyen BIST sembolÃ¼, fiyatÄ± sÄ±fÄ±r ve geÃ§ersiz durumlar atlanÄ±r. | - |
+| `ModelManager.cs` | **v4.10.0** AI provider yÃ¶neticisi. Aktif provider'Ä± seÃ§er, fallback/routing yapar. `SyncGeminiProviders()` ile LMStudio dahil tÃ¼m provider'larÄ± senkronize eder. | - |
+| `LMStudioProvider.cs` | **v4.10.0** LM Studio / LM Link local model provider'Ä± (OpenAI uyumlu). `SendRequest()` + `SendRequestWithImage()` destekler. **v4.10.2:** `PrepareImageForVision()` â€” 4K DPI ekran gÃ¶rÃ¼ntÃ¼lerini 1024px JPEG'e dÃ¶nÃ¼ÅŸtÃ¼rÃ¼r. **v5.0.0:** `/no_think` prefix (Qwen3 reasoning bastirma), vision timeout 600s. **v5.1.3:** `reasoning_content` fallback KALDIRILDI â€” `content=boÅŸ`+`finish_reason=length` durumunda `null` dÃ¶ndÃ¼rÃ¼lÃ¼yor; `finish_reason=length` logu eklendi. **v5.1.4:** `AnalyzeNewsUnified` maxTokens 450â†’1500 (Qwen3.6-27b finish_reason=length sorunu Ã§Ã¶zÃ¼ldÃ¼); prompt'a "dÃ¼ÅŸÃ¼nme adÄ±mÄ± YOK" hint eklendi. |
+| `ManualAnalysisService.cs` | **v4.10.8** Manuel analiz servisi. **Yerel model aktifken:** `IndicatorExtractor` atlanÄ±r, kÄ±sa thread iÃ§in ekran gÃ¶rÃ¼ntÃ¼sÃ¼ tekrar gÃ¶nderilmez, ana analiz metni indicator context olarak kullanÄ±lÄ±r. | - |
 
-> **Not (v4.0.0):** HIVE servisleri (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex) kaldırılmıştır. Yedek: `d:\Projects\HiveProjesi`
+> **Not (v4.0.0):** HIVE servisleri (Sentinel, Apex, Omni, Oracle, Wisdom, Cortex) kaldÄ±rÄ±lmÄ±ÅŸtÄ±r. Yedek: `d:\Projects\HiveProjesi`
 
-### 🔑 Key Classes & Methods
+### ğŸ”‘ Key Classes & Methods
 
 #### `SocialIntelService.cs`
-- `FindInfluencerAnalyses(symbol, market)`: Fenomenlerin analizlerini arar. (Önce VIP timeline, sonra genel arama).
-- **(v5.2.2)** Daemon'dan post alınınca `engagement/10` formülüyle `InfluencerControlService.UpdateScore()` çağrılır — etkin fenomenler üste çıkar.
-- **(v5.2.2)** Genel arama parse hatasında handle boş kalırsa tweet atlanır (eski: `X-User` fallback kaldırıldı).
-- **(v5.2.3)** `IsBadSocialResult(author, content, url)`: kendi hesap, bot çıktısı (`Piyasa Görüşleri`, `Teknik Analizim`, `XiDeAI`), `ERROR_404` ve ana sayfa URL sonuçlarını filtreler.
-- `PostTweet(text)` / `PostThreadAsync(tweets)`: Düşük seviye Playwright posting köprüsü. **v5.3.0:** WebView2 internal bridge canonical yoldan çıkarıldı; `/status/` URL ve `posted_count/total_chunks` doğrulaması zorunlu.
-- `CheckSafety(actionType)`: **(v4.6.0)** Güvenlik kontrolü yapar (Hız limiti ve günlük kotalar).
-- `PerformDeepScanAsync()`: Rastgele seçilen fenomenleri tarayarak bilgi tabanını günceller.
-- **(v5.3.0)** `PostTweet`/`PostThreadAsync` yalnızca `PostingService` tarafından production gönderim için kullanılmalıdır; internal WebView2 bridge canonical yoldan çıkarıldı.
+- `FindInfluencerAnalyses(symbol, market)`: Fenomenlerin analizlerini arar. (Ã–nce VIP timeline, sonra genel arama).
+- **(v5.2.2)** Daemon'dan post alÄ±nÄ±nca `engagement/10` formÃ¼lÃ¼yle `InfluencerControlService.UpdateScore()` Ã§aÄŸrÄ±lÄ±r â€” etkin fenomenler Ã¼ste Ã§Ä±kar.
+- **(v5.2.2)** Genel arama parse hatasÄ±nda handle boÅŸ kalÄ±rsa tweet atlanÄ±r (eski: `X-User` fallback kaldÄ±rÄ±ldÄ±).
+- **(v5.2.3)** `IsBadSocialResult(author, content, url)`: kendi hesap, bot Ã§Ä±ktÄ±sÄ± (`Piyasa GÃ¶rÃ¼ÅŸleri`, `Teknik Analizim`, `XiDeAI`), `ERROR_404` ve ana sayfa URL sonuÃ§larÄ±nÄ± filtreler.
+- `PostTweet(text)` / `PostThreadAsync(tweets)`: DÃ¼ÅŸÃ¼k seviye Playwright posting kÃ¶prÃ¼sÃ¼. **v5.3.0:** WebView2 internal bridge canonical yoldan Ã§Ä±karÄ±ldÄ±; `/status/` URL ve `posted_count/total_chunks` doÄŸrulamasÄ± zorunlu.
+- `CheckSafety(actionType)`: **(v4.6.0)** GÃ¼venlik kontrolÃ¼ yapar (HÄ±z limiti ve gÃ¼nlÃ¼k kotalar).
+- `PerformDeepScanAsync()`: Rastgele seÃ§ilen fenomenleri tarayarak bilgi tabanÄ±nÄ± gÃ¼nceller.
+- **(v5.3.0)** `PostTweet`/`PostThreadAsync` yalnÄ±zca `PostingService` tarafÄ±ndan production gÃ¶nderim iÃ§in kullanÄ±lmalÄ±dÄ±r; internal WebView2 bridge canonical yoldan Ã§Ä±karÄ±ldÄ±.
 
 #### `PostingService.cs`
-- **(v5.3.0)** `PostTweetAsync(text, mediaPath, module)`: Tekil tweetleri canonical Playwright hattına gönderir, gerçek `/status/` URL yoksa hata döndürür.
-- **(v5.3.0)** `PostThreadAsync(parts, mediaPath, module)`: Thread parçalarını `ThreadPipeline.EnsureWithinLimit` ile normalize eder; tüm parçalar gönderilmeden success dönmez.
-- **(v5.3.0)** `IsVerifiedTweet` / `IsVerifiedThread`: Uygulama genelinde tek başarı standardı.
+- **(v5.3.0)** `PostTweetAsync(text, mediaPath, module)`: Tekil tweetleri canonical Playwright hattÄ±na gÃ¶nderir, gerÃ§ek `/status/` URL yoksa hata dÃ¶ndÃ¼rÃ¼r.
+- **(v5.3.0)** `PostThreadAsync(parts, mediaPath, module)`: Thread parÃ§alarÄ±nÄ± `ThreadPipeline.EnsureWithinLimit` ile normalize eder; tÃ¼m parÃ§alar gÃ¶nderilmeden success dÃ¶nmez.
+- **(v5.3.0)** `IsVerifiedTweet` / `IsVerifiedThread`: Uygulama genelinde tek baÅŸarÄ± standardÄ±.
 
 #### `FanZoneService.cs`
-- **(v5.3.0)** Kritik hesap taramasında tweet URL'si işlem öncesi değil `ProcessTweet` içinde dedupe edilir; like/RT başarı ikonları yalnızca gerçek `status=success` dönerse işaretlenir.
+- **(v5.3.0)** Kritik hesap taramasÄ±nda tweet URL'si iÅŸlem Ã¶ncesi deÄŸil `ProcessTweet` iÃ§inde dedupe edilir; like/RT baÅŸarÄ± ikonlarÄ± yalnÄ±zca gerÃ§ek `status=success` dÃ¶nerse iÅŸaretlenir.
 
 #### `InteractionEngine.cs`
-- **(v5.3.0)** `RunTargetedCheck(category)` artık `Influencer.Handle` değerlerini gönderir; önceki `string.Join(targets)` class-name üretme hatası giderildi.
-- **(v5.3.2)** Viral reply adayları öneri aşamasında interaction memory'ye yazılmaz; sadece onaylı yanıt gerçek başarıyla gönderildikten sonra işaretlenir.
-- **(v5.3.3)** Otomatik bot döngüsünden direkt Like/RT kaldırıldı. Hedef fenomen etkileşimi sadece manuel tetiklenir; varsayılan aksiyon yavaş modda Like-only, Python tarafında son 6 saat + gerçek tweet sahibi filtresi zorunludur.
+- **(v5.3.0)** `RunTargetedCheck(category)` artÄ±k `Influencer.Handle` deÄŸerlerini gÃ¶nderir; Ã¶nceki `string.Join(targets)` class-name Ã¼retme hatasÄ± giderildi.
+- **(v5.3.2)** Viral reply adaylarÄ± Ã¶neri aÅŸamasÄ±nda interaction memory'ye yazÄ±lmaz; sadece onaylÄ± yanÄ±t gerÃ§ek baÅŸarÄ±yla gÃ¶nderildikten sonra iÅŸaretlenir.
+- **(v5.3.3)** Otomatik bot dÃ¶ngÃ¼sÃ¼nden direkt Like/RT kaldÄ±rÄ±ldÄ±. Hedef fenomen etkileÅŸimi sadece manuel tetiklenir; varsayÄ±lan aksiyon yavaÅŸ modda Like-only, Python tarafÄ±nda son 6 saat + gerÃ§ek tweet sahibi filtresi zorunludur.
 
 #### `ThreadService.cs`
-- **(v4.10.8)** Tweet parçaları `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kısa/boş parçalar temizlenir.
-- **(v5.3.0)** Sinyal, batch, günlük/haftalık rapor threadleri `PostingService` üzerinden gönderilir.
-- **(v5.3.4)** Sinyal threadleri en fazla 4 parça ile sınırlandı; beğeni/RT çağrısı kaldırıldı, sonuç tweeti seviye/teyit/risk diline çekildi.
-- **(v5.4.1)** Sinyal lead tweetlerinde ham `AKTIF/PULLBACK_ADAY` yerine takipçi dostu `Sinyal canlı, teyit aranıyor` / `Geri çekilme takibi, acele yok` etiketleri kullanılır.
+- **(v4.10.8)** Tweet parÃ§alarÄ± `.Where(x => !string.IsNullOrWhiteSpace(x) && x.Trim().Length > 5)` filtresiyle kÄ±sa/boÅŸ parÃ§alar temizlenir.
+- **(v5.3.0)** Sinyal, batch, gÃ¼nlÃ¼k/haftalÄ±k rapor threadleri `PostingService` Ã¼zerinden gÃ¶nderilir.
+- **(v5.3.4)** Sinyal threadleri en fazla 4 parÃ§a ile sÄ±nÄ±rlandÄ±; beÄŸeni/RT Ã§aÄŸrÄ±sÄ± kaldÄ±rÄ±ldÄ±, sonuÃ§ tweeti seviye/teyit/risk diline Ã§ekildi.
+- **(v5.4.1)** Sinyal lead tweetlerinde ham `AKTIF/PULLBACK_ADAY` yerine takipÃ§i dostu `Sinyal canlÄ±, teyit aranÄ±yor` / `Geri Ã§ekilme takibi, acele yok` etiketleri kullanÄ±lÄ±r.
 
 #### `LogFileWatcher.cs`
-- **(v5.2.3)** `LoadSeenKeys(path)`: servis başlarken mevcut açık sinyalleri hafızaya alır, geçmiş satırları tekrar tetiklemez.
-- **(v5.2.3)** `ReadStableLines(path)`: iDeal dosyasını snapshot olarak okur; rewrite edilen dosyada byte offset kullanılmaz.
-- **(v5.2.3)** `TryBuildSignalKey(line, out key, out strategy)`: `Symbol|Strategy|Period|Tarih|Durum` anahtarı üretir, `KAPALI` ve geçersiz satırları atlar.
+- **(v5.2.3)** `LoadSeenKeys(path)`: servis baÅŸlarken mevcut aÃ§Ä±k sinyalleri hafÄ±zaya alÄ±r, geÃ§miÅŸ satÄ±rlarÄ± tekrar tetiklemez.
+- **(v5.2.3)** `ReadStableLines(path)`: iDeal dosyasÄ±nÄ± snapshot olarak okur; rewrite edilen dosyada byte offset kullanÄ±lmaz.
+- **(v5.2.3)** `TryBuildSignalKey(line, out key, out strategy)`: `Symbol|Strategy|Period|Tarih|Durum` anahtarÄ± Ã¼retir, `KAPALI` ve geÃ§ersiz satÄ±rlarÄ± atlar.
 
 #### `SignalParser.cs`
-- **(v5.2.3)** `ParseDbLine(line, strategyOverride)`: 12 kolonlu iDeal DB satırlarını strict parse eder; `D` periyodu `G` olarak normalize edilir; `SymbolNormalizer` ile canonical sembol kullanılır.
+- **(v5.2.3)** `ParseDbLine(line, strategyOverride)`: 12 kolonlu iDeal DB satÄ±rlarÄ±nÄ± strict parse eder; `D` periyodu `G` olarak normalize edilir; `SymbolNormalizer` ile canonical sembol kullanÄ±lÄ±r.
 
 #### `SignalPersistenceService.cs`
-- **(v5.3.0)** Processed key artık `Symbol|Strategy|Period|Durum|DetectedAt` tabanlıdır; aynı sembol/periyotta farklı strateji veya yeni tarihli sinyal yanlışlıkla bastırılmaz.
+- **(v5.3.0)** Processed key artÄ±k `Symbol|Strategy|Period|Durum|DetectedAt` tabanlÄ±dÄ±r; aynÄ± sembol/periyotta farklÄ± strateji veya yeni tarihli sinyal yanlÄ±ÅŸlÄ±kla bastÄ±rÄ±lmaz.
 
 #### `SymbolNormalizer.cs`
-- **(v5.2.3)** `NormalizeSignalSymbol(rawSymbol)`: `VIP'VIP-VAKBN` ve benzeri bozuk prefixleri temizleyerek canonical BIST sembolü üretir.
-- **(v5.2.3)** `IsKnownBistSymbol(symbol)`: `Config/symbols_bist.txt` üzerinden sembol doğrular; config yoksa makul BIST formatına fallback yapar.
+- **(v5.2.3)** `NormalizeSignalSymbol(rawSymbol)`: `VIP'VIP-VAKBN` ve benzeri bozuk prefixleri temizleyerek canonical BIST sembolÃ¼ Ã¼retir.
+- **(v5.2.3)** `IsKnownBistSymbol(symbol)`: `Config/symbols_bist.txt` Ã¼zerinden sembol doÄŸrular; config yoksa makul BIST formatÄ±na fallback yapar.
 
 #### `PromptManager.cs`
-- **(v4.10.8)** Derin analiz prompt'una `### GÖRSEL OKUMA (GRAFİK)` bölümü eklendi — yerel modelin grafik okuma kalitesini artırır.
-- **(v5.1.1)** `GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: Yeniden yazıldı. Eski tek-tweet şablon → 6-7 tweet fenomen thread yapısı (Hook → XU100 yorum → Yıldızlar → Kazazedeler → Pulse anları → Yarına bakış → CTA).
-- **(v5.1.1)** Tüm `### GÖREV` bloklarına X Algoritma Fenomen Kuralları enjekte edildi: Hook (kanca ilk cümle), kısa/boşluklu format (dwell time), ELI5 hikayeleştirme, CTA (son tweette RT/takip).
-- **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` — AI hard data ile sosyal algı zıtlığını Smart Money tuzagı olarak yorumlar.
-- **(v5.2.2)** `GetSignalAnalysisPrompt`, `GetDeepManualAnalysisPrompt`, `GetDeepTechnicalAnalysisPrompt`: YASAK SÖZCÜKLER listesi eklendi (fısıltı alış, akıllı para, piyasa kurdu vb.). Son tweet ZORUNLU: AL/İZLE/BEKLE karar + soru formatı.
-- **(v5.2.2)** `GetAlphaSignalPrompt` / `GetPreMoveSignalPrompt`: Robotik ton kaldırıldı (borsa kurdu, fısıldayan vb.). Fenomen mention: varsa doğal, yoksa ekleme (zorunlu değil).
-- **(v5.2.9)** `GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap)`: `sectorMap` parametresi eklendi. `GetEkonomiNewsAnalysisPrompt`, `GetTeknolojiNewsAnalysisPrompt`, `GetYasamNewsAnalysisPrompt` BIST Sektör Haritası'nı prompt'a enjekte eder; halusinatör sembol üretimi engellendi. Her kategori prompt'u "TAM OLARAK 3 TWEET" ve `|||` zorunluluğu ile güncellendi.
-- **(v5.4.9)** `GetGuruHonoringThreadPrompt`: Takas ve AKD analizi için "Diğer" kuralı, T+2 gecikmesi ve kurumsal/bireysel oranlama mantığı (`takasRulesSection`) eklendi.
+- **(v4.10.8)** Derin analiz prompt'una `### GÃ–RSEL OKUMA (GRAFÄ°K)` bÃ¶lÃ¼mÃ¼ eklendi â€” yerel modelin grafik okuma kalitesini artÄ±rÄ±r.
+- **(v5.1.1)** `GetMarketClosePrompt(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: Yeniden yazÄ±ldÄ±. Eski tek-tweet ÅŸablon â†’ 6-7 tweet fenomen thread yapÄ±sÄ± (Hook â†’ XU100 yorum â†’ YÄ±ldÄ±zlar â†’ Kazazedeler â†’ Pulse anlarÄ± â†’ YarÄ±na bakÄ±ÅŸ â†’ CTA).
+- **(v5.1.1)** TÃ¼m `### GÃ–REV` bloklarÄ±na X Algoritma Fenomen KurallarÄ± enjekte edildi: Hook (kanca ilk cÃ¼mle), kÄ±sa/boÅŸluklu format (dwell time), ELI5 hikayeleÅŸtirme, CTA (son tweette RT/takip).
+- **(v5.1.1)** Contrarian Filter: `DailyTrends` = `[XU100_CANLI_VERI: MOD=X, TREND=Y%] YATIRIMCI_SOSYAL_ALGI: #...` â€” AI hard data ile sosyal algÄ± zÄ±tlÄ±ÄŸÄ±nÄ± Smart Money tuzagÄ± olarak yorumlar.
+- **(v5.2.2)** `GetSignalAnalysisPrompt`, `GetDeepManualAnalysisPrompt`, `GetDeepTechnicalAnalysisPrompt`: YASAK SÃ–ZCÃœKLER listesi eklendi (fÄ±sÄ±ltÄ± alÄ±ÅŸ, akÄ±llÄ± para, piyasa kurdu vb.). Son tweet ZORUNLU: AL/Ä°ZLE/BEKLE karar + soru formatÄ±.
+- **(v5.5.6)** GetSporReplyPrompt: Yeni "SPOR" kategorisi eklendi. Transfer, maç ve spor kulübü (Fenerbahçe vb.) paylaşımları için özel taraftar/spor yorumcusu promptu oluşturuldu.
+- **(v5.5.6)** Tüm X (Twitter) yanıt promptlarına (GetReplyGenerationPrompt vb.) kural güncellemesi (EK KURALLAR kural 3): Yanıtların zorunlu soru sorması engellendi ve makul kısalıkta olması sağlandı.
+- **(v5.2.2)** `GetAlphaSignalPrompt` / `GetPreMoveSignalPrompt`: Robotik ton kaldÄ±rÄ±ldÄ± (borsa kurdu, fÄ±sÄ±ldayan vb.). Fenomen mention: varsa doÄŸal, yoksa ekleme (zorunlu deÄŸil).
+- **(v5.2.9)** `GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap)`: `sectorMap` parametresi eklendi. `GetEkonomiNewsAnalysisPrompt`, `GetTeknolojiNewsAnalysisPrompt`, `GetYasamNewsAnalysisPrompt` BIST SektÃ¶r HaritasÄ±'nÄ± prompt'a enjekte eder; halusinatÃ¶r sembol Ã¼retimi engellendi. Her kategori prompt'u "TAM OLARAK 3 TWEET" ve `|||` zorunluluÄŸu ile gÃ¼ncellendi.
+- **(v5.4.9)** `GetGuruHonoringThreadPrompt`: Takas ve AKD analizi iÃ§in "DiÄŸer" kuralÄ±, T+2 gecikmesi ve kurumsal/bireysel oranlama mantÄ±ÄŸÄ± (`takasRulesSection`) eklendi.
 
 #### `MainForm.cs`
-- **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur → `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleşik `DailyTrends` string'i oluşturur.
-- **(v5.1.1)** `PostMarketCloseSummary()`: `Market_Pulse_Alarm.txt` okunarak bugünün nabız alarmları `pulseAnomalies` string'ine toplanır ve `GenerateMarketCloseTableTweet` zincirine iletilir.
-- **(v5.3.0)** Sabah motivasyon ve gün sonu raporu `_tweetedToday` içine sadece doğrulanmış başarıdan sonra işlenir; `*_PENDING` guard eklendi.
-- **(v5.3.0)** Fenomen silme UI'ı `InfluencerControlService.DeleteInfluencer()` kullanır; kopya liste üzerinden silme hatası giderildi.
-- **(v5.3.0)** Telegram `/ONAY` etkileşim onayı reply sonucunu kontrol eder; başarısızsa pending kayıt silinmez.
-- **(v5.3.0)** Manuel analiz tweet butonu sadece başarılı analiz sonucunda aktif olur.
-- **(v5.3.2)** Bot Etkileşim tabına manuel `Şimdi Tara`, `BIST Fenomen`, `Kripto Fenomen`, `Durum` kontrolleri eklendi; checkbox timer'ı başlatır/durdurur.
-- **(v5.3.2)** `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle` Telegram komutları eklendi.
-- **(v5.3.3)** `CheckForInteractions()` artık otomatik Like/RT yapmaz; yalnızca taze, geçerli handle'lı, spam olmayan tweetler için onaylı reply adayı üretir.
-- **(v5.3.4)** Manuel analiz paylaşımı sadece doğrulanmış 4 parçalık `ShortThread` ile yapılır; detay rapor artık X thread'e fallback edilmez.
-- **(v5.3.4)** Gün sonu özeti paylaşımı en fazla 4 tweet ile sınırlandı; factual kapanış formatı ve YTD güvenliği zorunlu.
-- **(v5.3.5)** Telegram `/ANALIZ` UI ile aynı `TradingViewChartId` akışını kullanır; opsiyonel üçüncü argüman baz (`TL/USD/EUR/XU100`) olarak alınır.
-- **(v5.3.5)** Analiz kimliği sade, seviye/teyit/risk odaklı tona çekildi; fenomen persona/clickbait/FOMO dili azaltıldı.
-- **(v5.3.6)** Etkileşim reply üretimi kategori personası yerine nötr kısa editör tonu kullanır; hassas/alakasız içerikte `SKIP` cevabı aksiyonu iptal eder.
-- **(v5.3.7)** Telegram haber onay bildirimleri kısa, düz metin ve karar odaklı formata alındı; uzun reasoning/summary kaynaklı Markdown riski azaltıldı.
-- **(v5.3.9)** Tek tweet manuel paylaşımı 280+ karakteri otomatik thread'e çevirmez; kullanıcı açıkça thread modunu seçmek zorundadır.
-- **(v5.4.0)** Manuel analiz short-thread formatı 4-8 parçaya çıkarıldı; ilk 2 tweet kısa özet/devam rehberi, sonraki tweetler seviye/teyit/risk detaylarıdır. 120 karakter altı parçalar geçersiz sayılır.
-- **(v5.4.1)** Aynı sembol için 7 gün içinde tekrar sinyal gelirse detaylı analiz yerine önceki analize atıf yapan 1-2 tweetlik pekiştirme thread'i paylaşılır.
-- **(v5.4.2)** Etkileşim adayları otomatikte yalnız finans niyeti taşıyan tweetlerden seçilir; promo/giveaway/RT çağrısı hard-block edilir ve Telegram komutları `/ONAY_ID` formatına alınır.
-- **(v5.4.3)** Üstat paneli yalnız `GuruHandle` mention'ına izin verir; kaynak tarama tweet URL'si zorunludur ve hoca saygısı ölçülü teknik analiz diline çekildi.
-- **(v5.4.4)** Sinyal tablosu `Tarih/Saat` gösterir ve `Durum` alanı gerçek sinyal durumunu takipçi dostu metinle yansıtır; üstat paneli önizleme alanı büyütüldü ve taslak/yayın/red geçmişi eklendi.
-- **(v5.4.5)** Üstat paneline çoklu hoca seçimi ve `@matisay67` takas/AKD/BOFA analizi desteği eklendi; tablo parse aşaması teknik analiz yapılacak adayları gerekçeyle seçer.
+- **(v5.1.1)** `RefreshTrendsAsync()`: `Market_Status.txt` okunur â†’ `[XU100_CANLI_VERI: MOD, TREND%]` hard data + Twitter trendleri birleÅŸik `DailyTrends` string'i oluÅŸturur.
+- **(v5.1.1)** `PostMarketCloseSummary()`: `Market_Pulse_Alarm.txt` okunarak bugÃ¼nÃ¼n nabÄ±z alarmlarÄ± `pulseAnomalies` string'ine toplanÄ±r ve `GenerateMarketCloseTableTweet` zincirine iletilir.
+- **(v5.3.0)** Sabah motivasyon ve gÃ¼n sonu raporu `_tweetedToday` iÃ§ine sadece doÄŸrulanmÄ±ÅŸ baÅŸarÄ±dan sonra iÅŸlenir; `*_PENDING` guard eklendi.
+- **(v5.3.0)** Fenomen silme UI'Ä± `InfluencerControlService.DeleteInfluencer()` kullanÄ±r; kopya liste Ã¼zerinden silme hatasÄ± giderildi.
+- **(v5.3.0)** Telegram `/ONAY` etkileÅŸim onayÄ± reply sonucunu kontrol eder; baÅŸarÄ±sÄ±zsa pending kayÄ±t silinmez.
+- **(v5.3.0)** Manuel analiz tweet butonu sadece baÅŸarÄ±lÄ± analiz sonucunda aktif olur.
+- **(v5.3.2)** Bot EtkileÅŸim tabÄ±na manuel `Åimdi Tara`, `BIST Fenomen`, `Kripto Fenomen`, `Durum` kontrolleri eklendi; checkbox timer'Ä± baÅŸlatÄ±r/durdurur.
+- **(v5.3.2)** `/BOTDURUM`, `/ETKILESIMTARA`, `/ETKILESIMTEST @handle` Telegram komutlarÄ± eklendi.
+- **(v5.3.3)** `CheckForInteractions()` artÄ±k otomatik Like/RT yapmaz; yalnÄ±zca taze, geÃ§erli handle'lÄ±, spam olmayan tweetler iÃ§in onaylÄ± reply adayÄ± Ã¼retir.
+- **(v5.3.4)** Manuel analiz paylaÅŸÄ±mÄ± sadece doÄŸrulanmÄ±ÅŸ 4 parÃ§alÄ±k `ShortThread` ile yapÄ±lÄ±r; detay rapor artÄ±k X thread'e fallback edilmez.
+- **(v5.3.4)** GÃ¼n sonu Ã¶zeti paylaÅŸÄ±mÄ± en fazla 4 tweet ile sÄ±nÄ±rlandÄ±; factual kapanÄ±ÅŸ formatÄ± ve YTD gÃ¼venliÄŸi zorunlu.
+- **(v5.3.5)** Telegram `/ANALIZ` UI ile aynÄ± `TradingViewChartId` akÄ±ÅŸÄ±nÄ± kullanÄ±r; opsiyonel Ã¼Ã§Ã¼ncÃ¼ argÃ¼man baz (`TL/USD/EUR/XU100`) olarak alÄ±nÄ±r.
+- **(v5.3.5)** Analiz kimliÄŸi sade, seviye/teyit/risk odaklÄ± tona Ã§ekildi; fenomen persona/clickbait/FOMO dili azaltÄ±ldÄ±.
+- **(v5.3.6)** EtkileÅŸim reply Ã¼retimi kategori personasÄ± yerine nÃ¶tr kÄ±sa editÃ¶r tonu kullanÄ±r; hassas/alakasÄ±z iÃ§erikte `SKIP` cevabÄ± aksiyonu iptal eder.
+- **(v5.3.7)** Telegram haber onay bildirimleri kÄ±sa, dÃ¼z metin ve karar odaklÄ± formata alÄ±ndÄ±; uzun reasoning/summary kaynaklÄ± Markdown riski azaltÄ±ldÄ±.
+- **(v5.3.9)** Tek tweet manuel paylaÅŸÄ±mÄ± 280+ karakteri otomatik thread'e Ã§evirmez; kullanÄ±cÄ± aÃ§Ä±kÃ§a thread modunu seÃ§mek zorundadÄ±r.
+- **(v5.4.0)** Manuel analiz short-thread formatÄ± 4-8 parÃ§aya Ã§Ä±karÄ±ldÄ±; ilk 2 tweet kÄ±sa Ã¶zet/devam rehberi, sonraki tweetler seviye/teyit/risk detaylarÄ±dÄ±r. 120 karakter altÄ± parÃ§alar geÃ§ersiz sayÄ±lÄ±r.
+- **(v5.4.1)** AynÄ± sembol iÃ§in 7 gÃ¼n iÃ§inde tekrar sinyal gelirse detaylÄ± analiz yerine Ã¶nceki analize atÄ±f yapan 1-2 tweetlik pekiÅŸtirme thread'i paylaÅŸÄ±lÄ±r.
+- **(v5.4.2)** EtkileÅŸim adaylarÄ± otomatikte yalnÄ±z finans niyeti taÅŸÄ±yan tweetlerden seÃ§ilir; promo/giveaway/RT Ã§aÄŸrÄ±sÄ± hard-block edilir ve Telegram komutlarÄ± `/ONAY_ID` formatÄ±na alÄ±nÄ±r.
+- **(v5.4.3)** Ãœstat paneli yalnÄ±z `GuruHandle` mention'Ä±na izin verir; kaynak tarama tweet URL'si zorunludur ve hoca saygÄ±sÄ± Ã¶lÃ§Ã¼lÃ¼ teknik analiz diline Ã§ekildi.
+- **(v5.4.4)** Sinyal tablosu `Tarih/Saat` gÃ¶sterir ve `Durum` alanÄ± gerÃ§ek sinyal durumunu takipÃ§i dostu metinle yansÄ±tÄ±r; Ã¼stat paneli Ã¶nizleme alanÄ± bÃ¼yÃ¼tÃ¼ldÃ¼ ve taslak/yayÄ±n/red geÃ§miÅŸi eklendi.
+- **(v5.4.5)** Ãœstat paneline Ã§oklu hoca seÃ§imi ve `@matisay67` takas/AKD/BOFA analizi desteÄŸi eklendi; tablo parse aÅŸamasÄ± teknik analiz yapÄ±lacak adaylarÄ± gerekÃ§eyle seÃ§er.
 
 #### `NewsEngine.cs`
-- **(v5.3.6)** Haber threadleri en fazla 3 parçaya sınırlandı; son parçada haber özeti/YTD güvenliği zorunlu hale getirildi.
-- **(v5.3.8)** Normal skor 9 haberler Telegram onayına düşmez; `SKIPPED_REVIEW` history'ye yazılır. Yalnız skor 10 veya breaking 9+ auto-post olur.
+- **(v5.3.6)** Haber threadleri en fazla 3 parÃ§aya sÄ±nÄ±rlandÄ±; son parÃ§ada haber Ã¶zeti/YTD gÃ¼venliÄŸi zorunlu hale getirildi.
+- **(v5.3.8)** Normal skor 9 haberler Telegram onayÄ±na dÃ¼ÅŸmez; `SKIPPED_REVIEW` history'ye yazÄ±lÄ±r. YalnÄ±z skor 10 veya breaking 9+ auto-post olur.
 
 #### `PerformanceTracker.cs`
-- `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanına işler.
+- `RecordSignal(signal)`: Bot, Manuel veya Guru kaynaktan gelen sinyali veritabanÄ±na iÅŸler.
 
 #### `GeminiService.cs`
-- `AnalyzeChartImage(symbol, path)`: **(v3.9.0)** Grafik görsellerini teknik analize (RSI, Trend, Formasyon) dönüştürür.
-- `GenerateGuruHonoringThread(...)`: Görsel analiz ve fiyat verisini kullanarak guru threadi üretir.
+- `AnalyzeChartImage(symbol, path)`: **(v3.9.0)** Grafik gÃ¶rsellerini teknik analize (RSI, Trend, Formasyon) dÃ¶nÃ¼ÅŸtÃ¼rÃ¼r.
+- `GenerateGuruHonoringThread(...)`: GÃ¶rsel analiz ve fiyat verisini kullanarak guru threadi Ã¼retir.
 - `DetectNewsCategory(title, source)`: **(v4.2.2)** Haber kategorisini tespit eder (7 kategori).
-- `AnalyzeNewsImpactTwoStep(title, source)`: **(v4.2.2)** Önce kategori, sonra 1-10 skor üretir.
-- `GenerateNewsCategoryAnalysis(category, title, source, link)`: **(v4.2.2)** Kategoriye özel analiz thread'i üretir.
-- **(v5.2.9)** `LoadSectorMapContext()`: `Config/BistSectorMap.md` dosyasını okur. `GenerateNewsCategoryAnalysis` ve `AnalyzeNewsForThread` çağrılarında `sectorMap` parametresi olarak prompt'a enjekte edilir.
-- `SendRequest(prompt)`: AI modeline metin tabanlı istek gönderir.
-- `GenerateMarketCloseTableTweet(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: **(v5.1.1)** Gün sonu kapanış tweet thread'i üretir.
+- `AnalyzeNewsImpactTwoStep(title, source)`: **(v4.2.2)** Ã–nce kategori, sonra 1-10 skor Ã¼retir.
+- `GenerateNewsCategoryAnalysis(category, title, source, link)`: **(v4.2.2)** Kategoriye Ã¶zel analiz thread'i Ã¼retir.
+- **(v5.2.9)** `LoadSectorMapContext()`: `Config/BistSectorMap.md` dosyasÄ±nÄ± okur. `GenerateNewsCategoryAnalysis` ve `AnalyzeNewsForThread` Ã§aÄŸrÄ±larÄ±nda `sectorMap` parametresi olarak prompt'a enjekte edilir.
+- `SendRequest(prompt)`: AI modeline metin tabanlÄ± istek gÃ¶nderir.
+- `GenerateMarketCloseTableTweet(indicesData, topGainers, topLosers, topVolume, pulseAnomalies)`: **(v5.1.1)** GÃ¼n sonu kapanÄ±ÅŸ tweet thread'i Ã¼retir.
 
 #### `LMStudioProvider.cs`
-- `SendRequest(prompt)`: LM Studio'ya metin isteği gönderir (OpenAI compat). **(v5.0.0)** Prompt başına `/no_think\n` prefix eklenir, timeout 300s.
-- `SendRequestWithImage(prompt, imagePath)`: Görsel + metin isteği gönderir. **(v5.0.0)** Timeout 600s, `max_tokens` minimum 8192.
-- `PrepareImageForVision(imagePath, maxDimension)`: **(v4.10.2)** Görseli max 1024px'e küçültür ve JPEG 85% kalitesinde kodlar.
+- `SendRequest(prompt)`: LM Studio'ya metin isteÄŸi gÃ¶nderir (OpenAI compat). **(v5.0.0)** Prompt baÅŸÄ±na `/no_think\n` prefix eklenir, timeout 300s.
+- `SendRequestWithImage(prompt, imagePath)`: GÃ¶rsel + metin isteÄŸi gÃ¶nderir. **(v5.0.0)** Timeout 600s, `max_tokens` minimum 8192.
+- `PrepareImageForVision(imagePath, maxDimension)`: **(v4.10.2)** GÃ¶rseli max 1024px'e kÃ¼Ã§Ã¼ltÃ¼r ve JPEG 85% kalitesinde kodlar.
 - `BuildRequestBody(prompt, maxTokens)` / `BuildVisionRequestBody(prompt, imageUrl, maxTokens)`: **(v5.2.3)** LM Studio OpenAI-compatible isteklerine `enable_thinking=false`, `reasoning_effort=none`, `chat_template_kwargs.enable_thinking=false` ekler.
-- `ExtractContentFromChoice(choice)`: **(v5.2.3)** `reasoning_content` artık publishable kabul edilmez. `content` boşsa veya `finish_reason=length` ise provider `null` döndürür ve fallback tetikler.
+- `ExtractContentFromChoice(choice)`: **(v5.2.3)** `reasoning_content` artÄ±k publishable kabul edilmez. `content` boÅŸsa veya `finish_reason=length` ise provider `null` dÃ¶ndÃ¼rÃ¼r ve fallback tetikler.
 
 #### `ManualAnalysisService.cs`
-- **(v4.10.8)** Yerel model aktifken `IndicatorExtractor` çağrısı atlanır (token tasarrufu).
-- **(v4.10.8)** Kısa thread üretiminde yerel model için ekran görüntüsü tekrar gönderilmez.
+- **(v4.10.8)** Yerel model aktifken `IndicatorExtractor` Ã§aÄŸrÄ±sÄ± atlanÄ±r (token tasarrufu).
+- **(v4.10.8)** KÄ±sa thread Ã¼retiminde yerel model iÃ§in ekran gÃ¶rÃ¼ntÃ¼sÃ¼ tekrar gÃ¶nderilmez.
 - **(v4.10.8)** Yerel modele indicator context yerine ana analiz metni iletilir.
 
 ---
 
-## 🐍 Python Scripts Map (Scripts/)
+## ğŸ Python Scripts Map (Scripts/)
 
-Python scriptleri "Worker" (İşçi) olarak çalışır. C# tarafından komut satırı argümanları ile çağrılır ve JSON çıktısı üretirler.
+Python scriptleri "Worker" (Ä°ÅŸÃ§i) olarak Ã§alÄ±ÅŸÄ±r. C# tarafÄ±ndan komut satÄ±rÄ± argÃ¼manlarÄ± ile Ã§aÄŸrÄ±lÄ±r ve JSON Ã§Ä±ktÄ±sÄ± Ã¼retirler.
 
-| Script Dosyası | Görev Tanımı | Kütüphaneler |
+| Script DosyasÄ± | GÃ¶rev TanÄ±mÄ± | KÃ¼tÃ¼phaneler |
 | :--- | :--- | :--- |
-| **`playwright_daemon.py`** | **(v4.9.6 Yeni) Thread & Yayın Motoru.** X-Hive bazlı yeni süper hızlı bot. **v5.2.3:** `_robust_click_publish()` ile X overlay/click intercept durumlarında Escape → normal click → force click → JS click fallback zinciri ve hata screenshot'ı. | `playwright.async_api` |
-| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sürekli çalışır. **(v4.9.4)** `_post_single_tweet` URL yakalama - home fallback kaldırıldı, toast/profile retry eklendi. | `selenium`, `undetected_chromedriver` |
-| **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriş yapar, arama yapar, veri çeker, etkileşim kurar. **v5.2.3:** Türkçe engagement parse (`B=bin`, `Mn=milyon`), own-account/bot-output filtreleri, 404 sentinel kaldırma ve status URL dedupe eklendi. | `selenium`, `pickle` |
-| `omni_scout.py` | Reddit ve diğer kaynaklardan viral veri çeker. | `praw` (Reddit API) |
-| `oracle.py` | Tahmin piyasaları verisi (Polymarket vs.) | `requests` |
-| `screenshot.py` | BIST/Crypto grafiklerinin ekran görüntüsünü alır. **v5.2.3:** Python tarafında da `VIP'VIP-*` ve prefix sembol normalizasyonu yapar. | `selenium` |
-| **`lock_manager.py`** | **Atomic File Lock.** X (Twitter) oturumlarının çakışmasını önler. **(v4.9.3)** `acquire_lock` timeout 180s → 360s. | `msvcrt`(Win) / `fcntl`(Linux) |
+| **`playwright_daemon.py`** | **(v4.9.6 Yeni) Thread & YayÄ±n Motoru.** X-Hive bazlÄ± yeni sÃ¼per hÄ±zlÄ± bot. **v5.2.3:** `_robust_click_publish()` ile X overlay/click intercept durumlarÄ±nda Escape â†’ normal click â†’ force click â†’ JS click fallback zinciri ve hata screenshot'Ä±. | `playwright.async_api` |
+| **`x_daemon.py`** | **HTTP Daemon (localhost:5580).** Tek Chrome instance ile sÃ¼rekli Ã§alÄ±ÅŸÄ±r. **(v4.9.4)** `_post_single_tweet` URL yakalama - home fallback kaldÄ±rÄ±ldÄ±, toast/profile retry eklendi. | `selenium`, `undetected_chromedriver` |
+| **`social_intel.py`** | **Dev X Otomasyonu.** Selenium ile giriÅŸ yapar, arama yapar, veri Ã§eker, etkileÅŸim kurar. **v5.2.3:** TÃ¼rkÃ§e engagement parse (`B=bin`, `Mn=milyon`), own-account/bot-output filtreleri, 404 sentinel kaldÄ±rma ve status URL dedupe eklendi. | `selenium`, `pickle` |
+| `omni_scout.py` | Reddit ve diÄŸer kaynaklardan viral veri Ã§eker. | `praw` (Reddit API) |
+| `oracle.py` | Tahmin piyasalarÄ± verisi (Polymarket vs.) | `requests` |
+| `screenshot.py` | BIST/Crypto grafiklerinin ekran gÃ¶rÃ¼ntÃ¼sÃ¼nÃ¼ alÄ±r. **v5.2.3:** Python tarafÄ±nda da `VIP'VIP-*` ve prefix sembol normalizasyonu yapar. | `selenium` |
+| **`lock_manager.py`** | **Atomic File Lock.** X (Twitter) oturumlarÄ±nÄ±n Ã§akÄ±ÅŸmasÄ±nÄ± Ã¶nler. **(v4.9.3)** `acquire_lock` timeout 180s â†’ 360s. | `msvcrt`(Win) / `fcntl`(Linux) |
 
-### 🐍 `social_intel.py` Capabilities
-Bu script "Standalone" (Tek başına) çalışabilen güçlü bir bottur.
-- **Driver Pool:** `ChromeDriverPool` sınıfı ile tarayıcıları önbelleğe alır (Performans artışı).
+### ğŸ `social_intel.py` Capabilities
+Bu script "Standalone" (Tek baÅŸÄ±na) Ã§alÄ±ÅŸabilen gÃ¼Ã§lÃ¼ bir bottur.
+- **Driver Pool:** `ChromeDriverPool` sÄ±nÄ±fÄ± ile tarayÄ±cÄ±larÄ± Ã¶nbelleÄŸe alÄ±r (Performans artÄ±ÅŸÄ±).
 - **Smart Search:** `find_influencer_posts` fonksiyonu ile hem timeline hem de genel arama yapar.
-- **Human-Like Behavior:** **(v4.6.0)** `human_delay` fonksiyonu ile insansı beklemeler yapar ve yakalanmayı önler.
-- **Robust Typing:** **(v4.6.6)** Metni `document.execCommand('insertText', ...)` kullanarak JS enjeksiyonu ile yazar. React senkronizasyonu için "WAKE UP" mekanizması içerir ve Türk karakterleri için ultra-stabilitedir.
+- **Human-Like Behavior:** **(v4.6.0)** `human_delay` fonksiyonu ile insansÄ± beklemeler yapar ve yakalanmayÄ± Ã¶nler.
+- **Robust Typing:** **(v4.6.6)** Metni `document.execCommand('insertText', ...)` kullanarak JS enjeksiyonu ile yazar. React senkronizasyonu iÃ§in "WAKE UP" mekanizmasÄ± iÃ§erir ve TÃ¼rk karakterleri iÃ§in ultra-stabilitedir.
 - **Commands:** `search_influencer`, `post_tweet`, `fetch_replies`, `discover_influencers` vb.
 
 ---
 
-## 🖥️ UI Map (Arayüz Haritası)
+## ğŸ–¥ï¸ UI Map (ArayÃ¼z HaritasÄ±)
 
-### 🏠 MainForm (Ana Ekran)
+### ğŸ  MainForm (Ana Ekran)
 *   **Sidebar (Navigasyon):**
-    *   `Ana Ekran`, `Sinyal Merkezi`, `Manuel Analiz`, `Bot Etkileşim`, `Ayarlar`
-    *   `Geçmiş`, `Fenomenler`, `Haberler` (Restore Edildi), `Üstat Paneli`, `Fenerbahçe`
-    *   `HIVE Intel`, `Etkileşim Merkezi`
+    *   `Ana Ekran`, `Sinyal Merkezi`, `Manuel Analiz`, `Bot EtkileÅŸim`, `Ayarlar`
+    *   `GeÃ§miÅŸ`, `Fenomenler`, `Haberler` (Restore Edildi), `Ãœstat Paneli`, `FenerbahÃ§e`
+    *   `HIVE Intel`, `EtkileÅŸim Merkezi`
 *   **Dashboard (`pnlDashboard`):**
-    *   **Header:** API/Web Sayaçları, Ticker, Start/Stop Butonları.
-    *   **Tabs:** `Piyasa Analiz (Grafik)`, `Sosyal Medya Akışı (X)`.
+    *   **Header:** API/Web SayaÃ§larÄ±, Ticker, Start/Stop ButonlarÄ±.
+    *   **Tabs:** `Piyasa Analiz (Grafik)`, `Sosyal Medya AkÄ±ÅŸÄ± (X)`.
 *   **Sinyal Merkezi (`pnlSignals`):**
-    *   **Filtreler:** Strateji (King, Bomba...), Periyot, Eşik Değerler.
-    *   **Grid:** `dgvSignals` (Canlı sinyaller).
+    *   **Filtreler:** Strateji (King, Bomba...), Periyot, EÅŸik DeÄŸerler.
+    *   **Grid:** `dgvSignals` (CanlÄ± sinyaller).
 *   **Manuel Analiz (`pnlAnalysis`):**
-    *   **Kontroller:** Pazar, Periyot, Sembol seçimi.
-    *   **Aksiyon:** Analiz Et -> Sonuç (Text) + Grafik (Resim) -> Tweetle.
+    *   **Kontroller:** Pazar, Periyot, Sembol seÃ§imi.
+    *   **Aksiyon:** Analiz Et -> SonuÃ§ (Text) + Grafik (Resim) -> Tweetle.
 *   **HIVE Intel (`pnlHive`):**
-    *   **Apex Ar-Ge:** Makaleler (Papers) ve GitHub Repoları.
-    *   **Meta-Teacher:** Konsey (Guru) içgörüleri tablosu.
-    *   **Wisdom:** Bilgelik kütüphanesi (`WisdomLibControl`).
+    *   **Apex Ar-Ge:** Makaleler (Papers) ve GitHub RepolarÄ±.
+    *   **Meta-Teacher:** Konsey (Guru) iÃ§gÃ¶rÃ¼leri tablosu.
+    *   **Wisdom:** Bilgelik kÃ¼tÃ¼phanesi (`WisdomLibControl`).
 
-### ⚙️ Ayarlar Paneli Detayları (`pnlSettings`)
-> **Konum:** `MainForm.cs` satır ~908-1165
+### âš™ï¸ Ayarlar Paneli DetaylarÄ± (`pnlSettings`)
+> **Konum:** `MainForm.cs` satÄ±r ~908-1165
 
-**Yapı:** `SplitContainer` (Sol: Kategori ListBox, Sağ: İçerik Panel)
+**YapÄ±:** `SplitContainer` (Sol: Kategori ListBox, SaÄŸ: Ä°Ã§erik Panel)
 
 | Kategori | Panel | Kontroller |
 |----------|-------|------------|
-| 🔑 API & Bağlantılar | `pnlSetApi` | `txtApiKey`, `txtApiSecret`, `txtAccessToken`, `txtTokenSecret` (Twitter) |
+| ğŸ”‘ API & BaÄŸlantÄ±lar | `pnlSetApi` | `txtApiKey`, `txtApiSecret`, `txtAccessToken`, `txtTokenSecret` (Twitter) |
 |  |  | `txtGeminiKey`, `txtPerplexityKey`, `cmbGeminiModel` (AI) |
-|  |  | `btnTestApi` (🧪 Test), `btnListModels` (📋 Modeller) |
+|  |  | `btnTestApi` (ğŸ§ª Test), `btnListModels` (ğŸ“‹ Modeller) |
 |  |  | `dgvBenchmark` (Benchmark Grid), `btnRunBenchmark`, `btnAutoSelect` |
 |  |  | `txtTelToken`, `txtTelChatId` (Telegram) |
 |  |  | `txtTvSymbol`, `txtTvChartId` (TradingView) |
-| 🛡️ Spam & Güvenlik | `pnlSetSpam` | `chkSpamSignals`, `chkSpamBatches`, `chkSpamManual`, `chkSpamNews` |
-| 🎯 Hedef & Otomasyon | `pnlSetTarget` | `txtTargetAccounts`, `chkAuto` |
+| ğŸ›¡ï¸ Spam & GÃ¼venlik | `pnlSetSpam` | `chkSpamSignals`, `chkSpamBatches`, `chkSpamManual`, `chkSpamNews` |
+| ğŸ¯ Hedef & Otomasyon | `pnlSetTarget` | `txtTargetAccounts`, `chkAuto` |
 
 **Key UI Elements:**
-- **Benchmark Panel:** `pnlBenchmark` (satır ~1040-1080)
-- **Kaydet Butonu:** `btnSave` (satır ~1155) → `BtnSave_Click`
+- **Benchmark Panel:** `pnlBenchmark` (satÄ±r ~1040-1080)
+- **Kaydet Butonu:** `btnSave` (satÄ±r ~1155) â†’ `BtnSave_Click`
 
-### 🤖 OperatorForm (İcra Paneli)
+### ğŸ¤– OperatorForm (Ä°cra Paneli)
 *   **Intelligence:** Cortex Zeka Raporu (Sol Panel).
-*   **Execution:** Tweet Zinciri (Sağ Panel), Başlat Butonu.
-*   **Sentinel:** Canlı etkileşim akışı.
+*   **Execution:** Tweet Zinciri (SaÄŸ Panel), BaÅŸlat Butonu.
+*   **Sentinel:** CanlÄ± etkileÅŸim akÄ±ÅŸÄ±.
 
 ---
 
-## 📍 Key Line References (Satır Haritası)
+## ğŸ“ Key Line References (SatÄ±r HaritasÄ±)
 
-> **Not:** Bu satırlar değişebilir. Ancak arama yapmadan önce burayı kontrol edin.
+> **Not:** Bu satÄ±rlar deÄŸiÅŸebilir. Ancak arama yapmadan Ã¶nce burayÄ± kontrol edin.
 
-### MainForm.cs - Panel Initialize Fonksiyonları
-| Fonksiyon | Satır | Açıklama |
+### MainForm.cs - Panel Initialize FonksiyonlarÄ±
+| Fonksiyon | SatÄ±r | AÃ§Ä±klama |
 |-----------|-------|----------|
-| `InitializeComponent` | 197-1208 | **ANA UI KURULUMU** - Tüm paneller, kontroller |
-| `ShowPanel` | 1210-1238 | Panel görünürlük yönetimi |
+| `InitializeComponent` | 197-1208 | **ANA UI KURULUMU** - TÃ¼m paneller, kontroller |
+| `ShowPanel` | 1210-1238 | Panel gÃ¶rÃ¼nÃ¼rlÃ¼k yÃ¶netimi |
 | `InitializeInfluencerPanel` | 1247-1397 | Fenomenler sekmesi |
-| `InitializeHistoryPanel` | 1468-1516 | Geçmiş sekmesi |
+| `InitializeHistoryPanel` | 1468-1516 | GeÃ§miÅŸ sekmesi |
 | `InitializeNewsPanel` | 1518-1598 | Haberler sekmesi |
 | `InitializeChart` | 1806-1854 | TradingView grafik |
 | `InitializeTwitterWebView` | 1977-1991 | X (Twitter) WebView |
-| `InitializeServices` | 1993-2135 | Tüm servislerin başlatılması |
-| `InitializeEngagementHub` | 4838-4886 | Etkileşim Merkezi |
+| `InitializeServices` | 1993-2135 | TÃ¼m servislerin baÅŸlatÄ±lmasÄ± |
+| `InitializeEngagementHub` | 4838-4886 | EtkileÅŸim Merkezi |
 | `InitializeManualAnalysisTab` | 5015-5227 | Manuel Analiz sekmesi |
-| `InitializeBotInteractionTab` | 5275-5364 | Bot Etkileşim sekmesi |
-| `InitializeGuruPanel` | 5487-5591 | Üstat Paneli |
-| `InitializeFenerbahcePanel` | 5699-5828 | Fenerbahçe sekmesi |
+| `InitializeBotInteractionTab` | 5275-5364 | Bot EtkileÅŸim sekmesi |
+| `InitializeGuruPanel` | 5487-5591 | Ãœstat Paneli |
+| `InitializeFenerbahcePanel` | 5699-5828 | FenerbahÃ§e sekmesi |
 | `InitializeHiveHub` | 5830-5883 | HIVE Intel hub |
-| `InitializeMetaTeacherInto` | 5885-5953 | Meta-Teacher içgörüleri |
-| `InitializeWisdomInto` | 5999-6015 | Wisdom kütüphanesi |
+| `InitializeMetaTeacherInto` | 5885-5953 | Meta-Teacher iÃ§gÃ¶rÃ¼leri |
+| `InitializeWisdomInto` | 5999-6015 | Wisdom kÃ¼tÃ¼phanesi |
 | `InitializeOmniScoutInto` | ~6030 | Omni-Scout UI (Yeni) |
 | `InitializeOracleInto` | ~6080 | Oracle UI (Yeni) |
 
 ### MainForm.cs - Core Fonksiyonlar
-| Fonksiyon | Satır | Açıklama |
+| Fonksiyon | SatÄ±r | AÃ§Ä±klama |
 |-----------|-------|----------|
-| `LoadSettings` | 2138-2245 | Config'den UI'ya yükleme |
+| `LoadSettings` | 2138-2245 | Config'den UI'ya yÃ¼kleme |
 | `BtnSave_Click` | 2247-2334 | UI'dan Config'e kaydetme |
-| `BtnStart_Click` | 2336-2361 | Watcherları başlatma |
-| `PerformManualAnalysis` | 4137-4215 | Manuel analiz işlemi |
-| `PostMorningMotivation` | 2558+ | **(v3.8.2)** Motivasyon tweeti ve zamanlaması |
-| `ProcessTelegramCommands` | 4414-4756 | Telegram komutları (/ONAY, /ANALIZ vb.) |
-| `ProcessSignal` | 3985-4126 | Sinyal işleme mantığı |
-| `ProcessNewsQueue` | 3705-3915 | Haber kuyruğu işleme |
-| `Log` / `LogAI` / `LogNews` | 4249-4312 | Loglama fonksiyonları |
+| `BtnStart_Click` | 2336-2361 | WatcherlarÄ± baÅŸlatma |
+| `PerformManualAnalysis` | 4137-4215 | Manuel analiz iÅŸlemi |
+| `PostMorningMotivation` | 2558+ | **(v3.8.2)** Motivasyon tweeti ve zamanlamasÄ± |
+| `ProcessTelegramCommands` | 4414-4756 | Telegram komutlarÄ± (/ONAY, /ANALIZ vb.) |
+| `ProcessSignal` | 3985-4126 | Sinyal iÅŸleme mantÄ±ÄŸÄ± |
+| `ProcessNewsQueue` | 3705-3915 | Haber kuyruÄŸu iÅŸleme |
+| `Log` / `LogAI` / `LogNews` | 4249-4312 | Loglama fonksiyonlarÄ± |
 
-### MainForm.cs - WebView & X (Twitter) Fonksiyonları
-| Fonksiyon | Satır | Açıklama |
+### MainForm.cs - WebView & X (Twitter) FonksiyonlarÄ±
+| Fonksiyon | SatÄ±r | AÃ§Ä±klama |
 |-----------|-------|----------|
 | `PerformInternalPostAsync` | 2708-2809 | Tweet atma (WebView2) |
 | `PerformInternalThreadAsync` | 2811-3199 | Thread atma (WebView2) |
 | `PerformInternalSearchAsync` | 3201-3532 | X arama (WebView2) |
 | `SaveTwitterCookiesAsync` | 1875-1925 | Cookie kaydetme |
-| `InjectTwitterCookiesAsync` | 1927-1975 | Cookie yükleme |
+| `InjectTwitterCookiesAsync` | 1927-1975 | Cookie yÃ¼kleme |
 
-### MainForm.cs - UI Bölgeleri (InitializeComponent içinde)
-| Bölge | Satır Aralığı | İçerik |
+### MainForm.cs - UI BÃ¶lgeleri (InitializeComponent iÃ§inde)
+| BÃ¶lge | SatÄ±r AralÄ±ÄŸÄ± | Ä°Ã§erik |
 |-------|---------------|--------|
-| Field Tanımları | 60-175 | Tüm UI kontrol tanımları |
-| Panel Tanımları | 260-285 | `pnlDashboard`, `pnlSettings`, `pnlHive` vb. |
-| Sidebar Navigation | 286-420 | `btnNav...` butonları |
-| Dashboard Header | 425-530 | Sayaçlar, Ticker, Start/Stop |
-| Settings Panel | 908-1165 | Tüm ayarlar UI |
-| AI & Model Yönetimi | 939-1080 | Gemini/Perplexity, Benchmark |
+| Field TanÄ±mlarÄ± | 60-175 | TÃ¼m UI kontrol tanÄ±mlarÄ± |
+| Panel TanÄ±mlarÄ± | 260-285 | `pnlDashboard`, `pnlSettings`, `pnlHive` vb. |
+| Sidebar Navigation | 286-420 | `btnNav...` butonlarÄ± |
+| Dashboard Header | 425-530 | SayaÃ§lar, Ticker, Start/Stop |
+| Settings Panel | 908-1165 | TÃ¼m ayarlar UI |
+| AI & Model YÃ¶netimi | 939-1080 | Gemini/Perplexity, Benchmark |
 
-### Services/ - Önemli Dosyalar
-| Dosya | Satır | İçerik |
+### Services/ - Ã–nemli Dosyalar
+| Dosya | SatÄ±r | Ä°Ã§erik |
 |-------|-------|--------|
 | `ModelBenchmarkService.cs` | 55-125 | `FetchAvailableModelsAsync()` |
 | `ModelBenchmarkService.cs` | 130-145 | `RunBenchmarkAsync()` |
-| `ModelBenchmarkService.cs` | 290-385 | `UpdateTaskPreferencesFromResults()` — benchmark→ModelManager dinamik güncelleme |
+| `ModelBenchmarkService.cs` | 290-385 | `UpdateTaskPreferencesFromResults()` â€” benchmarkâ†’ModelManager dinamik gÃ¼ncelleme |
 | `ModelManager.cs` | 42-150 | `InitializeTaskPreferences()` |
 | `ModelManager.cs` | 155-220 | `SendRequest()` + fallback |
-| `GeminiService.cs` | ~580-720 | `SendRequest()` ana mantık |
-| `SocialIntelService.cs` | ~200-400 | Python script çağrısı |
+| `GeminiService.cs` | ~580-720 | `SendRequest()` ana mantÄ±k |
+| `SocialIntelService.cs` | ~200-400 | Python script Ã§aÄŸrÄ±sÄ± |
 | `SentinelService.cs` | ~80-150 | `ProcessTweetReplies()` |
-| `NewsEngine.cs` | ~100-200 | Haber işleme mantığı |
+| `NewsEngine.cs` | ~100-200 | Haber iÅŸleme mantÄ±ÄŸÄ± |
 | `OperationManager.cs` | 295-305 | `SyncGeminiProviders()` model isimleri |
 
-## 🔄 Workflow Examples (Akış Şemaları)
+## ğŸ”„ Workflow Examples (AkÄ±ÅŸ ÅemalarÄ±)
 
-### 1. Kullanıcıdan Gelen "Analiz Talebi" Akışı
-1.  **Algılama:** `SentinelService` -> `ProcessTweetReplies` çalışır.
-2.  **Veri Çekme:** `SocialIntelService.cs` -> `social_intel.py` (`fetch_replies`) çağrılır.
-3.  **Analiz:** Gelen yanıt `GeminiService` ile analiz edilir. "TALEP: THYAO" olduğu anlaşılır.
-4.  **Aksiyon:** `OperatorForm` üzerinde kullanıcıya "Analiz İsteği Geldi" uyarısı düşer.
+### 1. KullanÄ±cÄ±dan Gelen "Analiz Talebi" AkÄ±ÅŸÄ±
+1.  **AlgÄ±lama:** `SentinelService` -> `ProcessTweetReplies` Ã§alÄ±ÅŸÄ±r.
+2.  **Veri Ã‡ekme:** `SocialIntelService.cs` -> `social_intel.py` (`fetch_replies`) Ã§aÄŸrÄ±lÄ±r.
+3.  **Analiz:** Gelen yanÄ±t `GeminiService` ile analiz edilir. "TALEP: THYAO" olduÄŸu anlaÅŸÄ±lÄ±r.
+4.  **Aksiyon:** `OperatorForm` Ã¼zerinde kullanÄ±cÄ±ya "Analiz Ä°steÄŸi Geldi" uyarÄ±sÄ± dÃ¼ÅŸer.
 
-### 2. Meta-Teacher (Konsey) Döngüsü
-1.  **Tetikleme:** Zamanlayıcı (Timer) `SocialIntelService.PerformMetaTeacherLoopAsync` metodunu çağırır.
-2.  **Liste:** `InfluencerControlService` üzerinden "Konsey Üyeleri" listesi alınır.
-3.  **Tarama:** Her üye için `social_intel.py` (`search_influencer`) çalıştırılır. Tarih filtresiyle (Since Date) yeni tweetler aranır.
-4.  **Öğrenme:** Bulunan analizler `MemoryEngine` içine kaydedilir (`Learn`).
-5.  **İçgörü:** Önemli bir strateji bulunursa `OnMetaTeacherInsight` eventi tetiklenir ve kullanıcıya sunulur.
+### 2. Meta-Teacher (Konsey) DÃ¶ngÃ¼sÃ¼
+1.  **Tetikleme:** ZamanlayÄ±cÄ± (Timer) `SocialIntelService.PerformMetaTeacherLoopAsync` metodunu Ã§aÄŸÄ±rÄ±r.
+2.  **Liste:** `InfluencerControlService` Ã¼zerinden "Konsey Ãœyeleri" listesi alÄ±nÄ±r.
+3.  **Tarama:** Her Ã¼ye iÃ§in `social_intel.py` (`search_influencer`) Ã§alÄ±ÅŸtÄ±rÄ±lÄ±r. Tarih filtresiyle (Since Date) yeni tweetler aranÄ±r.
+4.  **Ã–ÄŸrenme:** Bulunan analizler `MemoryEngine` iÃ§ine kaydedilir (`Learn`).
+5.  **Ä°Ã§gÃ¶rÃ¼:** Ã–nemli bir strateji bulunursa `OnMetaTeacherInsight` eventi tetiklenir ve kullanÄ±cÄ±ya sunulur.
 
-### 3. Cortex Strateji Döngüsü (HIVE Phase 3)
-1.  **Veri Hazırlığı:** `OmniScout` (Viral) ve `Oracle` (Piyasa) servisleri arka planda veri çeker ve `LastReport` değişkenini günceller.
-2.  **Tetikleme:** Kullanıcı `OperatorForm` -> Sentez sekmesinden **"CORTEX ANALİZİ BAŞLAT"** butonuna basar.
-3.  **Sentez:** `CortexService` tüm raporları `Gemini`'ye gönderir.
-4.  **Sonuç:** AI, verileri çaprazlayarak (Cross-Reference) bir strateji üretir ve UI'da gösterir.
-
----
-
-## ⚠️ Kritik Notlar & Kurallar
-
-1.  **JSON İletişimi:** C# ve Python arasındaki veri alışverişi **her zaman JSON** formatındadır. Python tarafında `---JSON_START---` ve `---JSON_END---` markerları kullanılır.
-2.  **Thread Safety:** `SentinelService` ve `OperationManager` asenkron çalışır. UI güncellemeleri için `Invoke` zorunludur.
-3.  **Dil Kuralı:** Kod içi (değişkenler, yorumlar) İngilizce, **UI ve Loglar Türkçe** olmalıdır.
-4.  **Hata Yönetimi:** Python scripti hata verirse JSON içinde `status: "error"` döner. C# tarafı bunu `Logger.Sys` ile loglamalıdır.
+### 3. Cortex Strateji DÃ¶ngÃ¼sÃ¼ (HIVE Phase 3)
+1.  **Veri HazÄ±rlÄ±ÄŸÄ±:** `OmniScout` (Viral) ve `Oracle` (Piyasa) servisleri arka planda veri Ã§eker ve `LastReport` deÄŸiÅŸkenini gÃ¼nceller.
+2.  **Tetikleme:** KullanÄ±cÄ± `OperatorForm` -> Sentez sekmesinden **"CORTEX ANALÄ°ZÄ° BAÅLAT"** butonuna basar.
+3.  **Sentez:** `CortexService` tÃ¼m raporlarÄ± `Gemini`'ye gÃ¶nderir.
+4.  **SonuÃ§:** AI, verileri Ã§aprazlayarak (Cross-Reference) bir strateji Ã¼retir ve UI'da gÃ¶sterir.
 
 ---
 
-## 📂 Server Deployment Paths (Canlı Ortam)
+## âš ï¸ Kritik Notlar & Kurallar
 
-Canlı sunucudaki (v3.7.6 ve sonrası) dosya yolları:
+1.  **JSON Ä°letiÅŸimi:** C# ve Python arasÄ±ndaki veri alÄ±ÅŸveriÅŸi **her zaman JSON** formatÄ±ndadÄ±r. Python tarafÄ±nda `---JSON_START---` ve `---JSON_END---` markerlarÄ± kullanÄ±lÄ±r.
+2.  **Thread Safety:** `SentinelService` ve `OperationManager` asenkron Ã§alÄ±ÅŸÄ±r. UI gÃ¼ncellemeleri iÃ§in `Invoke` zorunludur.
+3.  **Dil KuralÄ±:** Kod iÃ§i (deÄŸiÅŸkenler, yorumlar) Ä°ngilizce, **UI ve Loglar TÃ¼rkÃ§e** olmalÄ±dÄ±r.
+4.  **Hata YÃ¶netimi:** Python scripti hata verirse JSON iÃ§inde `status: "error"` dÃ¶ner. C# tarafÄ± bunu `Logger.Sys` ile loglamalÄ±dÄ±r.
 
-| İçerik | Sunucu Yolu |
+---
+
+## ğŸ“‚ Server Deployment Paths (CanlÄ± Ortam)
+
+CanlÄ± sunucudaki (v3.7.6 ve sonrasÄ±) dosya yollarÄ±:
+
+| Ä°Ã§erik | Sunucu Yolu |
 | :--- | :--- |
-| **Uygulama Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI Pro` |
-| **Log Dosyaları** | `G:\Diğer bilgisayarlar\Sunucu\XiDeAI` |
+| **Uygulama DosyalarÄ±** | `G:\DiÄŸer bilgisayarlar\Sunucu\XiDeAI Pro` |
+| **Log DosyalarÄ±** | `G:\DiÄŸer bilgisayarlar\Sunucu\XiDeAI` |
+
+
 
 
 

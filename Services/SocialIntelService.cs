@@ -492,7 +492,7 @@ namespace XiDeAI_Pro.Services
             }
         }
 
-        private async Task<string> RunPythonScript(string arguments, string? user = null, string? pass = null, int timeoutSeconds = 90)
+        private async Task<string> RunPythonScript(string arguments, string? user = null, string? pass = null, int timeoutSeconds = 240)
         {
             var startTime = DateTime.Now;
             var psi = new ProcessStartInfo
@@ -511,10 +511,12 @@ namespace XiDeAI_Pro.Services
                 psi.EnvironmentVariables["X_USER"] = user;
                 psi.EnvironmentVariables["X_PASS"] = pass;
                 psi.EnvironmentVariables["PYTHONUTF8"] = "1";
+                psi.EnvironmentVariables["PYTHONUNBUFFERED"] = "1";
             }
             else
             {
                 psi.EnvironmentVariables["PYTHONUTF8"] = "1";
+                psi.EnvironmentVariables["PYTHONUNBUFFERED"] = "1";
             }
 
             using var process = Process.Start(psi);
@@ -523,25 +525,32 @@ namespace XiDeAI_Pro.Services
             // Timeout for X automation tasks
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
 
+            var outputBuilder = new System.Text.StringBuilder();
+            var errorBuilder = new System.Text.StringBuilder();
+
+            process.OutputDataReceived += (sender, e) => {
+                if (e.Data != null) outputBuilder.AppendLine(e.Data);
+            };
+            process.ErrorDataReceived += (sender, e) => {
+                if (e.Data != null) errorBuilder.AppendLine(e.Data);
+            };
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
             string output = "";
             string error = "";
 
             try
             {
-                // Read both streams asynchronously
-                var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-                var errorTask = process.StandardError.ReadToEndAsync(cts.Token);
-
                 // Wait for the process to exit OR the cancellation token to trigger
                 await process.WaitForExitAsync(cts.Token);
 
-                // If process exited normally, wait briefly for streams to finish
-                try {
-                    await Task.WhenAll(outputTask, errorTask).WaitAsync(TimeSpan.FromSeconds(2));
-                } catch { }
+                // If process exited normally, wait briefly for streams to flush
+                await Task.Delay(500);
 
-                output = outputTask.IsCompletedSuccessfully ? outputTask.Result.Trim() : "";
-                error = errorTask.IsCompletedSuccessfully ? errorTask.Result.Trim() : "";
+                output = outputBuilder.ToString().Trim();
+                error = errorBuilder.ToString().Trim();
             }
             catch (OperationCanceledException)
             {
@@ -952,6 +961,27 @@ namespace XiDeAI_Pro.Services
                 if (delta < PostCooldown)
                 {
                     try { await Task.Delay(PostCooldown - delta); } catch { }
+                }
+
+                // v4.4.0: Try daemon first (CRITICAL FIX: Route reply to daemon)
+                if (UseDaemon && _daemonAvailable)
+                {
+                    try
+                    {
+                        string daemonJson = await DaemonRequestAsync("/reply", new { url, text });
+                        var daemonResult = System.Text.Json.JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
+                        if (daemonResult?.status == "success")
+                        {
+                            Logger.Twitter($"[DAEMON] Reply Basarili: {url}");
+                            _lastPostUtc = DateTime.UtcNow;
+                            return daemonResult;
+                        }
+                        else if (daemonResult != null && !string.IsNullOrEmpty(daemonResult.message))
+                        {
+                            Logger.Twitter($"[DAEMON] Reply Hatasi: {daemonResult.message}. Subprocess deneniyor...");
+                        }
+                    }
+                    catch { }
                 }
 
                 var bytes = Encoding.UTF8.GetBytes(text);
@@ -1817,7 +1847,7 @@ namespace XiDeAI_Pro.Services
                 string args = $"\"{_scriptPath}\" search_influencer --query \"{base64Query}\" --base64 --market \"{market}\" --limit {limit}{sinceArg}{untilArg}{visibilityFlag}";
                 
                 // Deep scans (sinceDate != null) need more time
-                int timeout = string.IsNullOrEmpty(sinceDate) ? 90 : 1200; 
+                int timeout = string.IsNullOrEmpty(sinceDate) ? 240 : 1200; 
                 var cfg = ConfigManager.Current;
                 string json = await RunPythonScript(args, cfg.XLoginUser, cfg.XLoginPass, timeout);
 
