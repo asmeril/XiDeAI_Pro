@@ -2385,13 +2385,22 @@ namespace XiDeAI_Pro
                         return false;
                     }
 
-                    var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 280, maxTweets: 4, finalSuffix: "⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa");
-                    if (tweets.Count > 0 && !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase))
+                    var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 240, maxTweets: 5);
+                    if (tweets.Count > 0)
                     {
-                        const string suffix = "\n\n⚠️ Yatırım tavsiyesi değildir. #BIST100 #Borsa";
+                        var additions = new List<string>();
+                        if (!tweets[^1].Contains("YTD", StringComparison.OrdinalIgnoreCase) &&
+                            !tweets[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase)) additions.Add("⚠️ YTD");
+                        if (!tweets[^1].Contains("#BIST100", StringComparison.OrdinalIgnoreCase)) additions.Add("#BIST100");
+                        if (!tweets[^1].Contains("#Borsa", StringComparison.OrdinalIgnoreCase)) additions.Add("#Borsa");
+
+                        string suffix = additions.Count > 0 ? "\n\n" + string.Join(" ", additions) : string.Empty;
                         var baseText = tweets[^1].Trim();
-                        if (baseText.Length + suffix.Length > 280) baseText = baseText.Substring(0, Math.Max(0, 277 - suffix.Length)).TrimEnd() + "...";
-                        tweets[^1] = baseText + suffix;
+                        if (!string.IsNullOrEmpty(suffix))
+                        {
+                            if (baseText.Length + suffix.Length > 240) baseText = baseText.Substring(0, Math.Max(0, 237 - suffix.Length)).TrimEnd() + "...";
+                            tweets[^1] = baseText + suffix;
+                        }
                     }
 
                     if (tweets.Count > 0)
@@ -4545,7 +4554,7 @@ namespace XiDeAI_Pro
                                 string threadText = !string.IsNullOrWhiteSpace(_lastAnalysisResult.ShortThread)
                                     ? _lastAnalysisResult.ShortThread
                                     : _lastAnalysisResult.ReportText;
-                                var tweets = ThreadPipeline.BuildCompactThread(threadText, 280, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                                var tweets = ThreadPipeline.BuildCompactThread(threadText, 240, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
                                 if (tweets.Count < 2 || tweets.Count > 8)
                                 {
                                     await _opManager.Telegram.SendMessageAsync($"⚠️ Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
@@ -5043,7 +5052,7 @@ namespace XiDeAI_Pro
                                  Log("⚠️ Screenshot bulunamadı veya silinmiş, görselsiz gönderiliyor.", "Twitter");
                                  scrPath = null;
                              }
-                             var tweets = ThreadPipeline.BuildCompactThread(analysisText, 280, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                             var tweets = ThreadPipeline.BuildCompactThread(analysisText, 240, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
                              if (tweets.Count < 2 || tweets.Count > 8)
                              {
                                  MessageBox.Show($"Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
