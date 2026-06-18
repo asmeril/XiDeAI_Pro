@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import json
 import asyncio
 import os
@@ -578,7 +578,7 @@ class XDaemonPlaywright:
                 await asyncio.sleep(1.5)
 
                 pre_reply_baseline = self._last_known_tweet_id
-                tweet_url = await self._extract_latest_tweet_url(min_id=pre_reply_baseline)
+                tweet_url = await self._extract_latest_tweet_url(min_id=pre_reply_baseline, is_reply=True)
                 if "/status/" in tweet_url:
                     m_id = re.search(r'/status/(\d+)', tweet_url)
                     if m_id:
@@ -769,7 +769,7 @@ class XDaemonPlaywright:
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
-    async def _extract_latest_tweet_url(self, min_id: int = 0) -> str:
+    async def _extract_latest_tweet_url(self, min_id: int = 0, is_reply: bool = False) -> str:
         """
         Extract the URL of the just-posted tweet.
 
@@ -854,11 +854,14 @@ class XDaemonPlaywright:
 
         # --- Step 3: Profile page fallback with 3 retries ---
         if self.profile_path:
+            profile_url = f"https://x.com{self.profile_path}"
+            if is_reply:
+                profile_url = f"https://x.com{self.profile_path}/with_replies"
             for retry in range(3):
                 try:
                     wait_secs = 5.0 + retry * 3.0  # 5s, 8s, 11s
                     await asyncio.sleep(wait_secs)
-                    await self.page.goto(f"https://x.com{self.profile_path}", wait_until="domcontentloaded", timeout=20000)
+                    await self.page.goto(profile_url, wait_until="domcontentloaded", timeout=20000)
                     await asyncio.sleep(2.0)
 
                     links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")

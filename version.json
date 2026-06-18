@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.5.4",
-    "build_number":  5540,
-    "lastUpdate":  "2026-06-17T18:59:05Z",
+    "version":  "5.5.5",
+    "build_number":  5550,
+    "lastUpdate":  "2026-06-18T18:00:08Z",
     "changelog":  [
+                      "v5.5.5: v5.5.5: Cümle bütünlüğünü koruyan PackTweets algoritması entegre edildi",
                       "v5.5.4: v5.5.4: Formasyon tespiti ve EOD thread stabilizasyonu",
                       "v5.5.3: v5.5.3: Vision modeline tweet baglami eklendi",
                       "v5.5.2: v5.5.2: Ustat Modulu Takas/AKD gelistirmeleri",

@@ -235,7 +235,48 @@ namespace XiDeAI_Pro.Services
                 normalized.AddRange(ThreadService.SplitText(trimmed, limit));
             }
 
-            return normalized.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            var packed = new List<string>();
+            string current = "";
+
+            foreach (var tweet in normalized)
+            {
+                if (string.IsNullOrWhiteSpace(tweet)) continue;
+                string t = tweet.Trim();
+
+                if (string.IsNullOrEmpty(current))
+                {
+                    current = t;
+                }
+                else
+                {
+                    string separator = current.EndsWith("\n") || t.StartsWith("\n") ? "\n" : "\n\n";
+                    string merged = current.TrimEnd() + separator + t;
+                    if (merged.Length <= limit)
+                    {
+                        current = merged;
+                    }
+                    else
+                    {
+                        merged = current.TrimEnd() + " " + t;
+                        if (merged.Length <= limit)
+                        {
+                            current = merged;
+                        }
+                        else
+                        {
+                            packed.Add(current);
+                            current = t;
+                        }
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(current))
+            {
+                packed.Add(current);
+            }
+
+            return packed;
         }
 
         private static void MergeShortTailParts(List<string> tweets, int minimumLength, bool preserveFirstTweet, int maxLength)

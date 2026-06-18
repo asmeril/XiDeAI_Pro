@@ -122,11 +122,13 @@ namespace XiDeAI_Pro.Services
                 
                 if (string.IsNullOrEmpty(topic))
                 {
-                    OnLog?.Invoke("⚠️ İlgili trend bulunamadı.", "Interaction");
-                    return;
+                    topic = relevantKeywords[new Random().Next(relevantKeywords.Length)];
+                    OnLog?.Invoke($"⚠️ Trend eşleşmedi. Sabit konulardan biri seçildi: {topic}", "Interaction");
                 }
-                
-                OnLog?.Invoke($"📌 Trend bulundu: {topic}", "Interaction");
+                else
+                {
+                    OnLog?.Invoke($"📌 Trend bulundu: {topic}", "Interaction");
+                }
                 
                 // 2. Find viral tweet with filters
                 var posts = await _socialIntel.FindInfluencerAnalyses(topic + $" min_faves:{cfg.BotMinFavorites}", SocialIntelService.DetectMarket(topic));

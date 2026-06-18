@@ -359,25 +359,32 @@ namespace XiDeAI_Pro.Services
             {
                 int splitIndex = -1;
                 
-                // PRIORITY 1: Find last sentence end (. ! ?) within limit
-                for (int i = Math.Min(limit, text.Length - 1); i >= limit / 2; i--)
-                {
-                    char c = text[i];
-                    if ((c == '.' || c == '!' || c == '?') && (i + 1 >= text.Length || char.IsWhiteSpace(text[i + 1])))
-                    {
-                        splitIndex = i + 1;
-                        break;
-                    }
-                }
+                // PRIORITY 1: Find last paragraph break (\n\n) within limit
+                splitIndex = text.LastIndexOf("\n\n", Math.Min(limit, text.Length - 1), StringComparison.Ordinal);
+                if (splitIndex < limit / 2) splitIndex = -1;
                 
-                // PRIORITY 2: Find last newline within limit
+                // PRIORITY 2: Find last newline (\n) within limit
                 if (splitIndex == -1)
                 {
                     splitIndex = text.LastIndexOf('\n', Math.Min(limit, text.Length - 1));
                     if (splitIndex < limit / 2) splitIndex = -1;
                 }
                 
-                // PRIORITY 3: Find last space within limit
+                // PRIORITY 3: Find last sentence end (. ! ?) within limit
+                if (splitIndex == -1)
+                {
+                    for (int i = Math.Min(limit, text.Length - 1); i >= limit / 2; i--)
+                    {
+                        char c = text[i];
+                        if ((c == '.' || c == '!' || c == '?') && (i + 1 >= text.Length || char.IsWhiteSpace(text[i + 1])))
+                        {
+                            splitIndex = i + 1;
+                            break;
+                        }
+                    }
+                }
+                
+                // PRIORITY 4: Find last space within limit
                 if (splitIndex == -1)
                 {
                     splitIndex = text.LastIndexOf(' ', Math.Min(limit, text.Length - 1));

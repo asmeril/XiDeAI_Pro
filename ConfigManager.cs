@@ -106,6 +106,7 @@ namespace XiDeAI_Pro.Config
         public int BotMinFollowers { get; set; } = 1000; // Min takipçi
         public int BotMinFavorites { get; set; } = 100; // Min beğeni/etkileşim
         public int BotMaxTweetAgeHours { get; set; } = 12; // Max tweet yaşı (saat)
+        public System.Collections.Generic.List<string> ActiveSearchCategories { get; set; } = new() { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH", "OZEL" };
         
         // v4.5.3: Kategori Bazlı Arama Kelimeleri (Round-Robin) - Updated with X Trend Research
         public Dictionary<string, List<string>> CategorySearchKeywords { get; set; } = new()
@@ -270,6 +271,11 @@ namespace XiDeAI_Pro.Config
             if (Current.BotMinFavorites < 100)
             {
                 Current.BotMinFavorites = 100;
+                saveNeeded = true;
+            }
+            if (Current.ActiveSearchCategories == null || Current.ActiveSearchCategories.Count == 0)
+            {
+                Current.ActiveSearchCategories = new System.Collections.Generic.List<string> { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH", "OZEL" };
                 saveNeeded = true;
             }
             if (Current.GuruHandles == null) Current.GuruHandles = new List<string>();

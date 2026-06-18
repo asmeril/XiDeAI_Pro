@@ -50,6 +50,7 @@ namespace XiDeAI_Pro
         private readonly ConcurrentDictionary<int, InteractionState> _pendingInteractionDict = new();
         private int _interactionIdCounter = 0;
         private System.Windows.Forms.Timer _botTimer = null!;
+        private System.Windows.Forms.Timer _influencerTimer = null!;
         private System.Windows.Forms.Timer _trendEngagementTimer = null!; // v4.5.4: Trend Engagement Timer
         private TrendEngagementService? _trendEngagement; // v4.5.4: Dynamic Trend Service
 
@@ -115,7 +116,7 @@ namespace XiDeAI_Pro
         private RichTextBox rtbGuruPreview = null!;
         private RichTextBox rtbBotPreview = null!; // New for Bot Tab
         private int _currentSearchCategoryIndex = 0; // v4.2.1: Round-Robin Category Rotation
-        private readonly string[] _searchCategories = { "FINANS" };
+        private string[] _searchCategories = { "FINANS" };
         private List<(NewsItem item, string? analysis, string status)> _newsBuffer = new List<(NewsItem item, string? analysis, string status)>();
 
 
@@ -2030,6 +2031,39 @@ namespace XiDeAI_Pro
                      try { await CheckForInteractions(); } catch (Exception ex) { Log($"Bot Hatası: {ex.Message}", "System"); }
                 };
 
+                // Setup Influencer Target Check Timer (Runs every 45 minutes)
+                _influencerTimer = new System.Windows.Forms.Timer();
+                _influencerTimer.Interval = 1000 * 60 * 45; // 45 Minutes
+                _influencerTimer.Tick += async (s, e) => {
+                     try 
+                     {
+                         if (_opManager.Interaction != null)
+                         {
+                             Log("🎯 [Otomatik Fenomen] BIST hedefleri kontrol ediliyor...", "System");
+                             UpdateBotStatus("🎯 Fenomen taraması (BIST)...");
+                             await _opManager.Interaction.RunTargetedCheck("BIST");
+                             
+                             await Task.Delay(1000 * 30); // 30 seconds delay between categories
+                             
+                             Log("₿ [Otomatik Fenomen] Kripto hedefleri kontrol ediliyor...", "System");
+                             UpdateBotStatus("₿ Fenomen taraması (Kripto)...");
+                             await _opManager.Interaction.RunTargetedCheck("CRYPTO");
+                             UpdateBotStatus("IDLE");
+                         }
+                     }
+                     catch (Exception ex) 
+                     { 
+                         Log($"Fenomenler Hatası: {ex.Message}", "System"); 
+                     }
+                };
+
+                if (ConfigManager.Current.BotInteractionEnabled)
+                {
+                    _botTimer.Start();
+                    _influencerTimer.Start();
+                    Log("🤖 Bot Etkileşim ve Otomatik Fenomen Zamanlayıcıları Başlatıldı.", "System");
+                }
+
                 Log("🚀 XiDeAI Pro: Tüm sistemler nominal. (OperationManager Active)", "System");
             }
             catch (Exception ex)
@@ -2120,6 +2154,21 @@ namespace XiDeAI_Pro
             txtBotMinFollowers.Text = cfg.BotMinFollowers.ToString();
             txtBotMinFavorites.Text = cfg.BotMinFavorites.ToString();
             txtBotMaxAge.Text = cfg.BotMaxTweetAgeHours.ToString();
+            UpdateSearchCategoriesArray();
+        }
+
+        private void UpdateSearchCategoriesArray()
+        {
+            var cfg = ConfigManager.Current;
+            if (cfg.ActiveSearchCategories == null || cfg.ActiveSearchCategories.Count == 0)
+            {
+                _searchCategories = new[] { "FINANS" };
+            }
+            else
+            {
+                _searchCategories = cfg.ActiveSearchCategories.ToArray();
+            }
+            _currentSearchCategoryIndex = 0;
         }
 
         private void BtnSave_Click(object? sender, EventArgs e)
@@ -4246,7 +4295,11 @@ namespace XiDeAI_Pro
             try
             {
                 // v4.2.1: Round-Robin Category Rotation
-                string currentCategory = _searchCategories[_currentSearchCategoryIndex];
+                if (_searchCategories == null || _searchCategories.Length == 0)
+                {
+                    UpdateSearchCategoriesArray();
+                }
+                string currentCategory = _searchCategories[_currentSearchCategoryIndex % _searchCategories.Length];
                 _currentSearchCategoryIndex = (_currentSearchCategoryIndex + 1) % _searchCategories.Length;
                 
                 UpdateBotStatus($"🔍 [{currentCategory}] Taranıyor...");
@@ -4254,7 +4307,19 @@ namespace XiDeAI_Pro
                 
                 // Get category-specific keywords
                 List<string> categoryKeywords;
-                if (cfg.CategorySearchKeywords.TryGetValue(currentCategory, out var keywords) && keywords.Count > 0)
+                if (currentCategory == "OZEL")
+                {
+                    if (!string.IsNullOrWhiteSpace(cfg.BotTopicKeywords))
+                    {
+                        categoryKeywords = cfg.BotTopicKeywords.Split(',').Select(k => k.Trim()).Where(k => !string.IsNullOrEmpty(k)).ToList();
+                    }
+                    else
+                    {
+                        LogSocial("⚠️ Özel Konular seçildi ancak üstteki kutu boş! GUNLUK_MIZAH fallback.");
+                        categoryKeywords = cfg.CategorySearchKeywords.GetValueOrDefault("GUNLUK_MIZAH", new List<string> { "gündem" });
+                    }
+                }
+                else if (cfg.CategorySearchKeywords.TryGetValue(currentCategory, out var keywords) && keywords.Count > 0)
                 {
                     categoryKeywords = keywords;
                 }
@@ -4359,7 +4424,7 @@ namespace XiDeAI_Pro
                     .Where(HasUsableAuthor)
                     .Where(p => IsFresh(p.PostDate))
                     .Where(p => IsSafeInteractionContent(p.Content))
-                    .Where(p => HasFinanceIntent(p.Content))
+                    .Where(p => currentCategory != "FINANS" || HasFinanceIntent(p.Content))
                     .Where(p => p.FollowerCount >= cfg.BotMinFollowers || p.Engagement >= cfg.BotMinFavorites || p.RelevanceScore >= 140)
                     .OrderByDescending(p => p.Engagement + p.RelevanceScore + Math.Min(p.FollowerCount / 1000, 100))
                     .Take(5)
@@ -4367,7 +4432,7 @@ namespace XiDeAI_Pro
                 
                 if (filteredPosts.Count == 0)
                 {
-                    LogSocial($"⚠️ Filtrelere uygun finans tweeti bulunamadı. Ham sonuç: {posts.Count}, eşik: geçerli handle + /status URL + yaş≤{maxAgeHours}h + promo/giveaway değil + finans niyeti + takipçi≥{cfg.BotMinFollowers}/etkileşim≥{cfg.BotMinFavorites}/relevance≥140.");
+                    LogSocial($"⚠️ Filtrelere uygun [{currentCategory}] tweeti bulunamadı. Ham sonuç: {posts.Count}, eşik: geçerli handle + /status URL + yaş≤{maxAgeHours}h + promo/giveaway değil + (varsa finans niyeti) + takipçi≥{cfg.BotMinFollowers}/etkileşim≥{cfg.BotMinFavorites}/relevance≥140.");
                     UpdateBotStatus("⚠️ Filtre uyumsuz");
                     return;
                 }
@@ -5213,9 +5278,94 @@ namespace XiDeAI_Pro
                         Log("🤖 Bot Interaction Timer Stopped.", "System");
                     }
                 }
+                if (_influencerTimer != null)
+                {
+                    if (chkBotEnabled.Checked)
+                    {
+                        _influencerTimer.Start();
+                        Log("🎯 Influencer Automation Timer Started.", "System");
+                    }
+                    else
+                    {
+                        _influencerTimer.Stop();
+                        Log("🎯 Influencer Automation Timer Stopped.", "System");
+                    }
+                }
             };
             pnlSettings.Controls.Add(chkBotEnabled);
+            
+            var btnRunInfluencerNow = new Button { Text = "⚡ Fenomenleri Şimdi Tara", Location = new Point(420, y - 5), Width = 200, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnRunInfluencerNow.Click += async (s, e) => {
+                btnRunInfluencerNow.Enabled = false;
+                btnRunInfluencerNow.Text = "⏳ Taranıyor...";
+                try {
+                    if (_opManager.Interaction != null) {
+                        Log("🎯 [Manuel] Fenomen hedefleri kontrol ediliyor...", "System");
+                        await _opManager.Interaction.RunTargetedCheck("BIST");
+                        await Task.Delay(5000);
+                        await _opManager.Interaction.RunTargetedCheck("CRYPTO");
+                        Log("✅ [Manuel] Fenomen taraması tamamlandı.", "System");
+                    }
+                } catch (Exception ex) { Log($"Fenomenler Hatası: {ex.Message}", "System"); }
+                finally {
+                    if (!btnRunInfluencerNow.IsDisposed) {
+                        btnRunInfluencerNow.Enabled = true;
+                        btnRunInfluencerNow.Text = "⚡ Fenomenleri Şimdi Tara";
+                    }
+                }
+            };
+            pnlSettings.Controls.Add(btnRunInfluencerNow);
+
             y += 30;
+
+            // Categories Header
+            pnlSettings.Controls.Add(new Label { Text = "🎯 Aktif Tarama Kategorileri (En az biri seçili olmalıdır):", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Gold, Font = new Font("Segoe UI", 9, FontStyle.Bold) });
+            y += 20;
+
+            var flowCategories = new FlowLayoutPanel { Location = new Point(10, y), Width = 800, Height = 60, FlowDirection = FlowDirection.LeftToRight, AutoScroll = false };
+            
+            var categoryDisplayNames = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "FINANS", "Finans (BIST/Kripto)" },
+                { "KULTUR_EGLENCE", "Kültür & Dizi/Film" },
+                { "MILLI_TOPLUM", "Milli & Toplumsal" },
+                { "BILGE_KULTUR", "Bilim & Teknoloji" },
+                { "INSAN_RUH", "İlham & Motivasyon" },
+                { "GUNLUK_MIZAH", "Günlük Mizah" },
+                { "OZEL", "Özel Konular (Üstteki Kutu)" }
+            };
+
+            foreach (var cat in categoryDisplayNames)
+            {
+                var chkCat = new CheckBox 
+                { 
+                    Text = cat.Value, 
+                    Tag = cat.Key, 
+                    Width = 180, 
+                    ForeColor = Color.White, 
+                    Checked = ConfigManager.Current.ActiveSearchCategories.Contains(cat.Key),
+                    Font = new Font("Segoe UI", 9, FontStyle.Regular)
+                };
+                chkCat.CheckedChanged += (s, e) => {
+                    var cb = (CheckBox)s!;
+                    var catKey = (string)cb.Tag!;
+                    var activeList = ConfigManager.Current.ActiveSearchCategories;
+                    if (cb.Checked)
+                    {
+                        if (!activeList.Contains(catKey))
+                            activeList.Add(catKey);
+                    }
+                    else
+                    {
+                        activeList.Remove(catKey);
+                    }
+                    ConfigManager.Save();
+                    UpdateSearchCategoriesArray();
+                };
+                flowCategories.Controls.Add(chkCat);
+            }
+            pnlSettings.Controls.Add(flowCategories);
+            y += 65;
 
             // Keywords
             pnlSettings.Controls.Add(new Label { Text = "📌 Konular (Virgülle ayırın):", Location = new Point(10, y), AutoSize = true, ForeColor = Color.Cyan });
@@ -5450,7 +5600,7 @@ namespace XiDeAI_Pro
             }
 
             var tweets = ThreadPipeline.ParseParts(content, 280);
-            if (rowStatus.Contains("Hoca", StringComparison.OrdinalIgnoreCase) && (tweets.Count < 3 || tweets.Count > 6 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase))))
+            if (rowStatus.Contains("Hoca", StringComparison.OrdinalIgnoreCase) && (tweets.Count < 2 || tweets.Count > 10 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase) || t.Contains("twitter.com/", StringComparison.OrdinalIgnoreCase))))
             {
                 MessageBox.Show($"Üstat thread formatı güvenli değil ({tweets.Count} parça veya kaynak URL eksik). Lütfen düzenleyin.");
                 return;
@@ -5664,9 +5814,23 @@ namespace XiDeAI_Pro
             
             pnlGuruCenter.Controls.Add(pnlHeader);
 
-            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 220, BackColor = Color.FromArgb(40,40,40) };
+            // Main Split: Left (Grids) vs Right (Preview/Publish)
+            var split = new SplitContainer { 
+                Dock = DockStyle.Fill, 
+                Orientation = Orientation.Vertical, 
+                SplitterDistance = 450, 
+                BackColor = Color.FromArgb(40,40,40) 
+            };
             
-            // --- TOP: Live Feed (Guru Tweets) ---
+            // Left Split: Top (Live Feed Grid) vs Bottom (Approvals List Grid)
+            var splitLeft = new SplitContainer { 
+                Dock = DockStyle.Fill, 
+                Orientation = Orientation.Horizontal, 
+                SplitterDistance = 280, 
+                BackColor = Color.FromArgb(45,45,45) 
+            };
+            
+            // --- TOP LEFT: Live Feed (Guru Tweets) ---
             var tlpFeed = new TableLayoutPanel {
                 Dock = DockStyle.Fill,
                 RowCount = 4,
@@ -5712,9 +5876,9 @@ namespace XiDeAI_Pro
             dgvGuru.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
             dgvGuru.DefaultCellStyle.SelectionBackColor = Color.Indigo;
 
-            dgvGuru.Columns.Add("Date", "Saat"); dgvGuru.Columns[0].Width = 60;
+            dgvGuru.Columns.Add("Date", "Saat"); dgvGuru.Columns[0].Width = 100;
             dgvGuru.Columns.Add("Text", "İçerik");
-            dgvGuru.Columns.Add("Image", "Görsel"); dgvGuru.Columns["Image"].Width = 70;
+            dgvGuru.Columns.Add("Image", "Görsel"); dgvGuru.Columns["Image"].Width = 80;
             dgvGuru.Columns.Add("Url", "Link"); dgvGuru.Columns["Url"].Visible = false;
             dgvGuru.RowTemplate.Height = 40;
             
@@ -5758,9 +5922,9 @@ namespace XiDeAI_Pro
             };
             tlpFeed.Controls.Add(btnAnalyzeSelected, 0, 3);
             
-            split.Panel1.Controls.Add(tlpFeed);
+            splitLeft.Panel1.Controls.Add(tlpFeed);
 
-            // --- BOTTOM: Approvals (Drafts) ---
+            // --- BOTTOM LEFT: Approvals (Drafts List) ---
             var pnlReview = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
             
             var headerPanel = new Panel { Dock = DockStyle.Top, Height = 30 };
@@ -5775,8 +5939,6 @@ namespace XiDeAI_Pro
             headerPanel.Controls.Add(btnGuruHistory);
             
             pnlReview.Controls.Add(headerPanel);
-
-            var approvalSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 180 };
 
             dgvGuruApproval = new DataGridView { 
                 Dock = DockStyle.Fill, 
@@ -5796,32 +5958,63 @@ namespace XiDeAI_Pro
             dgvGuruApproval.DefaultCellStyle.ForeColor = Color.WhiteSmoke;
             dgvGuruApproval.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
 
-            dgvGuruApproval.Columns.Add("Date", "Tarih");
-            dgvGuruApproval.Columns.Add("Symbol", "Sembol");
+            dgvGuruApproval.Columns.Add("Date", "Tarih"); dgvGuruApproval.Columns["Date"].Width = 60;
+            dgvGuruApproval.Columns.Add("Symbol", "Sembol"); dgvGuruApproval.Columns["Symbol"].Width = 75;
             dgvGuruApproval.Columns.Add("Snippet", "Özet");
-            dgvGuruApproval.Columns.Add("Status", "Durum");
+            dgvGuruApproval.Columns.Add("Status", "Durum"); dgvGuruApproval.Columns["Status"].Width = 95;
             dgvGuruApproval.Columns.Add("Content", "C"); dgvGuruApproval.Columns["Content"].Visible=false;
             dgvGuruApproval.Columns.Add("ImagePath", "I"); dgvGuruApproval.Columns["ImagePath"].Visible=false;
             dgvGuruApproval.Columns.Add("SourceUrl", "S"); dgvGuruApproval.Columns["SourceUrl"].Visible=false;
             dgvGuruApproval.RowTemplate.Height = 35;
             
-            approvalSplit.Panel1.Controls.Add(dgvGuruApproval);
+            pnlReview.Controls.Add(dgvGuruApproval);
+            dgvGuruApproval.BringToFront(); // HeaderPanel docks top, Grid fills remaining
             
-            // Preview
-            var pnlPreview = new Panel { Dock = DockStyle.Fill };
-            var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 280, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
-            rtbGuruPreview = new RichTextBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20,20,20), ForeColor = Color.White, BorderStyle = BorderStyle.None, ReadOnly = false };
-            var btnPublish = new Button { Text = "✅ YAYINLA", Dock = DockStyle.Bottom, Height = 40, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold) };
+            splitLeft.Panel2.Controls.Add(pnlReview);
+            split.Panel1.Controls.Add(splitLeft);
+            
+            // --- RIGHT: Visual & Text Preview ---
+            var pnlPreview = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10), BackColor = Color.FromArgb(30,30,35) };
+            
+            var pnlPreviewHeader = new Panel { Dock = DockStyle.Top, Height = 35 };
+            var lblPreviewTitle = new Label { 
+                Text = "🔍 Rapor & Grafik Önizleme", 
+                Dock = DockStyle.Fill, 
+                Font = new Font("Segoe UI", 11, FontStyle.Bold), 
+                ForeColor = Color.Gold, 
+                TextAlign = ContentAlignment.MiddleLeft 
+            };
+            pnlPreviewHeader.Controls.Add(lblPreviewTitle);
+            
+            var picPreview = new PictureBox { Dock = DockStyle.Top, Height = 300, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Black };
+            rtbGuruPreview = new RichTextBox { 
+                Dock = DockStyle.Fill, 
+                BackColor = Color.FromArgb(20,20,20), 
+                ForeColor = Color.White, 
+                BorderStyle = BorderStyle.None, 
+                ReadOnly = false,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                Padding = new Padding(5)
+            };
+            
+            var btnPublish = new Button { 
+                Text = "🚀 SEÇİLİ ANALİZİ X'TE YAYINLA", 
+                Dock = DockStyle.Bottom, 
+                Height = 45, 
+                BackColor = Color.SeaGreen, 
+                ForeColor = Color.White, 
+                FlatStyle = FlatStyle.Flat, 
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
             btnPublish.Click += async (s,e) => await ApproveSelectedThread();
             
             pnlPreview.Controls.Add(rtbGuruPreview);
             pnlPreview.Controls.Add(picPreview);
+            pnlPreview.Controls.Add(pnlPreviewHeader);
             pnlPreview.Controls.Add(btnPublish);
             
-            approvalSplit.Panel2.Controls.Add(pnlPreview);
-            pnlReview.Controls.Add(approvalSplit);
-            
-            split.Panel2.Controls.Add(pnlReview);
+            split.Panel2.Controls.Add(pnlPreview);
             pnlGuruCenter.Controls.Add(split);
             
             // Preview Logic
@@ -5958,7 +6151,7 @@ namespace XiDeAI_Pro
                         {
                             Log($"🚀 Otomatik paylaşım aktif: #{symbol} gönderiliyor...", "Social");
                             var tweets = ThreadPipeline.ParseParts(thread, 280);
-                            if (tweets.Count < 3 || tweets.Count > 6 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase)))
+                            if (tweets.Count < 2 || tweets.Count > 10 || !tweets.Any(t => t.Contains("x.com/", StringComparison.OrdinalIgnoreCase) || t.Contains("twitter.com/", StringComparison.OrdinalIgnoreCase)))
                             {
                                 Log($"⚠️ Üstat otomatik paylaşım iptal: format güvenli değil ({tweets.Count} parça veya kaynak URL eksik).", "Social");
                                 continue;
