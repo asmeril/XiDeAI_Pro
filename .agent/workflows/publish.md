@@ -132,3 +132,5 @@ git push origin master
 | `PromptManager.cs` | `Services\` | LLM prompt şablonları |
 | `OperationEngine.cs` | `Services\` | Zamanlayıcı tabanlı operasyonlar |
 | `Robot_XU100_Nabiz_Monitor.txt` | `d:\MEGA\Robots\` | iDeal robot — log dosyalarını üretir |
+| Tweetlerde anlamsız cümle bölünmeleri ve tek cümle kalması | ✅ Düzeltildi — PackTweets ve \n önceliği eklendi | v5.5.5 |
+| Bot konuları sadece trendlerle eşleşiyordu | ✅ Düzeltildi — Konular listesinden rastgele fallback eklendi | v5.5.5 |
