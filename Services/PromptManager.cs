@@ -1,4 +1,4 @@
-﻿// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
+// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
 // PURPOSE: Ultimate AI prompt templates ensuring Smart Money protocols and correct context separation.
 
 using System;
@@ -213,6 +213,7 @@ KURALLAR:
 KATEGORİLER:
 - FINANS: Borsa, kripto, döviz, altın, yatırım, ekonomi konuları
 - KULTUR_EGLENCE: Diziler, filmler, Netflix, tiyatro, sinema, sanat, eğlence içerikleri
+- SPOR: Futbol, basketbol, spor kulüpleri, transfer haberleri, Fenerbahçe, Galatasaray, Beşiktaş, Trabzonspor, maç sonuçları, spor gündemi
 - MILLI_TOPLUM: Milli konular, vatan, şehitler, Teknofest, savunma sanayii, toplumsal değerler
 - BILGE_KULTUR: Tarih, bilim, uzay, teknoloji, yapay zeka, genel kültür bilgisi
 - INSAN_RUH: Motivasyon, kişisel gelişim, başarı, ilham verici içerikler
