@@ -137,3 +137,4 @@ git push origin master
 | Etkileşim (Reply) Chrome pencereleri görünür açılıyordu | ✅ Düzeltildi — social_intel.py headless=True yapıldı | v5.5.6 |
 | Spor tweetlerine alakasız sinema/film yorumları veriliyordu | ✅ Düzeltildi — PromptManager'a SPOR kategorisi eklendi | v5.5.6 |
 | Yanıtlar çok uzun ve hep zorunlu soru (Peki ya sen?) ile bitiyordu | ✅ Düzeltildi — PromptManager EK KURALLAR revize edildi | v5.5.6 |
+| SPOR kategorisi siniflandirma promptunda (KATEGORİLER) eksikti | ✅ Düzeltildi — GetCategoryDetectionPrompt'a SPOR satırı eklendi | v5.5.7 |
