@@ -1018,7 +1018,7 @@ namespace XiDeAI_Pro
             // Deep Scan Controls (Independent)
             var btnStartScan = new Button { Text = "▶ Taramayı Başlat", Location = new Point(540, 12), Width = 140, Height = 35, BackColor = Color.SeaGreen, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStartScan.Click += (s, e) => {
-                // _deepScanTimer (removed).Start();
+                _deepScanTimer.Start();
                 _lblDeepScanStatus.Text = "📡 TARAMA AKTİF (Her 45dk)";
                 _lblDeepScanStatus.ForeColor = Color.Lime;
                 Log("🧠 Hafıza Taraması (Deep Scan) manuel olarak BAŞLATILDI.", "System");
@@ -1029,7 +1029,7 @@ namespace XiDeAI_Pro
 
             var btnStopScan = new Button { Text = "⏹ Durdur", Location = new Point(690, 12), Width = 80, Height = 35, BackColor = Color.Firebrick, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
             btnStopScan.Click += (s, e) => {
-                // _deepScanTimer (removed).Stop();
+                _deepScanTimer.Stop();
                 _lblDeepScanStatus.Text = "⏸ TARAMA DURDURULDU";
                 _lblDeepScanStatus.ForeColor = Color.Orange;
                 Log("🧠 Hafıza Taraması (Deep Scan) DURDURULDU.", "System");
@@ -1038,6 +1038,17 @@ namespace XiDeAI_Pro
 
             _lblDeepScanStatus = new Label { Text = "⏸ TARAMA DURDURULDU", Location = new Point(780, 18), AutoSize = true, ForeColor = Color.Orange, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
             topPanel.Controls.Add(_lblDeepScanStatus);
+
+            var btnResetScores = new Button { Text = "♻ Puanları Sıfırla", Location = new Point(1000, 12), Width = 120, Height = 35, BackColor = Color.DarkGoldenrod, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand };
+            btnResetScores.Click += (s, e) => {
+                var confirm = MessageBox.Show("Tüm fenomenlerin puanları sıfırlanacak (50 yapılacak). Onaylıyor musunuz?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm == DialogResult.Yes) {
+                    _opManager.InfluencerControl.ResetAllScores(50);
+                    RefreshInfluencerListView();
+                    Log("♻ Tüm fenomenlerin puanları sıfırlandı.", "System");
+                }
+            };
+            topPanel.Controls.Add(btnResetScores);
 
             // Bottom Action Panel
             var actionPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.FromArgb(40, 40, 45), Padding = new Padding(15) };
@@ -2013,8 +2024,7 @@ namespace XiDeAI_Pro
                 _scheduleTimer.Interval = 1000 * 60; // Every 1 minute
                 _scheduleTimer.Tick += (s, e) => CheckSchedule();
                 _scheduleTimer.Start();
-
-                // v4.0.1: Initialize daily auto-benchmark timer (runs at 03:00)
+                    // v4.0.1: Initialize daily auto-benchmark timer (runs at 03:00)
                 _opManager.InitializeDailyBenchmarkTimer();
                 
                 // Production default: benchmark is disabled unless explicitly enabled in config.
@@ -2031,37 +2041,9 @@ namespace XiDeAI_Pro
                      try { await CheckForInteractions(); } catch (Exception ex) { Log($"Bot Hatası: {ex.Message}", "System"); }
                 };
 
-                // Setup Influencer Target Check Timer (Runs every 45 minutes)
-                _influencerTimer = new System.Windows.Forms.Timer();
-                _influencerTimer.Interval = 1000 * 60 * 45; // 45 Minutes
-                _influencerTimer.Tick += async (s, e) => {
-                     try 
-                     {
-                         if (_opManager.Interaction != null)
-                         {
-                             Log("🎯 [Otomatik Fenomen] BIST hedefleri kontrol ediliyor...", "System");
-                             UpdateBotStatus("🎯 Fenomen taraması (BIST)...");
-                             await _opManager.Interaction.RunTargetedCheck("BIST");
-                             
-                             await Task.Delay(1000 * 30); // 30 seconds delay between categories
-                             
-                             Log("₿ [Otomatik Fenomen] Kripto hedefleri kontrol ediliyor...", "System");
-                             UpdateBotStatus("₿ Fenomen taraması (Kripto)...");
-                             await _opManager.Interaction.RunTargetedCheck("CRYPTO");
-                             UpdateBotStatus("IDLE");
-                         }
-                     }
-                     catch (Exception ex) 
-                     { 
-                         Log($"Fenomenler Hatası: {ex.Message}", "System"); 
-                     }
-                };
-
                 if (ConfigManager.Current.BotInteractionEnabled)
                 {
-                    _botTimer.Start();
-                    _influencerTimer.Start();
-                    Log("🤖 Bot Etkileşim ve Otomatik Fenomen Zamanlayıcıları Başlatıldı.", "System");
+                    // _botTimer.Start();
                 }
 
                 Log("🚀 XiDeAI Pro: Tüm sistemler nominal. (OperationManager Active)", "System");
@@ -2248,16 +2230,8 @@ namespace XiDeAI_Pro
         {
             var cfg = ConfigManager.Current;
             _watcher.Start();
-            // _scheduleTimer (removed).Start();
             
-            // v3.0 Deep Scan - MOVED TO INFLUENCER PANEL
-            /*
-            if (cfg.AutoTweet) 
-            {
-               // _deepScanTimer (removed).Start();
-               Log("🧠 Hafıza Taraması (Deep Scan) Aktif.", "System");
-            }
-            */
+            if (_deepScanTimer != null) _deepScanTimer.Start();
 
             Log("🚀 Watcher Service Started...");
             Log($"📁 İzleniyor: C:\\iDeal\\Sinyal_Log_Database.txt (Alpha/PreMove DB)");
@@ -2293,8 +2267,8 @@ namespace XiDeAI_Pro
         private void BtnStopWatcher_Click(object? sender, EventArgs e)
         {
             _watcher.Stop();
-            // _scheduleTimer (removed).Stop();
-            // // _deepScanTimer (removed).Stop(); // MOVED TO INFLUENCER PANEL
+            
+            if (_deepScanTimer != null) _deepScanTimer.Stop();
             
             if (_botTimer != null) {
                 _botTimer.Stop();
@@ -5117,8 +5091,8 @@ namespace XiDeAI_Pro
                                  Log("⚠️ Screenshot bulunamadı veya silinmiş, görselsiz gönderiliyor.", "Twitter");
                                  scrPath = null;
                              }
-                             var tweets = ThreadPipeline.BuildCompactThread(analysisText, 240, maxTweets: 8, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
-                             if (tweets.Count < 2 || tweets.Count > 8)
+                             var tweets = ThreadPipeline.BuildCompactThread(analysisText, 240, maxTweets: 25, finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                             if (tweets.Count < 2)
                              {
                                  MessageBox.Show($"Manuel analiz thread formatı güvenli değil ({tweets.Count} parça). Paylaşım iptal edildi.");
                                  return;

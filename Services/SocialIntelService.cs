@@ -2142,6 +2142,8 @@ namespace XiDeAI_Pro.Services
 
 
 
+        private static int _lastScannedIndex = 0;
+
         /// <summary>
         /// Background process to scan influencers and update Knowledge Base
         /// </summary>
@@ -2170,9 +2172,16 @@ namespace XiDeAI_Pro.Services
                     logger("ℹ️ Veritabanında fenomen bulunamadı. Tarama yapılamıyor.");
                     return;
                 }
-                // Shuffle and pick 10 (randomized coverage)
+
+                // Round-Robin pagination (15-20 influencers per cycle)
+                int takeCount = 15;
+                if (_lastScannedIndex >= allInfluencers.Count) _lastScannedIndex = 0;
+                
+                var targets = allInfluencers.Skip(_lastScannedIndex).Take(takeCount).ToList();
+                _lastScannedIndex += targets.Count;
+                if (_lastScannedIndex >= allInfluencers.Count) _lastScannedIndex = 0;
+                
                 var rng = new Random();
-                var targets = allInfluencers.OrderBy(x => rng.Next()).Take(10).ToList();
 
                 int totalNewTweets = 0;
                 int processedProfiles = 0;
@@ -2247,6 +2256,23 @@ namespace XiDeAI_Pro.Services
 
                 logger($"🏁 Tarama Tamamlandı. {processedProfiles} profil taranan, {removedProfiles} silinen. +{totalNewTweets} yeni bilgi.");
                 _memoryEngine.Save(); 
+
+                // Auto-Discovery: Her 4-5 döngüde bir yeni fenomen araması tetiklenebilir veya direkt çalıştırılabilir
+                // Rastgele BIST araması tetikliyoruz.
+                if (rng.Next(100) < 30) // %30 ihtimalle yeni hesap keşfi
+                {
+                    logger("🌍 Otomatik Fenomen Keşfi başlatılıyor...");
+                    var newHandles = await DiscoverInfluencers("BIST");
+                    if (newHandles != null && newHandles.Count > 0)
+                    {
+                        foreach(var nh in newHandles) {
+                            if (_influencerControl.AddInfluencer("BIST", nh, 50, silent: true)) {
+                                logger($"✨ Yeni Fenomen Eklendi: {nh}");
+                            }
+                        }
+                        _influencerControl.SaveDatabase();
+                    }
+                }
             }
             catch (Exception ex)
             {

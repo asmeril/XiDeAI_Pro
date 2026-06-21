@@ -161,13 +161,13 @@ namespace XiDeAI_Pro.Services
                 }
 
                 // 3. Action Decision based on Score (1-10 Scale)
-                // 7-8: SKIP/REVIEW history only
-                // 9: high score but no Telegram approval spam; history only
+                // < 9: REJECT (Çöpe gider)
+                // 9: PENDING_WITH_ANALYSIS (Telegram onayı)
                 // 10 or breaking 9+: AUTO_POST_WITH_ANALYSIS
 
-                if (score < 7 || status == "REJECT")
+                if (score < 9 || status == "REJECT")
                 {
-                    string finalReason = status == "REJECT" ? $"AI Red Kararı: {analysisData.Reasoning}" : $"Skor çok düşük ({score}/10)";
+                    string finalReason = status == "REJECT" ? $"AI Red Kararı: {analysisData.Reasoning}" : $"Skor düşük ({score}/10)";
                     OnLog?.Invoke($"🗑️ Haber Reddedildi (Skor: {score}/10): {item.Title}", "NewsEngine");
                     OnNewsRejected?.Invoke(item, finalReason);
                     return;
@@ -200,13 +200,6 @@ namespace XiDeAI_Pro.Services
                     item.IncludesAnalysis = true;
                     OnLog?.Invoke($"⚠️ Haber onay kuyruğuna alındı (Skor: {score}/10): {item.Title}", "NewsEngine");
                     OnNewsPendingApproval?.Invoke(item, summary, score, category, analysisData.Reasoning, item.IncludesAnalysis);
-                    return;
-                }
-
-                if (status == "PENDING_NEWS_ONLY" || (score >= 7 && score <= 8))
-                {
-                    OnLog?.Invoke($"🧹 Haber düşük/orta önemde, onay kuyruğuna alınmadı (Skor: {score}/10): {item.Title}", "NewsEngine");
-                    _persistence.AddParsedNews(item.Title, item.Source, item.Link, score, false, "SKIPPED_LOW_SCORE");
                     return;
                 }
             }
@@ -312,8 +305,8 @@ namespace XiDeAI_Pro.Services
             }
             else
             {
-                normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent).Take(3).ToList();
-                if (normalizedParts.Count > 0 && !normalizedParts[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase) && !normalizedParts[^1].Contains("haber özetidir", StringComparison.OrdinalIgnoreCase))
+                normalizedParts = ThreadPipeline.BuildNewsThread(item, threadContent).Take(5).ToList();
+                if ((category == "EKONOMI" || category == "KRIPTO") && normalizedParts.Count > 0 && !normalizedParts[^1].Contains("Yatırım tavsiyesi", StringComparison.OrdinalIgnoreCase) && !normalizedParts[^1].Contains("haber özetidir", StringComparison.OrdinalIgnoreCase))
                 {
                     const string suffix = "\n\n⚠️ Haber özetidir, yatırım tavsiyesi değildir.";
                     var baseText = normalizedParts[^1].Trim();

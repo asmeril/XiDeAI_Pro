@@ -41,8 +41,27 @@ namespace XiDeAI_Pro.Services
             public string Analysis { get; set; } = "";
             public string Prediction { get; set; } = "";
         }
-        
-        public ThreadService(TwitterService twitter, GeminiService gemini, SocialIntelService socialIntel, InfluencerControlService influencerControl, StatsEngine? stats = null, PostingService? posting = null)
+
+        // Geçmiş analiz sistemi (statik alanlar — tek örnek, tüm instance'lar paylaşır)
+        private static readonly string _historyPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "XiDeAI", "analysis_history.json"
+        );
+        private static Dictionary<string, List<AnalysisHistoryEntry>> _analysisHistory =
+            new Dictionary<string, List<AnalysisHistoryEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Tüm bağımlılıkları kabul eden tek constructor.
+        /// <paramref name="stats"/> ve <paramref name="posting"/> opsiyoneldir;
+        /// sağlanmazsa uygun varsayılanlar oluşturulur.
+        /// </summary>
+        public ThreadService(
+            TwitterService twitter,
+            GeminiService gemini,
+            SocialIntelService socialIntel,
+            InfluencerControlService influencerControl,
+            StatsEngine? stats = null,
+            PostingService? posting = null)
         {
             _twitter = twitter;
             _gemini = gemini;
@@ -131,27 +150,6 @@ namespace XiDeAI_Pro.Services
             return "Yatay seyir";
         }
 
-        // Geçmiş analiz sistemi
-        private static readonly string _historyPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "XiDeAI", "analysis_history.json"
-        );
-        private static Dictionary<string, List<AnalysisHistoryEntry>> _analysisHistory = 
-            new Dictionary<string, List<AnalysisHistoryEntry>>(StringComparer.OrdinalIgnoreCase);
-        
-        public ThreadService(TwitterService twitter, GeminiService gemini, SocialIntelService socialIntel, InfluencerControlService influencerControl)
-        {
-            _twitter = twitter;
-            _gemini = gemini;
-            _socialIntel = socialIntel;
-            _influencerControl = influencerControl;
-            _posting = new PostingService(socialIntel);
-            LoadAnalysisHistory();
-        }
-
-        /// <summary>
-        /// 4 parçalı sinyal thread'i - Etkileşim optimizasyonlu
-        /// </summary>
         /// <summary>
         /// 4 parçalı sinyal thread'i - Etkileşim optimizasyonlu
         /// </summary>

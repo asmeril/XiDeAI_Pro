@@ -390,11 +390,29 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
         public async Task<string?> GenerateReply(string tweetContent, string authorHandle) { return await SendRequest(_prompts.GetReplyPrompt(tweetContent, authorHandle)); }
         public async Task<string?> GenerateFanZoneReaction(string prompt) { return await SendRequest(prompt, 0.8, 0.95, 40, 150); }
 
+        /// <summary>
+        /// v5.6.1: Tekrar sinyal için AI pekiştirme thread'i üretir.
+        /// Hardcoded BuildReinforcementThread'in yerini aldı — her seferinde farklı, bağlamsal içerik.
+        /// </summary>
+        public async Task<string?> GenerateReinforcementThread(
+            string symbol, string price, string basis, string signalState,
+            string previousDate, string previousContent, string previousUrl, string currentLevels, bool isRoket)
+        {
+            string prompt = _prompts.GetReinforcementPrompt(
+                symbol, price, basis, signalState,
+                previousDate, previousContent, previousUrl, currentLevels, isRoket);
+            // Düşük sıcaklık: tutarlılık öncelikli, yaratıcılık ikincil
+            return await SendRequest(prompt, temperature: 0.45, topP: 0.9, topK: 40, maxOutputTokens: 500);
+        }
+
+
         public async Task<string> DetectTweetCategory(string tweetContent)
         {
             var result = await SendRequest(_prompts.GetCategoryDetectionPrompt(tweetContent), 0.1);
             string category = result?.Trim().ToUpper() ?? "GUNLUK_MIZAH";
-            return (new[] { "FINANS", "KULTUR_EGLENCE", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" }).Contains(category) ? category : "GUNLUK_MIZAH";
+            // SPOR eklendi — PromptManager kategori listesiyle senkronize
+            var validCategories = new[] { "FINANS", "KULTUR_EGLENCE", "SPOR", "MILLI_TOPLUM", "BILGE_KULTUR", "INSAN_RUH", "GUNLUK_MIZAH" };
+            return validCategories.Contains(category) ? category : "GUNLUK_MIZAH";
         }
 
         public async Task<string?> GenerateCategorizedReply(string category, string tweetContent, string authorHandle)

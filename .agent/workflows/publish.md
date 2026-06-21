@@ -1,4 +1,4 @@
-﻿---
+---
 description: XiDeAI Pro — Build, Publish, Deploy & Git Workflow
 ---
 
@@ -138,3 +138,6 @@ git push origin master
 | Spor tweetlerine alakasız sinema/film yorumları veriliyordu | ✅ Düzeltildi — PromptManager'a SPOR kategorisi eklendi | v5.5.6 |
 | Yanıtlar çok uzun ve hep zorunlu soru (Peki ya sen?) ile bitiyordu | ✅ Düzeltildi — PromptManager EK KURALLAR revize edildi | v5.5.6 |
 | SPOR kategorisi siniflandirma promptunda (KATEGORİLER) eksikti | ✅ Düzeltildi — GetCategoryDetectionPrompt'a SPOR satırı eklendi | v5.5.7 |
+| Fenomenlere otomatik yanıt atılıyordu | ✅ Düzeltildi — Etkileşim kapatıldı, sadece tarama moduna alındı | v5.5.8 |
+| Manuel analiz thread metni 8 parça ile sınırlandırılıp sonuna 'UI Raporu' kuyruğu ekleniyordu | ✅ Düzeltildi — Sınır 25'e çıkarıldı, kuyruk mesajı silindi | v5.5.8 |
+| Manuel analizlerde 1) KISA ÖZET gibi numaralı başlıklar Twitter'a sızıyordu | ✅ Düzeltildi — ThreadPipeline'a Anti-Robotik Regex eklendi | v5.5.8 |

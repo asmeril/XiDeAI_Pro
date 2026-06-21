@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.5.7",
-    "build_number":  5570,
-    "lastUpdate":  "2026-06-18T21:05:55Z",
+    "version":  "5.5.8",
+    "build_number":  5580,
+    "lastUpdate":  "2026-06-21T21:23:46Z",
     "changelog":  [
+                      "v5.5.8: v5.5.8: Manuel Analiz thread kalitesi artirildi, Fenomen modulu tarama/reset ozellikleri guncellendi",
                       "v5.5.7: v5.5.7: SPOR kategorisi siniflandirma promptuna eklendi (kritik fix)",
                       "v5.5.6: v5.5.6: Spor kategorisi eklendi, Headless Chrome reply, organic kural revizyonu",
                       "v5.5.5: v5.5.5: Cümle bütünlüğünü koruyan PackTweets algoritması entegre edildi",

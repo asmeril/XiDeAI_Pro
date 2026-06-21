@@ -317,6 +317,23 @@ namespace XiDeAI_Pro.Services
         }
 
         // --- Phase 2: Meta-Teacher Access ---
+        public void ResetAllScores(int defaultScore = 50)
+        {
+            lock (_lock)
+            {
+                foreach (var list in _database.Values)
+                {
+                    foreach (var i in list) i.Score = defaultScore;
+                }
+                foreach (var list in _metaTeacherDb.Values)
+                {
+                    foreach (var i in list) i.Score = defaultScore;
+                }
+                SaveDatabase();
+            }
+            OnDatabaseChanged?.Invoke();
+        }
+
         public List<Influencer> GetMetaTeacherInfluencers(string? category = null)
         {
             lock(_lock)

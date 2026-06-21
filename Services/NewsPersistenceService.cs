@@ -26,7 +26,7 @@ namespace XiDeAI_Pro.Services
         private readonly string _historyFilePath;
         private List<NewsHistoryItem> _history = new List<NewsHistoryItem>();
         private readonly object _lock = new object();
-        private const int SIMILARITY_THRESHOLD = 60; // v4.6.11: %80'den %60'a düşürüldü (Farklı kaynakların benzer/eş anlamlı başlıklarını yakalamak için)
+        private const int SIMILARITY_THRESHOLD = 50; // v5.6.2: %60'dan %50'ye düşürüldü (Farklı kaynakların aynı haberlerini daha agresif yakalamak için)
         private const int MAX_HISTORY_DAYS = 7; // 7 günlük geçmiş tut
 
         public NewsPersistenceService()
@@ -122,7 +122,7 @@ namespace XiDeAI_Pro.Services
                     }
 
                     double tokenSimilarity = TokenSimilarity(cleanTitle, storedTitle);
-                    if (tokenSimilarity >= 0.72)
+                    if (tokenSimilarity >= 0.50) // v5.6.2: %72'den %50'ye düşürüldü
                     {
                         reason = $"Benzer haber bulundu: '{item.Title}' (token %{tokenSimilarity * 100:F1} benzerlik)";
                         return true;

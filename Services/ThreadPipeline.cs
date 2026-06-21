@@ -148,10 +148,8 @@ namespace XiDeAI_Pro.Services
             if (parts.Count > maxTweets)
             {
                 var kept = parts.Take(maxTweets).ToList();
-                string tailNote = "Devamındaki detaylar Telegram/UI raporunda. Ana plan burada.";
                 string last = kept[^1].TrimEnd();
-                if (last.Length + tailNote.Length + 2 <= limit) kept[^1] = last + "\n" + tailNote;
-                else kept[^1] = last.Substring(0, Math.Max(0, limit - tailNote.Length - 5)).TrimEnd() + "...\n" + tailNote;
+                if (!last.EndsWith("...")) kept[^1] = last + "...";
                 parts = kept;
             }
 
@@ -360,6 +358,11 @@ namespace XiDeAI_Pro.Services
             line = Regex.Replace(line, @"^\*?Draft\s*\d+\*?\s*:\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
             line = Regex.Replace(line, @"^\*?Revised\s*\d+\*?\s*:\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
             line = Regex.Replace(line, @"^Tweet\s*\d+\s*[:\-]\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
+            
+            // Yeni beceri: Robotik numara ve başlıkları temizle: "1) KISA ÖZET", "2) GRAFİK OKUMA", "3. KRİTİK SEVİYELER"
+            line = Regex.Replace(line, @"^\d+\s*[\)\.\-]\s*[A-ZÇĞİÖŞÜ ]+$", string.Empty, RegexOptions.IgnoreCase).Trim();
+            line = Regex.Replace(line, @"^\d+\s*[\)\.\-]\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
+
             return line;
         }
 
@@ -370,6 +373,7 @@ namespace XiDeAI_Pro.Services
             string lower = content.ToLowerInvariant();
             string[] markers =
             {
+                // İngilizce iç düşünme belirteçleri
                 "işte bir düşünme süreci",
                 "strict rules",
                 "output format",
@@ -385,8 +389,24 @@ namespace XiDeAI_Pro.Services
                 "data:",
                 "count:",
                 "total:",
+                // Türkçe prompt başlıkları (### ile gelen)
+                "### kimlik",
+                "### görev",
+                "### veriler",
+                "### bağlam",
+                "### kısıtlar",
+                "### format",
+                "### çıktı",
+                "### yasak",
+                "### sinyal",
+                // Türkçe sızıntı ifadeleri
                 "görev:",
                 "çıktı formatı",
+                "kısıtlamalar:",
+                "format kurallari",
+                "format kuralları",
+                "mutlak kurallar",
+                "kesin yasaklar",
                 "tweet 1/4:",
                 "tweet 2/4:",
                 "tweet 3/4:",
@@ -405,6 +425,7 @@ namespace XiDeAI_Pro.Services
 
             string[] exactStarts =
             {
+                // İngilizce iç düşünme
                 "işte bir düşünme süreci",
                 "strict rules",
                 "output format",
@@ -422,8 +443,25 @@ namespace XiDeAI_Pro.Services
                 "let's count",
                 "i'll ",
                 "i will ",
+                // Türkçe prompt başlıkları
+                "### kimlik",
+                "### görev",
+                "### veriler",
+                "### bağlam",
+                "### kısıtlar",
+                "### format",
+                "### çıktı",
+                "### yasak",
+                "### sinyal",
+                "### analiz",
+                "### ton:",
                 "görev:",
                 "çıktı formatı",
+                "kısıtlamalar:",
+                "format kurallari",
+                "format kuralları",
+                "mutlak kurallar",
+                "kesin yasaklar",
                 "strict rules:",
                 "2. first tweet",
                 "3. phenomenon",
@@ -496,6 +534,34 @@ namespace XiDeAI_Pro.Services
             if (upper.Contains("EUR"))
                 return "EUR";
             return "TL";
+        }
+
+        /// <summary>
+        /// v5.6.0: X thread formatlama elemanlarını (|||, tweet numaraları, YTD vb.) temizleyerek
+        /// yapay zekaya saf metin (bağlam) olarak iletilebilecek hale getirir.
+        /// </summary>
+        public static string CleanThreadFormatForContext(string rawContent)
+        {
+            if (string.IsNullOrWhiteSpace(rawContent)) return string.Empty;
+
+            // 1. Tweet ayraçlarını temizle (|||)
+            string cleaned = rawContent.Replace("|||", " ");
+
+            // 2. Tweet numaralarını temizle (örn: [Tweet 1], Tweet 1/3, 1/3 vb.)
+            cleaned = Regex.Replace(cleaned, @"^Tweet\s*\d+\s*[:\-]?\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            cleaned = Regex.Replace(cleaned, @"^\[Tweet\s*\d+\]\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            cleaned = Regex.Replace(cleaned, @"^\d+/\d+\s*", "", RegexOptions.Multiline);
+            cleaned = Regex.Replace(cleaned, @"\b\d+/\d+\b", "");
+
+            // 3. Yatırım tavsiyesi uyarısını temizle
+            cleaned = cleaned.Replace("⚠️ Yatırım tavsiyesi değildir.", "");
+            cleaned = cleaned.Replace("Yatırım tavsiyesi değildir.", "");
+            cleaned = cleaned.Replace("YTD", "");
+
+            // 4. Tekrarlayan boşlukları ve satır sonlarını temizle
+            cleaned = Regex.Replace(cleaned, @"\s+", " ");
+
+            return cleaned.Trim();
         }
     }
 }

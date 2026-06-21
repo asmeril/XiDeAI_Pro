@@ -267,10 +267,11 @@ namespace XiDeAI_Pro.Services
             {
                 if (successKeywords.Any(k => analysis.Content.Contains(k)))
                 {
-                    // Özet formatında döndür
-                    string summary = analysis.Content.Length > 200 
-                        ? analysis.Content.Substring(0, 200) + "..." 
-                        : analysis.Content;
+                    // v5.6.0: X thread formatlama öğelerini temizle ve karakter kısıtını 1000'e çıkar
+                    string cleanContent = ThreadPipeline.CleanThreadFormatForContext(analysis.Content);
+                    string summary = cleanContent.Length > 1000 
+                        ? cleanContent.Substring(0, 1000) + "..." 
+                        : cleanContent;
                     
                     return $"[{analysis.Timestamp:dd.MM}] {summary}";
                 }

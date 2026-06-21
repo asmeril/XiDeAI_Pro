@@ -51,9 +51,12 @@ namespace XiDeAI_Pro.Services
 
         // Memory for Global Deduplication (independent of SpamProtection settings)
         private readonly Dictionary<string, DateTime> _globalSignalMemory = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, HashSet<string>> _signalMemory = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase); // For Common Signals logic
+        // Common Signals: Tuple ile (stratejiler + ilk görülme zamanı) tutulur — memory leak önlemi
+        private readonly Dictionary<string, (HashSet<string> Strategies, DateTime FirstSeen)> _signalMemory
+            = new Dictionary<string, (HashSet<string>, DateTime)>(StringComparer.OrdinalIgnoreCase);
         private readonly object _memoryLock = new object();
         private static readonly TimeSpan GlobalCooldown = TimeSpan.FromHours(4);
+        private static readonly TimeSpan SignalMemoryTtl = TimeSpan.FromHours(6); // _signalMemory TTL
 
         // Events for UI Updates
         public event Action<string, string>? OnLog;
@@ -160,6 +163,19 @@ namespace XiDeAI_Pro.Services
                     }
                 }
 
+                // 1b. Periyodik _signalMemory temizliği (TTL: 6 saat)
+                lock (_memoryLock)
+                {
+                    var staleKeys = _signalMemory
+                        .Where(kv => (DateTime.Now - kv.Value.FirstSeen) > SignalMemoryTtl)
+                        .Select(kv => kv.Key)
+                        .ToList();
+                    foreach (var key in staleKeys)
+                        _signalMemory.Remove(key);
+                    if (staleKeys.Count > 0)
+                        OnLog?.Invoke($"🧹 _signalMemory temizlendi: {staleKeys.Count} eski sembol kaldırıldı.", "Engine");
+                }
+
                 // 2. Parse
                 var signalsList = _parser.Parse(rawLine, source);
                 if (signalsList == null || !signalsList.Any()) return;
@@ -178,28 +194,23 @@ namespace XiDeAI_Pro.Services
                             lock (_memoryLock)
                             {
                                 if (!_signalMemory.ContainsKey(sig.Symbol))
-                                    _signalMemory[sig.Symbol] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                                
-                                _signalMemory[sig.Symbol].Add(sig.Strategy.ToUpper());
+                                    _signalMemory[sig.Symbol] = (new HashSet<string>(StringComparer.OrdinalIgnoreCase), DateTime.Now);
 
-                                bool allFound = true;
-                                foreach (var required in targetStrategies)
-                                {
-                                    if (!_signalMemory[sig.Symbol].Any(found => found.Contains(required)))
-                                    {
-                                        allFound = false;
-                                        break;
-                                    }
-                                }
+                                _signalMemory[sig.Symbol].Strategies.Add(sig.Strategy.ToUpper());
+
+                                bool allFound = targetStrategies.All(required =>
+                                    _signalMemory[sig.Symbol].Strategies.Any(found => found.Contains(required)));
 
                                 if (!allFound)
                                 {
-                                    OnLog?.Invoke($"⏳ Bekleniyor (Ortak Tarama): {sig.Symbol} (Eksik onaylar var)", "Engine");
+                                    OnLog?.Invoke($"⏳ Bekleniyor (Ortak Tarama): {sig.Symbol} — Bulunan: [{string.Join(",", _signalMemory[sig.Symbol].Strategies)}], Beklenen: [{string.Join(",", targetStrategies)}]", "Engine");
                                     continue;
                                 }
                                 else
                                 {
-                                    OnLog?.Invoke($"✨ ORTAK TARAMA EŞLEŞTİ: {sig.Symbol}", "Engine");
+                                    OnLog?.Invoke($"✨ ORTAK TARAMA EŞLEŞTİ: {sig.Symbol} — Tüm stratejiler doğrulandı.", "Engine");
+                                    // Eşleşme sonrası temizle — bir sonraki sinyal döngüsünde taze başlasın
+                                    _signalMemory.Remove(sig.Symbol);
                                 }
                             }
                         }
@@ -385,7 +396,41 @@ namespace XiDeAI_Pro.Services
                         }
                     }
 
-                    var repeatTweets = BuildReinforcementThread(sig, previousThread.Value.Timestamp, previousThread.Value.Url, currentLevels);
+                    // v5.6.0: AI pekiştirme thread'i (RTF prompt — her seferinde taze içerik)
+                    string previousDateStr = previousThread.Value.Timestamp.Date == DateTime.Now.Date
+                        ? $"bugün {previousThread.Value.Timestamp:HH:mm}"
+                        : $"{previousThread.Value.Timestamp:dd.MM.yyyy}";
+
+                    string cleanPrevContent = System.Text.RegularExpressions.Regex.Replace(previousThread.Value.Content, @"http[^\s]+|#[^\s]+|\n+", " ").Trim();
+
+                    string? aiRepeatContent = await _gemini.GenerateReinforcementThread(
+                        sig.Symbol,
+                        sig.Price.ToString("0.00"),
+                        sig.Basis,
+                        GetPublicSignalState(sig),
+                        previousDateStr,
+                        cleanPrevContent,
+                        previousThread.Value.Url,
+                        currentLevels,
+                        sig.IsRoket);
+
+                    List<string> repeatTweets;
+                    if (!string.IsNullOrWhiteSpace(aiRepeatContent))
+                    {
+                        // AI içeriği başarılı → ThreadPipeline ile işle
+                        repeatTweets = ThreadPipeline.BuildCompactThread(
+                            aiRepeatContent,
+                            limit: 280,
+                            maxTweets: 2,
+                            finalSuffix: "⚠️ Yatırım tavsiyesi değildir.");
+                    }
+                    else
+                    {
+                        // AI başarısız → güvenli statik fallback
+                        OnLog?.Invoke($"⚠️ AI pekiştirme üretemedi, statik fallback kullanılıyor: {sig.Symbol}", "Engine");
+                        repeatTweets = BuildReinforcementThread(sig, previousThread.Value.Timestamp, previousThread.Value.Url, currentLevels);
+                    }
+
                     var repeatResult = await _posting.PostThreadAsync(repeatTweets, repeatScreenshotPath, "SignalReinforcement");
                     if (repeatResult.status == "success")
                     {
@@ -424,7 +469,8 @@ namespace XiDeAI_Pro.Services
 
                 if (previousThread.HasValue && !isShortRepeat)
                 {
-                    priceContext += $"\n\nÖNCEKİ ANALİZ BAĞLAMI:\nBu sembol için en son {previousThread.Value.Timestamp:dd.MM.yyyy} tarihinde analiz yapılmıştı. Eski analiz içeriği: {previousThread.Value.Content}\nYeni analizi yaparken kısaca bu eski analize atıfta bulun. Eğer önceki analizdeki destek çalışmış veya direnç/hedef vurulmuşsa, yani önceki analiz başarılı olmuşsa bunu vurgulayarak 'Önceki analizimizde belirttiğimiz gibi...' diyerek başarısından bahset.";
+                    string cleanPrevContent = ThreadPipeline.CleanThreadFormatForContext(previousThread.Value.Content);
+                    priceContext += $"\n\nÖNCEKİ ANALİZ BAĞLAMI:\nBu sembol için en son {previousThread.Value.Timestamp:dd.MM.yyyy} tarihinde analiz yapılmıştı. Eski analiz içeriği: {cleanPrevContent}\nYeni analizi yaparken kısaca bu eski analize atıfta bulun. Eğer önceki analizdeki destek çalışmış veya direnç/hedef vurulmuşsa, yani önceki analiz başarılı olmuşsa bunu vurgulayarak 'Önceki analizimizde belirttiğimiz gibi...' diyerek başarısından bahset.";
                 }
 
                 // Strateji bazlı tarama kriteri bağlamı
