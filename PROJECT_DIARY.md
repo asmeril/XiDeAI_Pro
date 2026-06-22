@@ -140,3 +140,20 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 - Analiz 2 günden yeniyse Gemini Multimodal Vision ile anlık grafiğe bakarak tek cümlelik destek/direnç özeti çıkartıyor ve bunu kısa pekiştirme thread'ine ekliyor.
 - Yapay zekanın fenomen analizlerini özetlerken kendi uydurduğu "Dost meclisi X-User" gibi hitaplar tamamen engellendi. Artık zorunlu olarak gerçek `@handle` kullanarak doğrudan ilgili fenomenin hesabını etiketliyor.
 - Twitter'da Python daemon'ı tarafından bölünen "hayalet 5. tweet" (phantom tweet) hatası, limitten 255 karaktere esneme payı bırakılarak kalıcı olarak çözüldü. Global verilerin (Hacim katı, USD, BRENT vb.) hatalı okunması düzeltildi.
+
+---
+
+## 📅 22 Haziran 2026
+
+### 🔧 v5.5.9 Release
+
+**Telegram Yanıt Geri Bildirimi Düzeltildi:**
+- `social_intel.py` ve `x_daemon_current.py` başarılı yanıt gönderimlerinde artık JSON içerisinde `"tweet_url"` döndürüyor.
+- Telegram'da "Yanıt gönderildi: [BOŞLUK]" yerine tweet'in gerçek linkinin görünmesi sağlandı.
+
+**x_daemon_current.py Timeout Hatası Çözüldü:**
+- Daemon modunda yanıt işlemi, yavaş ve istikrarsız olan `intent/tweet` API'si yerine doğrudan orijinal tweet sayfasına gidilerek Javascript etkileşimleri ile yorum kutusu kullanılarak yapılacak şekilde iyileştirildi.
+- Bu sayede `[DAEMON] Reply Hatasi: Message:` (boş Message hatası fırlatan TimeoutException) tamamen giderildi.
+
+**Derleme (Build) Sorunları Giderildi:**
+- `MainForm.cs`'de `tpChart` ve `tpTwitter` local değişkenleri class field seviyesine çıkarılarak, `ProcessFailed` lambda blokları içerisinden `tpChart.Controls`'e erişimde çıkan CS0103 hataları ortadan kaldırıldı.
