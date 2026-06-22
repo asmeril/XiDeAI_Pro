@@ -327,10 +327,7 @@ namespace XiDeAI_Pro.Services.AI
                 top_p = 0.8,
                 top_k = 20,
                 min_p = 0,
-                presence_penalty = 1.5,
-                enable_thinking = false,
-                reasoning_effort = "none",
-                chat_template_kwargs = new { enable_thinking = false }
+                presence_penalty = 1.5
             };
         }
 
@@ -356,10 +353,7 @@ namespace XiDeAI_Pro.Services.AI
                 top_p = 0.8,
                 top_k = 20,
                 min_p = 0,
-                presence_penalty = 1.5,
-                enable_thinking = false,
-                reasoning_effort = "none",
-                chat_template_kwargs = new { enable_thinking = false }
+                presence_penalty = 1.5
             };
         }
 

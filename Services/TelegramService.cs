@@ -126,10 +126,10 @@ namespace XiDeAI_Pro.Services
                 if (!success)
                 {
                     string errorDetail = await response.Content.ReadAsStringAsync();
-                    Logger.Telegram($"❌ Telegram API Hatası (sendMessage): {response.StatusCode} - {errorDetail}");
 
                     if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && errorDetail.Contains("parse entities", StringComparison.OrdinalIgnoreCase))
                     {
+                        Logger.Telegram($"⚠️ Telegram Markdown Parse Hatası (Düz metin deneniyor). Detay: {errorDetail}");
                         var plainPayload = new
                         {
                             chat_id = chatId,
@@ -140,12 +140,15 @@ namespace XiDeAI_Pro.Services
                         var plainResponse = await _client.PostAsync(_baseUrl + "sendMessage", plainContent);
                         if (plainResponse.IsSuccessStatusCode)
                         {
-                            Logger.Telegram("✅ Telegram mesajı Markdown olmadan gönderildi.");
+                            Logger.Telegram("✅ Telegram mesajı Markdown olmadan başarıyla gönderildi.");
                             return (true, "");
                         }
                         string plainError = await plainResponse.Content.ReadAsStringAsync();
                         Logger.Telegram($"❌ Telegram plain-text retry hatası: {plainResponse.StatusCode} - {plainError}");
+                        return (false, plainError);
                     }
+                    
+                    Logger.Telegram($"❌ Telegram API Hatası (sendMessage): {response.StatusCode} - {errorDetail}");
                     
                     if ((int)response.StatusCode == 429)
                     {

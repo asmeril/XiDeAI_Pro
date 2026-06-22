@@ -787,51 +787,31 @@ def cmd_reply(params):
         return {"status": "error", "message": "Driver not available"}
     
     try:
-        # Direct navigation to tweet (much more stable than intent API)
-        driver.get(url)
-        time.sleep(5)
+        # Fallback approach using intent URL
+        tweet_id = url.rstrip("/").split("/")[-1]
+        driver.get(f"https://x.com/intent/tweet?in_reply_to={tweet_id}")
+        time.sleep(3)
         
-        # Wait for the main reply textarea
+        # Wait for the modal textarea
         reply_box = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0']"))
         )
         
-        # Use JavaScript click to focus it
-        driver.execute_script("arguments[0].scrollIntoView(true);", reply_box)
-        time.sleep(0.5)
-        driver.execute_script("arguments[0].click();", reply_box)
-        time.sleep(1)
-        
         # Type reply using robust method
         success = robust_type_and_verify(driver, reply_box, text, tweet_index=0)
-        time.sleep(1.5)
+        time.sleep(1)
         
         if not success:
-            log("Warning: robust_type_and_verify failed, proceeding anyway.")
+            return {"status": "error", "message": "Reply interact fail: robust_type_and_verify failed"}
         
-        # Click Reply button with Multiple Selector support
-        reply_btn = None
-        for selector in ["[data-testid='tweetButtonInline']", "[data-testid='tweetButton']", "div[role='button'][data-testid$='Button']"]:
-            try:
-                reply_btn = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-                )
-                if reply_btn: break
-            except: continue
-            
-        if reply_btn:
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", reply_btn)
-            time.sleep(1)
-            driver.execute_script("arguments[0].click();", reply_btn)
-        else:
-            # Fallback CTRL+ENTER
-            driver.execute_script("arguments[0].click();", reply_box)
-            time.sleep(0.5)
-            from selenium.webdriver.common.keys import Keys
-            reply_box.send_keys(Keys.CONTROL + Keys.ENTER)
+        # Click Reply/Post button inside the modal
+        reply_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButton']"))
+        )
+        driver.execute_script("arguments[0].click();", reply_btn)
+        time.sleep(2)
         
-        time.sleep(5)
-        return {"status": "success", "message": "Reply posted", "tweet_url": url}
+        return {"status": "success", "message": "Reply posted"}
         
     except Exception as e:
         log(f"Reply error: {e}")

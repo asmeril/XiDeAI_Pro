@@ -8,3 +8,4 @@ pyperclip
 playwright
 yfinance
 pandas
+psutil

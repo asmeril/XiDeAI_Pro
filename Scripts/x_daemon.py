@@ -1096,40 +1096,17 @@ def cmd_reply(params):
         return {"status": "error", "message": "Driver not available"}
     
     try:
-        import pyperclip
-        from selenium.webdriver.common.action_chains import ActionChains
+        # Use robust _post_single_tweet instead of brittle layout-dependent locators
+        result_url = _post_single_tweet(driver, text, reply_to_url=url, media_path=None)
         
-        driver.get(url)
-        time.sleep(3)
-        
-        # Verify we're on a tweet page
-        if "/status/" not in driver.current_url:
-            return {"status": "error", "message": "Failed to navigate to tweet"}
-        
-        # Find reply text area
-        reply_box = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetTextarea_0']"))
-        )
-        
-        # Type reply
-        pyperclip.copy(text)
-        reply_box.click()
-        time.sleep(0.3)
-        ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-        time.sleep(1)
-        
-        # Click Reply button
-        reply_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='tweetButtonInline']"))
-        )
-        driver.execute_script("arguments[0].click();", reply_btn)
-        time.sleep(2)
-        
-        return {"status": "success", "message": "Reply posted"}
-        
+        if result_url:
+            return {"status": "success", "message": "Reply posted", "url": result_url}
+        else:
+            return {"status": "error", "message": "Reply interact fail: _post_single_tweet returned False/None"}
+            
     except Exception as e:
         log(f"Reply error: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Reply interact fail: {str(e)}"}
 
 
 def cmd_fetch_news(params):

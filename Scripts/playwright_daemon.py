@@ -658,6 +658,15 @@ class XDaemonPlaywright:
                     await self.page.keyboard.insert_text(chunk)
                     await self._sleep(0.5)
 
+                    # Verify text landed; fall back to type() if insert_text failed (e.g. IME)
+                    current_text = await compose_box.inner_text()
+                    if len(current_text.strip()) < len(chunk.strip()) * 0.7:
+                        await compose_box.triple_click()
+                        await compose_box.press("Delete")
+                        await self._sleep(0.2)
+                        await compose_box.type(chunk, delay=15)
+                        await self._sleep(0.5)
+
                     # Click the + (add tweet) button unless this is the last tweet.
                     # Try each selector in priority order; first match wins.
                     if idx < len(chunks) - 1:
@@ -918,7 +927,7 @@ class XDaemonPlaywright:
             return {"status": "error", "message": "No tweets provided"}
 
         # Preserve C# prepared parts only while leaving room for "🧵 n/N" markers.
-        max_thread_chunk_chars = 250
+        max_thread_chunk_chars = 272
         chunks = []
         for tweet_text in tweets:
             tweet_text = tweet_text.replace("|||", "").strip()
@@ -936,7 +945,7 @@ class XDaemonPlaywright:
                     break
 
                 # If too long, split it carefully
-                split_pos = min(180, len(remaining))
+                split_pos = min(240, len(remaining))
                 while split_pos < len(remaining):
                     test_chars = self.count_x_characters(remaining[:split_pos])
                     if test_chars > max_thread_chunk_chars:

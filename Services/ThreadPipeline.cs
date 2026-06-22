@@ -17,7 +17,7 @@ namespace XiDeAI_Pro.Services
 
             // The AI content should already follow the "Hook -> Storytelling ->
             // Engagement" structure as defined in PromptManager.cs.
-            var allParts = ParseParts(aiThreadContent, 275);
+            var allParts = ParseParts(aiThreadContent, 280);
             if (LooksLikePromptLeak(aiThreadContent) && allParts.Count > 6)
             {
                 return new List<string>();
@@ -39,7 +39,7 @@ namespace XiDeAI_Pro.Services
 
         public static List<string> BuildNewsThread(NewsItem item, string threadContent)
         {
-            var tweets = ParseParts(threadContent, 275)
+            var tweets = ParseParts(threadContent, 280)
                 .Where(x => x.Length > 8)
                 .ToList();
 
@@ -71,7 +71,7 @@ namespace XiDeAI_Pro.Services
 
             var segments = content.Contains("|||")
                 ? content.Split(new[] { "|||" }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => x.Trim())
+                    .Select(x => x.Trim().TrimEnd('|').Trim())
                 : new[] { content.Trim() };
 
             var parts = new List<string>();

@@ -261,7 +261,7 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
         print(f"\n[OHLC] Fetching {yf_interval} OHLC data for {symbol} in background...")
         ohlc_container["data"] = get_ohlc_data(symbol, interval=yf_interval)
     
-    ohlc_thread = threading.Thread(target=fetch_ohlc_bg)
+    ohlc_thread = threading.Thread(target=fetch_ohlc_bg, daemon=True)
     ohlc_thread.start()
     
     # ... (Wait for pivots later) ...
@@ -345,6 +345,7 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
             print("DEBUG: Using system PATH chromedriver")
             driver = webdriver.Chrome(options=chrome_options)
         
+        driver.set_page_load_timeout(60)
         driver.get(url)
         
         # Load Cookies

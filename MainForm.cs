@@ -21,6 +21,8 @@ namespace XiDeAI_Pro
         private WebView2 _webViewChart = null!;
         private WebView2 _webViewTwitter = null!;
         private WebView2 _webViewTwitterBg = null!; // Background tasks
+        private TabPage tpChart = null!;
+        private TabPage tpTwitter = null!;
         private TabControl tabDashViews = null!;
         
         // CENTRAL MANAGER
@@ -515,7 +517,7 @@ namespace XiDeAI_Pro
             tabDashViews = new TabControl { Dock = DockStyle.Fill, Appearance = TabAppearance.FlatButtons, ItemSize = new Size(0, 1), Padding = new Point(0,0), Margin = new Padding(0) };
             
             // --- TAB 1: CHART ---
-            var tpChart = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
+            tpChart = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
             var pnlChartContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
             pnlChartContainer.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -536,7 +538,7 @@ namespace XiDeAI_Pro
             tpChart.Controls.Add(pnlChartContainer);
 
             // --- TAB 2: TWITTER ---
-            var tpTwitter = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
+            tpTwitter = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
             var pnlTwitterContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
             pnlTwitterContainer.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -1548,6 +1550,25 @@ namespace XiDeAI_Pro
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 await _webViewChart.EnsureCoreWebView2Async(env);
 
+                _webViewChart.CoreWebView2.ProcessFailed += (s, e) => 
+                {
+                    Log($"❌ Chart WebView Process Failed ({e.ProcessFailedKind}). Re-initializing...", "Error");
+                    Debug.WriteLine($"Chart WebView Process Failed: {e.ProcessFailedKind}");
+                    
+                    this.Invoke((MethodInvoker)(async () => {
+                        try {
+                            tpChart.Controls.Remove(_webViewChart);
+                            _webViewChart.Dispose();
+                            _webViewChart = new Microsoft.Web.WebView2.WinForms.WebView2();
+                            _webViewChart.Dock = DockStyle.Fill;
+                            tpChart.Controls.Add(_webViewChart);
+                            InitializeChart();
+                        } catch (Exception ex2) {
+                            Log("❌ Chart WebView kurtarma başarısız: " + ex2.Message, "Error");
+                        }
+                    }));
+                };
+
                 // TradingView Çerez Enjeksiyonu
                 string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI");
                 string cookieJsonPath = Path.Combine(appDataDir, "tradingview_cookies.json");
@@ -1745,6 +1766,25 @@ namespace XiDeAI_Pro
                 Directory.CreateDirectory(userDataFolder);
                 var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
                 await _webViewTwitter.EnsureCoreWebView2Async(env);
+                
+                _webViewTwitter.CoreWebView2.ProcessFailed += (s, e) => 
+                {
+                    Log($"❌ Twitter WebView Process Failed ({e.ProcessFailedKind}). Re-initializing...", "Error");
+                    Debug.WriteLine($"Twitter WebView Process Failed: {e.ProcessFailedKind}");
+                    
+                    this.Invoke((MethodInvoker)(async () => {
+                        try {
+                            tpTwitter.Controls.Remove(_webViewTwitter);
+                            _webViewTwitter.Dispose();
+                            _webViewTwitter = new Microsoft.Web.WebView2.WinForms.WebView2();
+                            _webViewTwitter.Dock = DockStyle.Fill;
+                            tpTwitter.Controls.Add(_webViewTwitter);
+                            InitializeTwitterWebView();
+                        } catch (Exception ex2) {
+                            Log("❌ Twitter WebView kurtarma başarısız: " + ex2.Message, "Error");
+                        }
+                    }));
+                };
                 
                 await InjectTwitterCookiesAsync(_webViewTwitter.CoreWebView2);
                 
@@ -2408,7 +2448,7 @@ namespace XiDeAI_Pro
                         return false;
                     }
 
-                    var tweets = ThreadPipeline.BuildCompactThread(tweetSet, 240, maxTweets: 5);
+                    var tweets = ThreadPipeline.ParseParts(tweetSet, 240).Take(5).ToList();
                     if (tweets.Count > 0)
                     {
                         var additions = new List<string>();

@@ -31,22 +31,22 @@ namespace XiDeAI_Pro.Services
         {
             // YERLİ RESMİ & KALİTELİ KAYNAKLAR
             "https://www.bloomberght.com/rss", // Bloomberg HT
-            "https://www.aa.com.tr/rss", // AA Ana RSS
-            "https://www.aa.com.tr/rss/ekonomi", // AA Ekonomi
-            "https://www.trthaber.com/rss", // TRT Haber
+            "https://www.aa.com.tr/tr/rss/default?cat=guncel", // AA Ana RSS
+            "https://www.aa.com.tr/tr/rss/default?cat=ekonomi", // AA Ekonomi
+            "https://www.trthaber.com/sondakika.rss", // TRT Haber
             "https://www.dunya.com/rss", // Dünya Gazetesi (Ekonomi)
             "https://tr.investing.com/rss/news.rss", // Investing TR
             "https://news.google.com/rss/search?q=%22Resmi+Gazete%22&hl=tr&gl=TR&ceid=TR:tr", // Resmi Gazete
 
             // YABANCI & GLOBAL KAYNAKLAR (Batı)
-            "https://content.rssfeed.cnbc.com/rss.cnbc.com/WWL-land-main.xml", // CNBC World
+            "https://www.cnbc.com/id/100727362/device/rss/rss.html", // CNBC World
             "http://feeds.bbci.co.uk/news/world/rss.xml", // BBC World News
             "https://feeds.a.dj.com/rss/RSSWorldNews.xml", // Wall Street Journal World News
 
             // ASYA & DOĞU BLOKU RESMİ AJANSLARI (Jeopolitik Makro)
             "https://tass.com/rss/v2.xml", // TASS (Rusya Resmi Devlet Ajansı)
             "http://www.xinhuanet.com/english/rss/worldrss.xml", // Xinhua (Çin Resmi Devlet Ajansı)
-            "https://english.kyodonews.net/news/feed" // Kyodo News (Japonya)
+            "http://feeds.bbci.co.uk/news/business/rss.xml" // BBC Business (Replacing Dead Kyodo)
         };
 
         private readonly HashSet<string> _seenLinks = new HashSet<string>();

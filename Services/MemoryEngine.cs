@@ -58,6 +58,14 @@ namespace XiDeAI_Pro.Services
             // 2. Extract Symbols (Regex)
             var symbols = ExtractSymbols(post.Content);
 
+            // GEREKSİZ TWEET FİLTRESİ: Eğer sembol yoksa ve piyasa ile ilgili temel kelimeler de geçmiyorsa, alakasızdır.
+            if (symbols.Count == 0)
+            {
+                var marketKeywords = new[] { "borsa", "endeks", "piyasa", "hisse", "tavan", "taban", "faiz", "dolar", "altın", "kripto", "bitcoin" };
+                bool hasMarketKeyword = marketKeywords.Any(k => post.Content.Contains(k, StringComparison.OrdinalIgnoreCase));
+                if (!hasMarketKeyword) return false; // Günlük alakasız tweetleri (Örn: kahvaltı, siyaset) çöpe at
+            }
+
             var memoryItem = new TweetMemoryItem
             {
                 Id = Guid.NewGuid().ToString(),

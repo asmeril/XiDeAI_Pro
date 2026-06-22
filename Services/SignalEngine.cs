@@ -384,6 +384,11 @@ namespace XiDeAI_Pro.Services
                     OnStatusUpdate?.Invoke($"{sig.Symbol} tekrar sinyali kısa pekiştirme olarak hazırlanıyor...");
 
                     string? repeatScreenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period);
+                    if (string.IsNullOrEmpty(repeatScreenshotPath))
+                    {
+                        OnLog?.Invoke($"[WARNING] {sig.Symbol} için tekrar tweet'inde screenshot alınamadı. Görsel olmadan atılacak.", "Signal");
+                    }
+
                     
                     string currentLevels = "";
                     if (!string.IsNullOrEmpty(repeatScreenshotPath))
@@ -463,6 +468,11 @@ namespace XiDeAI_Pro.Services
                 
                 // 4. Analysis & Generation
                 string? screenshotPath = await _screenshot.CaptureChart(sig.Symbol, sig.Period); // Parallel candidate
+                if (string.IsNullOrEmpty(screenshotPath))
+                {
+                    OnLog?.Invoke($"[WARNING] {sig.Symbol} için TradingView screenshot alınamadı. Tweet görsel olmadan atılacak.", "Signal");
+                }
+
 
                 // Context Preparation
                 string priceContext = $"Fiyat: {sig.Price:0.00} {sig.Basis}, Strateji: {sig.Strategy}, Periyot: {sig.Period}, Takip notu: {GetPublicSignalState(sig)}{(sig.IsRoket ? " (Roket 🚀)" : "")}";

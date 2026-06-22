@@ -1447,7 +1447,7 @@ def reply_to_tweet(tweet_url, text):
             
             print("DEBUG: Waiting for post confirmation...", file=sys.stderr)
             time.sleep(5)  # Wait to ensure post is processed
-            return {"status": "success", "message": "Reply attempt completed!"}
+            return {"status": "success", "message": "Reply attempt completed!", "tweet_url": tweet_url}
             
         except Exception as e:
              print(f"DEBUG: Reply interact error: {str(e)}", file=sys.stderr)
@@ -2724,65 +2724,89 @@ def interact_with_targets(targets, max_age_hours=6, allow_retweet=False):
         if driver: driver.quit()
 
 def discover_influencers(category, custom_query=None):
-    """(Nightly Job) Discover high-quality accounts by scanning followers of major hub accounts."""
+    """(Nightly Job) Discover high-quality accounts by searching for high-engagement tweets."""
     category = category.upper()
-    hub_accounts = {
-        "BIST": ["bigpara", "BloombergHT", "InvestingTR"],
-        "CRYPTO": ["BTCTurk", "Paribu", "bitcointr", "CoinDesk"],
-        "FOREX": ["InvestingTR", "gcmforex", "ForeksHaber"],
-        "TECH": ["OpenAI", "TechCrunch", "WIRED", "TheVerge", "YCombinator"],
-        "BUSINESS": ["Forbes", "Entrepreneur", "BusinessInsider", "HBR", "Inc"],
-        "PERSONAL": ["TimFerriss", "JamesClear", "HubermanLab", "RyanHoliday"],
-        "GLOBAL": ["TheEconomist", "WorldBank", "wef", "IanBremmer"]
+    search_queries = {
+        "BIST": "(#borsa OR #bist100 OR #hisse) min_faves:100",
+        "CRYPTO": "(#bitcoin OR #kripto OR btc) min_faves:100",
+        "FOREX": "(#forex OR xauusd OR eurusd) min_faves:100",
+        "TECH": "(#yapayzeka OR #teknoloji OR #yazılım) min_faves:50",
+        "BUSINESS": "(#ekonomi OR #girişimcilik OR #finans) min_faves:50",
+        "PERSONAL": "(#kişiselgelişim OR #motivasyon) min_faves:50",
+        "GLOBAL": "(#economy OR #geopolitics) min_faves:100"
     }
-    keywords = {
-        "BIST": ["yatırım", "finans", "borsa", "ekonomi", "hisse", "trader"],
-        "CRYPTO": ["kripto", "crypto", "bitcoin", "btc", "eth", "blockchain"],
-        "FOREX": ["forex", "döviz", "altın", "gold", "emtia", "fx"],
-        "TECH": ["ai", "machine learning", "tech", "software", "engineer", "founder", "cto", "developer"],
-        "BUSINESS": ["entrepreneur", "ceo", "business", "investor", "venture", "growth", "strategy"],
-        "PERSONAL": ["author", "health", "mindset", "productivity", "coach", "speaker", "biohacker"],
-        "GLOBAL": ["global", "economy", "policy", "geopolitics", "analyst", "researcher", "macro"]
-    }
-    target_hubs = hub_accounts.get(category)
-    if not target_hubs:
-        return {"status": "error", "message": f"Invalid category: {category}"}
+    
+    query = custom_query if custom_query else search_queries.get(category)
+    if not query:
+        return {"status": "error", "message": f"Invalid category or no query: {category}"}
+        
     if not has_cookie_file():
         return {"status": "error", "message": "No cookies found."}
+        
     driver = setup_driver(headless=True, use_undetected=True)
     if not driver: return {"status": "error", "message": "Failed to start driver"}
+    
     try:
         if not load_cookies(driver):
             return {"status": "error", "message": "Failed to load cookies"}
+            
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
+        
         discovered_handles = set()
-        for hub_handle in target_hubs:
-            followers_url = f"https://x.com/{hub_handle}/followers"
-            print(f"Scanning followers of @{hub_handle}", file=sys.stderr)
-            driver.get(followers_url)
+        
+        encoded_query = urllib.parse.quote(query)
+        # Use Top (f=top is default when f is not specified) or explicitly no f parameter to get top tweets
+        search_url = f"https://x.com/search?q={encoded_query}&src=typed_query"
+        print(f"Scanning high engagement tweets for {category}: {query}", file=sys.stderr)
+        
+        driver.get(search_url)
+        
+        try:
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "article")))
+        except:
+            return {"status": "success", "count": 0, "data": []}
+            
+        for i in range(3):
+            driver.execute_script(f"window.scrollBy(0, {random.randint(800, 1200)});")
+            time.sleep(random.uniform(1.5, 3.0))
+            
+        articles = driver.find_elements(By.TAG_NAME, "article")
+        for art in articles:
             try:
-                WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='UserCell']")))
+                handle = ""
+                # Priority 1: User-Names
+                try:
+                    user_el = art.find_element(By.CSS_SELECTOR, "[data-testid='User-Names']")
+                    handle_text = user_el.text
+                    matches = re.findall(r'@(\w+)', handle_text)
+                    if matches:
+                        handle = "@" + matches[0]
+                except:
+                    pass
+                
+                # Priority 2: Direct link
+                if not handle:
+                    try:
+                        links = art.find_elements(By.CSS_SELECTOR, "a[role='link']")
+                        for link in links:
+                            href = link.get_attribute("href") or ""
+                            if "x.com/" in href and not any(x in href for x in ["/status/", "/search", "/home", "/explore"]):
+                                potential = href.split("x.com/")[1].split("/")[0].split("?")[0]
+                                if potential:
+                                    handle = "@" + potential
+                                    break
+                    except: pass
+                
+                if handle and len(handle) > 2:
+                    discovered_handles.add(handle)
+                    
             except:
                 continue
-            for i in range(5):
-                driver.execute_script(f"window.scrollBy(0, {random.randint(800, 1200)});")
-                time.sleep(random.uniform(1.0, 2.5))
-            user_cells = driver.find_elements(By.CSS_SELECTOR, "[data-testid='UserCell']")
-            for cell in user_cells:
-                try:
-                    bio_text = cell.text.lower()
-                    if any(keyword in bio_text for keyword in keywords.get(category, [])):
-                        handle_element = cell.find_element(By.CSS_SELECTOR, "a[href^='/'][role='link']")
-                        handle = handle_element.get_attribute("href").split("/")[-1]
-                        if handle and len(handle) > 2:
-                            discovered_handles.add("@" + handle)
-                except:
-                    continue
-            if len(discovered_handles) >= 25:
-                break
+                
         final_list = list(discovered_handles)
         return {"status": "success", "count": len(final_list), "data": final_list}
+        
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
