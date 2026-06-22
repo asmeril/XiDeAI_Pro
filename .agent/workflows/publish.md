@@ -146,6 +146,10 @@ description: XiDeAI Pro — Build, Publish, Deploy & Git Workflow
 - [ ] Yeni metot/özellik varsa `PROJECT_INDEX.md` → Key Classes & Methods güncellendi
 - [ ] Yeni sürüm için `PROJECT_MANIFEST_vNEW_VER.md` oluşturuldu veya mevcut manifestte neden ek bölüm kullanıldığı açıklandı
 
+### Dokümantasyon ve Sürüm Senkronizasyonu
+- [ ] `PROJECT_INDEX.md` dosyasının en üstündeki `> **Version:**` ve `> **Last Updated:**` bilgileri güncellendi
+- [ ] Gerçekleştirilen geliştirmeler ve hata çözümleri `PROJECT_DIARY.md` dosyasına yeni sürüm başlığı ile eklendi
+
 ### iDeal Entegrasyon Kontrolleri
 - [ ] `C:\iDeal\TARAMA_LOG\Market_Status.txt` → format: `datetime|MOD|YON|GunlukDeg%|Score|XU030%|XU050%|XU100_Fiyat|VolKat`
 - [ ] `C:\iDeal\TARAMA_LOG\Market_Pulse_Alarm.txt` → EOD_SNAPSHOT satırı 18:10-18:20 arasında yazılıyor
