@@ -1,4 +1,4 @@
-> **Version:** 5.6.0 (Thread Pipeline & SocialIntel Derleme Hata Düzeltmeleri)
+> **Version:** 5.6.1 (Playwright Tekil Yanıt Hotfix)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 2026-06-23
 
