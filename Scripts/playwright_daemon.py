@@ -1053,6 +1053,13 @@ class XDaemonPlaywright:
 
         return {"status": "success", "tweet_url": first_res.get("tweet_url"), "posted_count": posted_count, "total_chunks": len(numbered_chunks)}
 
+    async def execute_reply(self, payload: dict) -> dict:
+        url = payload.get("url")
+        text = payload.get("text")
+        if not url or not text:
+            return {"status": "error", "message": "url and text are required for post_reply"}
+        return await self._post_reply_in_thread(url, text)
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to run: post_thread")
@@ -1060,7 +1067,7 @@ async def main():
     parser.add_argument("--visible", action="store_true", help="Run visible browser")
     args = parser.parse_args()
 
-    if args.command in ["post_thread", "post_tweet"]:
+    if args.command in ["post_thread", "post_tweet", "post_reply"]:
         try:
             with open(args.file, "r", encoding="utf-8") as f:
                 payload = json.load(f)
@@ -1071,7 +1078,10 @@ async def main():
         daemon = XDaemonPlaywright(visible=args.visible)
         try:
             await daemon.start()
-            result = await daemon.execute_post(payload)
+            if args.command == "post_reply":
+                result = await daemon.execute_reply(payload)
+            else:
+                result = await daemon.execute_post(payload)
             print(json.dumps(result))
         except Exception as e:
             print(json.dumps({"status": "error", "message": str(e)}))

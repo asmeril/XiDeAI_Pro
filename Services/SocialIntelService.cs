@@ -987,12 +987,19 @@ namespace XiDeAI_Pro.Services
                     catch { }
                 }
 
-                var bytes = Encoding.UTF8.GetBytes(text);
-                var base64Text = Convert.ToBase64String(bytes);
+                var payload = new { url = url, text = text };
+                string jsonContent = JsonSerializer.Serialize(payload);
+                string tempFile = Path.GetTempFileName();
+                await File.WriteAllTextAsync(tempFile, jsonContent);
+
+                string playwrightScript = Path.Combine(Path.GetDirectoryName(_scriptPath) ?? "", "playwright_daemon.py");
+                string visibilityFlag = IsVisibleMode ? " --visible" : "";
+                string args = $"\"{playwrightScript}\" post_reply --file \"{tempFile}\"{visibilityFlag}";
                 
-                string args = $"\"{_scriptPath}\" reply_tweet --url \"{url}\" --text \"{base64Text}\" --base64";
-                string json = await RunPythonScript(args);
+                string json = await RunPythonScript(args, null, null, 120); // Reply icin 120 sn timeout
                 Logger.FanZone($"[SocialIntel] Reply Raw Output: {json}");
+                
+                try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
                 
                 var result = JsonSerializer.Deserialize<SocialIntelResult>(json);
                 _lastPostUtc = DateTime.UtcNow;
