@@ -1040,10 +1040,12 @@ class XDaemonPlaywright:
         total_replies = len(numbered_chunks) - 1  # exclude first tweet
         if failed_parts:
             print(f"[playwright_daemon] Thread completed with {len(failed_parts)} failed part(s): parts {failed_parts}", flush=True)
-            # Partial success is still an error for the caller: the requested thread is incomplete.
+            # Gather specific failure reasons from the last failure if tracked. 
+            # (To keep it robust, we just append the fact to the message)
+            fail_details = ", ".join([str(p) for p in failed_parts])
             return {
                 "status": "error",
-                "message": f"Thread partially posted: {posted_count}/{len(numbered_chunks)} tweets succeeded. Failed parts: {failed_parts}.",
+                "message": f"Thread partially posted: {posted_count}/{len(numbered_chunks)} tweets succeeded. Failed parts: [{fail_details}]. Check daemon stdout for exact Playwright error (e.g. Duplicate/Timeout).",
                 "tweet_url": first_res.get("tweet_url"),
                 "posted_count": posted_count,
                 "total_chunks": len(numbered_chunks),

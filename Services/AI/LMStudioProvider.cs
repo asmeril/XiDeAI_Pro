@@ -197,13 +197,25 @@ namespace XiDeAI_Pro.Services.AI
                 if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
                     var choice = choices[0];
-                    if (choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length")
+
+                    // v5.6.0: finish_reason=length → model context window doldu, yanıt kesildi.
+                    // Eskiden null döndürülüyordu ve analiz tamamen başarısız oluyordu.
+                    // Artık: kısmi yanıt varsa onu döndür (görüntüyü zaten işledi, kırpık bile olsa kullanılabilir).
+                    bool isLengthTruncated = choice.TryGetProperty("finish_reason", out var fr) && fr.GetString() == "length";
+                    var extracted = ExtractContentFromChoice(choice);
+
+                    if (isLengthTruncated)
                     {
-                        _logger("⚠️ [LMStudio Vision] finish_reason=length — response publishable değil, fallback tetiklenecek.");
-                        LastError = "LMStudio Vision: finish_reason=length (token limit exceeded)";
+                        if (!string.IsNullOrWhiteSpace(extracted))
+                        {
+                            _logger($"⚠️ [LMStudio Vision] finish_reason=length — yanıt kesildi ama {extracted.Length} char kısmi içerik mevcut, kullanılıyor.");
+                            return extracted; // kısmi yanıtı döndür
+                        }
+                        _logger("⚠️ [LMStudio Vision] finish_reason=length — kısmi içerik de yok, fallback tetiklenecek.");
+                        LastError = "LMStudio Vision: finish_reason=length (token limit exceeded, no partial content)";
                         return null;
                     }
-                    var extracted = ExtractContentFromChoice(choice);
+
                     if (string.IsNullOrWhiteSpace(extracted))
                     {
                         LastError = HasReasoningContent(choice) ? "LMStudio Vision: empty content; model only returned reasoning_content" : "LMStudio Vision: empty content";
@@ -234,12 +246,22 @@ namespace XiDeAI_Pro.Services.AI
                     : _uri;
                 string url = $"{baseUri}/api/v1/chat";
 
+                // v5.6.0: Updated to LMStudio's new native API format.
+                // Text-only: input is a plain string.
+                // Vision: input is an array with a single content-block item containing text + image parts.
                 object input = string.IsNullOrEmpty(imageDataUrl)
-                    ? BuildNoThinkPrompt(prompt)
+                    ? (object)BuildNoThinkPrompt(prompt)
                     : new object[]
                     {
-                        new { type = "text", text = BuildNoThinkPrompt(prompt) },
-                        new { type = "image", data_url = imageDataUrl }
+                        new
+                        {
+                            type = "text",
+                            content = new object[]
+                            {
+                                new { type = "text",      text = BuildNoThinkPrompt(prompt) },
+                                new { type = "image_url", image_url = new { url = imageDataUrl } }
+                            }
+                        }
                     };
 
                 var requestBody = new
@@ -327,7 +349,10 @@ namespace XiDeAI_Pro.Services.AI
                 top_p = 0.8,
                 top_k = 20,
                 min_p = 0,
-                presence_penalty = 1.5
+                presence_penalty = 1.5,
+                // v5.6.0: reasoning=off zorunlu — qwen3.6-27b tüm token'ları thinking'e harcar
+                // finish_reason=length hatasının gerçek nedeni bu, prompt boyutu değil.
+                reasoning_effort = "none"
             };
         }
 
@@ -353,7 +378,10 @@ namespace XiDeAI_Pro.Services.AI
                 top_p = 0.8,
                 top_k = 20,
                 min_p = 0,
-                presence_penalty = 1.5
+                presence_penalty = 1.5,
+                // v5.6.0: reasoning=off zorunlu — qwen3.6-27b tüm token'ları thinking'e harcar
+                // finish_reason=length hatasının gerçek nedeni bu, prompt boyutu değil.
+                reasoning_effort = "none"
             };
         }
 

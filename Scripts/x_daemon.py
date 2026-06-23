@@ -360,22 +360,28 @@ def shutdown_driver():
 
 
 def robust_type_and_verify(driver, element, text, tweet_index=0):
-    """ULTRA-ROBUST TYPING v4.9.2
-    - clipboard FIRST (en güvenilir yöntem Twitter için)
-    - js_insert SADECE element-scoped selectNodeContents kullanır (selectAll YOK)
-    - sendkeys fallback
-    - React nudge: end-of-line key press (boşluk+backspace YOK — tüm modal'ı etkileyebilir)
+    """ULTRA-ROBUST TYPING v5.6.0
+    Yazma yöntemleri (öncelik sırasıyla):
+    1. js_react: execCommand + React InputEvent dispatch — headless'ta en güvenilir
+    2. clipboard: pyperclip (headless sunucuda çalışmayabilir, fallback)
+    3. sendkeys: son çare
+    
+    SORUN GEÇMİŞİ:
+    - clipboard: headless Chrome'da pyperclip X11/clipboard erişimi olmadan
+      her zaman 0 karakter yazıyordu → js_insert fallback'e düşüyordu.
+    - js_insert (eski): DOM innerText'i güncelliyordu ama React virtual state'i
+      güncellenmiyordu → Post butonu tıklanınca X "içerik yok" sanıyor, tweet gitmiyordu.
+    - FIX: execCommand sonrası InputEvent dispatch edilmesi React state'ini senkronize eder.
     """
-    import pyperclip
     from selenium.webdriver.common.keys import Keys
     from selenium.webdriver.common.action_chains import ActionChains
 
-    # clipboard önce çünkü Twitter'ın contenteditable'ı paste event'ini en iyi işliyor
-    methods = ["clipboard", "js_insert", "sendkeys"]
+    # js_react önce: headless'ta en güvenilir yöntem
+    methods = ["js_react", "clipboard", "sendkeys"]
 
     for method in methods:
         try:
-            # 1. Scroll + focus — SADECE bu element'e
+            # 1. Scroll + focus
             driver.execute_script(
                 "arguments[0].scrollIntoView({behavior:'instant',block:'center'});", element)
             time.sleep(0.3)
@@ -387,7 +393,7 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
                 driver.execute_script("arguments[0].click();", element)
             time.sleep(0.3)
 
-            # 3. SADECE bu element'in içini temizle — selectAll KULLANMA
+            # 3. İçeriği temizle (element-scoped, selectAll YOK)
             driver.execute_script("""
                 var el = arguments[0];
                 el.focus();
@@ -402,37 +408,56 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
 
             log(f"[TYPE] Part {tweet_index} method={method}")
 
-            if method == "clipboard":
-                pyperclip.copy(text)
-                time.sleep(0.2)
-                # Paste
-                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-                time.sleep(0.5)
-                # React nudge: End tuşu — metin değiştirmez, sadece cursor'u sona götürür
-                ActionChains(driver).send_keys(Keys.END).perform()
-                time.sleep(0.2)
-
-            elif method == "js_insert":
-                # selectAll YOK — sadece element-scoped insertText
+            if method == "js_react":
+                # execCommand ile metin yaz, ardından React'ın dinlediği InputEvent fırlat.
+                # Bu kritik: execCommand DOM'u günceller ama React virtual state'i güncellemiyor.
+                # InputEvent dispatch edilince React handler'ı tetiklenir ve state senkronize olur.
+                # Sonuç: Post butonu gerçekten dolu içerik görür ve tweet gönderilir.
                 driver.execute_script("""
                     var el = arguments[0];
+                    var txt = arguments[1];
                     el.focus();
+                    // Temizle
                     var range = document.createRange();
                     range.selectNodeContents(el);
                     var sel = window.getSelection();
                     sel.removeAllRanges();
                     sel.addRange(range);
                     document.execCommand('delete', false, null);
-                    document.execCommand('insertText', false, arguments[1]);
+                    // Yaz
+                    document.execCommand('insertText', false, txt);
+                    // React state sync: InputEvent dispatch
+                    el.dispatchEvent(new InputEvent('input', {
+                        bubbles: true,
+                        cancelable: true,
+                        inputType: 'insertText',
+                        data: txt
+                    }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
                 """, element, text)
-                time.sleep(0.4)
-                # React nudge: click + END
+                time.sleep(0.5)
+                # Cursor sona götür (React nudge)
                 try:
                     ActionChains(driver).move_to_element(element).click().perform()
                     ActionChains(driver).send_keys(Keys.END).perform()
                 except Exception:
                     pass
                 time.sleep(0.3)
+
+            elif method == "clipboard":
+                # Headless sunucuda pyperclip çalışmayabilir (X11 clipboard yok)
+                # Ama lokal/görünür modda en güvenilir yöntem
+                try:
+                    import pyperclip
+                    pyperclip.copy(text)
+                except Exception as clip_err:
+                    log(f"Clipboard copy failed (headless?): {clip_err}")
+                    continue
+                time.sleep(0.2)
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
+                time.sleep(0.5)
+                ActionChains(driver).send_keys(Keys.END).perform()
+                time.sleep(0.2)
 
             elif method == "sendkeys":
                 element.send_keys(text)
@@ -442,7 +467,7 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
             # React sync bekle
             time.sleep(1.2)
 
-            # Verify
+            # Verify: innerText kontrolü
             current_text = driver.execute_script(
                 "return arguments[0].innerText;", element).strip()
             input_len = len(text.strip())
@@ -459,6 +484,7 @@ def robust_type_and_verify(driver, element, text, tweet_index=0):
 
     log(f"FATAL: All methods failed for part {tweet_index}")
     return False
+
 
 
 # ============== COMMAND HANDLERS ==============
@@ -965,22 +991,30 @@ def _post_single_tweet(driver, text, reply_to_url=None, media_path=None):
             log(f"Tweet URL captured from current_url: {cur}")
             return cur
 
-        # Yöntem 2: Toast bildirimindeki "Görüntüle" linkini yakala
-        # Twitter bazen compose kapandıktan sonra kısa süre bir toast gösterir.
+        # Yöntem 2: SADECE [data-testid='toast'] içindeki "Görüntüle" linkini yakala.
+        # KRİTİK: `a[href*='/status/']` selector'ı KULLANILMAMALI — reply sayfasında
+        # zaten orijinal tweet'in linki var ve false positive veriyordu.
+        # reply_to_url biliniyorsa, yakalanan URL bundan FARKLI olmalı.
         try:
-            for _ in range(5):
+            for _ in range(6):
                 toast_links = driver.find_elements(By.CSS_SELECTOR,
-                    "a[href*='/status/'], [data-testid='toast'] a[href*='/status/']")
+                    "[data-testid='toast'] a[href*='/status/']")
                 for lnk in toast_links:
                     href = lnk.get_attribute("href") or ""
-                    if "/status/" in href:
-                        if not href.startswith("http"):
-                            href = "https://x.com" + href
-                        log(f"Tweet URL captured from toast/DOM: {href}")
-                        return href
+                    if "/status/" not in href:
+                        continue
+                    if not href.startswith("http"):
+                        href = "https://x.com" + href
+                    # Reply ise: toast URL, reply_to_url ile AYNI olmamalı
+                    if reply_to_url and href.rstrip("/") == reply_to_url.rstrip("/"):
+                        log(f"Toast URL = orijinal tweet ({href}) — bu false positive, atlanıyor.")
+                        continue
+                    log(f"Tweet URL captured from toast: {href}")
+                    return href
                 time.sleep(0.5)
         except Exception as e:
             log(f"Toast URL method failed: {e}")
+
 
         # Yöntem 3: Profil sayfasında retry döngüsüyle en yeni tweet — SADECE profil, HOME ASLA
         try:

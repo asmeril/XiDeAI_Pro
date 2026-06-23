@@ -972,7 +972,10 @@ namespace XiDeAI_Pro.Services
                         var daemonResult = System.Text.Json.JsonSerializer.Deserialize<SocialIntelResult>(daemonJson);
                         if (daemonResult?.status == "success")
                         {
-                            Logger.Twitter($"[DAEMON] Reply Basarili: {url}");
+                            // v5.6.0: Daemon'ın döndürdüğü gerçek reply URL'sini logla,
+                            // orijinal tweet URL'sini değil.
+                            string replyUrl = !string.IsNullOrWhiteSpace(daemonResult.tweet_url) ? daemonResult.tweet_url : url;
+                            Logger.Twitter($"[DAEMON] Reply Basarili: {replyUrl}");
                             _lastPostUtc = DateTime.UtcNow;
                             return daemonResult;
                         }

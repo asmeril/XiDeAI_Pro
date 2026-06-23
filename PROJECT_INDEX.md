@@ -1,6 +1,6 @@
-> **Version:** 5.5.9 (Telegram Link & Daemon Stabilizasyonu)
+> **Version:** 5.6.0 (Thread Pipeline & SocialIntel Derleme Hata Düzeltmeleri)
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
-> **Last Updated:** 2026-06-22
+> **Last Updated:** 2026-06-23
 
 Bu indeks, proje Ã¼zerinde Ã§alÄ±ÅŸacak yapay zeka ve geliÅŸtiriciler iÃ§in **kod tabanÄ±nÄ±n haritasÄ±nÄ±** sunar. Yeni Ã¶zellik eklerken veya hata dÃ¼zeltirken burayÄ± referans alÄ±nÄ±z.
 

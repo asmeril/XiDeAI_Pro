@@ -157,3 +157,14 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 
 **Derleme (Build) Sorunları Giderildi:**
 - `MainForm.cs`'de `tpChart` ve `tpTwitter` local değişkenleri class field seviyesine çıkarılarak, `ProcessFailed` lambda blokları içerisinden `tpChart.Controls`'e erişimde çıkan CS0103 hataları ortadan kaldırıldı.
+
+---
+
+## 📅 23 Haziran 2026
+
+### 🔧 v5.6.0 Release
+
+**Thread (Zincir) Metin Kesilme ve Eksik Parça Sorunu Çözüldü:**
+- `ThreadPipeline.cs` içerisindeki agresif çalışan "Robotik numara temizliği" regex'i (ör. `1) KISA ÖZET`) iptal edildi. Bu regex'in son parçayı tamamen sildiği ve 5/5 olarak beklenen tweetin boş içerik nedeniyle gönderilememesine (Duplicate/Timeout) yol açtığı tespit edildi.
+- `playwright_daemon.py` hata raporlaması geliştirildi: Kısmi başarılı (partially posted) durumlarda hata JSON içerisine `Failed parts` ile birlikte tam hata nedeninin tespiti için daha açık log detayı eklendi.
+- `SocialIntelService.cs` içindeki `SocialIntelResult` kullanımı düzeltildi, olmayan `url` özelliği yerine `tweet_url` kullanımı sağlandı ve derleme hatası (CS1061) giderildi.

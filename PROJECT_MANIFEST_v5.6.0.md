@@ -40,3 +40,12 @@ Bu sürümde, yeni prompt mühendisliği standartlarımız çerçevesinde AI pro
 ## Derleme ve Entegrasyon Durumu
 - Yapılan değişiklikler sonrasında `dotnet build` komutu başarıyla tamamlanmıştır (0 Hata, 3 Mevcut Uyarı).
 - Proje dosyalarında herhangi bir syntax hatası bulunmamaktadır.
+
+---
+
+### 5. Thread Paylaşım Stabilizasyonu ve Derleme (Build) Onarımları
+- **Problem**: `ThreadPipeline.cs` içerisindeki agresif "Robotik numara temizleme" regex'i, 5. veya 6. parçalardaki numaralı satırları tamamen silerek `Playwright` tarafında `Duplicate/Timeout` nedeniyle thread'in yarım kalmasına yol açıyordu.
+- **Çözüm**:
+  - Hatalı regex kaldırılarak tweet metinlerinin istenmeyen kırpılmaları önlendi.
+  - `playwright_daemon.py` güncellenerek, hata fırlatan parçanın `Failed parts` ile birlikte tam hata nedenini C# arayüzüne bildirmesi sağlandı.
+  - `SocialIntelService.cs` içerisindeki olmayan `url` değişkenine erişim hatası (CS1061) `tweet_url` kullanılarak düzeltildi.

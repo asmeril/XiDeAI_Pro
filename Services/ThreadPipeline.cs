@@ -359,9 +359,8 @@ namespace XiDeAI_Pro.Services
             line = Regex.Replace(line, @"^\*?Revised\s*\d+\*?\s*:\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
             line = Regex.Replace(line, @"^Tweet\s*\d+\s*[:\-]\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
             
-            // Yeni beceri: Robotik numara ve başlıkları temizle: "1) KISA ÖZET", "2) GRAFİK OKUMA", "3. KRİTİK SEVİYELER"
-            line = Regex.Replace(line, @"^\d+\s*[\)\.\-]\s*[A-ZÇĞİÖŞÜ ]+$", string.Empty, RegexOptions.IgnoreCase).Trim();
-            line = Regex.Replace(line, @"^\d+\s*[\)\.\-]\s*", string.Empty, RegexOptions.IgnoreCase).Trim();
+            // Yeni beceri: Robotik numara temizliği (Sadece başındaki sayıyı temizle, metni silme)
+            line = Regex.Replace(line, @"^\d+\s*[\)\.\-]\s*", string.Empty).Trim();
 
             return line;
         }
