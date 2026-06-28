@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.6.1",
-    "build_number":  5610,
-    "lastUpdate":  "2026-06-23T16:45:48Z",
+    "version":  "5.6.2",
+    "build_number":  5620,
+    "lastUpdate":  "2026-06-28T21:51:47Z",
     "changelog":  [
+                      "v5.6.2: v5.6.2: Gemini entegrasyonu sadece haber modulunde aktif edildi",
                       "v5.6.1: v5.6.1: Playwright Tekil Yanit Hotfix",
                       "v5.6.0: v5.6.0: Thread Stabilizasyonu ve Derleme Onarimlari",
                       "v5.5.9: v5.5.9: Telegram bos link hatasi ve daemon timeout cozuldu",

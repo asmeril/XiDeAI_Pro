@@ -296,6 +296,18 @@ namespace XiDeAI_Pro.Services
         public void SyncGeminiProviders()
         {
             // v5.0.0: Gemini and Perplexity removed. Only Local LM Studio.
+            // v5.6.1: Re-enabled Gemini specifically for News Module
+            var cfg = ConfigManager.Current;
+            if (!string.IsNullOrEmpty(cfg.GeminiApiKey))
+            {
+                var provider = new GeminiProvider(
+                    cfg.GeminiApiKey, 
+                    cfg.GeminiModel ?? "gemini-2.5-flash", 
+                    (msg) => Logger.AI($"[AI-Gemini] {msg}")
+                );
+                ModelManager?.RegisterProvider(cfg.GeminiModel ?? "gemini-2.5-flash", provider);
+            }
+            
             SyncLMStudioProviders();
         }
 

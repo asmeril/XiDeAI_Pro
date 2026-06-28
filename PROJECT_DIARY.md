@@ -3,6 +3,16 @@
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
 
+## 📅 29 Haziran 2026
+
+### 🔧 v5.6.2 Release
+
+**Yapay Zeka Modül İzolasyonu (Gemini & LM Studio):**
+- v5.0.0 ile tamamen yerel modele (LM Studio) çekilen sistemde, **Haber Analizi** ve **Haber Thread Üretimi** (NewsEngine) kısımları tekrar `Gemini` (gemini-2.5-flash) kullanımına açıldı.
+- `OperationManager.cs` içerisinde `SyncGeminiProviders` fonksiyonu revize edilerek, Config'de Gemini API anahtarı varsa sisteme tekrar entegre edilmesi sağlandı.
+- `ModelManager.cs` içerisinde `InitializeTaskPreferences` düzenlenerek; haber dışındaki tüm görevler (DeepScan, Sinyal, Trend vs.) `lm-studio` modeline sabitlenirken, sadece haber tabanlı görevler için birinci öncelik Gemini olacak şekilde (`gemini-2.5-flash`, ardından fallback olarak `lm-studio`) izolasyon sağlandı.
+
+
 ## 📅 01 Haziran 2026
 
 ### 🔧 v5.1.9 — AI Zaman Aşımı & Zamanlanmış Görev Hata Yakalama (Stabilizasyon)

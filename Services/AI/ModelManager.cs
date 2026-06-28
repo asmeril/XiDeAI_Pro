@@ -48,10 +48,13 @@ namespace XiDeAI_Pro.Services.AI
         {
             // All tasks redirected to local LM Studio (gemma4)
             var localOnly = new List<string> { "lm-studio" };
+            
+            // v5.6.1: Use Gemini specifically for News tasks
+            var geminiForNews = new List<string> { XiDeAI_Pro.Config.ConfigManager.Current.GeminiModel ?? "gemini-2.5-flash", "lm-studio" };
 
             _taskModelPreferences[TaskType.DeepScan] = localOnly;
-            _taskModelPreferences[TaskType.NewsAnalysis] = localOnly;
-            _taskModelPreferences[TaskType.NewsThreadGeneration] = localOnly;
+            _taskModelPreferences[TaskType.NewsAnalysis] = geminiForNews;
+            _taskModelPreferences[TaskType.NewsThreadGeneration] = geminiForNews;
             _taskModelPreferences[TaskType.ShortThreadGeneration] = localOnly;
             _taskModelPreferences[TaskType.FormationAnalysis] = localOnly;
             _taskModelPreferences[TaskType.TweetGeneration] = localOnly;
