@@ -512,28 +512,49 @@ def cmd_search(params):
         except:
             return {"status": "success", "data": []}
         
+        from selenium.common.exceptions import StaleElementReferenceException as _StaleEx
         articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+        article_count = min(len(articles), limit)
         results = []
         
-        for art in articles[:limit]:
+        for idx in range(article_count):
             try:
+                # v5.6.x: Index-based re-fetch to survive StaleElementReferenceException
+                # Sayfa DOM'u dinamik güncellenirse element referansı geçersizleşir.
+                # Her iterasyonda elementi taze olarak alıyoruz.
+                try:
+                    current_articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                    if idx >= len(current_articles):
+                        continue
+                    art = current_articles[idx]
+                except _StaleEx:
+                    continue
+
                 # Extract text
                 text = ""
                 try:
                     content_el = art.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
                     text = content_el.text
+                except _StaleEx:
+                    continue
                 except:
-                    text = art.text[:500]
+                    try:
+                        text = art.text[:500]
+                    except _StaleEx:
+                        continue
                 
                 # Extract image FIRST
                 img_url = None
                 try:
                     img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
                     for img in img_els:
-                        src = img.get_attribute("src")
-                        if src and "profile_images" not in src:
-                            img_url = src
-                            break
+                        try:
+                            src = img.get_attribute("src")
+                            if src and "profile_images" not in src:
+                                img_url = src
+                                break
+                        except _StaleEx:
+                            continue
                 except:
                     pass
                 
@@ -553,6 +574,8 @@ def cmd_search(params):
                         author = "@" + handle_match.group(1)
                     elif "@" in handle_text:
                         author = "@" + handle_text.split("@")[1].split("\n")[0].split(" ")[0]
+                except _StaleEx:
+                    continue
                 except:
                     pass
                 
@@ -565,6 +588,8 @@ def cmd_search(params):
                         url_match = _re.search(r'x\.com/(\w+)/status/', href)
                         if url_match:
                             author = "@" + url_match.group(1)
+                    except _StaleEx:
+                        continue
                     except:
                         pass
                 
@@ -576,6 +601,8 @@ def cmd_search(params):
                         text_match = _re.search(r'@(\w+)', full_text)
                         if text_match:
                             author = "@" + text_match.group(1)
+                    except _StaleEx:
+                        continue
                     except:
                         pass
                 
@@ -590,11 +617,11 @@ def cmd_search(params):
                     time_el = art.find_element(By.TAG_NAME, "time")
                     url = time_el.find_element(By.XPATH, "./..").get_attribute("href")
                     time_str = time_el.get_attribute("datetime")
+                except _StaleEx:
+                    continue
                 except:
                     url = "https://x.com"
                     time_str = datetime.now(timezone.utc).isoformat()
-                
-                # Extract image logic moved above
                 
                 # Extract engagement
                 engagement = 0
@@ -612,6 +639,9 @@ def cmd_search(params):
                     "postDate": time_str,
                     "imageUrl": img_url
                 })
+            except _StaleEx:
+                # Article tamamen stale — sessizce atla, log spam etme
+                pass
             except Exception as e:
                 log(f"Error parsing article: {e}")
         
@@ -645,26 +675,45 @@ def cmd_timeline(params):
         except:
             return {"status": "success", "data": []}
         
+        from selenium.common.exceptions import StaleElementReferenceException as _StaleEx
         articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+        article_count = min(len(articles), limit)
         results = []
         
-        for art in articles[:limit]:
+        for idx in range(article_count):
             try:
+                # v5.6.x: Index-based re-fetch — StaleElementReferenceException koruması
+                try:
+                    current_articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                    if idx >= len(current_articles):
+                        continue
+                    art = current_articles[idx]
+                except _StaleEx:
+                    continue
+
                 text = ""
                 try:
                     content_el = art.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
                     text = content_el.text
+                except _StaleEx:
+                    continue
                 except:
-                    text = art.text[:500]
+                    try:
+                        text = art.text[:500]
+                    except _StaleEx:
+                        continue
                 
                 img_url = None
                 try:
                     img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
                     for img in img_els:
-                        src = img.get_attribute("src")
-                        if src and "profile_images" not in src:
-                            img_url = src
-                            break
+                        try:
+                            src = img.get_attribute("src")
+                            if src and "profile_images" not in src:
+                                img_url = src
+                                break
+                        except _StaleEx:
+                            continue
                 except:
                     pass
                 
@@ -677,11 +726,11 @@ def cmd_timeline(params):
                     time_el = art.find_element(By.TAG_NAME, "time")
                     url = time_el.find_element(By.XPATH, "./..").get_attribute("href")
                     time_str = time_el.get_attribute("datetime")
+                except _StaleEx:
+                    continue
                 except:
                     url = f"https://x.com/{handle}"
                     time_str = datetime.now(timezone.utc).isoformat()
-                
-                # img_url extraction moved above
                 
                 results.append({
                     "author": f"@{handle}",
@@ -690,6 +739,8 @@ def cmd_timeline(params):
                     "postDate": time_str,
                     "imageUrl": img_url
                 })
+            except _StaleEx:
+                pass
             except:
                 pass
         

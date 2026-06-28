@@ -227,7 +227,7 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             string sectorMap = LoadSectorMapContext();
             string prompt = _prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, richDescription, isFlash, sectorMap);
             int maxTok = isFlash ? 600 : 900;
-            return await SendGeminiRestApiRequest(prompt, 0.3, maxOutputTokens: maxTok);
+            return await SendGeminiRestApiRequest(prompt, 0.3, maxOutputTokens: maxTok, taskType: XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration);
         }
 
         public async Task<string?> GeneratePerformanceSynthesis(DailyReport report)
@@ -261,11 +261,11 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             return null;
         }
 
-        public async Task<string?> SendRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048)
+        public async Task<string?> SendRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048, XiDeAI_Pro.Services.AI.TaskType taskType = XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis)
         {
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                var result = await ModelManager.SendRequest(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, maxTokens: maxOutputTokens);
+                var result = await ModelManager.SendRequest(taskType, prompt, maxTokens: maxOutputTokens);
                 if (result == null) LastError = ModelManager.LastError ?? "Yerel model yanıt vermedi.";
                 if (!string.IsNullOrWhiteSpace(result)) LogTrainingData(prompt, result, "text_generation");
                 return result;
@@ -274,13 +274,13 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             return null;
         }
 
-        private async Task<string?> SendGeminiRestApiRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048)
+        private async Task<string?> SendGeminiRestApiRequest(string prompt, double temperature = 0.5, double topP = 0.95, int topK = 40, int maxOutputTokens = 2048, XiDeAI_Pro.Services.AI.TaskType taskType = XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis)
         {
             var cfg = ConfigManager.Current;
             if (string.IsNullOrWhiteSpace(cfg.GeminiApiKey))
             {
                 Logger.Sys("⚠️ Gemini API Key eksik, yerel modele (Fallback) geçiliyor...");
-                return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens);
+                return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens, taskType);
             }
 
             try
@@ -331,16 +331,16 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             }
 
             // Fallback to local model
-            return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens);
+            return await SendRequest(prompt, temperature, topP, topK, maxOutputTokens, taskType);
         }
 
-        public async Task<string?> SendMultimodalRequest(string prompt, string? imagePath, int maxOutputTokens = 2048)
+        public async Task<string?> SendMultimodalRequest(string prompt, string? imagePath, int maxOutputTokens = 2048, XiDeAI_Pro.Services.AI.TaskType taskType = XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis)
         {
-            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath)) return await SendRequest(prompt, maxOutputTokens: maxOutputTokens);
+            if (string.IsNullOrEmpty(imagePath) || !File.Exists(imagePath)) return await SendRequest(prompt, maxOutputTokens: maxOutputTokens, taskType: taskType);
             
             if (ModelManager != null && ConfigManager.Current?.EnableMultiModel == true)
             {
-                var result = await ModelManager.SendRequestWithImage(XiDeAI_Pro.Services.AI.TaskType.GeneralAnalysis, prompt, imagePath, maxTokens: maxOutputTokens);
+                var result = await ModelManager.SendRequestWithImage(taskType, prompt, imagePath, maxTokens: maxOutputTokens);
                 if (result == null) LastError = ModelManager.LastError ?? "Yerel model görsel isteğe yanıt vermedi.";
                 if (!string.IsNullOrWhiteSpace(result)) LogTrainingData(prompt, result, "vision_analysis");
                 return result;
@@ -424,7 +424,7 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
         public async Task<string> DetectNewsCategory(string title, string source)
         {
             // maxOutputTokens=20: response is a single word (e.g. "EKONOMI") — no need for 2048 default
-            var response = await SendGeminiRestApiRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1, maxOutputTokens: 20);
+            var response = await SendGeminiRestApiRequest(_prompts.GetNewsCategoryDetectionPrompt(title, source), 0.1, maxOutputTokens: 20, taskType: XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis);
             string cleaned = response?.Trim().ToUpper().Split(' ')[0] ?? "EKONOMI";
             return (new[] { "EKONOMI", "SIYASET", "TEKNOLOJI", "GLOBAL", "KRIPTO", "SPOR", "YASAM" }).Contains(cleaned) ? cleaned : "EKONOMI";
         }
@@ -440,14 +440,14 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             // v5.1.4: Qwen3.6-27b /no_think'e rağmen ~400-600 token thinking harciyor.
             // Gerçek çıktı ~200 karakter ama model thinking+output için 1500 token gerekiyor.
             // v5.4.3: Gemini free-tier kota döngüsünü önlemek için ModelManager/LMStudio hattını kullan.
-            return await SendRequest(prompt, maxOutputTokens: 1500);
+            return await SendRequest(prompt, maxOutputTokens: 1500, taskType: XiDeAI_Pro.Services.AI.TaskType.NewsAnalysis);
         }
 
         public async Task<string?> GenerateNewsCategoryAnalysis(string category, string title, string source, string link, string? description = null, bool isFlash = false)
         {
             var config = _prompts.GetNewsCategoryConfig(category);
             string sectorMap = LoadSectorMapContext();
-            return await SendRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap), config.Temp, config.TopP, config.TopK, config.MaxTokens);
+            return await SendRequest(_prompts.GetNewsCategoryAnalysisPrompt(category, title, source, link, description, isFlash, sectorMap), config.Temp, config.TopP, config.TopK, config.MaxTokens, taskType: XiDeAI_Pro.Services.AI.TaskType.NewsThreadGeneration);
         }
 
         public async Task<string?> GenerateStrategySpecificAnalysis(SignalData sig, string priceContext, string influencerCitations, string htfContext = "")

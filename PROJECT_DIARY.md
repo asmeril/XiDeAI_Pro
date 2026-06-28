@@ -5,6 +5,13 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 29 Haziran 2026
 
+### 🔧 v5.6.3 Release
+
+**Gemini Haber Görevlerinin TaskType Tercihleriyle Uyumlu Hale Getirilmesi:**
+- `GeminiService.cs` içindeki `SendRequest`, `SendGeminiRestApiRequest` ve `SendMultimodalRequest` metotlarına varsayılanı `GeneralAnalysis` olan `taskType` parametresi eklendi.
+- `DetectNewsCategory`, `AnalyzeNewsUnified`, `GenerateNewsCategoryAnalysis` ve `AnalyzeNewsForThread` haber metotları güncellenerek istek gönderirken `TaskType.NewsAnalysis` ve `TaskType.NewsThreadGeneration` tiplerini iletmeleri sağlandı.
+- Böylece `ModelManager.cs` içindeki v5.6.2 ile tanımlanmış olan Gemini öncelikli haber görev tercihleri aktif hale getirildi; Gemini API başarısız olduğunda yerel modele (LMStudio) fallback yapılması sağlandı.
+
 ### 🔧 v5.6.2 Release
 
 **Yapay Zeka Modül İzolasyonu (Gemini & LM Studio):**
