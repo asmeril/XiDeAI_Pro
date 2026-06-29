@@ -139,6 +139,27 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
+                // Prune data older than 10 days to keep database size optimal
+                var cutoff = DateTime.Now.AddDays(-10);
+                _rawTimeline = _rawTimeline
+                    .Where(t => t.FetchedAt >= cutoff || t.PostDate >= cutoff)
+                    .ToList();
+
+                // Rebuild Index to keep it consistent
+                _knowledgeIndex.Clear();
+                foreach (var item in _rawTimeline)
+                {
+                    if (item.RelatedSymbols != null)
+                    {
+                        foreach (var sym in item.RelatedSymbols)
+                        {
+                            if (!_knowledgeIndex.ContainsKey(sym))
+                                _knowledgeIndex[sym] = new List<TweetMemoryItem>();
+                            _knowledgeIndex[sym].Add(item);
+                        }
+                    }
+                }
+
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(_rawTimeline, options);
                 File.WriteAllText(_knowledgeBasePath, json);
@@ -286,6 +307,18 @@ namespace XiDeAI_Pro.Services
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Son N saat içinde aynı sembol için bizim tarafımızdan analiz/thread üretilip üretilmediğini kontrol eder.
+        /// </summary>
+        public bool HasRecentAnalysisPosted(string symbol, double maxAgeHours = 4)
+        {
+            if (string.IsNullOrEmpty(symbol) || !_analysisMemory.ContainsKey(symbol))
+                return false;
+
+            var cutoff = DateTime.Now.AddHours(-maxAgeHours);
+            return _analysisMemory[symbol].Any(h => h.Timestamp >= cutoff);
         }
 
         /// <summary>

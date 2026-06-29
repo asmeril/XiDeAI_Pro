@@ -1,4 +1,4 @@
-> **Version:** 5.6.3
+> **Version:** 5.6.4
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 29 June 2026
 
@@ -40,6 +40,7 @@ TÃƒÂ¼m servisler `Services/` klasÃƒÂ¶rÃƒÂ¼ altÃ„Â±ndadÃ„Â±
 | :--- | :--- | :--- |
 | **`SocialIntelService.cs`** | **DÃƒÂ¼Ã…Å¸ÃƒÂ¼k seviye X (Twitter) kÃƒÂ¶prÃƒÂ¼sÃƒÂ¼.** PostingService tarafÃ„Â±ndan ÃƒÂ§aÃ„Å¸rÃ„Â±lÃ„Â±r; Playwright subprocess ile doÃ„Å¸rulanmÃ„Â±Ã…Å¸ gÃƒÂ¶nderim yapar. AraÃ…Å¸tÃ„Â±rma/interaction iÃƒÂ§in daemon ve Selenium fallback iÃƒÂ§erir. | `playwright_daemon.py`, `x_daemon.py`, `social_intel.py` |
 | **`PostingService.cs`** | **v5.3.0 Canonical gÃƒÂ¶nderim servisi.** TÃƒÂ¼m modÃƒÂ¼ller iÃƒÂ§in tek tweet/thread doÃ„Å¸rulama kapÃ„Â±sÃ„Â±. `/status/` URL ve thread parÃƒÂ§a sayÃ„Â±sÃ„Â± doÃ„Å¸rulanmadan success dÃƒÂ¶nmez. | `playwright_daemon.py` |
+| **`MemoryEngine.cs`** | **v5.6.4 Akıllı Hafıza Motoru (Knowledge Base).** Fenomen tweetlerini depolar/prune eder ve robotun kendi ürettiği analiz geçmişini/cooldown durumunu yönetir. | - |
 | **`OperationManager.cs`** | **Orkestra Ã…Âefi.** Servisleri baÃ…Å¸latÃ„Â±r, daemon'Ã„Â± baÃ…Å¸latÃ„Â±r, durdurur ve birbirine baÃ„Å¸lar. | - |
 | `GeminiService.cs` | **AI Motoru.** PromptlarÃ„Â± iÃ…Å¸ler, gÃƒÂ¶rsel analiz yapar (Vision) ve thread ÃƒÂ¼retir. **v4.2.2:** Two-Step News metodlarÃ„Â± eklendi. | - |
 | `ModelBenchmarkService.cs` | **v4.9.9** Gemini modellerini test eder, API'den canlÃ„Â± model listesi ÃƒÂ§eker, benchmark yapar. **v4.9.9:** `UpdateTaskPreferencesFromResults()` eklendi Ã¢â‚¬â€ benchmark sonucu ModelManager TaskType tercihlerini dinamik olarak gÃƒÂ¼nceller. | - |
@@ -75,6 +76,11 @@ TÃƒÂ¼m servisler `Services/` klasÃƒÂ¶rÃƒÂ¼ altÃ„Â±ndadÃ„Â±
 - **(v5.3.0)** `PostTweetAsync(text, mediaPath, module)`: Tekil tweetleri canonical Playwright hattÃ„Â±na gÃƒÂ¶nderir, gerÃƒÂ§ek `/status/` URL yoksa hata dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r.
 - **(v5.3.0)** `PostThreadAsync(parts, mediaPath, module)`: Thread parÃƒÂ§alarÃ„Â±nÃ„Â± `ThreadPipeline.EnsureWithinLimit` ile normalize eder; tÃƒÂ¼m parÃƒÂ§alar gÃƒÂ¶nderilmeden success dÃƒÂ¶nmez.
 - **(v5.3.0)** `IsVerifiedTweet` / `IsVerifiedThread`: Uygulama genelinde tek baÃ…Å¸arÃ„Â± standardÃ„Â±.
+
+#### `MemoryEngine.cs` (v5.6.4)
+- **(v5.6.4)** `HasRecentAnalysisPosted(symbol, maxAgeHours)`: Robotun son N saat içinde aynı sembol için analiz/thread paylaşıp paylaşmadığını kontrol eder.
+- **(v5.6.4)** `Recall(symbol, maxAgeHours)`: Belirli bir sembol için hafızadaki tweetleri getirir.
+- **(v5.6.4)** `SaveKnowledgeBase()`: 10 günden eski tweet verilerini temizleyerek (pruning) veritabanını kaydeder.
 
 #### `FanZoneService.cs`
 - **(v5.3.0)** Kritik hesap taramasÃ„Â±nda tweet URL'si iÃ…Å¸lem ÃƒÂ¶ncesi deÃ„Å¸il `ProcessTweet` iÃƒÂ§inde dedupe edilir; like/RT baÃ…Å¸arÃ„Â± ikonlarÃ„Â± yalnÃ„Â±zca gerÃƒÂ§ek `status=success` dÃƒÂ¶nerse iÃ…Å¸aretlenir.

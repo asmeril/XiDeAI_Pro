@@ -3247,14 +3247,34 @@ namespace XiDeAI_Pro
             {
                 LogSocial($"🔍 Dahili arama (Background): {query} (Filtre: {symbol})");
 
-                // Check memory for historical analysis
+                // Check memory for our own posted threads/analyses (cooldown)
                 if (_opManager.Memory != null && !string.IsNullOrWhiteSpace(symbol))
                 {
-                    var memories = _opManager.Memory.Recall(symbol, maxAgeHours: 4);
-                    if (memories.Any())
+                    if (_opManager.Memory.HasRecentAnalysisPosted(symbol, 4))
                     {
                         Log($"🧠 Memory: {symbol} için son 4 saatte paylaşım yapıldı. Atlanıyor.", "Signal");
                         return new List<InfluencerPost>();
+                    }
+                }
+
+                // Prioritize local database data (1 week):
+                if (_opManager.Memory != null && !string.IsNullOrWhiteSpace(symbol))
+                {
+                    var cachedTweets = _opManager.Memory.Recall(symbol, maxAgeHours: 168); // 168 hours = 1 week
+                    if (cachedTweets.Any())
+                    {
+                        LogSocial($"🧠 Yerel Hafıza: {symbol} için son 1 haftada {cachedTweets.Count} kayıt yerelde mevcut. Canlı X araması atlanıyor.");
+                        return cachedTweets.Select(item => new InfluencerPost
+                        {
+                            Handle = item.Author,
+                            Content = item.Content,
+                            Url = item.Url,
+                            Engagement = item.Engagement,
+                            RelevanceScore = item.RelevanceScore,
+                            PostDate = item.PostDate,
+                            Symbol = symbol,
+                            Market = market
+                        }).ToList();
                     }
                 }
                 

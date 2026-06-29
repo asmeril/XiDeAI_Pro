@@ -5,6 +5,13 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 29 Haziran 2026
 
+### 🔧 v5.6.4 Release
+
+**Spam Cooldown Hatalarının Giderilmesi, Yerel Veritabanı Önceliği ve Otomatik Temizlik:**
+- `MemoryEngine.cs` sınıfına `HasRecentAnalysisPosted` metodu eklendi. Robotun son 4 saat içinde bir sembole analiz paylaşıp paylaşmadığı kontrolü bu metot üzerinden yapılacak şekilde güncellendi. Eski hatalı `Recall` (crawled tweetleri kontrol eden) cooldown kontrolü düzeltildi.
+- `MainForm.cs` içindeki `PerformInternalSearchAsync` metodu güncellendi. Arama öncesinde `Recall(symbol, 168)` ile son 1 haftaya ait fenomen tweetlerinin yerelde olup olmadığı kontrol ediliyor. Eğer kayıt varsa canlı X araması (WebView2/Selenium) tamamen atlanıyor ve yereldeki veriler kullanılıyor.
+- `MemoryEngine.SaveKnowledgeBase()` metodu güncellendi. Veritabanı kaydedilirken 10 günden eski (7 gün limit + 3 gün güvenlik marjı) fenomen tweetleri otomatik olarak temizlenecek (prune) şekilde optimize edildi.
+
 ### 🔧 v5.6.3 Release
 
 **Gemini Haber Görevlerinin TaskType Tercihleriyle Uyumlu Hale Getirilmesi:**
