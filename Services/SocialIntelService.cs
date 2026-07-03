@@ -1747,6 +1747,37 @@ namespace XiDeAI_Pro.Services
         {
             try
             {
+                // v5.6.6: Handle bazlı yerel DB cache — Guru paneli için
+                // Eğer bu handle için son 7 günde DB'de yeterli tweet varsa, canlı X araması atlanır.
+                string cleanHandle = handle?.TrimStart('@') ?? "";
+                if (!string.IsNullOrEmpty(cleanHandle) && string.IsNullOrEmpty(sinceDate) && Memory != null)
+                {
+                    var cached = Memory.GetKnowledgeBase()
+                        .Where(t => t.Author.Equals("@" + cleanHandle, StringComparison.OrdinalIgnoreCase)
+                                 && t.PostDate >= DateTime.Now.AddDays(-7))
+                        .OrderByDescending(t => t.PostDate)
+                        .Take(limit)
+                        .ToList();
+
+                    if (cached.Count >= Math.Min(limit, 5)) // En az 5 veya istenen kadar tweet varsa cache kullan
+                    {
+                        Logger.Twitter($"📦 [Cache] @{cleanHandle} için {cached.Count} tweet yerelden alındı, canlı X araması atlandı.");
+                        foreach (var t in cached)
+                        {
+                            sink.Add(new InfluencerPost
+                            {
+                                Handle = t.Author,
+                                Content = t.Content,
+                                Url = t.Url,
+                                PostDate = t.PostDate,
+                                Market = market,
+                                Symbol = symbol
+                            });
+                        }
+                        return;
+                    }
+                }
+
                 // v4.4.1: Enforce search cooldown to prevent X rate limiting
                 var timeSinceLastSearch = DateTime.UtcNow - _lastSearchCompletedUtc;
                 if (timeSinceLastSearch < SearchCooldown)
@@ -1756,9 +1787,8 @@ namespace XiDeAI_Pro.Services
                     await Task.Delay(waitTime);
                 }
 
-                // Clean @ symbol from handle for proper from: syntax
-                string cleanHandle = handle?.TrimStart('@') ?? "";
-                
+                // Clean @ symbol from handle for proper from: syntax (declared above)
+
                 // v4.4.0: Try daemon first for normal searches (not deep scans)
                 if (UseDaemon && _daemonAvailable && string.IsNullOrEmpty(sinceDate))
                 {

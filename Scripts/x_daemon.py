@@ -654,7 +654,7 @@ def cmd_search(params):
 
 def cmd_timeline(params):
     """Fetch tweets from a user's timeline.
-    v5.6.5: Scroll-aware — scrolls down until `limit` tweets are collected.
+    v5.6.6: Smart scroll-wait — waits for new articles to appear after each scroll.
     """
     handle = params.get("handle", "").lstrip("@")
     limit = int(params.get("limit", 10))
@@ -669,13 +669,16 @@ def cmd_timeline(params):
     try:
         driver.get(f"https://x.com/{handle}")
 
-        # Wait for first batch of tweets
+        # Wait for first batch of tweets — use longer wait for initial profile render
         try:
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.TAG_NAME, "article"))
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "article[data-testid='tweet']"))
             )
         except:
             return {"status": "success", "data": []}
+
+        # Extra buffer so Twitter's lazy-loaded images/articles finish rendering
+        time.sleep(2.5)
 
         from selenium.common.exceptions import StaleElementReferenceException as _StaleEx
 
@@ -733,22 +736,17 @@ def cmd_timeline(params):
                 "imageUrl": img_url
             }
 
-        # Scale scroll count to limit; at least 3 scrolls, cap at 15
-        max_scrolls = min(15, max(3, limit // 3))
-        time.sleep(1.5)  # Let initial content settle
-
-        for scroll_idx in range(max_scrolls + 1):  # parse before AND after each scroll
+        def _collect_visible():
+            """Parse all currently visible articles, add new ones to results."""
             try:
-                current_articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+                arts = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
             except _StaleEx:
-                current_articles = []
-
-            for art in current_articles:
+                return
+            for art in arts:
                 try:
                     parsed = _parse_article(art)
                     if parsed is None:
                         continue
-                    # Deduplicate by status URL; fall back to first 80 chars of content
                     dedup_key = parsed["url"] or parsed["content"][:80]
                     if dedup_key in seen_urls:
                         continue
@@ -759,14 +757,36 @@ def cmd_timeline(params):
                 except:
                     continue
 
-            log(f"Timeline scroll {scroll_idx}/{max_scrolls} for @{handle}: {len(results)} unique tweets")
+        # Scale scroll count to limit; at least 5 scrolls, cap at 20
+        max_scrolls = min(20, max(5, limit // 2))
 
+        # Parse first page
+        _collect_visible()
+        log(f"Timeline @{handle} initial: {len(results)} tweets")
+
+        for scroll_idx in range(max_scrolls):
             if len(results) >= limit:
                 break
 
-            if scroll_idx < max_scrolls:
-                driver.execute_script("window.scrollBy(0, window.innerHeight);")
-                time.sleep(1.2)
+            prev_count = len(results)
+
+            # Scroll to bottom of current content
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+            # Wait up to 4s for new articles to appear
+            deadline = time.time() + 4.0
+            while time.time() < deadline:
+                time.sleep(0.6)
+                _collect_visible()
+                if len(results) > prev_count:
+                    break  # New tweets loaded — collect and scroll again
+
+            log(f"Timeline scroll {scroll_idx+1}/{max_scrolls} @{handle}: {len(results)} tweets")
+
+            # If nothing new loaded after 4s, page is probably exhausted
+            if len(results) == prev_count:
+                log(f"Timeline @{handle}: no new tweets after scroll {scroll_idx+1}, stopping")
+                break
 
         # Sort newest first, return up to limit
         def _safe_date(d):

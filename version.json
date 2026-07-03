@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.6.5",
-    "build_number":  5650,
-    "lastUpdate":  "2026-07-03T06:52:52Z",
+    "version":  "5.6.6",
+    "build_number":  5660,
+    "lastUpdate":  "2026-07-03T07:14:54Z",
     "changelog":  [
+                      "v5.6.6: v5.6.6: Guru paneli tweet cache fix - handle bazli DB onbellek eklendi (30 tweet DB den), x_daemon scroll-wait iyilestirmesi",
                       "v5.6.5: v5.6.5: Ustat paneli tweet limiti duzeltmesi - x_daemon cmd_timeline scroll destegi eklendi (max 30 tweet)",
                       "v5.6.4: v5.6.4: Fenomen modulu cooldown bugi fixlendi, yerel veritabani (1 hafta) onceligi eklendi ve 10 gunluk veri temizleme (pruning) aktif edildi.",
                       "v5.6.3: Gemini entegrasyonu haber modulunde task preferences ile uyumlu hale getirildi",
