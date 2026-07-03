@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.6.4",
-    "build_number":  5640,
-    "lastUpdate":  "2026-06-29T10:04:45Z",
+    "version":  "5.6.5",
+    "build_number":  5650,
+    "lastUpdate":  "2026-07-03T06:52:52Z",
     "changelog":  [
+                      "v5.6.5: v5.6.5: Ustat paneli tweet limiti duzeltmesi - x_daemon cmd_timeline scroll destegi eklendi (max 30 tweet)",
                       "v5.6.4: v5.6.4: Fenomen modulu cooldown bugi fixlendi, yerel veritabani (1 hafta) onceligi eklendi ve 10 gunluk veri temizleme (pruning) aktif edildi.",
                       "v5.6.3: Gemini entegrasyonu haber modulunde task preferences ile uyumlu hale getirildi",
                       "v5.6.2: v5.6.2: Gemini entegrasyonu sadece haber modulunde aktif edildi",

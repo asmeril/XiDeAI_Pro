@@ -653,99 +653,133 @@ def cmd_search(params):
 
 
 def cmd_timeline(params):
-    """Fetch tweets from a user's timeline"""
+    """Fetch tweets from a user's timeline.
+    v5.6.5: Scroll-aware — scrolls down until `limit` tweets are collected.
+    """
     handle = params.get("handle", "").lstrip("@")
     limit = int(params.get("limit", 10))
-    
+
     if not handle:
         return {"status": "error", "message": "Handle required"}
-    
+
     driver = get_driver()
     if not driver:
         return {"status": "error", "message": "Driver not available"}
-    
+
     try:
         driver.get(f"https://x.com/{handle}")
-        
-        # Wait for tweets
+
+        # Wait for first batch of tweets
         try:
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.TAG_NAME, "article"))
             )
         except:
             return {"status": "success", "data": []}
-        
-        from selenium.common.exceptions import StaleElementReferenceException as _StaleEx
-        articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
-        article_count = min(len(articles), limit)
-        results = []
-        
-        for idx in range(article_count):
-            try:
-                # v5.6.x: Index-based re-fetch — StaleElementReferenceException koruması
-                try:
-                    current_articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
-                    if idx >= len(current_articles):
-                        continue
-                    art = current_articles[idx]
-                except _StaleEx:
-                    continue
 
-                text = ""
+        from selenium.common.exceptions import StaleElementReferenceException as _StaleEx
+
+        results = []
+        seen_urls = set()
+
+        def _parse_article(art):
+            """Extract fields from a single article element, return dict or None."""
+            text = ""
+            try:
+                content_el = art.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
+                text = content_el.text
+            except _StaleEx:
+                return None
+            except:
                 try:
-                    content_el = art.find_element(By.CSS_SELECTOR, "[data-testid='tweetText']")
-                    text = content_el.text
+                    text = art.text[:500]
                 except _StaleEx:
-                    continue
-                except:
+                    return None
+
+            img_url = None
+            try:
+                img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                for img in img_els:
                     try:
-                        text = art.text[:500]
+                        src = img.get_attribute("src")
+                        if src and "profile_images" not in src:
+                            img_url = src
+                            break
                     except _StaleEx:
                         continue
-                
-                img_url = None
+            except:
+                pass
+
+            if (not text or len(text) < 10) and not img_url:
+                return None
+
+            url = ""
+            time_str = ""
+            try:
+                time_el = art.find_element(By.TAG_NAME, "time")
+                url = time_el.find_element(By.XPATH, "./.." ).get_attribute("href") or ""
+                time_str = time_el.get_attribute("datetime") or ""
+            except _StaleEx:
+                return None
+            except:
+                url = f"https://x.com/{handle}"
+                time_str = datetime.now(timezone.utc).isoformat()
+
+            return {
+                "author": f"@{handle}",
+                "content": text[:500],
+                "url": url,
+                "postDate": time_str,
+                "imageUrl": img_url
+            }
+
+        # Scale scroll count to limit; at least 3 scrolls, cap at 15
+        max_scrolls = min(15, max(3, limit // 3))
+        time.sleep(1.5)  # Let initial content settle
+
+        for scroll_idx in range(max_scrolls + 1):  # parse before AND after each scroll
+            try:
+                current_articles = driver.find_elements(By.CSS_SELECTOR, "article[data-testid='tweet']")
+            except _StaleEx:
+                current_articles = []
+
+            for art in current_articles:
                 try:
-                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
-                    for img in img_els:
-                        try:
-                            src = img.get_attribute("src")
-                            if src and "profile_images" not in src:
-                                img_url = src
-                                break
-                        except _StaleEx:
-                            continue
-                except:
-                    pass
-                
-                if (not text or len(text) < 10) and not img_url:
-                    continue
-                
-                url = ""
-                time_str = ""
-                try:
-                    time_el = art.find_element(By.TAG_NAME, "time")
-                    url = time_el.find_element(By.XPATH, "./..").get_attribute("href")
-                    time_str = time_el.get_attribute("datetime")
+                    parsed = _parse_article(art)
+                    if parsed is None:
+                        continue
+                    # Deduplicate by status URL; fall back to first 80 chars of content
+                    dedup_key = parsed["url"] or parsed["content"][:80]
+                    if dedup_key in seen_urls:
+                        continue
+                    seen_urls.add(dedup_key)
+                    results.append(parsed)
                 except _StaleEx:
                     continue
                 except:
-                    url = f"https://x.com/{handle}"
-                    time_str = datetime.now(timezone.utc).isoformat()
-                
-                results.append({
-                    "author": f"@{handle}",
-                    "content": text[:500],
-                    "url": url,
-                    "postDate": time_str,
-                    "imageUrl": img_url
-                })
-            except _StaleEx:
-                pass
+                    continue
+
+            log(f"Timeline scroll {scroll_idx}/{max_scrolls} for @{handle}: {len(results)} unique tweets")
+
+            if len(results) >= limit:
+                break
+
+            if scroll_idx < max_scrolls:
+                driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                time.sleep(1.2)
+
+        # Sort newest first, return up to limit
+        def _safe_date(d):
+            try:
+                return datetime.fromisoformat(d.replace("Z", "+00:00"))
             except:
-                pass
-        
-        return {"status": "success", "data": results}
-        
+                return datetime.min.replace(tzinfo=timezone.utc)
+
+        results.sort(key=lambda x: _safe_date(x.get("postDate", "")), reverse=True)
+
+        log(f"✅ Timeline done for @{handle}: {min(len(results), limit)}/{len(results)} tweets returned")
+        return {"status": "success", "data": results[:limit]}
+
     except Exception as e:
         log(f"Timeline error: {e}")
         return {"status": "error", "message": str(e)}

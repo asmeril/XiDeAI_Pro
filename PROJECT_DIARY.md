@@ -3,6 +3,17 @@
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
 
+## 📅 03 Temmuz 2026
+
+### 🔧 v5.6.5 Release
+
+**Üstat Paneli Tweet Limiti Düzeltmesi — Daemon Scroll Desteği:**
+- `Scripts/x_daemon.py` içindeki `/timeline` komutu (`cmd_timeline`) güncellendi. Önceden sayfa yüklendiğinde sadece ilk 4-5 tweeti alıyordu (scroll yoktu). Artık istenen `limit` değerine ulaşana kadar sayfa aşağı kaydırılıyor.
+- `max_scrolls = min(15, max(3, limit // 3))` formülüyle limit 30 iken 10 scroll yapılıyor.
+- Her scroll turunda mevcut `article` elementleri parse edilip URL bazlı deduplikasyon ile sonuç listesine ekleniyor.
+- Sonuçlar tarih sırasıyla (yeniden eskiye) sıralanarak ilk `limit` kaydı döndürülüyor.
+- Üstat paneli artık `@EFELERiiNEFESi3` gibi bir gün içinde çok tweet atan hesaplarda dünkü tarama tweetlerini kaçırmıyor.
+
 ## 📅 29 Haziran 2026
 
 ### 🔧 v5.6.4 Release
