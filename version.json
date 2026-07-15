@@ -1,8 +1,10 @@
 ﻿{
     "version":  "5.6.6",
     "build_number":  5660,
-    "lastUpdate":  "2026-07-03T07:14:54Z",
+    "lastUpdate":  "2026-07-15T11:29:25Z",
     "changelog":  [
+                      "v5.6.6: v5.6.6: Beyaz pencere flash sorunu giderildi (UC kutuphane seviyesinde CREATE_NO_WINDOW fix), Telegram kullanici dogrulama dongusu durduruldu, XHive Telegram hub yeniden aktif edildi",
+                      "v5.6.5: Fix: screenshots dizini Program Files yerine AppData\u0027ya tasindi (UnauthorizedAccessException duzeltmesi)",
                       "v5.6.6: v5.6.6: Guru paneli tweet cache fix - handle bazli DB onbellek eklendi (30 tweet DB den), x_daemon scroll-wait iyilestirmesi",
                       "v5.6.5: v5.6.5: Ustat paneli tweet limiti duzeltmesi - x_daemon cmd_timeline scroll destegi eklendi (max 30 tweet)",
                       "v5.6.4: v5.6.4: Fenomen modulu cooldown bugi fixlendi, yerel veritabani (1 hafta) onceligi eklendi ve 10 gunluk veri temizleme (pruning) aktif edildi.",

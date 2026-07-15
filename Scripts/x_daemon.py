@@ -140,9 +140,11 @@ def _create_driver():
         prefs = {"profile.managed_default_content_settings.images": 2}
         options.add_experimental_option("prefs", prefs)
         
-        # Use headless for background operations
-        if os.environ.get("X_VISIBLE", "").lower() != "true":
-            options.add_argument("--headless=new")
+        # Windows: Prevent undetected_chromedriver from flashing a white window
+        # Fix is applied at the UC library level (CREATE_NO_WINDOW in Popen call)
+        is_headless = os.environ.get("X_VISIBLE", "").lower() != "true"
+        if is_headless:
+            options.add_argument("--headless")
         
         # Create UC driver with auto-detected version fallback (v4.8.0)
         try:
@@ -159,15 +161,18 @@ def _create_driver():
                         capture_output=True, text=True, timeout=5
                     )
                     if result.returncode == 0:
-                        ver_match = re.search(r'(\d+)\.', result.stdout)
-                        if ver_match:
-                            detected_ver = int(ver_match.group(1))
-                            log(f"Detected Chrome version: {detected_ver}")
-                except Exception as detect_err:
-                    log(f"Chrome version detection failed: {detect_err}")
+                        for line in result.stdout.splitlines():
+                            if 'version' in line.lower():
+                                parts = line.split()
+                                if len(parts) >= 3:
+                                    detected_ver = int(parts[-1].split('.')[0])
+                                    log(f"Detected Chrome version: {detected_ver}")
+                                    break
+                except Exception as e:
+                    log(f"Version auto-detect failed: {e}")
                 
-                if not detected_ver:
-                    detected_ver = 146  # Safe modern default
+                if detected_ver is None:
+                    detected_ver = 126 # Safe fallback
                 
                 log(f"Version mismatch detected in x_daemon, forcing version {detected_ver}...")
                 # RECREATE OPTIONS: Cannot reuse after failure
@@ -179,7 +184,7 @@ def _create_driver():
                 prefs = {"profile.managed_default_content_settings.images": 2}
                 options.add_experimental_option("prefs", prefs)
                 if os.environ.get("X_VISIBLE", "").lower() != "true":
-                    options.add_argument("--headless=new")
+                    options.add_argument("--headless")
                 
                 driver = uc.Chrome(options=options, use_subprocess=True, version_main=detected_ver)
             else:

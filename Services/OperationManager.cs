@@ -156,7 +156,7 @@ namespace XiDeAI_Pro.Services
             ModelManager = new ModelManager((msg) => Logger.AI($"[ModelMgr] {msg}")); 
             Screenshot = new ScreenshotService(
                 Path.Combine(_scriptsDir, "screenshot.py"), 
-                Path.Combine(_baseDir, "screenshots"), 
+                Path.Combine(_appDataDir, "screenshots"),  // Fix: use writable AppData dir, not install dir
                 (msg) => Logger.Sys($"[Screenshot] {msg}"));
 
             // 3. Core Intelligence Services (Dependency: Memory, Stats, ModelManager)

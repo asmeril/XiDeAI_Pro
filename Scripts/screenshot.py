@@ -268,7 +268,7 @@ def take_screenshot(symbol, period="60", output_dir="screenshots", chart_id="GDH
 
     # Chrome options (QHD @ 4.0x - Optimized for readable pivot labels)
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--window-size=2560,1440") # QHD resolution
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")

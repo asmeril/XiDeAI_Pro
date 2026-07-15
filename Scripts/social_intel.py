@@ -287,57 +287,61 @@ def _create_driver_internal(headless=True, use_undetected=True):
         try:
             options = uc.ChromeOptions()
             if headless:
-                options.add_argument("--headless=new")
+                options.add_argument("--headless")
             
             # REMOVED INCOGNITO: Blocks file upload permissions needed for media attachments
             # options.add_argument("--incognito")
-            # options.add_argument("--disk-cache-size=0")
-            # options.add_argument("--media-cache-size=0")
             
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
             options.add_argument("--window-size=1920,1080")
             
-            # OPTIMIZATION: Page load strategy (images enabled; blocking breaks X UI/media previews)
-            options.page_load_strategy = 'eager'
+            if use_ua:
+                options.add_argument(f"--user-agent={use_ua}")
             
             try:
                 driver = uc.Chrome(options=options, version_main=None, headless=headless)
-            except Exception as e:
-                if "version" in str(e).lower():
-                    # v4.8.0: Auto-detect Chrome version instead of hardcoding
+            except Exception as driver_err:
+                if "version" in str(driver_err).lower():
+                    # Auto-detect Chrome version
                     detected_ver = None
                     try:
-                        import subprocess as _sp
-                        result = _sp.run(
+                        import subprocess
+                        result = subprocess.run(
                             ['reg', 'query', r'HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon', '/v', 'version'],
                             capture_output=True, text=True, timeout=5
                         )
                         if result.returncode == 0:
-                            import re as _re
-                            ver_match = _re.search(r'(\d+)\.', result.stdout)
-                            if ver_match:
-                                detected_ver = int(ver_match.group(1))
-                    except: pass
+                            for line in result.stdout.splitlines():
+                                if 'version' in line.lower():
+                                    parts = line.split()
+                                    if len(parts) >= 3:
+                                        detected_ver = int(parts[-1].split('.')[0])
+                                        print(f"[POOL] Auto-detected Chrome version: {detected_ver}", file=sys.stderr)
+                                        break
+                    except Exception as detect_err:
+                        print(f"[POOL] Auto-detect failed: {detect_err}", file=sys.stderr)
                     
                     if not detected_ver:
-                        detected_ver = 146  # Safe modern default
-                    
-                    print(f"Version mismatch in social_intel, forcing v{detected_ver}... {e}", file=sys.stderr)
+                        detected_ver = 126 # Fallback
+                        
+                    print(f"[POOL] Retrying with version_main={detected_ver}", file=sys.stderr)
                     # RECREATE OPTIONS: Cannot reuse after failure
                     options = uc.ChromeOptions()
                     if headless:
-                        options.add_argument("--headless=new")
+                        options.add_argument("--headless")
                     options.add_argument("--disable-blink-features=AutomationControlled")
                     options.add_argument("--no-sandbox")
                     options.add_argument("--disable-dev-shm-usage")
+                    options.add_argument("--disable-gpu")
                     options.add_argument("--window-size=1920,1080")
-                    options.page_load_strategy = 'eager'
-                    
+                    if use_ua:
+                        options.add_argument(f"--user-agent={use_ua}")
                     driver = uc.Chrome(options=options, version_main=detected_ver, headless=headless)
                 else:
-                    raise e
+                    raise driver_err
             try:
                 driver.set_page_load_timeout(25)
             except Exception:
@@ -353,7 +357,7 @@ def _create_driver_internal(headless=True, use_undetected=True):
     # options.add_argument("--incognito")
     
     if headless:
-        options.add_argument("--headless=new")
+        options.add_argument("--headless")
         options.add_argument("--disable-features=VizDisplayCompositor")
         options.add_argument("--disable-software-rasterizer")
         options.add_argument("--disable-extensions")
