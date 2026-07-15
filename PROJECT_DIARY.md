@@ -4,6 +4,12 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 15 Temmuz 2026
 
+### 🚀 v5.6.7 Release
+
+**Telegram Komut Almama (Polling) Sorunu:**
+- `MainForm` başlatılırken Telegram Polling timer'ının `Invoke` metodu ile tetiklenmesi, pencere handle'ı henüz oluşmamışsa `InvalidOperationException` fırlatıp arka plan görevini sessizce çökertiyordu (timer hiç başlamıyordu).
+- Hata düzeltildi: `this.IsHandleCreated` kontrolü eklenip `BeginInvoke` veya `HandleCreated` event'ine bağlanarak timer'ın her koşulda sağlıklı bir şekilde UI thread'inde başlatılması sağlandı.
+
 ### 🚀 v5.6.6 Release
 
 **Beyaz Pencere Flash Düzeltmesi & Telegram Sorunu:**

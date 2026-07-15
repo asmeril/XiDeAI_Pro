@@ -2052,10 +2052,19 @@ namespace XiDeAI_Pro
                     }
                     finally
                     {
-                        this.Invoke((MethodInvoker)(() => {
+                        Action startTimer = () => {
                             _telegramPollTimer.Start();
                             Logger.Telegram("✅ Telegram polling timer aktif (UI Thread).");
-                        }));
+                        };
+
+                        if (this.IsHandleCreated)
+                        {
+                            this.BeginInvoke(startTimer);
+                        }
+                        else
+                        {
+                            this.HandleCreated += (s, ev) => this.BeginInvoke(startTimer);
+                        }
                     }
                 });
 

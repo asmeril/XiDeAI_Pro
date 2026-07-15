@@ -548,18 +548,30 @@ def cmd_search(params):
                     except _StaleEx:
                         continue
                 
-                # Extract image FIRST
+                # Extract image FIRST (with robust fallback for missing src)
                 img_url = None
                 try:
-                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
-                    for img in img_els:
+                    media_containers = art.find_elements(By.CSS_SELECTOR, "[data-testid='tweetPhoto'], [data-testid='videoPlayer'], [data-testid='videoComponent']")
+                    if len(media_containers) > 0:
+                        img_url = "HAS_MEDIA"
                         try:
-                            src = img.get_attribute("src")
-                            if src and "profile_images" not in src:
-                                img_url = src
-                                break
-                        except _StaleEx:
-                            continue
+                            imgs = media_containers[0].find_elements(By.TAG_NAME, "img")
+                            if len(imgs) > 0:
+                                src = imgs[0].get_attribute("src")
+                                if src: img_url = src
+                        except:
+                            pass
+                    
+                    if img_url is None or img_url == "HAS_MEDIA":
+                        img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                        for img in img_els:
+                            try:
+                                src = img.get_attribute("src")
+                                if src and "profile_images" not in src:
+                                    img_url = src
+                                    break
+                            except _StaleEx:
+                                continue
                 except:
                     pass
                 
@@ -706,15 +718,27 @@ def cmd_timeline(params):
 
             img_url = None
             try:
-                img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
-                for img in img_els:
+                media_containers = art.find_elements(By.CSS_SELECTOR, "[data-testid='tweetPhoto'], [data-testid='videoPlayer'], [data-testid='videoComponent']")
+                if len(media_containers) > 0:
+                    img_url = "HAS_MEDIA"
                     try:
-                        src = img.get_attribute("src")
-                        if src and "profile_images" not in src:
-                            img_url = src
-                            break
-                    except _StaleEx:
-                        continue
+                        imgs = media_containers[0].find_elements(By.TAG_NAME, "img")
+                        if len(imgs) > 0:
+                            src = imgs[0].get_attribute("src")
+                            if src: img_url = src
+                    except:
+                        pass
+                
+                if img_url is None or img_url == "HAS_MEDIA":
+                    img_els = art.find_elements(By.CSS_SELECTOR, "img[src*='media']")
+                    for img in img_els:
+                        try:
+                            src = img.get_attribute("src")
+                            if src and "profile_images" not in src:
+                                img_url = src
+                                break
+                        except _StaleEx:
+                            continue
             except:
                 pass
 
