@@ -2,6 +2,18 @@
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
+## 📅 16 Temmuz 2026
+
+### 🚀 v5.7.0 Release
+
+**Prompt Overhaul ve Etkileşim İyileştirmesi:**
+- Tüm LLM istemleri (PromptManager) modüler olarak `#region` tagları altında 10 ana modüle ayrıldı.
+- `GetAntiClicheGuard()` merkezi metodu ile tüm analizlerden ezberlenmiş kalıplar, klişeler ve "Hürmüz boğazı", "büyük resim", "yatırımcı psikolojisi" gibi sürekli tekrarlanan kelimeler temizlendi.
+- `GetVariedVoice()` ve `GetVariedHookDirective()` ile analizlerin giriş cümleleri ve tonlamaları rotasyona bağlandı (Aynı sembol 3 kez analiz edilse bile farklı tonda çıkması sağlandı).
+- Haber Analizi (News) modülündeki zorunlu ekonomik analiz yorumu kaldırıldı; her haberin (Spor, Teknoloji, Yaşam, Siyaset, vb.) kendi bağlamında (zorlama finansal eklemeler yapılmadan) analiz edilmesi sağlandı.
+- Reply (Etkileşim) promptları baştan yazılarak robotik editör dili yerine "sokak jargonu, esprili ve doğal X kullanıcısı" hissiyatı veren kısa yanıtlar formatına çevrildi.
+- Üstat paneli analizinde tablo tipi tanımlama mantığı geliştirilerek, Takas dışı tabloların (örn: HMA) Takas analizine maruz kalma halüsinasyonu giderildi.
+
 ## 📅 15 Temmuz 2026
 
 ### 🚀 v5.6.7 Release

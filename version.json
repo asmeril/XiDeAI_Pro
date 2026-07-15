@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.6.8",
-    "build_number":  5680,
-    "lastUpdate":  "2026-07-15T16:57:34Z",
+    "version":  "5.7.0",
+    "build_number":  5700,
+    "lastUpdate":  "2026-07-15T23:11:12Z",
     "changelog":  [
+                      "v5.7.0: v5.7.0: Prompt Overhaul ve Etkilesim Iyilestirmesi",
                       "v5.6.8: v5.6.8: Ustat paneli artik daima canli X taramas yapar (cache bypass forceRefresh), gorsel tespit iyilesti",
                       "v5.6.7: v5.6.7: Telegram timer crash on UI thread handled \u0026 x_daemon.py image detection improved",
                       "v5.6.6: v5.6.6: Beyaz pencere flash sorunu giderildi (UC kutuphane seviyesinde CREATE_NO_WINDOW fix), Telegram kullanici dogrulama dongusu durduruldu, XHive Telegram hub yeniden aktif edildi",

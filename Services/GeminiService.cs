@@ -147,14 +147,17 @@ namespace XiDeAI_Pro.Services
             try
             {
                 byte[] imageBytes = await client.GetByteArrayAsync(imageUrl);
-                string prompt = $@"Bu bir borsa/takas tarama görselidir. Önce görseli ve varsa şu tweet metnini birlikte analiz ederek tablonun ne olduğunu anla:
+                string prompt = $@"Bu bir borsa tarama görselidir. Önce görseli ve varsa şu tweet metnini birlikte analiz ederek tablonun TÜRÜNÜ ve içeriğini anla:
 TWEET METNİ: {tweetContent}
 
-- Tablo teknik tarama tablosu olabilir.
-- Takas/yabancı payı/fiili dolaşım/AKD/BOFA tablosu olabilir. (Örneğin tweet metninde 'yabancı payı' deniyorsa, tabloda 'Volume' yazsa bile bu bir Yabancı Payı tablosudur, hacim tablosu değildir! Tweetin anlattığı asıl bağlamı baz al.)
-Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç. 
-ÇOK ÖNEMLİ: Seçtiğin her sembol için 'Reason' alanına SADECE kısa bir yorum DEĞİL, tabloda o hisseye ait olan TÜM sütun başlıklarını ve gerçek rakamları/yüzdeleri/değerleri (RSI, Lot miktarı, Yüzdeler vb.) eksiksiz şekilde yaz.
-Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", ""Items"": [{{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""Tablo Verileri -> BofA Net: 100.000 Lot, Diğer Satıcı: %45, Yabancı Payı: %5.2. Tablodaki bu net veriler öne çıkıyor.""}}] }}";
+TABLO TÜRÜ TESPİTİ (ÖNCELİKLİ):
+- Tabloda HMA, RSI, MACD, Hacim, Fiyat, Periyot gibi sütunlar varsa → TableType: 'TEKNİK'
+- Tabloda Takas, AKD, Araıcı Kurum, BofA, Yabancı Payı, Lot Dağılımı gibi sütunlar varsa → TableType: 'TAKAS'
+- Tweet metninde 'yabancı payı' deniyorsa, tabloda 'Volume' yazsa bile bu TAKAS tablosudur.
+
+Görev: Teknik analiz yapılmaya değer EN FAZLA 5 sembol seç.
+ÇOK ÖNEMLİ: Seçtiğin her sembol için 'Reason' alanına tabloda o hisseye ait TÜM sütun başlıklarını ve gerçek rakamları/yüzdeleri eksiksiz yaz.
+Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""EFE HMA"", ""TableType"": ""TEKNİK"", ""Items"": [{{""Symbol"": ""ZERGY"", ""Period"": ""G"", ""Reason"": ""HMA: Yükseliyor, Hacim: 1.2M, Hacim Değişimi: %45, Periyot: Günlük""}}] }}";
 
                 string tempFile = Path.Combine(Path.GetTempPath(), $"guru_{Guid.NewGuid():N}.png");
                 await File.WriteAllBytesAsync(tempFile, imageBytes);
@@ -198,7 +201,9 @@ Period yoksa G yaz. JSON döndür: {{ ""TableName"": ""Takas/Yabancı Payı"", "
             string indicatorContext = string.Join("\n", new[] { technicalContext, LoadIndicatorGuideContext() }.Where(x => !string.IsNullOrWhiteSpace(x)));
             string cleanGuruHandle = string.IsNullOrWhiteSpace(guruHandle) ? "@EFELERiiNEFESi3" : guruHandle.Trim();
             if (!cleanGuruHandle.StartsWith("@")) cleanGuruHandle = "@" + cleanGuruHandle;
-            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, indicatorContext, guruName, cleanGuruHandle, $"{guruName} ({cleanGuruHandle}) - {tableName}\nKaynak tarama: {originalTweetUrl}", visualContext, marketOverview, newsContext, tweetContent);
+            // v5.7.0: tableName'i tweetContent olarak da geçir — PromptManager dinamik tablo türü tespiti yapabilsin
+            string enrichedTweetContent = string.IsNullOrEmpty(tweetContent) ? tableName : $"{tweetContent}\nTABLO: {tableName}";
+            string prompt = _prompts.GetGuruHonoringThreadPrompt(symbol, tableName, "N/A", priceContext, indicatorContext, guruName, cleanGuruHandle, $"{guruName} ({cleanGuruHandle}) - {tableName}\nKaynak tarama: {originalTweetUrl}", visualContext, marketOverview, newsContext, enrichedTweetContent);
             return await SendMultimodalRequest(prompt, imagePath);
         }
 

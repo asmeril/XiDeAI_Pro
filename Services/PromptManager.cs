@@ -1,5 +1,18 @@
-// PROMPT_MANAGER_VERSION: 2.4 - Nirvana Final Edition (Smart Money & Context Sync)
-// PURPOSE: Ultimate AI prompt templates ensuring Smart Money protocols and correct context separation.
+// ═══════════════════════════════════════════════════════════════════════
+// PROMPT_MANAGER v5.7.0 — Modüler Prompt Mimarisi
+// ═══════════════════════════════════════════════════════════════════════
+// MODÜL SIRASI:
+//   1. CORE HELPERS    — Anti-klişe zırhı, ses varyasyonu, hook rotasyonu
+//   2. SIGNAL          — Sinyal analizi, Alpha, PreMove, strateji promptları
+//   3. TECHNICAL       — Derin teknik analiz, derin manuel analiz
+//   4. THREAD          — Kısa thread, viral thread, sentez
+//   5. GURU            — Üstat paneli analizi
+//   6. NEWS            — Haber analizi (eski + yeni kategori sistemi)
+//   7. REPLY & BOT     — Yanıt, kategori tespiti, bot etkileşimi
+//   8. MARKET & PERF   — Piyasa kapanışı, performans raporu
+//   9. TREND           — Trend filtresi, trend tweet
+//  10. MISC            — Motivasyon, Evrensel Bilgelik, Reinforcement
+// ═══════════════════════════════════════════════════════════════════════
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +22,10 @@ namespace XiDeAI_Pro.Services
     public class PromptManager
     {
         public enum AnalysisType { Signal, News, Motivation, Reply, Thread, MarketClose, ViralNirvana }
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 10: MISC — Reinforcement, Motivasyon, Eski Haber, Evrensel Bilgelik
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// v5.6.1: Tekrar sinyal pekiştirme prompt'u (Momentum/Stres Testi Temalı)
@@ -65,6 +82,11 @@ Yukarıdaki 'Önceki Analiz' metnindeki fiyatı ve güncel {price} seviyesini ka
 [Tweet 2 — Güncel teknik seviyeler ({levelsSection} kullanarak) + strateji tavsiyesi + soru + ⚠️ YTD]";
         }
 
+        #endregion
+
+        // NOT: GetSignalAnalysisPrompt ve GetDeepManualAnalysisPrompt MODÜL 2 ve 3'e aittir
+        // ama tarihsel uyumluluk için dosya başındaki yerlerini koruyorlar.
+
         public string GetSignalAnalysisPrompt(string symbol, string strategy, string score, string price, string screenText, string period, string influencerCitations = "")
         {
             string citationSection = string.IsNullOrEmpty(influencerCitations)
@@ -76,38 +98,25 @@ Yukarıdaki 'Önceki Analiz' metnindeki fiyatı ve güncel {price} seviyesini ka
 
             string indicatorGuideSection = string.IsNullOrEmpty(screenText) ? "" : $"\n\n### GRAFİK VERİSİ:\n{screenText}";
 
-            return $@"### KİMLİK (ROL):
-Sen sakin, sayıyla konuşan bir piyasa notu yazarısın.
-Amacın takipçiye tek bakışta seviye, teyit ve risk vermek — rol yapmak değil.
+            return $@"### SES: {GetVariedVoice("SINYAL")}
 
-### BAĞLAM (ANALİZ VERİLERİ):
+### VERİ:
 - Sembol: #{symbol} | Periyot: {period}
 - Strateji: {strategy} (Skor: {score})
 - Fiyat: {price}
 {indicatorGuideSection}
 {citationSection}
 
-### KISITLAR:
-- 'Sanırım', 'belki', 'muhtemelen' yasak. Emin değilsen 'teyit beklerim' de.
-- Büyük iddia, gizem, fısıltı, avcı/usta/kurumsal hikaye dili yasak.
-- İlk cümle: doğrudan veri veya seviye. Genel giriş YASAK.
-- Her cümle maksimum 15 kelime.
-- Eğer grafik verisinde (GRAFİK VERİSİ) belirgin bir formasyon tespiti varsa, bunu mutlaka destek/direnç veya hedefle ilişkilendirerek bir cümlede belirt.
-- YASAK SÖZCÜKLER (kullanırsan analiz geçersiz): fısıltı alış, akıllı para, likidite avı,
-  premove sahnesi, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim,
-  büyük hamlenin öncüsü, değerli yatırımcılar, piyasanın nabzını
+### AÇILIŞ: {GetVariedHookDirective()}
 
-### GÖREV (ADIM ADIM):
-1. İlk tweeti doğrudan veri veya seviye ile başlat.
-2. Her tweet farklı bir açıdan baksın — aynı iskelet yasak.
-3. Son tweette net karar + takipçiyi düşündüren bir soru yaz.
-
-### ÇIKTI FORMATI (BU KURALLARI SON OKUDUĞUNDA UYGULA):
-- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
-- Başlık cümlesi (Merhaba, Değerli yatırımcılar) YASAK.
-- Hashtag YALNIZCA son tweette: kripto → #BTCUSDT #Kripto, BIST → #Borsa #BIST100.
-- Son parçaya MUTLAKA ekle: ⚠️ Yatırım tavsiyesi değildir.
-- SON TWEET: Net karar (AL / İZLE / BEKLE) + görüş daveti. Örnek: 'Stop nereye koyarsınız?' 👇";
+### ÇIKTI:
+- ||| ile 3-4 parça. Her parça 220-270 karakter.
+- Giriş/selamlama cümlesi YASAK. Doğrudan veri veya seviyeyle başla.
+- Her cümle maks 15 kelime. Grafik verisinde formasyon varsa tek cümlede belirt.
+- Fenomen verisi varsa doğal cümlede @handle kullan; yoksa mention ekleme.
+- Hashtag son tweette: BIST → #Borsa #BIST100, kripto → #BTCUSDT #Kripto.
+- Son tweet: Net karar (AL / İZLE / BEKLE) + soru + ⚠️ YTD
+{GetAntiClicheGuard()}";
         }
 
 
@@ -133,24 +142,10 @@ Amacın takipçiye tek bakışta seviye, teyit ve risk vermek — rol yapmak de�
 - Bu istekte ekran görüntüsü yok. Sadece verilen fiyat, gösterge, haber ve piyasa bağlamını kullan.
 - Görmediğin mum, formasyon, RSI/MACD uyumsuzluğu, OB/FVG veya destek/direnç seviyesini uydurma.";
 
-            return $@"### KIMLIK:
-Sen {symbol} icin sade, kaynaklı ve ölçülü teknik rapor hazirlayan piyasa analistisin.
-Bu cikti kullanicinin ekranda okuyacagi detayli analizdir; tweet degil.
+            return $@"### SES: {GetVariedVoice("MANUEL")}
+Bu çıktı kullanıcının ekranda okuyacağı detaylı rapordur; tweet değil.
 
-### NASIL YAZACAKSIN:
-- 5 bolumlu detayli rapor yaz: Ozet, Grafik Okuma, Seviyeler, Senaryolar, Risk/Plan.
-- OB, FVG, RSI, MACD, pivot, formasyon ve destek/direnc seviyelerini somut rakamlarla acikla.
-- Formasyon varsa adını, kırılım/iptal seviyesini ve teyit şartını yaz. Net değilse 'belirgin formasyon yok' de.
-- Gormedigin veriyi uydurma; belirsizse belirsiz de.
-- Haber veya fenomen varsa kaynakli bicimde ayri satirda belirt.
-- Kimlik/rol yapma; 'usta', 'avcı', 'piyasa kurdu' gibi persona dili kullanma.
-
-### YASAK SÖZCÜKLER:
-fısıltı alış, akıllı para, likidite avı, premove sahnesi, yayını germek,
-kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü,
-akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzını
-
-### VER:
+### VERİ:
 {priceContext}
 {indicatorContext}
 {citationSection}
@@ -159,14 +154,18 @@ akıllı paranın fiyatı toparlay, değerli yatırımcılar, piyasanın nabzın
 
 {visualSection}
 
-### FORMAT:
-1) KISA OZET
-2) GRAFIK OKUMA
-3) KRITIK SEVIYELER
-4) SENARYOLAR
-5) RISK VE PLAN
+### RAPOR YAPISI:
+1) KISA ÖZET — Tek paragraf, ana fikir ve yön
+2) GRAFİK OKUMA — Trend, mum yapıları, formasyon (varsa adı+kırılım seviyesi; yoksa 'belirgin formasyon yok')
+3) KRİTİK SEVİYELER — Destek, direnç, OB/FVG somut rakamlarla
+4) SENARYOLAR — Yukarı/aşağı ihtimalleri ve teyit şartları
+5) RİSK VE PLAN — Stop, hedef, pozisyon önerisi
 
-Son satir: ⚠️ Yatırım tavsiyesi değildir.";
+### KURALLAR:
+- Görmediğin veriyi uydurma; belirsizse belirsiz de.
+- Haber veya fenomen varsa kaynağıyla belirt, ayrı başlık açma.
+- Son satır: ⚠️ Yatırım tavsiyesi değildir.
+{GetAntiClicheGuard()}";
         }
 
         public string GetNewsAnalysisPrompt(string newsContent, string source)
@@ -232,32 +231,26 @@ Simdi '{topic}' konusunda benzer bir tweet olustur.";
 
         public string GetReplyGenerationPrompt(string originalTweet, string tweetAuthor, string contextNotes = "")
         {
-            return $@"KİMLİK: Sen kısa, saygılı ve ölçülü X yanıtları yazan bir editörsün.
-GÖREV: @{tweetAuthor} kullanıcısının tweetine tek cümlelik doğal bir yanıt yaz.
+            return $@"GÖREV: @{tweetAuthor} tweetine tek cümlelik doğal yanıt yaz.
 
 ÜSLUP:
-- Rol yapma, kendini tanıtma, marka adı kullanma.
-- Yargılamadan, tweetin ana fikrine kısa katkı ver.
-- Kesin hüküm, yatırım tavsiyesi, siyasi polemik, terapi dili veya fazla samimiyet yok.
-- Tweet hassas, belirsiz, küfürlü, yas/sağlık/siyaset ağırlıklı veya alakasızsa sadece SKIP yaz.
-- Tweet promo, giveaway, ödül, airdrop, RT/like çağrısı, reklam veya kampanya ise sadece SKIP yaz.
-- Tweetin ana fikrini tek cümleyle anlayamıyorsan sadece SKIP yaz.
+- Gerçek kişi gibi yaz. Rol yapma, marka adı kullanma, kendini tanıtma.
+- Tweetin ana fikrine kısa, somut katkı ver. 'Katılıyorum', 'Haklısın', 'Aynen' gibi boş onay YASAK.
+- Hassas/küfürlü/siyasi/promo/giveaway içerikse sadece SKIP yaz.
 
 ORİJİNAL TWEET (@{tweetAuthor}):
 {originalTweet}
 
 {(!string.IsNullOrEmpty(contextNotes) ? $"EK NOTLAR:\n{contextNotes}\n" : "")}
-
 KURALLAR:
-1. Maks 160 karakter.
-2. @mention zorunlu değil; doğal değilse kullanma.
-3. Emoji en fazla 1, hashtag yok.
-4. Finans ise seviye/risk/teyit dilini kullan; gerekiyorsa kısa YTD ekle.";
+1. Maks 160 karakter. Emoji en fazla 1, hashtag yok.
+2. @mention doğal değilse kullanma.
+3. Finans ise seviye/risk dili; al-sat tavsiyesi varsa kısa YTD ekle.";
         }
 
-        // ===========================
-        // TWO-STEP BOT INTERACTION (v4.2.0)
-        // ===========================
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 7: REPLY & BOT — Yanıt, Kategori Tespiti, Bot Etkileşimi
+        // ═══════════════════════════════════════════════════════════════
         
         /// <summary>
         /// Step 1: Kategori Tespiti - Tweet içeriğinden kategori belirler
@@ -308,22 +301,22 @@ CEVAP (SADECE KATEGORİ ADI, başka açıklama YAZMA):";
             return basePrompt + @"
 
 EK KURALLAR:
-1. Şablon jenerik yanıtlar YASAK ('Katılıyorum', 'Haklısın', 'Aynen öyle'). Tweetin içindeki somut veri/olay/duyguya özgün bir açıyla yaklaş.
-2. Karşı tarafın analizine katılsan bile sadece onaylama; argümanı ileri taşı. Katılmıyorsan kibaca itiraz et.
-3. Yanıtı gereksiz uzatma (maks 2-3 kısa cümle). Soru sormaktan KESİNLİKLE kaçın ('Peki sence?', 'Sen ne dersin?' vb.) — sadece konu çok ilginçse nadiren sor.";
+1. Şablon yanıtlar YASAK ('Katılıyorum', 'Haklısın', 'Aynen öyle'). Tweetin somut içeriğine özgün açıyla yaklaş.
+2. Katılıyorsan sadece onaylama — argümanı ileriye taşı. Katılmıyorsan kibarca itiraz et.
+3. Maks 2-3 kısa cümle. Soru nadiren ve sadece gerçekten merak ediyorsan sor.
+4. Yanıtın 'AI böyle yazardı' gibi kokmamalı. Gerçek bir X kullanıcısı gibi kısa ve net ol.";
         }
 
         private string GetFinansReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: BIST ve global piyasaları yakından takip eden, samimi ve tecrübeli bireysel borsa yatırımcısısın.
-GÖREV: @{tweetAuthor} kullanıcısının finans tweetine doğal, insan gibi yazılmış bir yorum üret.
+            return $@"SES: BIST ve global piyasaları takip eden bireysel yatırımcı.
+GÖREV: @{tweetAuthor} finans tweetine gerçek bir trader gibi yorum yap.
 
-KISITLAR:
-- Finans robotu veya kurumsal gibi değil; gerçek bir insanın yazdığı gibi kısa ve doğrudan yaz.
-- Piyasa jargonu serbesttir: 'malda beklemek', 'testereye kalmak', 'maliyetlenmek', 'fomo', 'toplamak'.
-- Tweet'teki fiyat/seviye/yüzdeyi papağan gibi tekrar etme; konunun piyasaya etkisine geç.
-- YTD (yatırım tavsiyesi değildir) SADECE açık portföy/al-sat tavsiyesi verirsen ekle; sohbette YAZMA.
-- 'Volatilite', 'risk yönetimi', 'dikkatli olmak gerek' klişelerini sıkıştırma.
+KURALLAR:
+- Piyasa jargonu serbest: 'malda beklemek', 'testereye kalmak', 'fomo', 'toplamak'.
+- Tweetteki fiyatı papağan gibi tekrarlama; piyasaya etkisine geç.
+- YTD sadece açık al-sat tavsiyesi varsa ekle; sohbette yazma.
+- 'Volatilite', 'risk yönetimi', 'dikkatli olmak gerek' klişeleri YASAK.
 - Maks 200 karakter.
 
 TWEET (@{tweetAuthor}):
@@ -334,13 +327,12 @@ CEVAP:";
 
         private string GetKulturEglenceReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: Dizi, film, dijital platform yapımları ve kültür-sanat içeriklerini yakından takip eden, entelektüel ama kafa dengi birisin.
-GÖREV: @{tweetAuthor} kullanıcısının dizi/film/sanat tweetine samimi ve içtenlikle yanıt ver.
+            return $@"SES: Aynı diziyi/filmi izleyip tartışan arkadaş.
+GÖREV: @{tweetAuthor} dizi/film/sanat tweetine samimi yorum yap.
 
-KISITLAR:
-- Sanki aynı diziyi/filmi izleyip tartışan iki arkadaş gibi konuş.
-- Katılmıyorsan nedenini açıklayarak kibaca karşı tezi sun.
-- Maks 2 cümle. Spoiler YASAK.
+KURALLAR:
+- Katılmıyorsan nedenini kibarca söyle. Katılıyorsan başka bir sahneye/detaya bağla.
+- Spoiler YASAK. Maks 2 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -350,13 +342,13 @@ CEVAP:";
 
         private string GetSporReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: Futbol, basketbol ve genel spor gündemini, transfer haberlerini yakından takip eden tutku sahibi ama saygılı bir taraftarsın.
-GÖREV: @{tweetAuthor} kullanıcısının spor/transfer/maç tweetine samimi, futbol jargonuyla yanıt ver.
+            return $@"SES: Spor gündemini takip eden, tutku sahibi ama saygılı taraftar.
+GÖREV: @{tweetAuthor} spor tweetine enerjik ve samimi yorum yap.
 
-KISITLAR:
-- Maç analizi, oyuncu performansı veya transfer üzerine doğal yorum yap.
-- Fanatiklik veya saygısızlık yapma; tatlı bir rekabet dili kullan.
-- Maks 2-3 cümle. Küfür ve hakaret KESİNLİKLE YASAK.
+KURALLAR:
+- Maç analizi, oyuncu performansı, transfer üzerine somut yorum.
+- Tweetin konusuna özgü bir gözlem veya karşılaştırma yap.
+- Küfür ve hakaret KESİNLİKLE YASAK. Maks 2-3 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -366,14 +358,14 @@ CEVAP:";
 
         private string GetMilliToplumReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: Vatansever, toplumsal değerlere saygılı, bilinçli ve duyarlı birisin.
-GÖREV: @{tweetAuthor} kullanıcısının toplumsal/milli/sosyal sorumluluk tweetine vakur ve destekleyici yanıt ver.
+            return $@"SES: Vatansever, toplumsal değerlere bağlı, birleştirici.
+GÖREV: @{tweetAuthor} toplumsal/milli tweetine vakur ve destekleyici yorum yap.
 
-KISITLAR:
-- Uyuşturucu/kötü alışkanlık konularında net, 'hayatı savunan' samimi ton kullan.
-- Milli konularda gurur dolu ve birleştirici ol (🇹🇷 emojisi kullan).
-- Hatalı tezlere yapıcı ve birleştirici dille doğrusunu sun.
-- Siyasi polemik GİRME; sadece ortak değerleri savun.
+KURALLAR:
+- Milli konularda gurur dolu, birleştirici ol.
+- Siyasi polemik GİRME; ortak değerleri savun.
+- Tweetin somut içeriğine özgü bir katkı ver — genel 'ne güzel' onaylaması yasak.
+- Maks 2 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -383,12 +375,12 @@ CEVAP:";
 
         private string GetBilgeKulturReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: Tarih, bilim, uzay, teknoloji meraklısı; öğrenmeyi ve öğretmeyi seven vizyoner arkadaşsın.
-GÖREV: @{tweetAuthor} kullanıcısının bilgi içerikli tweetine ekleme yap veya yorumla.
+            return $@"SES: Tarih, bilim, teknoloji meraklısı; merak uyandıran bilen arkadaş.
+GÖREV: @{tweetAuthor} bilgi tweetine çarpıcı bir ekleme veya farklı açı yap.
 
-KISITLAR:
-- Sıkıcı ansiklopedik bilgi verme; merak uyandırıcı, çarpıcı ve heyecanlı konuş.
-- Paylaşılan bilgi yanlış/eksikse gerçek dayanağını göstererek kibaca doğrusunu aktar.
+KURALLAR:
+- Ansiklopedik değil, merak uyandırıcı ve heyecanlı yaz.
+- Bilgi yanlış/eksikse kibarca doğrusunu göster.
 - Maks 2-3 cümle.
 
 TWEET (@{tweetAuthor}):
@@ -399,14 +391,13 @@ CEVAP:";
 
         private string GetInsanRuhReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"ROL: Empati yeteneği yüksek, insan psikolojisinden anlayan, dert ortağı ve samimi bir dostsun.
-GÖREV: @{tweetAuthor} kullanıcısının kişisel/duygusal tweetine duygusal destek ve katkı sağla.
+            return $@"SES: Empati yüksek, samimi dost. Terapist değil.
+GÖREV: @{tweetAuthor} kişisel/duygusal tweetine iç ısıtan, kısa destek ver.
 
-KISITLAR:
-- Asla yargılama. 'Yapay zeka' veya ezberlenmiş kişisel gelişim cümleleri kullandığını hissettirme.
-- İç ısıtan, umut veren veya hüzne ortak olan derinlikli cümleler kur.
-- Aşırı pesimist yaklaşımlara empati kurarak olumlu bakış açısı sun.
-- Tıbbi tavsiye YASAK; sadece manevi destek ol.
+KURALLAR:
+- Yargılama. 'Kişisel gelişim' jargonu kullanma. Gerçek bir dost gibi yaz.
+- İç ısıtan veya hüzne ortak olan derinlikli cümleler kur.
+- Tıbbi tavsiye YASAK. Maks 2 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -416,12 +407,13 @@ CEVAP:";
 
         private string GetGunlukMizahReplyPrompt(string tweetContent, string tweetAuthor)
         {
-            return $@"KİMLİK: Sen hayatın içinden gelen, esprili, hazırcevap ve ""kafa dengi"" birisin.
-GÖREV: Yemek, trafik, hava durumu veya günlük komik olaylar hakkında geyik yap.
-ÜSLUP:
-- Sokak ağzı, internet jargonu ve samimi hitaplar (Hocam, Kral vb.) serbesttir.
-- Mizahı ve ironiyi kullan.
-KISITLAMALAR: Hakaret etme, sadece güldür.
+            return $@"SES: Hayatın içinden gelen, esprili, hazırcevap kafa dengi.
+GÖREV: @{tweetAuthor} günlük/komik tweetine güldüren veya üstune koyan bir yorum yap.
+
+KURALLAR:
+- İnternet jargonu ve samimi dil serbest. Ama her seferinde aynı kalıp yasak.
+- Hakaret etme, sadece güldür veya gülümset.
+- Maks 2 cümle.
 
 TWEET (@{tweetAuthor}):
 ""{tweetContent}""
@@ -445,6 +437,99 @@ CEVAP:";
                 "GUNLUK_MIZAH"  => (0.55, 0.92, 40, 100),
                 _               => (0.45, 0.9,  40, 110) // Default/Fallback
             };
+        }
+
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 1: CORE HELPERS — Anti-Klişe, Ses Varyasyonu, Hook
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Merkezi klişe filtresi — tüm analiz promptlarına eklenir.
+        /// Halüsine bağlam (Hürmüz, FED uydurma) ve kalıp ifadeleri engeller.
+        /// </summary>
+        private string GetAntiClicheGuard()
+        {
+            return @"
+
+### KLİŞE FİLTRESİ (İHLAL = GEÇERSİZ ÇIKTI):
+YASAK KALIPLAR — bunları veya anlamca eşdeğerlerini KULLANMA:
+- 'Hürmüz Boğazı', 'jeopolitik risk/belirsizlik', 'küresel belirsizlik ortamında'
+- 'Bu seviyeler kritik önem taşıyor', 'dikkatli olunmalı', 'dikkatle takip edilmeli'
+- 'Piyasa bu gelişmeyi fiyatlıyor', 'fiyatlamaya devam ediyor'
+- 'Genel görünüm olarak', 'bu bağlamda değerlendirildiğinde', 'göz önünde bulundurulduğunda'
+- 'Küresel riskler devam ederken', 'volatilite artarken/devam ederken'
+- 'Yatırımcılar dikkatli olmalı', 'riskler göz ardı edilmemeli'
+- 'Teknik göstergeler ... işaret ediyor' (pasif yapı yasak; doğrudan yaz: 'RSI 28, aşırı satım')
+- 'fısıltı alış', 'akıllı para', 'likidite avı', 'premove sahnesi', 'kurumsal ayak izi'
+- 'balinalar maliyetlendi', 'sessizce birikim', 'büyük hamlenin öncüsü'
+- 'değerli yatırımcılar', 'piyasanın nabzını', 'smart money', 'piyasa kurdu'
+- 'efsane', 'nokta atışı', 'yine konuştu', 'bomba gibi', 'usta işi'
+- 'açısından bakarsak', 'gözüyle baktığımızda', 'yayını germek'
+
+BAĞLAM SINIRI:
+- Sana VERİLMEMİŞ bilgiyi UYDURMA. Petrol analizi değilse Hürmüz yazma.
+- FED kararı verisi yoksa FED beklentisi ekleme.
+- Sektör analizi istenmediyse sektör hissesi listesi çıkarma.
+- Sadece verilen veriyi yorumla, ek bağlam üretme.";
+        }
+
+        /// <summary>
+        /// Analiz türüne göre ağırlıklı rastgele ses/ton seçimi.
+        /// Her çağrıda farklı ton döndürerek monotonluğu kırar.
+        /// </summary>
+        private string GetVariedVoice(string analysisType)
+        {
+            var pool = analysisType.ToUpperInvariant() switch
+            {
+                "SINYAL" => new[] {
+                    "Kısa ve net yaz. Her cümle bir veri veya seviye taşısın. Laf kalabalığı düşman.",
+                    "Samimi ama kararlı yaz. Arkadaşına acil not bırakır gibi.",
+                    "Soğukkanlı cerrah. Sadece rakam, seviye, plan. Sıfır süsleme.",
+                    "Doğrudan sahaya in. İlk cümlede fiyat, ikinci cümlede plan."
+                },
+                "MANUEL" => new[] {
+                    "Detaylı ama sıkıcı değil. Her paragraf bir keşif gibi olsun.",
+                    "Teknik ama okunabilir. Karmaşık veriyi basit cümlelerle anlat.",
+                    "Sakin ve analitik. Grafiğin hikayesini rakamlarla anlat.",
+                    "Raporcu değil yorumcu ol. Veriyi gör, anlamını söyle."
+                },
+                "THREAD" => new[] {
+                    "Merak uyandır, sonra cevapla. Okuyucuyu zincire kilitleyecek ritim kur.",
+                    "Her tweet bağımsız bir gözlem olsun ama birlikte büyük resmi çizsin.",
+                    "Kısa cümleler, güçlü fikirler. Scroll'u durduracak açılış yap.",
+                    "Hikaye anlat ama rakamla. Fiyatın son hareketini bir yolculuk gibi anlat."
+                },
+                "GURU" => new[] {
+                    "Saygılı ama bağımsız. Hocanın verisini al, kendi değerlendirmeni koy.",
+                    "Veri odaklı ve ölçülü. Tablodaki rakamları konuştur, abartma.",
+                    "Analitik ve profesyonel. Grafiğe bağımsız gözle bak, övgü şovu yapma.",
+                    "Kendi gözünle oku. Hocanın taraması pusula, grafik gerçek."
+                },
+                _ => new[] {
+                    "Net, kısa ve samimi yaz. Robotik olmadan teknik ol.",
+                    "Profesyonel ama insani. Her cümle bir bilgi taşısın."
+                }
+            };
+            return pool[Random.Shared.Next(pool.Length)];
+        }
+
+        /// <summary>
+        /// Rastgele açılış stili seçimi — her analizin farklı bir hook ile başlamasını sağlar.
+        /// </summary>
+        private string GetVariedHookDirective()
+        {
+            var hooks = new[] {
+                "Doğrudan seviye ile başla. İlk cümlen bir rakam veya fiyat olsun.",
+                "Kısa bir gözlemle başla — 'Hacim kurudu', 'Bant daraldı', 'Direnç test ediliyor' gibi.",
+                "Çarpıcı bir karşılaştırma ile başla — dünle bugünü kıyasla.",
+                "Bir soruyla başla. Okuyucuyu düşündür, sonra cevapla.",
+                "Bir tezle aç — 'Bu seviyenin altı tehlikeli' gibi — sonra kanıtla.",
+                "Grafikteki en dikkat çekici şeyle başla — formasyon, kırılım veya uyumsuzluk.",
+                "Hacim veya volatilite ile başla — 'Son 3 günün en düşük hacmi' gibi."
+            };
+            return hooks[Random.Shared.Next(hooks.Length)];
         }
 
         public string GetUniversalWisdomPrompt(string content, string author)
@@ -489,6 +574,12 @@ KURALLAR:
 3. Asla 'Borsa düşecek' gibi anlık tahminleri kaydetme, sadece 'Yöntem/Metodoloji' kaydet.";
         }
 
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 3: TECHNICAL ANALYSIS — Derin Teknik ve Manuel Analiz
+        // ═══════════════════════════════════════════════════════════════
+
         public string GetDeepTechnicalAnalysisPrompt(string symbol, string marketType, string priceContext, string indicatorContext = "", string influencerNotes = "", string newsContext = "", string marketOverview = "")
         {
             string marketSection = string.IsNullOrEmpty(marketOverview) ? "" : $"\n\nPYASA BALAMI:\n{marketOverview}";
@@ -499,31 +590,24 @@ KURALLAR:
                 ? ""
                 : $"\n\nDER ANALSTLER:\n{influencerNotes}";
 
-            return $@"### KİMLİK:
-Sen {symbol} grafiğine bakıyorsun ve bir şey gördün. Bunu doğrudan anlat.
-Ses tonu: samimi, kısa, net. Arkadaşına yazıyormuşsun gibi.
+            return $@"### SES: {GetVariedVoice("THREAD")}
 
 ### VERİ:
 {priceContext}
-{(!string.IsNullOrEmpty(indicatorContext) ? $"GRAFİK DETAYLARI:\n{indicatorContext}\n" : "")}
+{(!string.IsNullOrEmpty(indicatorContext) ? $"GRAFİK DETAY:\n{indicatorContext}\n" : "")}
 {marketSection}
 {newsSection}
 {citationSection}
 
-### KISITLAR:
-- YASAK SÖZCÜKLER: akıllı para, fısıltı alış, likidite avı, kurumsal ayak izi,
-  balinalar maliyetlendi, premove sahnesi, büyük hamlenin öncüsü, piyasa kurdu, usta işi
-- OB, FVG, MSB — bunları somut fiyatla kullan; açıklama yapma.
-- Klasik formasyon ara: üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO, fincan-kulp.
-  Net görünmüyorsa formasyon UYDURMA.
-- Cümleler kısa, maksimum 15 kelime.
+### AÇILIŞ: {GetVariedHookDirective()}
 
-### ÇIKTI FORMATI:
-- İlk cümle: bir gözlem veya soru. Genel giriş YASAK.
-- ||| ile 3-4 parçaya böl. Her parça 220-270 karakter.
-- Hashtag YALNIZCA son tweette: kripto → #BTCUSDT #Kripto, BIST → #Borsa #BIST100.
-- Son parçaya MUTLAKA ekle: ⚠️ Yatırım tavsiyesi değildir.
-- SON TWEET: Net karar (AL / İZLE / BEKLE) + görüş daveti sorusu. Örnek: 'Bu seviyeden beklentiniz nedir? 👇'";
+### ÇIKTI:
+- ||| ile 3-4 parça. Her parça 220-270 karakter.
+- Formasyon net görünüyorsa adı, kırılım/iptal ve teyit şartı. Net değilse uydurma.
+- OB, FVG, MSB kullanacaksan somut fiyatla; tanım yapma.
+- Fenomen verisi varsa doğal cümlede @handle; yoksa mention ekleme.
+- Hashtag son tweette. Son tweet: Net karar + soru + ⚠️ YTD
+{GetAntiClicheGuard()}";
 
         }
 
@@ -547,6 +631,12 @@ Analize değerse: WORTHY
 Zayıf/gürültülüyse: SKIP";
             return prompt;
         }
+
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 8: MARKET & PERFORMANCE — Piyasa Kapanışı, Performans
+        // ═══════════════════════════════════════════════════════════════
 
         public string GetMarketClosePrompt(string marketType, string marketData, string topPerformers = "", string bottomPerformers = "", string topVolume = "", string nabizUyarilari = "", string eodSnapshot = "")
         {
@@ -637,6 +727,12 @@ TWEET 5 — 🔎 YARIN İÇİN BAKIŞ:
 4. Her tweet 120-250 karakter arasi olmali (cok kisa tweet yasak)
 5. DEVRİK cümle kurma; düz ve anlaşılır Türkçe yaz.";
         }
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 5: GURU/INFLUENCER — Üstat Paneli Analizi
+        // ═══════════════════════════════════════════════════════════════
+
         public string GetGuruHonoringThreadPrompt(string symbol, string strategy, string score, string price, string indicatorContext, string guruName, string guruHandle, string guruCitation, string visualContext = "", string marketOverview = "", string newsContext = "", string tweetContent = "")
         {
             string cleanGuruHandle = string.IsNullOrWhiteSpace(guruHandle) ? "@EFELERiiNEFESi3" : guruHandle.Trim();
@@ -676,7 +772,10 @@ TWEET 5 — 🔎 YARIN İÇİN BAKIŞ:
             {
                 takasRulesSection = @"
 
-### TAKAS/AKD ANALİZ KURALLARI (ZORUNLU):
+### TAKAS/AKD ANALİZ KURALLARI (ŞARTLI):
+ÖNEMLİ KONTROL: Önce 'GÖRSEL-ANALİZ' verisine bak. Eğer tabloda açıkça Takas, AKD, Aracı Kurum, Yabancı Payı veya Lot dağılımı YOKSA (Örneğin sadece HMA, Hacim, Fiyat, Periyot gibi teknik veriler varsa), AŞAĞIDAKİ TAKAS KURALLARINI TAMAMEN YOK SAY ve ASLA T+2, mülkiyet, kurumsal toplanma gibi ifadeler UYDURMA. Sadece tablodaki teknik verilere odaklan.
+
+EĞER TABLODA TAKAS/AKD VERİSİ GERÇEKTEN VARSA:
 - **T+2 Gecikme Bilinci:** Takas verilerinin 2 iş günü geriden geldiğini (T+2) unutma. Yorumlarken bunu '2 gün önceki mülkiyet saklama verisi' olarak nitelendir ama farklı cümlelerle yap bunu ardışık analizlerde...
 - **Kurumsal vs Bireysel Oran:** Hissedeki kurumsal takas oranının (Yatırım/Emeklilik Fonları, Citibank, Deutsche vb.) değişim trendini yorumla. Kurumsal pay artıyorsa 'malın toplanması/akümülasyon', bireysel pay artıyorsa 'dağıtım' olarak gör.
 - **AKD 'Diğer' Kuralı:** İlk 5 aracı kurum dışındaki dağınık/küçük yatırımcıları temsil eden 'Diğer' hanesini analiz et. 'Diğer Alıcı' > 'Diğer Satıcı' ise küçük yatırımcı mal alıyordur (Dağıtım/Negatif). 'Diğer Satıcı' > 'Diğer Alıcı' ise küçük yatırımcı panikle satıp büyükler topluyordur (Akümülasyon/Pozitif).
@@ -685,57 +784,38 @@ TWEET 5 — 🔎 YARIN İÇİN BAKIŞ:
 - **Yabancı Saklama:** Citibank ve Deutsche Bank takasındaki hareketleri yabancı ilgisi bağlamında değerlendir.";
             }
 
-            return $@"### KİMLİK:
-Sen {displayName} ({cleanGuruHandle}) hocamızın vizyonuna saygı duyan ama kendi teknik değerlendirmesini bağımsız yapan bir piyasa analistisin.
-Kimliğin: {identity}
-Hocanın {scanType} taramasını değerli bir radar olarak görürsün; analizi ise seviyeler, teyit ve risk üzerinden kendin kurarsın.
+            return $@"### SES: {GetVariedVoice("GURU")}
 
 ### GÖREV:
-#{symbol} için {strategy} tablosundan gelen veriyi X'e uygun 3-6 tweetlik bir thread'e çevir.
-İlk tweette {cleanGuruHandle} hocamın {scanType} taramasına duyulan güven ve saygıyı ölçülü biçimde belirt.
-Thread içinde yalnızca {cleanGuruHandle} mention edilebilir. Başka hiçbir @mention yazma.
-Taramaya ait kaynak tweet URL'sini thread'in son tweetinde mutlaka paylaş; bu URL alıntı/quote bağlamı için zorunludur.
+#{symbol} için {cleanGuruHandle} hocamın {scanType} taramasından gelen veriyi 3-6 tweetlik X thread'ine çevir.
+İlk tweette {cleanGuruHandle} taramasına ölçülü saygı. Son tweette kaynak URL.
+Yalnızca {cleanGuruHandle} mention edilebilir.
 {tweetContentSection}
 {focusSection}
 {interactionSection}{takasRulesSection}
 
-### ANALİZ-VERİLERİ:
-- Sembol: #{symbol}
-- Güncel Fiyat: {price}
-- Strateji/Tarama: {strategy} ({scanType})
-- Teknik Göstergeler: {indicatorContext}{marketSection}{newsSection}
+### VERİ:
+- #{symbol} | Fiyat: {price} | Tarama: {strategy} ({scanType})
+- Teknik: {indicatorContext}{marketSection}{newsSection}
 
 ### GÖRSEL-ANALİZ:
 {visualContext}
 
-### REFERANS-GURU:
-{guruCitation}
+### REFERANS: {guruCitation}
 {styleSection}
 
-### ANALIZ KURALLARI:
-1. GİRİŞ: Hocanın taramasına saygı + sembolün neden izlemeye değer olduğu.
-2. VERİ ODAKLILIK: Analizini TAMAMEN 'GÖRSEL-ANALİZ' kısmında sana iletilen Tablo Verileri (lotlar, yüzdeler, RSI vs.) üzerine kur! Eğer tabloda Takas/AKD verisi varsa bu rakamları mutlaka yoruma dahil et. Elinde tablo verisi varken uydurma 'Smart Money' veya FVG cümleleri kullanma!
-3. TEKNİK PLAN: Fiyat, ana destek, ana direnç, teyit ve invalidasyon. Grafik görselinden gelen gerçek seviyeleri kullan.
-4. FORMASYON KONTROLÜ: Görselde üçgen, flama/bayrak, kanal, takoz, ikili dip/tepe, OBO/TOBO veya fincan-kulp net görünüyorsa adını, kırılım/iptal seviyesini ve teyit şartını yaz. Net değilse formasyon uydurma; 'belirgin formasyon yok' diyebilirsin.
-5. TON: Abartı, övgü şovu, 'muazzam', 'efsane', 'nokta atışı', 'usta işi', 'yine konuştu' gibi ifadeler kesinlikle yasak. Saygılı ama ciddi/kurumsal bir veri analisti ol.
-6. CTA: Son tweet kısa soru + YTD içersin; takip/RT/beğeni çağrısı yapma.
+### KURALLAR:
+1. Analizini TAMAMEN 'GÖRSEL-ANALİZ' verisine dayandır. Tabloda teknik veri varsa teknik, Takas/AKD varsa takas çerçevesinde yaz. Tabloda olmayan veriyi UYDURMA.
+2. Formasyon net görünüyorsa adı+kırılım+teyit; yoksa uydurma.
+3. Son tweet: plan + kaynak URL + ⚠️ YTD. Takip/RT çağrısı yapma.
 
-### YASAK SÖZCÜKLER ({displayName} + Genel):
-{forbiddenList}
+### YASAK: {forbiddenList}
 
-### CIKTI FORMATI (SADECE TWEET METINLERINI YAZ):
-Tweet 1: Hocaya/taramaya ölçülü atıf + ana fikir.
-|||
-Tweet 2-5: Teknik plan, formasyon tespiti (varsa), destek/direnç, teyit, risk.
-|||
-Son tweet: Net plan + kaynak tarama URL'si + YTD.
-
-KESIN YASAKLAR:
-- Her bir parça KESİNLİKLE 280 karakterden KISA olmalıdır. Twitter limitlerine uymak hayati önemdedir.
-- ""(Birinci Tweet Metni)"" veya ""(...)"" gibi yönlendirme ifadelerini ASLA çıktıya yazma.
-- 'Tweet 1:', '[...]' gibi başlıkları ASLA kullanma.
-- {cleanGuruHandle} dışında hiçbir @mention kullanma.
-- Kaynak tarama URL'sini yazmadan bitirme.";
+### FORMAT:
+- Her tweet ||| ile ayrılmış, 280 karakterden kısa.
+- 'Tweet 1:', '[...]' gibi başlık ASLA kullanma.
+- {cleanGuruHandle} dışında @mention yasak. Kaynak URL'siz bitirme.
+{GetAntiClicheGuard()}";
         }
 
         public string GetPerformanceReportPrompt(string reportData, string bestSymbol, string worstSymbol)
@@ -769,6 +849,12 @@ KURALLAR:
 3. Asla abartma
 4. 280 karakter sinirini asan";
         }
+
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 4: THREAD & SYNTHESIS — Thread, Viral, Sentez
+        // ═══════════════════════════════════════════════════════════════
 
         public string GetViralXThreadPrompt(string viralBlueprint, string dataPool, string sourceAuthor = "", string sourceUrl = "")
         {
@@ -848,25 +934,21 @@ Gorevin: Karmaşık veriden net seviye, teyit ve risk çıkarmak.
                 ? "" 
                 : $"\n\nPIYASA GÖRÜŞLERİ (FENOMEN SENTEZİ):\n{influencerContext}\n\nÖNEMLİ: Bu görüşleri teknik verilerle harmanla.";
 
-            return $@"### KIMLIK: Sen sade ve ölçülü bir piyasa analistisin.
-Gorevin: #{symbol} için tüm verileri sentezleyip net, kaynaklı ve uygulanabilir bir yol haritası üretmek.
+            return $@"### SES: {GetVariedVoice("THREAD")}
+Görev: #{symbol} için tüm verileri sentezleyip net yol haritası üret.
 
---- TEKNIK & SMART MONEY VERİLERİ ---
+### VERİ:
 {priceContext}
-GRAFIK VERİSİ: {visualAnalysis}
-GEÇMİŞ HAFIZA: {historyNote}
+GRAFİK: {visualAnalysis}
+GEÇMİŞ: {historyNote}
 {citationSection}
 
-### ANALİZ PLANI:
-1. **📊 NE OLUYOR?** Fiyatın hikayesini ve kırılım noktalarını akıcı bir dille anlat.
-2. **🛡️ OYUN PLANI:** OB, FVG ve Pivotları kitabi tanımlara girmeden, can alıcı fırsat bölgeleri olarak vurgula.
-3. **💰 STRATEJİ:** Net Hedef ve Stop seviyeleri; fenomen görüşlerini teknikle süzerek usta bir yön tayini yap.
-
-### KURALLAR:
-- ||| ile iki bolume ayir.
-- Birinci bolum (Analiz): Akıcı ve usta işi sentez, max 500 karakter.
-- İkinci bolum (Strateji): Net seviyeler ve can alıcı talimat, max 250 karakter.
-- Gereksiz terim kalabalığından kaçın, direkt sonuca odaklan.";
+### ÇIKTI:
+- ||| ile iki bölüm.
+- Bölüm 1 (Analiz): Akıcı sentez, maks 500 karakter. Fiyatın hikayesi + kırılım noktaları.
+- Bölüm 2 (Strateji): Net seviyeler ve plan, maks 250 karakter. Hedef, stop, yön.
+- Terim kalabaliğı değil, sonuca odaklan.
+{GetAntiClicheGuard()}";
         }
 
         /// <summary>
@@ -884,116 +966,45 @@ GEÇMİŞ HAFIZA: {historyNote}
         {
             string historySection = string.IsNullOrEmpty(lastWeekAnalysis)
                 ? ""
-                : $@"
-
-### 📈 ÖNCEKİ ANALİZ BAĞLAMI (Tutarlılık için kullan, birebir kopyalama):
-{lastWeekAnalysis}
-KURAL: Önceki analizdeki ana seviye/yön değişmediyse bunu kısa hatırlat. Değiştiyse 'önceki plana göre şu değişti' diyerek güncelle.";
+                : $"\n\nÖNCEKİ ANALİZ BAĞLAMI:\n{lastWeekAnalysis}";
 
             string influencerSection = string.IsNullOrEmpty(influencerContext)
                 ? ""
-                : $@"
+                : $"\n\nFENOMEN GÖRÜŞLERİ:\n{influencerContext}";
 
-### 👥 FENOMEN GÖRÜŞLERİ (Tweet 3'te kısaca sentezle):
-{influencerContext}
-KURAL: Bir @handle mention edersen, o fenomenin Kaynak tweet URL'sini de ayni tweet icinde veya hemen sonunda ekle. Kaynak URL yoksa mention kullanma.";
+            return $@"### SES: {GetVariedVoice("THREAD")}
 
-            return $@"### KİMLİK: Sen sade ve güvenilir bir piyasa notu yazarısın.
-İyi X dili: kısa cümle, net seviye, tek ana fikir, ölçülü yorum. Rol yapma, gizem satma, FOMO üretme.
+### GÖREV: #{symbol} ({marketType}, {periyot}) için X thread'i yaz.
 
-### GÖREV: #{symbol} ({marketType}) için {periyot} periyoduna uygun, 4-8 tweet arası sıkı paketlenmiş bir X thread'i yaz.
-Raporu aynen bölme; raporu X formatına çevir. İlk 2 tweet kısa özet, devamı seviyeler ve plan olsun.
-
-### VERİLER:
-- Sembol: #{symbol}
-- Market: {marketType}
-- Periyot: {periyot}
-- Fiyat Verisi: {priceContext}
-- Grafik Analizi: {visualAnalysis}
+### VERİ:
+- Fiyat: {priceContext}
+- Grafik: {visualAnalysis}
 {historySection}
 {influencerSection}
 
-═══════════════════════════════════════════════════════════════
-MUTLAK KURALLAR — İHLAL EDERSEN ÇIKTI GEÇERSİZ SAYILIR:
-═══════════════════════════════════════════════════════════════
+### AÇILIŞ: {GetVariedHookDirective()}
 
-1. TWEET SAYISI:
-   - Konu ne kadar detay gerektiriyorsa o kadar tweet atabilirsin. Sayı limiti yoktur.
-   - Çıktında her tweeti birbirinden ayırmak için mutlaka ||| ayracı bulunmalı.
-   - Eğer analiz basitse 4-5 tweet yeter, çok detaylıysa daha fazla atabilirsin.
+### FORMAT:
+- ||| ile ayır. 4-8 tweet, konunun derinliğine göre.
+- Her tweet 250-280 karakter dolgun olsun. 120 altı tweet yasak.
+- Göstergeleri hikayeye yedir: 'RSI: 28' değil → 'RSI aşırı satımdan toparladı'
+- Formasyon varsa doğal cümleyle belirt; yoksa 'belirgin formasyon yok' de. Uydurma.
+- Fenomen verisi varsa doğal cümlede @handle; yoksa mention ekleme.
+- Periyot: kısa vade → intraday tepki, orta vade → günlük pivotlar, uzun vade → makro yapı.
+- Son tweet: Plan + soru + ⚠️ YTD. Hashtag sadece son tweette.
 
-2. UZUNLUK:
-   - Tweetler en az 260 karakter dolgunluğunda olmalı; karakter hakkını iyi kullan.
-   - 280 karakteri KESİNLİKLE geçme (Twitter sınırı).
-   - Her tweet tek başına anlamlı olmalı; yarım cümle veya tek satırlık artık tweet yasak.
-   - Analizin tüm detaylarını thread'e yedir.
-
-3. İLK TWEET (HOOK + BAŞLIK) — Dikkat Çek:
-   - İlk cümle mutlaka çarpıcı bir BAŞLIK veya soru formatında olmalı.
-   - Örnek: '#{symbol} için ana eşik neresi?' veya '#{symbol}: teyit bekleyen seviye.'
-   - Güçlü ama ölçülü başla. 'kaçıran pişman olur', 'nihayet geldi' gibi FOMO dili kullanma.
-   - Geçmiş başarı varsa DOĞAL şekilde ilk tweet'te hatırlat.
-   - Asla selamlama ifadeleri (Merhaba dostlar, Değerli yatırımcılar) ile başlama.
-
-4. FENOMEN ETİKETLEME — SADECE VERİ VERİLMİŞSE:
-   - Fenomen verisi varsa 3. tweet en az 1 fenomenin @kullaniciadi'nı GERÇEK cümle içinde barındırmalı.
-   - Fenomen verisi yukarıda verilmişse, o kişinin @kullaniciadini cümle içinde doğal kullan.
-   - DOĞRU örnek: @thyaydin bu hareketi bekliyordu, grafige bakarsan neden görürsün.
-   - Etiket sona yapıştırılmış gibi değil — cümle içine doğal yerleştirilmeli.
-   - Fenomen verisi VERİLMEMİŞSE @mention EKLEME — asla kendi kafandan kullanıcı adı uydurma.
-
-5. TEKNİK GÖSTERGELERİ HİKAYEYE YEDİR:
-    YANLIŞ: RSI: 28, MACD: Bullish, Pivot S1: 52.30
-    DOĞRU: Fiyat 52.35'e düşerken RSI aşırı satımdan toparladı, bu tepki ihtimalini güçlendiriyor.
-    Göstergeler sadece hikayeye katkı sağladığı zaman, cümle içinde doğal kullan.
-
-6. FORMASYON BİLGİSİNİ ATLAMA:
-   - Grafik Analizi içinde formasyon sonucu varsa thread'de bir tweet içinde mutlaka doğal cümleyle belirt.
-   - Net formasyon yoksa bunu kısa yaz: 'belirgin formasyon yok; plan seviyelerden takip edilmeli'.
-   - Formasyon uydurma; sadece Grafik Analizi'ndeki sonucu taşı.
-
-7. PERİYOT DİSİPLİNİ ({periyot}):
-    - Kısa vade (15dk, 60dk) — Anlık tepkiler, intraday seviyeler, hızlı hareket.
-    - Orta vade (240dk, Günlük) — Günlük pivotlar, kapanış etkisi, trend.
-    - Uzun vade (Haftalık) — Makro yapı, büyük resim.
-
-8. THREAD YAPISI (SINIRSIZ DETAYLI TWEET ZİNCİRİ):
-    - TWEETLERİ MÜMKÜN OLDUĞUNCA UZUN VE DOLGUN (en az 260 karakter) YAZ.
-    - Tweet 1: Çok İLGİ ÇEKİCİ (Hook) bir başlık ile başla. Okuyucuya detaylı ve önemli bir analiz okuyacağını hissettir. Ana eşik ve fiyat.
-    - Tweet 2 ve sonrası: Grafik analizindeki verileri (Destek, Direnç, Formasyon, Senaryolar) birbirine bağlayarak devam et.
-
-9. EMOJİ: Dengeli kullan — her tweet'te 1-2 emoji yeterli. Abartma, profesyonel tut.
-
-10. SON: Son tweetin sonuna mutlaka şunu ekle: ⚠️ Yatırım tavsiyesi değildir.
-
-═══════════════════════════════════════════════════════════════
-ÇIKTI FORMATI (BAŞLIK YOK — SADECE TWEET METİNLERİ):
-═══════════════════════════════════════════════════════════════
-
-[1. TWEET — İLGİ ÇEKİCİ BAŞLANGIÇ (HOOK)]
-|||
-[2. TWEET — DETAYLI ANALİZ GİRİŞ]
-|||
-[3, 4, 5... TWEETLER — DOLGUN VE UZUN METİNLER]
-|||
-[SON TWEET — PLAN + SORU + YTD]
-
-KESİN YASAKLAR:
-- Tweetleri bölmek için SADECE ||| kullan.
-- 120 karakterden kısa tweet oluşturma, tam kapasite (280'e yakın) kullan.
-- Yarım cümle veya tek cümle artığı tweet oluşturma.
-- Rapor başlıklarını taşıma: '1) KISA ÖZET', '2) GRAFİK OKUMA', 'KRİTİK SEVİYELER' gibi başlıkları ve numaraları KESİNLİKLE KULLANMA. Metni paragraflara yedir.
-- Markdown taşıma: ###, **, madde işareti, numaralı başlık kullanma.
-- Tweet 1/4:, (Hook...), [...] gibi başlık veya yer tutucu yazma.
-- Köşeli parantez kullanma.
-- [LINK] vb. şablonlar kullanma.
-- '✅ SONUÇ:', 'Thread tamamlandı' gibi kapanış bloğu ekleme.";
+### YASAKLAR:
+- 'Tweet 1:', '[Hook]', köşeli parantez, markdown (###, **), rapor başlığı, madde işareti KULLANMA.
+- Selamlama (Merhaba, Değerli yatırımcılar), kapanış bloğu ('✅ SONUÇ:') yasak.
+{GetAntiClicheGuard()}";
         }
 
 
-        // ===================================
-        // SIGNAL STRATEGY PROMPTS (v4.3.0)
-        // ===================================
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 2: SIGNAL ANALYSIS — Sinyal, Alpha, PreMove, Strateji
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Strateji ve tier'a göre uygun promptu seçer
@@ -1019,20 +1030,19 @@ KESİN YASAKLAR:
             string roketBadge = sig.IsRoket ? "🚀 ROKET SİNYALİ (Yüksek hacim + güçlü bar) — " : "";
             string publicState = GetPublicSignalState(sig);
 
-            return $@"### KİMLİK: 15 yıllık BIST trader. Grafik okur, sayıyla konuşur. Klişe yok.
-### GÖREV: #{sig.Symbol} için ⚡ ALPHA sinyal thread'i yaz.
-### SİNYAL: {roketBadge}Takip notu: {publicState}, Periyot: 60dk
-### VERİLER: {priceContext}
-### ALPHA BAĞLAMI: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar dar bant/squeeze ve ortalamanın 1.5x+ üstünde hacim tespit edildi. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve belirgin formasyonları yorumla. Formasyon net değilse uydurma.{htfSection}{citationSection}
-### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, premove sahnesi, patlama yakında, duyum
-### TON: Kısa cümleler. Rakam ve seviye odaklı. {tierInstruction}
-FORMAT KURALLARI:
-- Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
-- 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
-- Fenomen verisi varsa 3. tweette sadece FENOMEN GÖRÜŞLERİ içinde verilen doğrulanmış @kullanıcıadı etiketlenmelidir (Örn: '@kullaniciadi da benzer düşünüyor'); gerçek hesap adı dışında 'Dost meclisi', 'X-User' gibi kelimeler ASLA kullanma. Fenomen yoksa hiçbir mention ekleme.
-- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
-- İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
-- SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";
+            return $@"### SES: {GetVariedVoice("SINYAL")}
+### GÖREV: #{sig.Symbol} | ⚡ ALPHA | {publicState} | 60dk
+{roketBadge}{priceContext}
+### BAĞLAM: 60dk taramada EMA200 üstü trend, ADX>20 momentum, 18-bar squeeze ve ort. 1.5x+ hacim.
+Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve formasyon yorumla. Net değilse uydurma.{htfSection}{citationSection}
+### AÇILIŞ: {GetVariedHookDirective()}
+### TON: {tierInstruction}
+### FORMAT:
+- ||| ile en fazla 3 parça. 1. parça maks 180 kar., diğerleri 120-260 kar.
+- İç durum kodlarını yazma; '{publicState}' kullan.
+- Fenomen varsa doğal cümlede @handle; yoksa mention ekleme.
+- Son parça: Net karar + soru + ⚠️ YTD
+{GetAntiClicheGuard()}";
         }
 
         private string GetPreMoveSignalPrompt(SignalData sig, string priceContext, string influencerCitations, string htfContext)
@@ -1042,20 +1052,19 @@ FORMAT KURALLARI:
             string tierInstruction = GetTierInstruction(sig.Tier);
             string publicState = GetPublicSignalState(sig);
 
-            return $@"### KİMLİK: 15 yıllık BIST trader. Erken uyarı, somut seviye, net karar.
-### GÖREV: #{sig.Symbol} için 🔮 PREMOVE sinyal thread'i yaz.
-### SİNYAL: Takip notu: {publicState}, Periyot: Günlük
-### VERİLER: {priceContext}
-### PREMOVE BAĞLAMI: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı. Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve belirgin formasyonları yorumla. Formasyon net değilse uydurma.{htfSection}{citationSection}
-### YASAK SÖZCÜKLER: AKTIF, PULLBACK_ADAY, fısıltı alış, akıllı para, likidite avı, kurumsal ayak izi, balinalar maliyetlendi, sessizce birikim, büyük hamlenin öncüsü, piyasa kurdu, değerli yatırımcılar, patlama yakında, duyum
-### TON: Sakin ama kararlı. Önce seviye, sonra yorum. {tierInstruction}
-FORMAT KURALLARI:
-- Metni ||| ile ayır; en fazla 3 parça yaz. Tek fikir, net seviye, risk.
-- 1. parça (Hook) EN FAZLA 180 karakter olmalı. Kalan her parça 120-260 karakter arası olmalı.
-- Fenomen verisi varsa 3. tweette sadece FENOMEN GÖRÜŞLERİ içinde verilen doğrulanmış @kullanıcıadı etiketlenmelidir (Örn: '@kullaniciadi da benzer düşünüyor'); gerçek hesap adı dışında 'Dost meclisi', 'X-User' gibi kelimeler ASLA kullanma. Fenomen yoksa hiçbir mention ekleme.
-- Tweet 1/4: gibi başlıklar ASLA kullanma. Son parçaya YTD uyarısı ekle.
-- İç durum kodlarını yazma; {publicState} gibi takipçi dostu ifade kullan.
-- SON TWEET ZORUNLU: Net karar (TAKİP / TEYİT BEKLE / RİSKLİ) + takipçiyi görüşe davet eden soru. Örnek: 'Teyit için hangi kapanışı beklersiniz?'";
+            return $@"### SES: {GetVariedVoice("SINYAL")}
+### GÖREV: #{sig.Symbol} | 🔮 PREMOVE | {publicState} | Günlük
+{priceContext}
+### BAĞLAM: Günlük taramada fiyat destek bölgesinde, dip testleri ve hacim artışı ile erken hareket adayı.
+Grafik verisi varsa OB/FVG/Pivot/RSI/MACD ve formasyon yorumla. Net değilse uydurma.{htfSection}{citationSection}
+### AÇILIŞ: {GetVariedHookDirective()}
+### TON: {tierInstruction}
+### FORMAT:
+- ||| ile en fazla 3 parça. 1. parça maks 180 kar., diğerleri 120-260 kar.
+- İç durum kodlarını yazma; '{publicState}' kullan.
+- Fenomen varsa doğal cümlede @handle; yoksa mention ekleme.
+- Son parça: Net karar + soru + ⚠️ YTD
+{GetAntiClicheGuard()}";
         }
 
         private static string GetPublicSignalState(SignalData signal)
@@ -1167,9 +1176,11 @@ FORMAT KURALLARI:
             };
         }
 
-        // ===========================
-        // NEWS TWO-STEP LOGIC (v4.2.2)
-        // ===========================
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 6: NEWS ANALYSIS — Haber Analizi Sistemi
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Step 1: Haber Kategorisi Tespiti
@@ -1184,7 +1195,7 @@ KATEGORİLER:
 - TEKNOLOJI: AI, startup, siber güvenlik, yazılım, donanım, Elon Musk
 - GLOBAL: Dış ilişkiler, savaşlar, AB, ABD, Rusya, jeopolitik
 - KRIPTO: Bitcoin, Ethereum, DeFi, blockchain, kripto borsaları
-- SPOR: Futbol finansalı, kulüp haberleri, transfer (özellikle Fenerbahçe)
+- SPOR: Futbol finansalı, kulüp haberleri (özellikle Fenerbahçe)
 - YASAM: Sağlık, eğitim, sosyal konular, afet, toplumsal olaylar
 
 HABER: {title}
@@ -1201,9 +1212,6 @@ CEVAP: Sadece kategori adını yaz (Örn: EKONOMI). Başka açıklama yapma.";
         /// </summary>
         public string GetNewsUnifiedScoringPrompt(string title, string source)
         {
-            // v5.1.4: "Düşünme adımı YOK" direktifi eklendi — Qwen3 thinking israfını minimize eder.
-            // v5.2.0: RSCIT + hallüsinasyon azaltma uygulandı (prompt-engineer skill)
-            // Not: LMStudioProvider zaten /no_think prefix ekliyor, prompt'ta tekrar gerekmez.
             return $@"Sen XiDeAI Pro platformunun Baş Editörü ve Stratejistisin.
 Doğrudan yapılandırılmış çıktıyı ver — düşünme adımı, açıklama veya ek metin YOK.
 
@@ -1255,7 +1263,6 @@ KURALLAR:
         /// </summary>
         public string GetNewsCategoryAnalysisPrompt(string category, string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
-            // v5.1.3: Flash/SON DAKİKA haberler için garantili 2-tweet format
             if (isFlash)
                 return GetNewsToneGuard() + "\n\n" + GetFlashNewsAnalysisPrompt(title, source, link, category, description);
 
@@ -1269,20 +1276,23 @@ KURALLAR:
                 "KRIPTO"      => GetKriptoNewsAnalysisPrompt(title, source, link, description, isFlash),
                 "SPOR"        => GetSporNewsAnalysisPrompt(title, source, link, description, isFlash),
                 "YASAM"       => GetYasamNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap),
-                _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap) // Fallback
+                _             => GetEkonomiNewsAnalysisPrompt(title, source, link, description, isFlash, sectorMap)
             };
             return GetNewsToneGuard() + "\n\n" + prompt;
         }
 
         private string GetNewsToneGuard()
         {
-            return @"### HABER DİLİ ÜST KURALI:
+            return @"### HABER ÜST KURALI:
 - Sade haber editörü gibi yaz: olay, kaynak, olası etki.
-- Kaynakta olmayan veri, sembol, hedef fiyat veya nedensellik uydurma.
-- Clickbait, hamaset, korku/FOMO, 'takip et', 'bildirim aç', 'RT' çağrısı yasak.
-- En fazla 3 tweet üret. Her tweet 240 karakteri aşmasın.
-- Link ilk tweette yer alsın. Son tweette kısa kaynak/YTD notu olsun.
-- BIST sembolü sadece verilen sektör haritasında açıkça varsa yaz.";
+- Kaynakta olmayan veri, sembol, hedef fiyat, nedensellik UYDURMA.
+- Clickbait, hamaset, korku/FOMO, 'takip et', 'RT' çağrısı yasak.
+- Her tweet maks 270 karakter. 'Tweet 1:', sıra numarası, başlık YAZMA.
+- Haber başlığını, '📰 HABER:' ifadesini, kaynak adını tweet metnine kopyalama.
+- BIST sembolü sadece sektör haritasında açıkça varsa yaz.
+- Her haberi zorla ekonomik analize çevirme. Spor haberi spor gibi, teknoloji haberi teknoloji gibi yazılır.
+- 'Piyasayı nasıl etkiler?', 'yatırımcı perspektifi', 'sektörel etki' gibi kalıpları her habere sıkıştırma — sadece gerçekten ekonomik bir haberse kullan.
+- Haberin doğal kategorisinde kal: siyaset haberi → siyasi anlamı, spor haberi → sportif anlamı, yaşam haberi → toplumsal anlamı.";
         }
 
         private string GetFlashNewsAnalysisPrompt(string title, string source, string link, string category, string? description = null)
@@ -1358,31 +1368,20 @@ KURALLAR:
 
         private string GetSiyasetNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
         {
-            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description}" : "";
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nDETAY: {description}" : "";
             string flashTag = isFlash ? " 🚨 FLAŞ" : "";
-            return $@"KİMLİK: Sen tarafsız ve dengeli bir siyasi analist/ekonomistin. 
-GÖREV: Aşağıdaki siyaset haberini ekonomik perspektiften analiz et.
+            return $@"SES: Tarafsız siyasi muhabir.
+GÖREV: Siyaset haberini 2-3 tweet olarak yaz. Siyasi haberi siyasi yaz — zorla ekonomik analize çevirme.
 
 HABER: {title}{flashTag}
 KAYNAK: {source}{descSection}
-LİNK: {link}
 
-ÜSLUP:
-- Tarafsız, dengeli, provoke etmeyen bir dil kullan.
-- Siyasi görüş belirtme, sadece piyasa etkisine odaklan.
-- ""Bu karar piyasayı nasıl etkiler?"" sorusuna cevap ver.
+YAPI (||| ile ayır):
+1) Ne oldu — tarafsız özet
+2) Ne anlama geliyor — siyasi bağlam
+3) (Opsiyonel, SADECE gerçekten varsa) Ekonomik yan etki
 
-FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Haberin ekonomik özeti]
-|||
-[Ekonomik/piyasa etkisi analizi]
-|||
-[Yatırımcı perspektifi]
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- Siyasi yorum yapma, sadece ekonomik etki.";
+KURAL: Siyasi görüş belirtme, taraf tutma. Link ilk tweette.";
         }
 
         private string GetTeknolojiNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
@@ -1420,153 +1419,92 @@ KURALLAR:
 
         private string GetGlobalNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
         {
-            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description}" : "";
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nDETAY: {description}" : "";
             string flashTag = isFlash ? " 🚨 FLAŞ" : "";
-            return $@"KİMLİK: Sen jeopolitik uzmanı ve uluslararası ilişkiler analistisin. Küresel olayların Türkiye'ye etkisini okursun.
-GÖREV: Aşağıdaki global haberi Türkiye perspektifinden analiz et.
+            return $@"SES: Jeopolitik muhabir — stratejik, geniş perspektif.
+GÖREV: Global haberi 2-3 tweet olarak yaz. Haberin kendi önemini anlat, zorla Türkiye ekonomisine bağlama.
 
 HABER: {title}{flashTag}
 KAYNAK: {source}{descSection}
-LİNK: {link}
 
-ÜSLUP:
-- Stratejik ve geniş perspektifli ol.
-- ""Bu Türkiye ekonomisini nasıl etkiler?"" sorusuna cevap ver.
-- ABD, AB, Rusya, Çin ilişkilerini bağlamında değerlendir.
-- Korkutma değil, bilgilendir.
+YAPI (||| ile ayır):
+1) Ne oldu — stratejik özet
+2) Küresel anlamı — kim etkilenir, neden
+3) (Opsiyonel, SADECE doğal bağlantı varsa) Türkiye boyutu
 
-FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Stratejik özet]
-|||
-[Türkiye bağlantısı] - Ekonomik/ticari etki
-|||
-[Piyasa perspektifi] + İlgili sektörler
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- Türkiye bağlantısı aramak zorunda değilsin, ancak varsa belirtebilirsin.";
+KURAL: Türkiye bağlantısı yoksa zorlama. Link ilk tweette.";
         }
 
         private string GetGlobalMacroAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
         {
             string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description}" : "";
             string flashTag = isFlash ? " 🚨 FLAŞ" : "";
-            return $@"KİMLİK: Sen global jeopolitik ve makro-ekonomi uzmanısın. Dünya dengeleri, savaş, lider değişiklikleri ve küresel şokları analiz edersin.
-GÖREV: Aşağıdaki küresel makro haberi analiz et. Türkiye bağlantısı aramak zorunda değilsin; haberin kendi küresel önemini ön plana çıkar.
+            return $@"SES: Makro-jeopolitik analist — soğukkanlı, derin.
+GÖREV: Küresel makro haberi 2-3 tweet olarak yaz. Haberin kendi küresel önemini ön plana çıkar.
 
 HABER: {title}{flashTag}
 KAYNAK: {source}{descSection}
-LİNK: {link}
 
-ÜSLUP:
-- Stratejik, soğukkanlı ve derinlemesine analiz yap.
-- Sadece gerçekleri aktar, spekülasyon yapma.
-- Küresel dengelere etkisini açıkla.
-- Gerekirse piyasa etkisine değin; zorunlu değil.
+YAPI (||| ile ayır):
+1) Ne oldu — gerçekler
+2) Arka plan ve küresel anlamı
+3) (Opsiyonel) Piyasa yansıması veya Türkiye boyutu
 
-FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[KÜRESEL GELİŞME] — Ne oldu?
-|||
-[Kim, ne zaman, neden?] — Arka plan ve bağlam
-|||
-[Küresel/Bölgesel etkisi] + Piyasa yansıması
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- Türkiye bağlantısı aramak zorunda değilsin, ancak varsa belirtebilirsin.";
+KURAL: Spekülasyon yapma, gerçeklere dayan. Link ilk tweette.";
         }
 
         private string GetKriptoNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
         {
-            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description}" : "";
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nDETAY: {description}" : "";
             string flashTag = isFlash ? " 🚨 FLAŞ" : "";
-            return $@"KİMLİK: Sen kripto para ve blockchain uzmanı bir analistsin. DeFi, NFT ve Web3 trendlerini takip edersin.
-GÖREV: Aşağıdaki kripto haberini analiz et.
+            return $@"SES: Kripto muhabiri — teknik, gerçekçi, jargon bilen.
+GÖREV: Kripto haberini 2-3 tweet olarak yaz.
 
 HABER: {title}{flashTag}
 KAYNAK: {source}{descSection}
-LİNK: {link}
 
-ÜSLUP:
-- Teknik ama anlaşılır ol.
-- ""On-chain veriler ne diyor?"" perspektifinden bak.
-- FOMO yaratma, gerçekçi ol.
-- Düzenleyici riskleri unutma.
+YAPI (||| ile ayır):
+1) Ne oldu — çarpıcı özet
+2) Piyasa anlamı — on-chain/regülasyon perspektifi
+3) (Opsiyonel) İlgili coinler, strateji notu
 
-FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Çarpıcı açılış]
-|||
-[Teknik analiz] - Piyasa yapısı, hacim, trend
-|||
-[Strateji] + Hedef/Stop seviyeleri
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- BTC, ETH ve ilgili altcoinleri bağla.";
+KURAL: FOMO yaratma, düzenleme risklerini unutma. Link ilk tweette.";
         }
 
         private string GetSporNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false)
         {
-            return $@"KİMLİK: Sen spor ekonomisi ve kulüp finansalları konusunda uzman bir analistsin. Özellikle Fenerbahçe'nin ""Dünyanın En Büyük Spor Kulübü"" vizyonunu destekliyorsun.
-GÖREV: Aşağıdaki spor haberini finansal perspektiften analiz et.
+            return $@"SES: Spor muhabiri — tutkulu ama objektif. Fenerbahçe'ye ekstra yakın.
+GÖREV: Spor haberini 2-3 tweet olarak yaz. SPOR haber gibi yaz — zorla finansal analize çevirme.
 
 HABER: {title}
 KAYNAK: {source}
-LİNK: {link}
 
-ÜSLUP:
-- Fenerbahçe haberleri için 💛💙 tutkulu ama objektif ol.
-- Diğer kulüpler için tarafsız kal.
-- ""Bu kulüp finansallarını nasıl etkiler?"" sorusuna cevap ver.
-- Transfer, sponsorluk, gelir-gider dengesi odaklı ol.
+YAPI (||| ile ayır):
+1) Ne oldu — heyecanlı özet
+2) Sportif anlamı — sezon etkisi, kadro değişikliği, rekabet
+3) (Opsiyonel, SADECE transfer bedeli/sponsorluk gibi gerçek rakam varsa) Finansal boyut
 
-FORMAT (||| ile ayır) - MAKS 4 TWEET:
-[Finansal perspektif]
-|||
-[Kulüp ekonomisi analizi] - Gelir/gider etkisi
-|||
-[BIST spor hisseleri perspektifi (FENER, GSRAY, BJKAS)]
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR! Uzun destanlar yazma, az kelimeyle öz bilgi ver. Asla 4 tweeti geçme.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- Fenerbahçe için ekstra pozitif ama gerçekçi ol.";
+KURAL: Fenerbahçe 💛💙 haberleri için pozitif ama gerçekçi. Diğer kulüpler için tarafsız. Link ilk tweette.";
         }
 
         private string GetYasamNewsAnalysisPrompt(string title, string source, string link, string? description = null, bool isFlash = false, string sectorMap = "")
         {
-            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nHABER ÖZETİ: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 300))}" : "";
+            string descSection = !string.IsNullOrWhiteSpace(description) ? $"\nDETAY: {description.Trim().Substring(0, Math.Min(description.Trim().Length, 300))}" : "";
             string sectorSection = !string.IsNullOrWhiteSpace(sectorMap)
-                ? $"\n\nBIST SEKTÖR-HİSSE HARİTASI (Sembol seçerken YALNIZCA bu listeden al):\n{sectorMap}"
+                ? $"\n\nSEKTÖR HARİTASI (sembol seçerken YALNIZCA buradan al):\n{sectorMap}"
                 : "";
-            return $@"KİMLİK: Sen toplumsal olayların ekonomik etkilerini analiz eden sosyal ekonomist ve insani perspektife sahip bir yorumcusun.
-GÖREV: Aşağıdaki yaşam haberini ekonomik ve toplumsal perspektiften analiz et.
+            return $@"SES: Toplum muhabiri — empatik, duyarlı, gerçekçi.
+GÖREV: Yaşam haberini 2-3 tweet olarak yaz. Toplumsal haberi toplumsal yaz — zorla ekonomik analize çevirme.
 
 HABER: {title}
-KAYNAK: {source}
-LİNK: {link}{descSection}{sectorSection}
+KAYNAK: {source}{descSection}{sectorSection}
 
-ÜSLUP:
-- Empatik, insani ama analitik ol.
-- ""Bu toplumu ve ekonomiyi nasıl etkiler?"" sorusuna cevap ver.
-- Afet, sağlık, eğitim konularında duyarlı ol.
-- Spekülasyon yapma, bilgilendir.
+YAPI (||| ile ayır):
+1) Ne oldu — insani perspektif
+2) Toplumsal anlamı — kimi etkiliyor, neden önemli
+3) (Opsiyonel, SADECE gerçekten varsa) Ekonomik/sektörel boyut + BIST sembolü (haritadan)
 
-FORMAT (||| ile ayır) - TAM OLARAK 3 TWEET:
-[İnsani perspektif]
-|||
-[Ekonomik/toplumsal etki analizi]
-|||
-[Sektörel perspektif] + İlgili BIST hisseleri (YALNIZCA haritadan)
-KURALLAR:
-- Kritik Kural: Her bir tweet KESİNLİKLE 270 karakteri AŞMAMALIDIR!
-- KESINLIKLE tam olarak 3 tweet yaz. 3 tweet = 2 adet ||| ayracı.
-- ASLA '1. Tweet:', 'Tweet 1/3:' gibi sıra numarası veya etiket YAZMA.
-- Haber başlığını, '📰 HABER:' ifadesini, haber linkini veya kaynağını (Source) ASLA yazma.
-- Sembol seçerken YALNIZCA yukarıdaki haritadaki semboller. Haritada yoksa sembol YAZMA.";
+KURAL: Afet/sağlık haberlerinde duyarlı ol. Spekülasyon yapma. Link ilk tweette.";
         }
 
         /// <summary>
@@ -1587,9 +1525,11 @@ KURALLAR:
             };
         }
 
-        // ===================================
-        // TREND ENGAGEMENT PROMPTS (v4.5.4)
-        // ===================================
+        #endregion
+
+        // ═══════════════════════════════════════════════════════════════
+        #region MODÜL 9: TREND ANALYSIS — Trend Filtresi ve Tweet
+        // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Filters trending topics and selects suitable ones for XiDeAI identity
@@ -1684,6 +1624,7 @@ XiDeAI Pro olarak X (Twitter)'da paylaşım yapıyorsun.
 ### ÇIKTI:
 Sadece tweet metnini yaz, başka açıklama yapma.";
         }
+        #endregion
     }
 }
 
