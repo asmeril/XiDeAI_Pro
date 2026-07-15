@@ -6080,7 +6080,7 @@ namespace XiDeAI_Pro
             Log($"📡 {guruHandle} taranıyor...", "System");
             // Pass empty symbol to SocialIntelService to fetch timeline WITHOUT symbol filtering
             // v5.1.7: Limit 10'dan 30'a çıkarıldı (Pinli veya retweetli akışlarda son postları kaçırmamak için)
-            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle }, 30);
+            var res = await _opManager.SocialIntel.FindInfluencerAnalyses("", "BIST", new List<string> { guruHandle }, 30, null, forceRefresh: true);
             
             _guruPosts.Clear();
             _guruPosts.AddRange(res);

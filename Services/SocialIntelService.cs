@@ -1687,7 +1687,7 @@ namespace XiDeAI_Pro.Services
         /// <summary>
         /// Influencer'ların bir sembol hakkındaki son analizlerini topla
         /// </summary>
-        public async Task<List<InfluencerPost>> FindInfluencerAnalyses(string symbol, string market, List<string>? vipHandles = null, int limit = 10, string? sinceDate = null)
+        public async Task<List<InfluencerPost>> FindInfluencerAnalyses(string symbol, string market, List<string>? vipHandles = null, int limit = 10, string? sinceDate = null, bool forceRefresh = false)
         {
             var posts = new List<InfluencerPost>();
             try
@@ -1713,7 +1713,7 @@ namespace XiDeAI_Pro.Services
                 {
                     foreach (var handle in vipHandles.Take(5))
                     {
-                         await FetchInfluencerPostsFromPython(symbol, market, handle, pythonResults, limit, sinceDate);
+                         await FetchInfluencerPostsFromPython(symbol, market, handle, pythonResults, limit, sinceDate, forceRefresh);
                          if (pythonResults.Count >= 3) break;
                     }
                 }
@@ -1721,7 +1721,7 @@ namespace XiDeAI_Pro.Services
                 // VIP'lerde yoksa genel arama yap
                 if (pythonResults.Count == 0)
                 {
-                    await FetchInfluencerPostsFromPython(symbol, market, null, pythonResults, limit, sinceDate);
+                    await FetchInfluencerPostsFromPython(symbol, market, null, pythonResults, limit, sinceDate, forceRefresh);
                 }
 
                 if (pythonResults.Count > 0)
@@ -1743,7 +1743,7 @@ namespace XiDeAI_Pro.Services
 
         private readonly List<InfluencerPost> _lastInfluencerPosts = new List<InfluencerPost>();
         private readonly ConcurrentDictionary<string, DateTime> _lastSearchTimes = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
-        private async Task FetchInfluencerPostsFromPython(string symbol, string market, string? handle, List<InfluencerPost> sink, int limit = 10, string? sinceDate = null)
+        private async Task FetchInfluencerPostsFromPython(string symbol, string market, string? handle, List<InfluencerPost> sink, int limit = 10, string? sinceDate = null, bool forceRefresh = false)
         {
             try
             {
@@ -1759,7 +1759,7 @@ namespace XiDeAI_Pro.Services
                         .Take(limit)
                         .ToList();
 
-                    if (cached.Count >= Math.Min(limit, 5)) // En az 5 veya istenen kadar tweet varsa cache kullan
+                    if (!forceRefresh && cached.Count >= Math.Min(limit, 5)) // En az 5 veya istenen kadar tweet varsa cache kullan
                     {
                         Logger.Twitter($"📦 [Cache] @{cleanHandle} için {cached.Count} tweet yerelden alındı, canlı X araması atlandı.");
                         foreach (var t in cached)
