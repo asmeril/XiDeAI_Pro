@@ -2,6 +2,15 @@
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
+## 📅 15 Temmuz 2026
+
+### 🚀 v5.6.6 Release
+
+**Beyaz Pencere Flash Düzeltmesi & Telegram Sorunu:**
+- `undetected_chromedriver` kütüphanesi yamalandı. Arka planda açılan komut pencerelerini engellemek için `CREATE_NO_WINDOW` bayrağı eklendi.
+- Zararlı olabilecek genel `Popen` yama blokları `social_intel.py` ve `x_daemon.py` betiklerinden temizlendi.
+- XHive tarafında yetki süresi dolan Telethon session'ının sürekli SMS kodu atmasına neden olan `client.start()` kullanımı, daha güvenli olan `client.connect()` metoduna geçirildi ve hata yakalama mekanizması eklendi.
+- XHive `.env` üzerinde `TELEGRAM_HUB_ENABLED=true` yapılarak Telegram etkileşimleri geri açıldı.
 
 ## 📅 03 Temmuz 2026
 
