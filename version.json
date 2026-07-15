@@ -1,8 +1,9 @@
 ﻿{
-    "version":  "5.6.6",
-    "build_number":  5660,
-    "lastUpdate":  "2026-07-15T11:29:25Z",
+    "version":  "5.6.7",
+    "build_number":  5670,
+    "lastUpdate":  "2026-07-15T16:07:09Z",
     "changelog":  [
+                      "v5.6.7: v5.6.7: Telegram timer crash on UI thread handled \u0026 x_daemon.py image detection improved",
                       "v5.6.6: v5.6.6: Beyaz pencere flash sorunu giderildi (UC kutuphane seviyesinde CREATE_NO_WINDOW fix), Telegram kullanici dogrulama dongusu durduruldu, XHive Telegram hub yeniden aktif edildi",
                       "v5.6.5: Fix: screenshots dizini Program Files yerine AppData\u0027ya tasindi (UnauthorizedAccessException duzeltmesi)",
                       "v5.6.6: v5.6.6: Guru paneli tweet cache fix - handle bazli DB onbellek eklendi (30 tweet DB den), x_daemon scroll-wait iyilestirmesi",
