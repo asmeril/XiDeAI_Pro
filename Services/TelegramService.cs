@@ -110,10 +110,11 @@ namespace XiDeAI_Pro.Services
 
             try
             {
+                string formattedMessage = SanitizeMarkdown(message);
                 var payload = new
                 {
                     chat_id = chatId,
-                    text = message,
+                    text = formattedMessage,
                     parse_mode = "Markdown"
                 };
 
@@ -172,6 +173,37 @@ namespace XiDeAI_Pro.Services
         {
             var result = await SendMessageInternalWithResultAsync(message);
             return result.Success;
+        }
+
+        private static string SanitizeMarkdown(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+
+            // Tek sayıda yıldız (*) varsa sonuncuyu kaldır
+            int starCount = input.Count(c => c == '*');
+            if (starCount % 2 != 0)
+            {
+                int lastIndex = input.LastIndexOf('*');
+                if (lastIndex >= 0) input = input.Remove(lastIndex, 1);
+            }
+
+            // Tek sayıda alt çizgi (_) varsa sonuncuyu kaldır
+            int underscoreCount = input.Count(c => c == '_');
+            if (underscoreCount % 2 != 0)
+            {
+                int lastIndex = input.LastIndexOf('_');
+                if (lastIndex >= 0) input = input.Remove(lastIndex, 1);
+            }
+
+            // Tek sayıda backtick (`) varsa sonuncuyu kaldır
+            int backtickCount = input.Count(c => c == '`');
+            if (backtickCount % 2 != 0)
+            {
+                int lastIndex = input.LastIndexOf('`');
+                if (lastIndex >= 0) input = input.Remove(lastIndex, 1);
+            }
+
+            return input;
         }
 
         public class TelegramUpdateInfo
