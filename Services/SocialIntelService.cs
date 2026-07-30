@@ -1748,20 +1748,33 @@ namespace XiDeAI_Pro.Services
             try
             {
                 // v5.6.6: Handle bazlı yerel DB cache — Guru paneli için
-                // Eğer bu handle için son 7 günde DB'de yeterli tweet varsa, canlı X araması atlanır.
+                // v5.7.0 FIX: Cache artık sembol-aware — sadece o sembolle ilgili tweetler sayılır.
+                // Önceki versiyonda handle için genel tweet sayısı yeterince büyükse canlı arama atlanıyordu,
+                // bu da VIP aramasının her zaman 0 dönmesine neden oluyordu (sembol filtresi yoktu).
                 string cleanHandle = handle?.TrimStart('@') ?? "";
+                string symUpperCache = symbol?.ToUpperInvariant() ?? "";
                 if (!string.IsNullOrEmpty(cleanHandle) && string.IsNullOrEmpty(sinceDate) && Memory != null)
                 {
-                    var cached = Memory.GetKnowledgeBase()
+                    // Tüm handle tweetlerini çek (7 gün)
+                    var allHandleTweets = Memory.GetKnowledgeBase()
                         .Where(t => t.Author.Equals("@" + cleanHandle, StringComparison.OrdinalIgnoreCase)
                                  && t.PostDate >= DateTime.Now.AddDays(-7))
                         .OrderByDescending(t => t.PostDate)
-                        .Take(limit)
                         .ToList();
 
-                    if (!forceRefresh && cached.Count >= Math.Min(limit, 5)) // En az 5 veya istenen kadar tweet varsa cache kullan
+                    // Sembol bazında filtrele (sembol boşsa tüm tweetler geçer — Guru paneli desteği)
+                    var cached = string.IsNullOrEmpty(symUpperCache)
+                        ? allHandleTweets.Take(limit).ToList()
+                        : allHandleTweets
+                            .Where(t => t.Content.Contains($"#{symUpperCache}", StringComparison.OrdinalIgnoreCase)
+                                     || t.Content.Contains($"${symUpperCache}", StringComparison.OrdinalIgnoreCase)
+                                     || System.Text.RegularExpressions.Regex.IsMatch(t.Content, $@"\b{symUpperCache}\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                            .Take(limit)
+                            .ToList();
+
+                    if (!forceRefresh && cached.Count >= Math.Min(limit, 3)) // En az 3 sembol-eşleşmeli tweet varsa cache kullan
                     {
-                        Logger.Twitter($"📦 [Cache] @{cleanHandle} için {cached.Count} tweet yerelden alındı, canlı X araması atlandı.");
+                        Logger.Twitter($"📦 [Cache] @{cleanHandle} için {cached.Count} sembol-eşleşmeli tweet ({symUpperCache}) yerelden alındı, canlı X araması atlandı.");
                         foreach (var t in cached)
                         {
                             sink.Add(new InfluencerPost
@@ -1775,6 +1788,10 @@ namespace XiDeAI_Pro.Services
                             });
                         }
                         return;
+                    }
+                    else if (!string.IsNullOrEmpty(symUpperCache))
+                    {
+                        Logger.Twitter($"📦 [Cache] @{cleanHandle}: {symUpperCache} için cache'de yeterli eşleşme yok ({cached.Count}), canlı X araması yapılacak.");
                     }
                 }
 

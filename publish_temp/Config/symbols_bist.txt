@@ -1,0 +1,110 @@
+# BIST (Borsa İstanbul) Sembol Listesi
+# Format: SYMBOL|Turkish Name|Yahoo Symbol|TradingView Symbol|Category
+# Encoding: UTF-8
+
+# === YILDIZ PAZAR ===
+THYAO|Türk Hava Yolları|THYAO.IS|BIST:THYAO|Yıldız Pazar
+GARAN|Garanti BBVA|GARAN.IS|BIST:GARAN|Yıldız Pazar
+AKBNK|Akbank|AKBNK.IS|BIST:AKBNK|Yıldız Pazar
+ISCTR|Türkiye İş Bankası|ISCTR.IS|BIST:ISCTR|Yıldız Pazar
+YKBNK|Yapı ve Kredi Bankası|YKBNK.IS|BIST:YKBNK|Yıldız Pazar
+VAKBN|Vakıflar Bankası|VAKBN.IS|BIST:VAKBN|Yıldız Pazar
+HALKB|Halkbank|HALKB.IS|BIST:HALKB|Yıldız Pazar
+EREGL|Ereğli Demir Çelik|EREGL.IS|BIST:EREGL|Yıldız Pazar
+ASELS|Aselsan|ASELS.IS|BIST:ASELS|Yıldız Pazar
+SISE|Türkiye Şişe Cam|SISE.IS|BIST:SISE|Yıldız Pazar
+KCHOL|Koç Holding|KCHOL.IS|BIST:KCHOL|Yıldız Pazar
+SAHOL|Sabancı Holding|SAHOL.IS|BIST:SAHOL|Yıldız Pazar
+TUPRS|Tüpraş|TUPRS.IS|BIST:TUPRS|Yıldız Pazar
+BIMAS|BİM Mağazalar|BIMAS.IS|BIST:BIMAS|Yıldız Pazar
+TCELL|Turkcell|TCELL.IS|BIST:TCELL|Yıldız Pazar
+TTKOM|Türk Telekom|TTKOM.IS|BIST:TTKOM|Yıldız Pazar
+PETKM|Petkim|PETKM.IS|BIST:PETKM|Yıldız Pazar
+KOZAL|Koza Altın|KOZAL.IS|BIST:KOZAL|Yıldız Pazar
+KOZAA|Koza Anadolu Metal|KOZAA.IS|BIST:KOZAA|Yıldız Pazar
+PGSUS|Pegasus|PGSUS.IS|BIST:PGSUS|Yıldız Pazar
+TAVHL|TAV Havalimanları|TAVHL.IS|BIST:TAVHL|Yıldız Pazar
+ARCLK|Arçelik|ARCLK.IS|BIST:ARCLK|Yıldız Pazar
+VESTL|Vestel|VESTL.IS|BIST:VESTL|Yıldız Pazar
+ENKAI|Enka İnşaat|ENKAI.IS|BIST:ENKAI|Yıldız Pazar
+TOASO|Tofaş|TOASO.IS|BIST:TOASO|Yıldız Pazar
+FROTO|Ford Otosan|FROTO.IS|BIST:FROTO|Yıldız Pazar
+OTKAR|Otokar|OTKAR.IS|BIST:OTKAR|Yıldız Pazar
+TTRAK|Türk Traktör|TTRAK.IS|BIST:TTRAK|Yıldız Pazar
+SOKM|Şok Marketler|SOKM.IS|BIST:SOKM|Yıldız Pazar
+MGROS|Migros|MGROS.IS|BIST:MGROS|Yıldız Pazar
+AEFES|Anadolu Efes|AEFES.IS|BIST:AEFES|Yıldız Pazar
+CCOLA|Coca-Cola İçecek|CCOLA.IS|BIST:CCOLA|Yıldız Pazar
+ULKER|Ülker Bisküvi|ULKER.IS|BIST:ULKER|Yıldız Pazar
+GUBRF|Gübre Fabrikaları|GUBRF.IS|BIST:GUBRF|Yıldız Pazar
+SASA|Sasa Polyester|SASA.IS|BIST:SASA|Yıldız Pazar
+AKSEN|Aksa Enerji|AKSEN.IS|BIST:AKSEN|Yıldız Pazar
+ODAS|Odaş Elektrik|ODAS.IS|BIST:ODAS|Yıldız Pazar
+ZOREN|Zorlu Enerji|ZOREN.IS|BIST:ZOREN|Yıldız Pazar
+AYDEM|Aydın Elektrik|AYDEM.IS|BIST:AYDEM|Yıldız Pazar
+ENJSA|Enerjisa Enerji|ENJSA.IS|BIST:ENJSA|Yıldız Pazar
+
+# === ANA PAZAR ===
+KRDMD|Kardemir D Grubu|KRDMD.IS|BIST:KRDMD|Ana Pazar
+HEKTS|Hektaş|HEKTS.IS|BIST:HEKTS|Ana Pazar
+KONTR|Kontrolmatik|KONTR.IS|BIST:KONTR|Ana Pazar
+SMRTG|Smartiks|SMRTG.IS|BIST:SMRTG|Ana Pazar
+GESAN|Gesan Elektrik|GESAN.IS|BIST:GESAN|Ana Pazar
+EUREN|Eurener Enerji|EUREN.IS|BIST:EUREN|Ana Pazar
+ALARK|Alarko Holding|ALARK.IS|BIST:ALARK|Ana Pazar
+CANTE|Cantaş|CANTE.IS|BIST:CANTE|Ana Pazar
+GWIND|Galata Wind|GWIND.IS|BIST:GWIND|Ana Pazar
+DOAS|Doğuş Otomotiv|DOAS.IS|BIST:DOAS|Ana Pazar
+CRFSA|Carrefoursa|CRFSA.IS|BIST:CRFSA|Ana Pazar
+KENT|Kent Gıda|KENT.IS|BIST:KENT|Ana Pazar
+KNFRT|Konfrut|KNFRT.IS|BIST:KNFRT|Ana Pazar
+PENGD|Penguen Gıda|PENGD.IS|BIST:PENGD|Ana Pazar
+PETUN|Pınar Et|PETUN.IS|BIST:PETUN|Ana Pazar
+PNSUT|Pınar Süt|PNSUT.IS|BIST:PNSUT|Ana Pazar
+TATGD|TAT Gıda|TATGD.IS|BIST:TATGD|Ana Pazar
+BANVT|Banvit|BANVT.IS|BIST:BANVT|Ana Pazar
+LOGO|Logo Yazılım|LOGO.IS|BIST:LOGO|Ana Pazar
+NETAS|Netaş|NETAS.IS|BIST:NETAS|Ana Pazar
+AYEN|Ayen Enerji|AYEN.IS|BIST:AYEN|Ana Pazar
+TMSN|Tümosan|TMSN.IS|BIST:TMSN|Ana Pazar
+
+# === GYO'LAR (Gayrimenkul Yatırım Ortaklıkları) ===
+EKGYO|Emlak Konut GYO|EKGYO.IS|BIST:EKGYO|GYO
+ZRGYO|Ziraat GYO|ZRGYO.IS|BIST:ZRGYO|GYO
+MRGYO|Marti GYO|MRGYO.IS|BIST:MRGYO|GYO
+VKGYO|Vakıf GYO|VKGYO.IS|BIST:VKGYO|GYO
+ISGYO|İş GYO|ISGYO.IS|BIST:ISGYO|GYO
+TRGYO|Torunlar GYO|TRGYO.IS|BIST:TRGYO|GYO
+RYGYO|Reysaş GYO|RYGYO.IS|BIST:RYGYO|GYO
+ALGYO|Alarko GYO|ALGYO.IS|BIST:ALGYO|GYO
+AVGYO|Avrasya GYO|AVGYO.IS|BIST:AVGYO|GYO
+DGGYO|Doğuş GYO|DGGYO.IS|BIST:DGGYO|GYO
+KLGYO|Kiler GYO|KLGYO.IS|BIST:KLGYO|GYO
+OZKGY|Özak GYO|OZKGY.IS|BIST:OZKGY|GYO
+YGYO|Yeşil GYO|YGYO.IS|BIST:YGYO|GYO
+AGYO|Atakule GYO|AGYO.IS|BIST:AGYO|GYO
+
+# === DİĞER BANKALAR ===
+ALBRK|Albaraka Türk|ALBRK.IS|BIST:ALBRK|Banka
+ICBCT|ICBC Turkey|ICBCT.IS|BIST:ICBCT|Banka
+QNBFB|QNB Finans|QNBFB.IS|BIST:QNBFB|Banka
+QNBFL|QNB Finansleasing|QNBFL.IS|BIST:QNBFL|Banka
+SKBNK|Şekerbank|SKBNK.IS|BIST:SKBNK|Banka
+TSKB|TSKB|TSKB.IS|BIST:TSKB|Banka
+
+# === HOLDİNGLER ===
+AGHOL|Anadolu Grubu Holding|AGHOL.IS|BIST:AGHOL|Holding
+DOHOL|Doğan Holding|DOHOL.IS|BIST:DOHOL|Holding
+
+# === ENDEKSLER ===
+XU100|BIST 100|XU100.IS|BIST:XU100|Endeks
+XU030|BIST 30|XU030.IS|BIST:XU030|Endeks
+XU050|BIST 50|XU050.IS|BIST:XU050|Endeks
+XBANK|Bankalar Endeksi|XBANK.IS|BIST:XBANK|Endeks
+XUSIN|Sanayi Endeksi|XUSIN.IS|BIST:XUSIN|Endeks
+XUTEK|Teknoloji Endeksi|XUTEK.IS|BIST:XUTEK|Endeks
+XGMYO|Gayrimenkul Endeksi|XGMYO.IS|BIST:XGMYO|Endeks
+XELKT|Elektrik Endeksi|XELKT.IS|BIST:XELKT|Endeks
+XMANA|Madenler Endeksi|XMANA.IS|BIST:XMANA|Endeks
+XHOLD|Holding Endeksi|XHOLD.IS|BIST:XHOLD|Endeks
+XULAS|Ulaştırma Endeksi|XULAS.IS|BIST:XULAS|Endeks

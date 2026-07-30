@@ -554,12 +554,26 @@ class XDaemonPlaywright:
                 await self._click_publish(post_btn, "reply")
 
                 # Wait for X to navigate away from compose (confirms submission)
+                # v5.7.0: 18s bekleme (36 x 0.5s) — büyük thread'lerde X yavaş yanıt verebiliyor.
                 navigated = False
-                for _ in range(20):
+                for _ in range(36):  # up to 18s in 0.5s steps (was 20=10s)
                     await asyncio.sleep(0.5)
                     if "compose" not in self.page.url:
                         navigated = True
                         break
+
+                if not navigated:
+                    # Ctrl+Enter fallback — bazı X versiyonlarında click sonrası tıklanmıyor
+                    try:
+                        await self.page.keyboard.press("Control+Enter")
+                        await asyncio.sleep(1.5)
+                        for _ in range(10):
+                            await asyncio.sleep(0.5)
+                            if "compose" not in self.page.url:
+                                navigated = True
+                                break
+                    except Exception:
+                        pass
 
                 if not navigated:
                     # Still on compose — check if compose box still has text (not submitted)
@@ -568,7 +582,7 @@ class XDaemonPlaywright:
                         filled = await compose_check.inner_text()
                         if filled.strip():
                             # Raise as PlaywrightTimeoutError so retry logic kicks in
-                            raise PlaywrightTimeoutError("Reply not submitted: compose box still has text after 10s")
+                            raise PlaywrightTimeoutError("Reply not submitted: compose box still has text after 18s")
                     except PlaywrightTimeoutError:
                         raise
                     except Exception:
@@ -868,10 +882,12 @@ class XDaemonPlaywright:
                 profile_url = f"https://x.com{self.profile_path}/with_replies"
             for retry in range(3):
                 try:
-                    wait_secs = 5.0 + retry * 3.0  # 5s, 8s, 11s
+                    # v5.7.0: is_reply=True fallback için daha uzun bekleme.
+                    # with_replies sayfası geç güncelleniyor — ilk retry 8s, sonraki 12s, 16s.
+                    wait_secs = 8.0 + retry * 4.0  # 8s, 12s, 16s (was: 5s, 8s, 11s)
                     await asyncio.sleep(wait_secs)
                     await self.page.goto(profile_url, wait_until="domcontentloaded", timeout=20000)
-                    await asyncio.sleep(2.0)
+                    await asyncio.sleep(3.0)  # was 2.0 — extra settle for with_replies
 
                     links = self.page.locator("article[data-testid='tweet'] a[href*='/status/']")
                     try:
@@ -1011,7 +1027,10 @@ class XDaemonPlaywright:
         posted_count = 1
         failed_parts = []
         for i, chunk in enumerate(numbered_chunks[1:], 2):
-            await asyncio.sleep(2.0)
+            # v5.7.0: 4s ara bekleme — büyük thread'lerde (8-12 tweet) X rate-limit tetikleyebilir.
+            # Özellikle son tweet'te 2s yeterli değildi; artırıldı.
+            inter_delay = 4.0 if i <= len(numbered_chunks) else 6.0  # son tweet için ekstra
+            await asyncio.sleep(inter_delay)
             res = await self._post_reply_in_thread(parent_url, chunk)
             if res.get("status") == "success":
                 posted_count += 1

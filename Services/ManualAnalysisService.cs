@@ -202,11 +202,56 @@ namespace XiDeAI_Pro.Services
                             })
                             .ToList();
 
-                        // --- Adım 1: VIP (fenomen modülü) listesiyle ara ---
+                        // --- Adım 0: KnowledgeBase'den VIP fenomenlerin sembolle eşleşen tweetlerini çek ---
+                        // v5.7.0: Deep Scan'de toplanan veriler artık analize dahil ediliyor.
                         var vipHandles = _influencerControl?.GetTopInfluencers(symbol, 20);
-                        var rawVip = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, vipHandles);
-                        influencerPosts = cleanFilter(rawVip);
-                        Log($"🔎 VIP arama: {influencerPosts.Count} geçerli fenomen yorumu.");
+                        if (_socialIntel.Memory != null && vipHandles != null && vipHandles.Count > 0)
+                        {
+                            var vipHandleSet = new HashSet<string>(
+                                vipHandles.Select(h => h.TrimStart('@').ToUpperInvariant()),
+                                StringComparer.OrdinalIgnoreCase);
+
+                            var memoryHits = _socialIntel.Memory.GetKnowledgeBase()
+                                .Where(t =>
+                                    vipHandleSet.Contains(t.Author.TrimStart('@').ToUpperInvariant()) &&
+                                    t.PostDate >= DateTime.Now.AddDays(-3) &&
+                                    (t.Content.Contains($"#{symUpper}", StringComparison.OrdinalIgnoreCase) ||
+                                     t.Content.Contains($"${symUpper}", StringComparison.OrdinalIgnoreCase) ||
+                                     System.Text.RegularExpressions.Regex.IsMatch(t.Content, $@"\b{symUpper}\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
+                                .OrderByDescending(t => t.PostDate)
+                                .Take(5)
+                                .Select(t => new InfluencerPost
+                                {
+                                    Handle = t.Author,
+                                    Content = t.Content,
+                                    Url = t.Url,
+                                    PostDate = t.PostDate,
+                                    Market = marketType,
+                                    Symbol = symbol
+                                })
+                                .ToList();
+
+                            if (memoryHits.Count > 0)
+                            {
+                                influencerPosts.AddRange(memoryHits);
+                                Log($"📚 [KB] KnowledgeBase'den {memoryHits.Count} VIP fenomen yorumu bulundu: {symbol} (son 3 gün)");
+                            }
+                        }
+
+                        // --- Adım 1: VIP (fenomen modülü) listesiyle canlı ara ---
+                        if (influencerPosts.Count < 3)
+                        {
+                            var rawVip = await _socialIntel.FindInfluencerAnalyses(symbol, marketType, vipHandles);
+                            var vipFiltered = cleanFilter(rawVip);
+                            Log($"🔎 VIP arama: {vipFiltered.Count} geçerli fenomen yorumu.");
+                            // KB'den gelenlerle birleştir, tekrar eden handle'ları düşür
+                            var existingHandles = new HashSet<string>(influencerPosts.Select(p => p.Handle), StringComparer.OrdinalIgnoreCase);
+                            influencerPosts.AddRange(vipFiltered.Where(p => !existingHandles.Contains(p.Handle)));
+                        }
+                        else
+                        {
+                            Log($"🔎 VIP arama: KnowledgeBase'den {influencerPosts.Count} yorum alındı, canlı VIP araması atlandı.");
+                        }
 
                         // --- Adım 2: VIP'te bulunamazsa genel X araması yap ---
                         if (influencerPosts.Count == 0)
@@ -221,6 +266,7 @@ namespace XiDeAI_Pro.Services
                     }
                 }
                 catch (Exception ex) { Log($"⚠️ Sosyal medya tarama hatası: {ex.Message}"); }
+
 
                 // 4. EXTRACT INDICATORS FROM SCREENSHOT
                 // v4.10.7: Skip when local LM Studio is active — GenerateMarketAnalysisWithChart

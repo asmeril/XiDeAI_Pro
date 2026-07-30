@@ -531,54 +531,113 @@ namespace XiDeAI_Pro.Services
                         })
                         .ToList();
 
-                    // Adım 1: VIP (fenomen modülü) listesiyle ara
+                    // Adım 0: KnowledgeBase'den VIP fenomenlerin sembolle eşleşen tweetlerini çek
+                    // v5.7.0: Deep Scan'de toplanan veriler artık sinyal analizine dahil ediliyor.
                     var vipHandles = _influencerControl?.GetTopInfluencers(sig.Symbol, 20);
-                    var vipPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, vipHandles));
-                    OnLog?.Invoke($"🔎 VIP arama: {vipPosts.Count} fenomen yorumu ({sig.Symbol})", "SocialIntel");
-
-                    List<InfluencerPost> finalPosts = vipPosts;
-
-                    // Adım 2: VIP'te bulunamazsa genel X araması
-                    if (finalPosts.Count == 0)
+                    if (_socialIntel.Memory != null && vipHandles != null && vipHandles.Count > 0)
                     {
-                        OnLog?.Invoke($"🔍 VIP'te yok, X'te genel arama yapılıyor...", "SocialIntel");
-                        finalPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, null));
-                        OnLog?.Invoke($"🔎 Genel arama: {finalPosts.Count} yorum", "SocialIntel");
+                        var vipHandleSet = new HashSet<string>(
+                            vipHandles.Select(h => h.TrimStart('@').ToUpperInvariant()),
+                            StringComparer.OrdinalIgnoreCase);
+
+                        var memoryHits = _socialIntel.Memory.GetKnowledgeBase()
+                            .Where(t =>
+                                vipHandleSet.Contains(t.Author.TrimStart('@').ToUpperInvariant()) &&
+                                t.PostDate >= DateTime.Now.AddDays(-3) &&
+                                (t.Content.Contains($"#{symUpper}", StringComparison.OrdinalIgnoreCase) ||
+                                 t.Content.Contains($"${symUpper}", StringComparison.OrdinalIgnoreCase) ||
+                                 System.Text.RegularExpressions.Regex.IsMatch(t.Content, $@"\b{symUpper}\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase)))
+                            .OrderByDescending(t => t.PostDate)
+                            .Take(5)
+                            .Select(t => new InfluencerPost
+                            {
+                                Handle = t.Author,
+                                Content = t.Content,
+                                Url = t.Url,
+                                PostDate = t.PostDate,
+                                Market = sig.Market,
+                                Symbol = sig.Symbol
+                            })
+                            .ToList();
+
+                        if (memoryHits.Count > 0)
+                        {
+                            OnLog?.Invoke($"📚 [KB] KnowledgeBase'den {memoryHits.Count} VIP fenomen yorumu ({sig.Symbol})", "SocialIntel");
+                            var existingHandles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var hit in memoryHits)
+                            {
+                                string h = hit.Handle?.TrimStart('@') ?? "";
+                                if (!string.IsNullOrWhiteSpace(h) && h.Length >= 2 && !handleBlocklist.Contains(h) &&
+                                    !existingHandles.Contains(h) &&
+                                    (string.IsNullOrEmpty(currentUser) || !h.Equals(currentUser, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    existingHandles.Add(h);
+                                    allowedMentionHandles.Add(h);
+                                    string cleanContent = StripUnapprovedMentions(hit.Content?.Trim() ?? "", new HashSet<string>(new[] { h }, StringComparer.OrdinalIgnoreCase), out _);
+                                    string urlSuffix = !string.IsNullOrEmpty(hit.Url) && hit.Url.Contains("/status/") ? $" [Kaynak: {hit.Url}]" : "";
+                                    string prefix = influencerCitations.Length == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
+                                    influencerCitations += (influencerCitations.Length > 0 ? "\n" : "") + $"{prefix} @{h}: {cleanContent}{urlSuffix}";
+                                }
+                            }
+                            if (allowedMentionHandles.Count > 0)
+                                OnLog?.Invoke($"✅ KB Mention hazır → @{allowedMentionHandles.First()}", "SocialIntel");
+                        }
                     }
 
-                    if (finalPosts.Count > 0)
+                    // Adım 1: VIP (fenomen modülü) listesiyle canlı ara
+                    if (allowedMentionHandles.Count < 1)
                     {
-                        var topPosts = finalPosts
-                            .OrderByDescending(p => p.Content?.Length ?? 0)
-                            .Take(3)
-                            .ToList();
-                        var lines = new List<string>();
-                        for (int i = 0; i < topPosts.Count; i++)
+                        var vipPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, vipHandles));
+                        OnLog?.Invoke($"🔎 VIP arama: {vipPosts.Count} fenomen yorumu ({sig.Symbol})", "SocialIntel");
+
+                        List<InfluencerPost> finalPosts = vipPosts;
+
+                        // Adım 2: VIP'te bulunamazsa genel X araması
+                        if (finalPosts.Count == 0)
                         {
-                            string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
-                            string cleanHandle = topPosts[i].Handle?.TrimStart('@') ?? "";
-                            if (string.IsNullOrWhiteSpace(cleanHandle) || cleanHandle.Length < 2) continue;
-                            if (handleBlocklist.Contains(cleanHandle)) continue;
-                            allowedMentionHandles.Add(cleanHandle);
-                            string cleanContent = StripUnapprovedMentions(topPosts[i].Content?.Trim() ?? "", new HashSet<string>(new[] { cleanHandle }, StringComparer.OrdinalIgnoreCase), out _);
-                            string postUrl = topPosts[i].Url?.Trim() ?? "";
-                            string urlSuffix = !string.IsNullOrEmpty(postUrl) && postUrl.Contains("/status/") ? $" [Kaynak: {postUrl}]" : "";
-                            lines.Add($"{prefix} @{cleanHandle}: {cleanContent}{urlSuffix}");
+                            OnLog?.Invoke($"🔍 VIP'te yok, X'te genel arama yapılıyor...", "SocialIntel");
+                            finalPosts = cleanFilter(await _socialIntel.FindInfluencerAnalyses(sig.Symbol, sig.Market, null));
+                            OnLog?.Invoke($"🔎 Genel arama: {finalPosts.Count} yorum", "SocialIntel");
                         }
-                        if (lines.Count > 0)
+
+                        if (finalPosts.Count > 0)
                         {
-                            influencerCitations = string.Join("\n", lines);
-                            OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
+                            var topPosts = finalPosts
+                                .OrderByDescending(p => p.Content?.Length ?? 0)
+                                .Take(3)
+                                .ToList();
+                            var lines = new List<string>();
+                            for (int i = 0; i < topPosts.Count; i++)
+                            {
+                                string prefix = i == 0 ? "⭐ [EN ALAKALI MENTION]" : "•";
+                                string cleanHandle = topPosts[i].Handle?.TrimStart('@') ?? "";
+                                if (string.IsNullOrWhiteSpace(cleanHandle) || cleanHandle.Length < 2) continue;
+                                if (handleBlocklist.Contains(cleanHandle)) continue;
+                                allowedMentionHandles.Add(cleanHandle);
+                                string cleanContent = StripUnapprovedMentions(topPosts[i].Content?.Trim() ?? "", new HashSet<string>(new[] { cleanHandle }, StringComparer.OrdinalIgnoreCase), out _);
+                                string postUrl = topPosts[i].Url?.Trim() ?? "";
+                                string urlSuffix = !string.IsNullOrEmpty(postUrl) && postUrl.Contains("/status/") ? $" [Kaynak: {postUrl}]" : "";
+                                lines.Add($"{prefix} @{cleanHandle}: {cleanContent}{urlSuffix}");
+                            }
+                            if (lines.Count > 0)
+                            {
+                                influencerCitations = string.Join("\n", lines);
+                                OnLog?.Invoke($"✅ Mention hazır → @{topPosts[0].Handle?.TrimStart('@')}", "SocialIntel");
+                            }
+                            else
+                            {
+                                OnLog?.Invoke($"ℹ️ {sig.Symbol}: Genel aramada yorum bulundu ama geçerli handle yok; mention kapalı.", "SocialIntel");
+                            }
                         }
                         else
                         {
-                            OnLog?.Invoke($"ℹ️ {sig.Symbol}: Genel aramada yorum bulundu ama geçerli handle yok; mention kapalı.", "SocialIntel");
+                            // Sembole özel doğrulanmış post yoksa modele fallback handle verme.
+                            OnLog?.Invoke($"ℹ️ {sig.Symbol} için doğrulanmış fenomen yorumu yok; mention kapalı.", "SocialIntel");
                         }
                     }
                     else
                     {
-                        // Sembole özel doğrulanmış post yoksa modele fallback handle verme.
-                        OnLog?.Invoke($"ℹ️ {sig.Symbol} için doğrulanmış fenomen yorumu yok; mention kapalı.", "SocialIntel");
+                        OnLog?.Invoke($"🔎 VIP arama: KnowledgeBase'den geldi, canlı X araması atlandı.", "SocialIntel");
                     }
                 }
                 catch (Exception ex) { OnLog?.Invoke($"⚠️ Influencer araması başarısız: {ex.Message}", "SocialIntel"); }

@@ -1,8 +1,9 @@
 ﻿{
     "version":  "5.7.0",
     "build_number":  5700,
-    "lastUpdate":  "2026-07-15T23:11:12Z",
+    "lastUpdate":  "2026-07-30T15:34:08Z",
     "changelog":  [
+                      "v5.7.0: v5.7.0: Fenomen KB cache sembol filtresi, ManualAnalysis+SignalEngine KB lookup, thread son tweet güvenilirlik artırımı (4s ara bekleme, 18s navigate timeout, Ctrl+Enter fallback)",
                       "v5.7.0: v5.7.0: Prompt Overhaul ve Etkilesim Iyilestirmesi",
                       "v5.6.8: v5.6.8: Ustat paneli artik daima canli X taramas yapar (cache bypass forceRefresh), gorsel tespit iyilesti",
                       "v5.6.7: v5.6.7: Telegram timer crash on UI thread handled \u0026 x_daemon.py image detection improved",

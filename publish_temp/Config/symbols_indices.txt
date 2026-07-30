@@ -1,0 +1,92 @@
+# INDICES (Endeksler) Sembol Listesi
+# Format: SYMBOL|Turkish Name|Yahoo Symbol|TradingView Symbol|Category
+# Encoding: UTF-8
+
+# === TÜRKİYE ===
+XU100|BIST 100|XU100.IS|BIST:XU100|Türkiye
+XU030|BIST 30|XU030.IS|BIST:XU030|Türkiye
+XU050|BIST 50|XU050.IS|BIST:XU050|Türkiye
+XBANK|BIST Bankalar|XBANK.IS|BIST:XBANK|Türkiye
+XUSIN|BIST Sanayi|XUSIN.IS|BIST:XUSIN|Türkiye
+XUTEK|BIST Teknoloji|XUTEK.IS|BIST:XUTEK|Türkiye
+XGMYO|BIST Gayrimenkul|XGMYO.IS|BIST:XGMYO|Türkiye
+XELKT|BIST Elektrik|XELKT.IS|BIST:XELKT|Türkiye
+XMANA|BIST Madenler|XMANA.IS|BIST:XMANA|Türkiye
+XHOLD|BIST Holding|XHOLD.IS|BIST:XHOLD|Türkiye
+XULAS|BIST Ulaştırma|XULAS.IS|BIST:XULAS|Türkiye
+
+# === ABD (United States) ===
+SPX|S&P 500|^GSPC|TVC:SPX|ABD
+SP500|S&P 500|^GSPC|TVC:SPX|ABD
+NASDAQ|NASDAQ Composite|^IXIC|NASDAQ:IXIC|ABD
+NDX|NASDAQ 100|^NDX|NASDAQ:NDX|ABD
+NASDAQ100|NASDAQ 100|^NDX|NASDAQ:NDX|ABD
+DJI|Dow Jones|^DJI|INDEX:DJI|ABD
+DOW|Dow Jones|^DJI|INDEX:DJI|ABD
+DOWJONES|Dow Jones|^DJI|INDEX:DJI|ABD
+RUT|Russell 2000|^RUT|INDEX:RUT|ABD
+RUSSELL2000|Russell 2000|^RUT|INDEX:RUT|ABD
+VIX|Volatilite Endeksi|^VIX|INDEX:VIX|ABD
+NYA|NYSE Composite|^NYA|INDEX:NYA|ABD
+
+# === ABD SEKTÖR ENDEKSLERİ ===
+XLF|Finansal Sektörü|XLF|AMEX:XLF|ABD Sektör
+XLE|Enerji Sektörü|XLE|AMEX:XLE|ABD Sektör
+XLK|Teknoloji Sektörü|XLK|AMEX:XLK|ABD Sektör
+XLV|Sağlık Sektörü|XLV|AMEX:XLV|ABD Sektör
+XLI|Sanayi Sektörü|XLI|AMEX:XLI|ABD Sektör
+XLP|Tüketici Ürünleri|XLP|AMEX:XLP|ABD Sektör
+XLY|Tüketici Seçimi|XLY|AMEX:XLY|ABD Sektör
+XLU|Kamu Hizmetleri|XLU|AMEX:XLU|ABD Sektör
+XLRE|Gayrimenkul Sektörü|XLRE|AMEX:XLRE|ABD Sektör
+
+# === AVRUPA (Europe) ===
+DAX|DAX 40|^GDAXI|XETR:DAX|Almanya
+DAX30|DAX 40|^GDAXI|XETR:DAX|Almanya
+DAX40|DAX 40|^GDAXI|XETR:DAX|Almanya
+FTSE|FTSE 100|^FTSE|INDEX:UKX|İngiltere
+FTSE100|FTSE 100|^FTSE|INDEX:UKX|İngiltere
+CAC40|CAC 40|^FCHI|EURONEXT:PX1|Fransa
+STOXX50|Euro Stoxx 50|^STOXX50E|INDEX:SX5E|Avrupa
+EUROSTOXX50|Euro Stoxx 50|^STOXX50E|INDEX:SX5E|Avrupa
+SMI|Swiss Market Index|^SSMI|INDEX:SMI|İsviçre
+IBEX35|IBEX 35|^IBEX|INDEX:IBEX|İspanya
+AEX|Amsterdam Exchange|^AEX|INDEX:AEX|Hollanda
+BEL20|Belçika 20|^BFX|INDEX:BEL20|Belçika
+OMX|OMX Baltic|^OMXC25|INDEX:OMXC25|Baltık
+ATX|Vienna Stock Exchange|^ATX|INDEX:ATX|Avusturya
+PSI20|Lizbon 20|^PSI20|INDEX:PSI20|Portekiz
+ISEQ|İrlanda Endeksi|^ISEQ|INDEX:ISEQ|İrlanda
+
+# === ASYA-PASİFİK (Asia-Pacific) ===
+NIKKEI|Nikkei 225|^N225|INDEX:NI225|Japonya
+NIKKEI225|Nikkei 225|^N225|INDEX:NI225|Japonya
+TOPIX|Tokyo Price Index|^TOPX|INDEX:TOPIX|Japonya
+HANGSENG|Hong Kong 50|^HSI|INDEX:HSI|Hong Kong
+HSI|Hong Kong 50|^HSI|INDEX:HSI|Hong Kong
+KOSPI|Kore Composite|^KS11|INDEX:KOSPI|Güney Kore
+KOSDAQ|Kore Tech|^KQ11|INDEX:KOSDAQ|Güney Kore
+SHANGHAI|Shanghai Composite|000001.SS|INDEX:SHCOMP|Çin
+SHCOMP|Shanghai Composite|000001.SS|INDEX:SHCOMP|Çin
+CSI300|China A50|000300.SS|INDEX:CSI300|Çin
+SZSE|Shenzhen|399001.SZ|INDEX:SZSE|Çin
+TWII|Tayvan Ağırlıklı|^TWII|INDEX:TWII|Tayvan
+TAIWAN|Tayvan Endeksi|^TWII|INDEX:TWII|Tayvan
+SENSEX|India 50|^BSESN|INDEX:SENSEX|Hindistan
+NIFTY|India Nifty|^NSEI|INDEX:NIFTY|Hindistan
+NIFTY50|India Nifty 50|^NSEI|INDEX:NIFTY|Hindistan
+ASX200|Avustralya 200|^AXJO|INDEX:XJO|Avustralya
+NZX50|Yeni Zelanda 50|^NZ50|INDEX:NZX50|Yeni Zelanda
+JAKARTA|Jakarta Borsası|^JKSE|INDEX:JKSE|Endonezya
+SET|Tayland SET|^SET.BK|INDEX:SET|Tayland
+KLSE|Malezya Borsası|^KLSE|INDEX:KLSE|Malezya
+PSE|Filipin Borsası|^PSEi|INDEX:PSEi|Filipinler
+VNINDEX|Vietnam Endeksi|^VNINDEX|INDEX:VNINDEX|Vietnam
+
+# === DİĞER BÖLGELER ===
+BOVESPA|Brezilya Bovespa|^BVSP|INDEX:IBOV|Brezilya
+MERVAL|Arjantin Merval|^MERV|INDEX:MERV|Arjantin
+IPC|Meksika IPC|^MXX|INDEX:IPC|Meksika
+JSE|Güney Afrika JSE|^J203|INDEX:J203|Güney Afrika
+TA125|Tel Aviv 125|^TA125.TA|INDEX:TA125|İsrail
+MOEX|Moskova Borsası|IMOEX.ME|INDEX:IMOEX|Rusya

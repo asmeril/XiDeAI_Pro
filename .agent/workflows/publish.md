@@ -133,6 +133,9 @@ git push origin master
 | tpChart ve tpTwitter CS0103 derleme hatası | ✅ Düzeltildi — TabPage değişkenleri class field'a çıkarıldı | v5.5.9 |
 | Arka planda siyah/beyaz CMD penceresi flash atması | ✅ Düzeltildi — undetected_chromedriver Popen yaması (CREATE_NO_WINDOW) eklendi | v5.6.6 |
 | XHive Telethon sürekli OTP kod gönderme döngüsü | ✅ Düzeltildi — client.start yerine client.connect kullanıldı | v5.6.6 |
+| Fenomen cache sembol filtresi yok — tüm handle tweetleri sayılıyordu, sembol eşleşmesi aranmıyordu | ✅ Düzeltildi — Cache artık sadece sembolle eşleşen tweetleri sayıyor (min 3 eşleşme şartı) | v5.7.0 |
+| ManualAnalysis + SignalEngine KnowledgeBase'i kullanmıyordu — Deep Scan'de toplanan veriler analize dahil edilmiyordu | ✅ Düzeltildi — Adım 0: KB'den VIP sembol araması eklendi, canlı X araması fallback'e alındı | v5.7.0 |
+| Thread son tweet gönderilemiyor (ManualAnalysisThread 11/12, 7/8) — reply navigate timeout 10s yetmiyordu | ✅ Düzeltildi — Navigate bekleme 18s, tweetler arası 4s, Ctrl+Enter fallback, with_replies 8s bekleme | v5.7.0 |
 
 ---
 

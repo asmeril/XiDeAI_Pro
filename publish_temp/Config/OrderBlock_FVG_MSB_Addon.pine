@@ -1,0 +1,258 @@
+// ========================================================================
+// ORDER BLOCK, FVG, MSB DETECTION ADDON
+// TeFo RSI+MACD göstergesine eklenecek bölüm
+// ========================================================================
+
+//@version=6
+// indicator('Order Block + FVG + MSB Detector', overlay=true, max_bars_back=500)
+
+// --- AYARLAR ---
+show_orderblocks = input.bool(true, "Order Block'ları Göster", group="ORDER BLOCK & FVG & MSB")
+show_fvg = input.bool(true, "FVG (Fair Value Gap) Göster", group="ORDER BLOCK & FVG & MSB")
+show_msb = input.bool(true, "MSB (Market Structure Break) Göster", group="ORDER BLOCK & FVG & MSB")
+
+ob_lookback = input.int(20, "Order Block Lookback", minval=5, maxval=100, group="ORDER BLOCK & FVG & MSB")
+fvg_threshold = input.float(0.0, "FVG Min Gap (0 = Auto ATR)", minval=0, step=0.1, group="ORDER BLOCK & FVG & MSB")
+msb_swing_length = input.int(5, "MSB Swing Length", minval=3, maxval=50, group="ORDER BLOCK & FVG & MSB")
+
+// Renkler
+ob_bullish_color = input.color(color.new(color.green, 85), "Bullish Order Block", inline="ob", group="ORDER BLOCK & FVG & MSB")
+ob_bearish_color = input.color(color.new(color.red, 85), "Bearish Order Block", inline="ob", group="ORDER BLOCK & FVG & MSB")
+fvg_bullish_color = input.color(color.new(color.aqua, 80), "Bullish FVG", inline="fvg", group="ORDER BLOCK & FVG & MSB")
+fvg_bearish_color = input.color(color.new(color.orange, 80), "Bearish FVG", inline="fvg", group="ORDER BLOCK & FVG & MSB")
+msb_bullish_color = input.color(color.new(color.lime, 0), "MSB Bullish", inline="msb", group="ORDER BLOCK & FVG & MSB")
+msb_bearish_color = input.color(color.new(color.fuchsia, 0), "MSB Bearish", inline="msb", group="ORDER BLOCK & FVG & MSB")
+
+///////////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ORDER BLOCK TESPİTİ  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///////////////////////////////////////////////////////////////////////////////////////
+
+// Order Block: Güçlü bir hareket öncesi son kararsızlık mumunun oluşturduğu bölge
+// Bullish OB: Düşüş sonrası güçlü yeşil mum öncesi son kırmızı mum
+// Bearish OB: Yükseliş sonrası güçlü kırmızı mum öncesi son yeşil mum
+
+var box[] bullish_obs = array.new_box(0)
+var box[] bearish_obs = array.new_box(0)
+var label[] ob_labels = array.new_label(0)
+
+// Güçlü hareket tespiti
+atr_ob = ta.atr(14)
+strong_bullish = close > open and (close - open) > atr_ob * 1.5
+strong_bearish = close < open and (open - close) > atr_ob * 1.5
+
+// Bullish Order Block (son düşüş mumu + sonra güçlü alım)
+if strong_bullish and close[1] < open[1] and show_orderblocks
+    // Son kırmızı mumun low-high'ı = order block
+    ob_top = high[1]
+    ob_bottom = low[1]
+    
+    // Eski boxları sil (max 3 OB göster)
+    if array.size(bullish_obs) >= 3
+        box.delete(array.shift(bullish_obs))
+    
+    // Yeni box oluştur
+    ob_box = box.new(bar_index - 1, ob_top, bar_index + 50, ob_bottom, 
+                     border_color=color.new(color.green, 50), 
+                     bgcolor=ob_bullish_color, 
+                     border_width=1,
+                     extend=extend.right)
+    array.push(bullish_obs, ob_box)
+    
+    // Label ekle
+    ob_label = label.new(bar_index - 1, ob_bottom, 
+                        "🟢 OB", 
+                        style=label.style_label_up, 
+                        color=color.new(color.green, 30), 
+                        textcolor=color.white,
+                        size=size.small)
+    array.push(ob_labels, ob_label)
+
+// Bearish Order Block (son yükseliş mumu + sonra güçlü satış)
+if strong_bearish and close[1] > open[1] and show_orderblocks
+    ob_top = high[1]
+    ob_bottom = low[1]
+    
+    if array.size(bearish_obs) >= 3
+        box.delete(array.shift(bearish_obs))
+    
+    ob_box = box.new(bar_index - 1, ob_top, bar_index + 50, ob_bottom, 
+                     border_color=color.new(color.red, 50), 
+                     bgcolor=ob_bearish_color, 
+                     border_width=1,
+                     extend=extend.right)
+    array.push(bearish_obs, ob_box)
+    
+    ob_label = label.new(bar_index - 1, ob_top, 
+                        "🔴 OB", 
+                        style=label.style_label_down, 
+                        color=color.new(color.red, 30), 
+                        textcolor=color.white,
+                        size=size.small)
+    array.push(ob_labels, ob_label)
+
+///////////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  FVG (FAIR VALUE GAP) TESPİTİ  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///////////////////////////////////////////////////////////////////////////////////////
+
+// FVG: 3 mum arasında oluşan fiyat boşluğu (imbalance)
+// Bullish FVG: Mum 1 high < Mum 3 low → Arada gap var
+// Bearish FVG: Mum 1 low > Mum 3 high → Arada gap var
+
+var box[] bullish_fvgs = array.new_box(0)
+var box[] bearish_fvgs = array.new_box(0)
+
+fvg_min_gap = fvg_threshold > 0 ? fvg_threshold : atr_ob * 0.3
+
+// Bullish FVG tespiti
+bullish_fvg = low > high[2] and (low - high[2]) > fvg_min_gap
+if bullish_fvg and show_fvg
+    fvg_top = low
+    fvg_bottom = high[2]
+    
+    if array.size(bullish_fvgs) >= 5
+        box.delete(array.shift(bullish_fvgs))
+    
+    fvg_box = box.new(bar_index - 2, fvg_top, bar_index + 30, fvg_bottom,
+                      border_color=color.new(color.aqua, 60),
+                      bgcolor=fvg_bullish_color,
+                      border_width=1,
+                      border_style=line.style_dashed,
+                      extend=extend.right)
+    array.push(bullish_fvgs, fvg_box)
+    
+    label.new(bar_index - 1, fvg_bottom, "FVG↑", 
+             style=label.style_label_up, 
+             color=color.new(color.aqua, 50), 
+             textcolor=color.white,
+             size=size.tiny)
+
+// Bearish FVG tespiti
+bearish_fvg = high < low[2] and (low[2] - high) > fvg_min_gap
+if bearish_fvg and show_fvg
+    fvg_top = low[2]
+    fvg_bottom = high
+    
+    if array.size(bearish_fvgs) >= 5
+        box.delete(array.shift(bearish_fvgs))
+    
+    fvg_box = box.new(bar_index - 2, fvg_top, bar_index + 30, fvg_bottom,
+                      border_color=color.new(color.orange, 60),
+                      bgcolor=fvg_bearish_color,
+                      border_width=1,
+                      border_style=line.style_dashed,
+                      extend=extend.right)
+    array.push(bearish_fvgs, fvg_box)
+    
+    label.new(bar_index - 1, fvg_top, "FVG↓", 
+             style=label.style_label_down, 
+             color=color.new(color.orange, 50), 
+             textcolor=color.white,
+             size=size.tiny)
+
+///////////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  MSB (MARKET STRUCTURE BREAK)  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///////////////////////////////////////////////////////////////////////////////////////
+
+// MSB: Piyasa yapısının kırılması
+// Bullish MSB: Önceki swing high kırıldı (higher high)
+// Bearish MSB: Önceki swing low kırıldı (lower low)
+
+// Swing High/Low tespiti
+swing_high = ta.pivothigh(high, msb_swing_length, msb_swing_length)
+swing_low = ta.pivotlow(low, msb_swing_length, msb_swing_length)
+
+var float last_swing_high = na
+var float last_swing_low = na
+var int last_swing_high_bar = na
+var int last_swing_low_bar = na
+
+// Swing seviyeleri kaydet
+if not na(swing_high)
+    last_swing_high := swing_high
+    last_swing_high_bar := bar_index - msb_swing_length
+
+if not na(swing_low)
+    last_swing_low := swing_low
+    last_swing_low_bar := bar_index - msb_swing_length
+
+// Bullish MSB: Önceki swing high'ı yukarı kırdık
+bullish_msb = not na(last_swing_high) and close > last_swing_high and close[1] <= last_swing_high
+if bullish_msb and show_msb
+    line.new(last_swing_high_bar, last_swing_high, bar_index, last_swing_high,
+             color=msb_bullish_color, 
+             width=2, 
+             style=line.style_solid)
+    
+    label.new(bar_index, last_swing_high, "⬆ MSB", 
+             style=label.style_label_down, 
+             color=msb_bullish_color, 
+             textcolor=color.white,
+             size=size.normal)
+
+// Bearish MSB: Önceki swing low'u aşağı kırdık
+bearish_msb = not na(last_swing_low) and close < last_swing_low and close[1] >= last_swing_low
+if bearish_msb and show_msb
+    line.new(last_swing_low_bar, last_swing_low, bar_index, last_swing_low,
+             color=msb_bearish_color, 
+             width=2, 
+             style=line.style_solid)
+    
+    label.new(bar_index, last_swing_low, "⬇ MSB", 
+             style=label.style_label_up, 
+             color=msb_bearish_color, 
+             textcolor=color.white,
+             size=size.normal)
+
+///////////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  BREAKOUT TESPİTİ  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///////////////////////////////////////////////////////////////////////////////////////
+
+// Breakout: Konsolidasyon sonrası güçlü kırılım
+show_breakout = input.bool(true, "Breakout Sinyali Göster", group="BREAKOUT")
+breakout_length = input.int(20, "Breakout Range Uzunluğu", minval=10, group="BREAKOUT")
+
+// Son N barın yüksek/düşük aralığı
+range_high = ta.highest(high, breakout_length)
+range_low = ta.lowest(low, breakout_length)
+range_size = range_high - range_low
+
+// Konsolidasyon tespiti (dar aralık)
+is_consolidating = range_size < atr_ob * 2
+
+// Bullish Breakout: Konsolidasyon sonrası yukarı kırılım
+bullish_breakout = is_consolidating[1] and close > range_high[1] and (close - open) > atr_ob
+if bullish_breakout and show_breakout
+    label.new(bar_index, low, "🚀 BREAKOUT", 
+             style=label.style_label_up, 
+             color=color.new(color.lime, 0), 
+             textcolor=color.black,
+             size=size.normal)
+    
+    // Kırılan seviyeyi çiz
+    line.new(bar_index - breakout_length, range_high[1], bar_index, range_high[1],
+             color=color.lime, width=2, style=line.style_dashed)
+
+// Bearish Breakout: Konsolidasyon sonrası aşağı kırılım
+bearish_breakout = is_consolidating[1] and close < range_low[1] and (open - close) > atr_ob
+if bearish_breakout and show_breakout
+    label.new(bar_index, high, "💥 BREAKDOWN", 
+             style=label.style_label_down, 
+             color=color.new(color.red, 0), 
+             textcolor=color.white,
+             size=size.normal)
+    
+    line.new(bar_index - breakout_length, range_low[1], bar_index, range_low[1],
+             color=color.red, width=2, style=line.style_dashed)
+
+///////////////////////////////////////////////////////////////////////////////////////
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ALERTLER  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///////////////////////////////////////////////////////////////////////////////////////
+
+alertcondition(strong_bullish and close[1] < open[1], "Bullish Order Block", "Bullish Order Block oluştu!")
+alertcondition(strong_bearish and close[1] > open[1], "Bearish Order Block", "Bearish Order Block oluştu!")
+alertcondition(bullish_fvg, "Bullish FVG", "Bullish Fair Value Gap tespit edildi!")
+alertcondition(bearish_fvg, "Bearish FVG", "Bearish Fair Value Gap tespit edildi!")
+alertcondition(bullish_msb, "Bullish MSB", "Market Structure Break - Yukarı kırılım!")
+alertcondition(bearish_msb, "Bearish MSB", "Market Structure Break - Aşağı kırılım!")
+alertcondition(bullish_breakout, "Bullish Breakout", "Yükseliş Breakout!")
+alertcondition(bearish_breakout, "Bearish Breakdown", "Düşüş Breakdown!")
