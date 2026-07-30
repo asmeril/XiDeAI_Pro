@@ -38,7 +38,7 @@ Format: `MAJOR.MINOR.PATCH`
 
 ```powershell
 # csproj'u güncelle (release.ps1 yoksa manuel)
-Set-Location "d:\MEGA\XiDeAI_Pro"
+Set-Location "D:\Projects\XiDeAI_Pro"
 (Get-Content XiDeAI_Pro.csproj -Raw) `
   -replace '<Version>.*?</Version>', '<Version>NEW_VER</Version>' `
   -replace '<AssemblyVersion>.*?</AssemblyVersion>', '<AssemblyVersion>NEW_VER.0</AssemblyVersion>' `
@@ -51,7 +51,7 @@ Set-Location "d:\MEGA\XiDeAI_Pro"
 ## 2. Build, Setup & Deploy (release.ps1)
 
 ```powershell
-Set-Location "d:\MEGA\XiDeAI_Pro"
+Set-Location "D:\Projects\XiDeAI_Pro"
 .\release.ps1 -Version "NEW_VER" -Changelog "vNEW_VER: <degisiklik ozeti>"
 ```
 
@@ -65,13 +65,20 @@ Bu script şunları yapar:
 > **NOT:** Build çıktısı `Dist\publish\` altında toplanır, setup EXE `Output\` klasörüne yazılır.
 > Inno Setup kurulu olmalı: `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`
 
-### Production deploy (setup sonrası)
+### Yerel Deploy
 
+**C# kodu değiştiyse** — Setup EXE'yi kur (admin gerekir):
+```
+D:\Projects\XiDeAI_Pro\Output\XiDeAI_vNEW_VER_Setup.exe
+```
+
+**Sadece Python scripti değiştiyse** — hızlı kopyala (admin PS ile):
 ```powershell
-Copy-Item "d:\MEGA\XiDeAI_Pro\Scripts\social_intel.py" `
+Copy-Item "D:\Projects\XiDeAI_Pro\Scripts\social_intel.py" `
   "C:\Program Files (x86)\XiDeAI Pro\Scripts\social_intel.py" -Force
-Copy-Item "d:\MEGA\XiDeAI_Pro\Scripts\playwright_daemon.py" `
+Copy-Item "D:\Projects\XiDeAI_Pro\Scripts\playwright_daemon.py" `
   "C:\Program Files (x86)\XiDeAI Pro\Scripts\playwright_daemon.py" -Force
+Write-Host "Scripts deployed."
 ```
 
 ---
@@ -84,7 +91,7 @@ Get-Item "C:\Program Files (x86)\XiDeAI Pro\XiDeAI_Pro.exe" |
   Select-Object FullName, LastWriteTime, @{N='MB';E={[math]::Round($_.Length/1MB,1)}}
 
 # Versiyon bilgisi
-(Get-Content "d:\MEGA\XiDeAI_Pro\XiDeAI_Pro.csproj" | Select-String "Version")[0]
+(Get-Content "D:\Projects\XiDeAI_Pro\XiDeAI_Pro.csproj" | Select-String "Version")[0]
 ```
 
 ---
@@ -92,7 +99,7 @@ Get-Item "C:\Program Files (x86)\XiDeAI Pro\XiDeAI_Pro.exe" |
 ## 5. Git Commit & Push
 
 ```powershell
-Set-Location "d:\MEGA\XiDeAI_Pro"
+Set-Location "D:\Projects\XiDeAI_Pro"
 git add .
 git commit -m "feat: vNEW_VER - <degisiklik ozeti>"
 git push origin master
