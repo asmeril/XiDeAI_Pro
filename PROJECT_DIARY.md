@@ -2,6 +2,24 @@
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
+## 📅 30 Temmuz 2026
+
+### 🚀 v5.7.0 Release (Fenomen & Thread Düzeltmeleri)
+
+**Fenomen Analizlerinin Akışa Dahil Edilmesi:**
+- `SocialIntelService.cs` — `FetchInfluencerPostsFromPython` içindeki cache mekanizması sembol-aware yapıldı. Önceden bir handle için genel tweet sayısı yeterince büyükse (≥5) canlı X araması atlanıyordu; fakat bu tweetlerin söz konusu sembolle ilgisi kontrol edilmiyordu. Artık cache, `#SEMBOL / $SEMBOL / \bSEMBOL\b` regex ile filtreleniyor, en az 3 eşleşme yoksa canlı X aramasına gidiliyor.
+- `ManualAnalysisService.cs` + `SignalEngine.cs` — VIP canlı aramasından **önce** `MemoryEngine.GetKnowledgeBase()` üzerinden sembol bazlı "Adım 0" KB araması eklendi. Deep Scan'de toplanan VIP fenomen tweetleri artık her analizde proaktif olarak kullanılıyor; canlı X araması yalnızca KB'de yeterli veri yoksa fallback olarak devreye giriyor.
+
+**Thread Son Tweet Güvenilirlik Artırımı:**
+- `playwright_daemon.py` — Loglardan tespit edilen kalıp: `ManualAnalysisThread (11/12)`, `(7/8)` → her seferinde **son tweet** başarısız. Kök neden: X büyük thread'lerde yavaş yanıt verirken eski timeout değerleri yetersiz kalıyordu.
+  - Tweet arası bekleme: `2s → 4s`
+  - Reply navigate timeout: `10s (20 döngü) → 18s (36 döngü)`  
+  - `Ctrl+Enter` fallback: Yalnızca `_post_single_tweet`'teydi, `_post_reply_in_thread`'e de eklendi
+  - `with_replies` profil fallback bekleme: `5s/8s/11s → 8s/12s/16s`
+  - Profile fetch settle: `2s → 3s`
+
+---
+
 ## 📅 16 Temmuz 2026
 
 ### 🚀 v5.7.0 Release
