@@ -145,6 +145,7 @@ git push origin master
 | Thread son tweet gönderilemiyor (ManualAnalysisThread 11/12, 7/8) — reply navigate timeout 10s yetmiyordu | ✅ Düzeltildi — Navigate bekleme 18s, tweetler arası 4s, Ctrl+Enter fallback, with_replies 8s bekleme | v5.7.0 |
 | TradingView cookie import `IOException: file is being used by another process` | ✅ Düzeltildi — `File.Copy` yerine `ReadAllTextAsync`+`WriteAllTextAsync` pattern kullanıldı | v5.7.1 |
 | Yeni PC kurulumunda X sosyal sekmesi hesabı göstermiyor — cookie import sonrası WebView2 yenilenmiyordu | ✅ Düzeltildi — Import başarılıysa `InjectTwitterCookiesAsync` + `x.com/home` navigate tetikleniyor | v5.7.1 |
+| WebView2 GRAFİK ve SOSYAL sekmeleri siyah — yeni PC'de GPU sürücüsü uyumsuzluğu `BrowserProcessExited` fırlatıyor | ✅ Düzeltildi — `CoreWebView2EnvironmentOptions` ile `--disable-gpu` eklendi, software rendering'e geçildi | v5.7.2 |
 
 ---
 

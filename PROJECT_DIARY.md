@@ -4,6 +4,18 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 19 Ağustos 2026
 
+### 🔧 v5.7.2 Release (WebView2 GPU Crash — Siyah Ekran Düzeltmesi)
+
+**Kök Neden:** Yeni PC kurulumlarında GPU sürücüsü uyumsuzluğu, WebView2'nin altındaki Chromium render sürecini başlangıçta çökertiyor (`BrowserProcessExited`). Süreç yeniden başlatılıyor ancak GPU donanım hızlandırması yüzünden ekran siyah kalıyordu.
+
+**Düzeltme (`MainForm.cs` — `InitializeChart` + `InitializeTwitterWebView`):**
+- `CoreWebView2EnvironmentOptions` nesnesi eklendi: `--disable-gpu --disable-gpu-compositing --disable-software-rasterizer --in-process-gpu`
+- Bu bayraklar Chromium'u CPU tabanlı software rendering moduna geçirir; GPU sürücüsü uyumsuzluğunu bypass eder.
+- Her iki WebView2 (Chart + Twitter) için aynı fix uygulandı.
+- Etkilenen cihazlar: Yeni/farklı PC'ye ilk kurulum, özellikle farklı GPU modeli/sürücüsüne sahip sistemler.
+
+---
+
 ### 🔧 v5.7.1 Release (Yeni PC Kurulum & Cookie Hata Düzeltmeleri)
 
 **TradingView Cookie IOException Düzeltmesi (`MainForm.cs`):**

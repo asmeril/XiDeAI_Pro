@@ -1565,7 +1565,12 @@ namespace XiDeAI_Pro
                 // v4.4.5: Use distinct folder to avoid locking conflict with Twitter WebView
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "WebView2_Chart");
                 Directory.CreateDirectory(userDataFolder);
-                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                // FIX v5.7.1: BrowserProcessExited (siyah ekran) sorunu — yeni PC'de GPU
+                // sürücüsü uyumsuzluğu WebView2 Chromium render sürecini çökertiyordu.
+                // --disable-gpu + software rasterizer ile GPU devre dışı bırakılarak fix edildi.
+                var envOptions = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(
+                    "--disable-gpu --disable-gpu-compositing --disable-software-rasterizer --in-process-gpu");
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, envOptions);
                 await _webViewChart.EnsureCoreWebView2Async(env);
 
                 _webViewChart.CoreWebView2.ProcessFailed += (s, e) => 
@@ -1782,7 +1787,12 @@ namespace XiDeAI_Pro
                 // v4.4.5: Use distinct folder to avoid locking conflict with Chart WebView
                 string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "WebView2_Twitter");
                 Directory.CreateDirectory(userDataFolder);
-                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                // FIX v5.7.1: BrowserProcessExited (siyah ekran) sorunu — yeni PC'de GPU
+                // sürücüsü uyumsuzluğu WebView2 Chromium render sürecini çökertiyordu.
+                // --disable-gpu + software rasterizer ile GPU devre dışı bırakılarak fix edildi.
+                var envOptions = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions(
+                    "--disable-gpu --disable-gpu-compositing --disable-software-rasterizer --in-process-gpu");
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder, envOptions);
                 await _webViewTwitter.EnsureCoreWebView2Async(env);
                 
                 _webViewTwitter.CoreWebView2.ProcessFailed += (s, e) => 
