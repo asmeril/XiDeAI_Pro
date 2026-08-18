@@ -143,6 +143,8 @@ git push origin master
 | Fenomen cache sembol filtresi yok — tüm handle tweetleri sayılıyordu, sembol eşleşmesi aranmıyordu | ✅ Düzeltildi — Cache artık sadece sembolle eşleşen tweetleri sayıyor (min 3 eşleşme şartı) | v5.7.0 |
 | ManualAnalysis + SignalEngine KnowledgeBase'i kullanmıyordu — Deep Scan'de toplanan veriler analize dahil edilmiyordu | ✅ Düzeltildi — Adım 0: KB'den VIP sembol araması eklendi, canlı X araması fallback'e alındı | v5.7.0 |
 | Thread son tweet gönderilemiyor (ManualAnalysisThread 11/12, 7/8) — reply navigate timeout 10s yetmiyordu | ✅ Düzeltildi — Navigate bekleme 18s, tweetler arası 4s, Ctrl+Enter fallback, with_replies 8s bekleme | v5.7.0 |
+| TradingView cookie import `IOException: file is being used by another process` | ✅ Düzeltildi — `File.Copy` yerine `ReadAllTextAsync`+`WriteAllTextAsync` pattern kullanıldı | v5.7.1 |
+| Yeni PC kurulumunda X sosyal sekmesi hesabı göstermiyor — cookie import sonrası WebView2 yenilenmiyordu | ✅ Düzeltildi — Import başarılıysa `InjectTwitterCookiesAsync` + `x.com/home` navigate tetikleniyor | v5.7.1 |
 
 ---
 

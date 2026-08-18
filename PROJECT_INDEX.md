@@ -1,6 +1,6 @@
-> **Version:** 5.7.0
+> **Version:** 5.7.1
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
-> **Last Updated:** 16 Temmuz 2026
+> **Last Updated:** 19 Ağustos 2026
 
 Bu indeks, proje üzerinde çalışacak yapay zeka ve geliştiriciler için **kod tabanının haritasını** sunar. Yeni özellik eklerken veya hata düzeltirken burayı referans alınız.
 

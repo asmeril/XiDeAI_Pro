@@ -732,17 +732,35 @@ namespace XiDeAI_Pro
             AttachHoverEffect(btnImportCookies, Color.Gray, Color.DimGray);
             btnImportCookies.Click += async (s, ev) => {
                  using (var ofd = new OpenFileDialog { Filter = "JSON Files|*.json" }) if (ofd.ShowDialog() == DialogResult.OK) {
-                     var res = await _opManager.SocialIntel.ImportCookiesAsync(File.ReadAllText(ofd.FileName)); MessageBox.Show(res.Message);
+                     var res = await _opManager.SocialIntel.ImportCookiesAsync(File.ReadAllText(ofd.FileName));
+                     MessageBox.Show(res.Message);
+                     // FIX v5.7.1: After successful import, re-inject cookies into running WebView2 and navigate.
+                     // Import only saves to .pkl (Python side); WebView2 was already initialized at startup
+                     // with no cookies so it shows the login page. Re-injecting fixes this without restart.
+                     if (res.Success && _webViewTwitter?.CoreWebView2 != null)
+                     {
+                         await InjectTwitterCookiesAsync(_webViewTwitter.CoreWebView2);
+                         _webViewTwitter.Source = new Uri("https://x.com/home");
+                     }
                  }
             };
             var btnImportTvCookies = new Button { Text = "📈 TV Çerezleri (.json)", Width = 195, Height = 35, BackColor = Color.DimGray, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             AttachHoverEffect(btnImportTvCookies, Color.Gray, Color.DimGray);
-            btnImportTvCookies.Click += (s, ev) => {
+            btnImportTvCookies.Click += async (s, ev) => {
                  using (var ofd = new OpenFileDialog { Filter = "JSON Files|*.json" }) if (ofd.ShowDialog() == DialogResult.OK) {
-                     string dest = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "tradingview_cookies.json");
-                     string? dir = Path.GetDirectoryName(dest);
-                     if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                     File.Copy(ofd.FileName, dest, true); MessageBox.Show("✅ TradingView çerezleri başarıyla yüklendi.\nGrafiklerde artık kayıtlı ayarlarınız kullanılacak.");
+                     try {
+                         string dest = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XiDeAI", "tradingview_cookies.json");
+                         string? dir = Path.GetDirectoryName(dest);
+                         if (dir != null && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                         // FIX v5.7.1: File.Copy throws IOException when the destination file is locked
+                         // by another process (WebView2 chart or screenshot.py reading it at the same time).
+                         // Workaround: read source content first, then write asynchronously to bypass the lock.
+                         string content = await File.ReadAllTextAsync(ofd.FileName);
+                         await File.WriteAllTextAsync(dest, content);
+                         MessageBox.Show("✅ TradingView çerezleri başarıyla yüklendi.\nGrafiklerde artık kayıtlı ayarlarınız kullanılacak.");
+                     } catch (Exception ex) {
+                         MessageBox.Show($"❌ TradingView çerezi yüklenemedi: {ex.Message}\n\nUygulama açıkken dosya kilitli olabilir. Lütfen tekrar deneyin.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                     }
                  }
             };
             flowCookies.Controls.Add(btnImportCookies); flowCookies.Controls.Add(btnImportTvCookies);

@@ -2,7 +2,25 @@
 
 Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve günlük ilerlemeyi takip etmek için tutulmaktadır.
 
+## 📅 19 Ağustos 2026
+
+### 🔧 v5.7.1 Release (Yeni PC Kurulum & Cookie Hata Düzeltmeleri)
+
+**TradingView Cookie IOException Düzeltmesi (`MainForm.cs`):**
+- `btnImportTvCookies.Click` handler'ı `(s, ev) =>` (sync) → `async (s, ev) =>` olarak dönüştürüldü.
+- `File.Copy(ofd.FileName, dest, true)` kaldırıldı. Uygulama çalışırken WebView2 chart veya `screenshot.py` tarafından kilitlenen `tradingview_cookies.json` dosyasına `File.Copy` yapılmaya çalışılması `IOException` fırlatıyordu.
+- Çözüm: `ReadAllTextAsync` ile kaynak içerik okunduktan sonra `WriteAllTextAsync` ile hedefe yazılıyor. Bu yöntem dosya kilidini bypass eder.
+- Hata durumunda kullanıcıya açıklayıcı `MessageBox` gösteriliyor.
+
+**Twitter/X Sosyal Sekmesi Hesap Görüntülememe Düzeltmesi (`MainForm.cs`):**
+- `btnImportCookies.Click` handler'ı genişletildi: Import başarılı olduğunda (`res.Success`) `_webViewTwitter` WebView2'ye cookie'lar yeniden enjekte ediliyor (`InjectTwitterCookiesAsync`) ve `https://x.com/home` adresine navigate ediliyor.
+- **Kök neden:** Uygulama başlangıcında `InitializeTwitterWebView()` çalışır; yeni bir PC kurulumunda `twitter_cookies.pkl` henüz mevcut olmadığından cookie enjeksiyonu başarısız olur ve WebView2 oturumsuz `x.com/home` gösterir. Kullanıcı sonradan cookie içe aktardığında WebView2 güncellenmiyordu.
+- Bu düzeltme ile uygulamayı yeniden başlatmaya gerek kalmadan sosyal sekme hesabı gösterecek.
+
+---
+
 ## 📅 30 Temmuz 2026
+
 
 ### 🚀 v5.7.0 Release (Fenomen & Thread Düzeltmeleri)
 
