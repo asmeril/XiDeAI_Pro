@@ -24,6 +24,9 @@ namespace XiDeAI_Pro
         private TabPage tpChart = null!;
         private TabPage tpTwitter = null!;
         private TabControl tabDashViews = null!;
+        // FIX v5.7.4: Re-init siyah ekran — container panel'lara re-init'te erişmek için field olarak saklanıyor
+        private Panel _pnlChartContainer = null!;
+        private Panel _pnlTwitterContainer = null!;
         
         // CENTRAL MANAGER
         private OperationManager _opManager = null!;
@@ -518,7 +521,8 @@ namespace XiDeAI_Pro
             
             // --- TAB 1: CHART ---
             tpChart = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
-            var pnlChartContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
+            _pnlChartContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
+            var pnlChartContainer = _pnlChartContainer;
             pnlChartContainer.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 var rect = pnlChartContainer.ClientRectangle; rect.Width -= 1; rect.Height -= 1;
@@ -539,7 +543,8 @@ namespace XiDeAI_Pro
 
             // --- TAB 2: TWITTER ---
             tpTwitter = new TabPage { BackColor = Color.FromArgb(11, 14, 17), Margin = new Padding(0) };
-            var pnlTwitterContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
+            _pnlTwitterContainer = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(11, 14, 17), Padding = new Padding(2), Tag = "IGNORE_THEME" };
+            var pnlTwitterContainer = _pnlTwitterContainer;
             pnlTwitterContainer.Paint += (s, e) => {
                 e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                 var rect = pnlTwitterContainer.ClientRectangle; rect.Width -= 1; rect.Height -= 1;
@@ -1580,11 +1585,14 @@ namespace XiDeAI_Pro
                     
                     this.Invoke((MethodInvoker)(async () => {
                         try {
-                            tpChart.Controls.Remove(_webViewChart);
+                            // FIX v5.7.4: _webViewChart, tpChart değil pnlChartContainer içinde.
+                            // Yanlış parent'dan Remove → Add yapılıyordu; yeni WebView container'ın
+                            // arkasında kalıp görünmez oluyordu (siyah ekran).
+                            _pnlChartContainer.Controls.Remove(_webViewChart);
                             _webViewChart.Dispose();
                             _webViewChart = new Microsoft.Web.WebView2.WinForms.WebView2();
-                            _webViewChart.Dock = DockStyle.Fill;
-                            tpChart.Controls.Add(_webViewChart);
+                            _webViewChart.BackColor = Color.FromArgb(11, 14, 17);
+                            _pnlChartContainer.Controls.Add(_webViewChart);
                             InitializeChart();
                         } catch (Exception ex2) {
                             Log("❌ Chart WebView kurtarma başarısız: " + ex2.Message, "Error");
@@ -1802,11 +1810,14 @@ namespace XiDeAI_Pro
                     
                     this.Invoke((MethodInvoker)(async () => {
                         try {
-                            tpTwitter.Controls.Remove(_webViewTwitter);
+                            // FIX v5.7.4: _webViewTwitter, tpTwitter değil pnlTwitterContainer içinde.
+                            // Yanlış parent'dan Remove → Add yapılıyordu; yeni WebView container'ın
+                            // arkasında kalıp görünmez oluyordu (siyah ekran).
+                            _pnlTwitterContainer.Controls.Remove(_webViewTwitter);
                             _webViewTwitter.Dispose();
                             _webViewTwitter = new Microsoft.Web.WebView2.WinForms.WebView2();
-                            _webViewTwitter.Dock = DockStyle.Fill;
-                            tpTwitter.Controls.Add(_webViewTwitter);
+                            _webViewTwitter.BackColor = Color.FromArgb(11, 14, 17);
+                            _pnlTwitterContainer.Controls.Add(_webViewTwitter);
                             InitializeTwitterWebView();
                         } catch (Exception ex2) {
                             Log("❌ Twitter WebView kurtarma başarısız: " + ex2.Message, "Error");

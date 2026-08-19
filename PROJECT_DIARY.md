@@ -4,6 +4,32 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 19 Ağustos 2026
 
+### 🔧 v5.7.4 Release (WebView2 Re-init Siyah Ekran — Kök Neden Düzeltmesi)
+
+**Kök Neden Analizi:**
+v5.7.2'deki `--disable-gpu` fix'i GPU crash frekansını azaltıyordu, ancak `BrowserProcessExited` tetiklenmeye devam ettiğinde çalışan re-initialization kodu yanlış parent container'a WebView2 ekliyordu:
+
+```
+tpChart (TabPage)
+  └── pnlChartContainer (Panel, Dock=Fill)  ← tüm alanı kaplıyor, üstte
+        ├── pnlChartHeader
+        └── _webViewChart (orijinal WebView)
+
+ProcessFailed → re-init (HATALI):
+tpChart (TabPage)
+  ├── pnlChartContainer  ← hâlâ orada, görünür alanın tamamını kaplıyor
+  └── _webViewChart (YENİ, tpChart'a eklendi)  ← pnlChartContainer'ın ARKASINDA → SİYAH EKRAN!
+```
+
+**Düzeltme (`MainForm.cs`):**
+- `_pnlChartContainer` ve `_pnlTwitterContainer` **class field** olarak tanımlandı (önceden sadece `InitializeComponent` içinde yerel `var` değişkeniydi).
+- `ProcessFailed` re-init kodu güncellendi:
+  - `tpChart.Controls.Remove` / `tpChart.Controls.Add` → `_pnlChartContainer.Controls.Remove` / `_pnlChartContainer.Controls.Add`
+  - `tpTwitter.Controls.Remove` / `tpTwitter.Controls.Add` → `_pnlTwitterContainer.Controls.Remove` / `_pnlTwitterContainer.Controls.Add`
+- Artık yeni WebView2 doğru parent panel içine ekleniyor ve `SetupManualLayout` bound'ları içinde görünür oluyor.
+
+---
+
 ### 🔧 v5.7.3 Release (pip Install Timeout Düzeltmesi)
 
 **Sorun:** `DependencyManager.cs` içinde `EnsurePythonPackageAsync` metodu `WaitForExit(60000)` (60 saniye) ile pip kurulumunu bekliyordu. `undetected-chromedriver` gibi wheel build gerektiren paketler yavaş internet bağlantısında veya ilk kurulumda bu süreyi aşarak `⚠️ yüklenemedi` loglanıp atlanıyordu. Sonraki uygulama çalıştırmalarında `[Daemon Log] ERROR: selenium or undetected_chromedriver not installed` hatası alınıyordu.

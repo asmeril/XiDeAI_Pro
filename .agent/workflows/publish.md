@@ -147,6 +147,7 @@ git push origin master
 | Yeni PC kurulumunda X sosyal sekmesi hesabı göstermiyor — cookie import sonrası WebView2 yenilenmiyordu | ✅ Düzeltildi — Import başarılıysa `InjectTwitterCookiesAsync` + `x.com/home` navigate tetikleniyor | v5.7.1 |
 | WebView2 GRAFİK ve SOSYAL sekmeleri siyah — yeni PC'de GPU sürücüsü uyumsuzluğu `BrowserProcessExited` fırlatıyor | ✅ Düzeltildi — `CoreWebView2EnvironmentOptions` ile `--disable-gpu` eklendi, software rendering'e geçildi | v5.7.2 |
 | `[Daemon Log] ERROR: selenium or undetected_chromedriver not installed` — pip install 60s timeout'da başarısız oluyordu | ✅ Düzeltildi — `WaitForExit` 60s → 120s artırıldı; wheel build paketler için yeterli süre sağlandı | v5.7.3 |
+| WebView2 re-init sonrası siyah ekran devam ediyor — `ProcessFailed` tetiklenince yeni WebView yanlış parent'a (`tpChart`/`tpTwitter`) ekleniyordu, `pnlChartContainer`/`pnlTwitterContainer` arkasında gizli kalıyordu | ✅ Düzeltildi — Container panel'lar class field yapıldı, re-init doğru parent'a ekliyor | v5.7.4 |
 
 ---
 
