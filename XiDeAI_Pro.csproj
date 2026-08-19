@@ -7,10 +7,11 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>xideai_icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>XiDeAI_Pro.Program</StartupObject>
     <AssemblyName>XiDeAI_Pro</AssemblyName>
-    <Version>5.7.4</Version>
-    <AssemblyVersion>5.7.4.0</AssemblyVersion>
-    <FileVersion>5.7.4.0</FileVersion>
+    <Version>5.7.5</Version>
+    <AssemblyVersion>5.7.5.0</AssemblyVersion>
+    <FileVersion>5.7.5.0</FileVersion>
     <Company>XiDeAI</Company>
     <Product>XiDeAI Pro</Product>
     <Description>XiDeAI Pro - AI-Powered Trading Assistant</Description>

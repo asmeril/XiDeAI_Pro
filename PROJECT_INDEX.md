@@ -1,4 +1,4 @@
-> **Version:** 5.7.4
+> **Version:** 5.7.5
 > **Architecture:** Hybrid (C# WinForms + Canonical PostingService + Python Playwright Posting Engine + Selenium Research Fallback + WebView2 Session Bridge)
 > **Last Updated:** 19 Ağustos 2026
 

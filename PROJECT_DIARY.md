@@ -314,3 +314,8 @@ ull döndüğünde sessizce çökmek yerine artık System/Twitter loglarına hat
 - `ThreadPipeline.cs` içerisindeki agresif çalışan "Robotik numara temizliği" regex'i (ör. `1) KISA ÖZET`) iptal edildi. Bu regex'in son parçayı tamamen sildiği ve 5/5 olarak beklenen tweetin boş içerik nedeniyle gönderilememesine (Duplicate/Timeout) yol açtığı tespit edildi.
 - `playwright_daemon.py` hata raporlaması geliştirildi: Kısmi başarılı (partially posted) durumlarda hata JSON içerisine `Failed parts` ile birlikte tam hata nedeninin tespiti için daha açık log detayı eklendi.
 - `SocialIntelService.cs` içindeki `SocialIntelResult` kullanımı düzeltildi, olmayan `url` özelliği yerine `tweet_url` kullanımı sağlandı ve derleme hatası (CS1061) giderildi.
+
+### [v5.7.5] - 2026-08-19 11:54
+**Enhancements & Fixes:**
+- **Signal Engine Fix:** LogFileWatcher.cs içerisindeki iDeal veritabanı okuma mekanizması iyileştirildi. Sinyal yazma işlemi sırasında dosyanın kısa süreli kilitli kalması durumunda okumanın tamamen başarısız olmasına yol açan sorun, okuma deneme sayısı 3'ten 10'a, bekleme süresi ise 250ms'den 500ms'ye çıkarılarak çözüldü (toplam tolerans 5 saniye).
+- **Fallback Timer:** Windows FileSystemWatcher etkinlik düşürme ihtimaline karşı her 2 saniyede bir çalışan yedek bir zamanlayıcı (_fallbackTimer) eklendi.

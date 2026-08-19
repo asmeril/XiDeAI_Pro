@@ -148,6 +148,7 @@ git push origin master
 | WebView2 GRAFİK ve SOSYAL sekmeleri siyah — yeni PC'de GPU sürücüsü uyumsuzluğu `BrowserProcessExited` fırlatıyor | ✅ Düzeltildi — `CoreWebView2EnvironmentOptions` ile `--disable-gpu` eklendi, software rendering'e geçildi | v5.7.2 |
 | `[Daemon Log] ERROR: selenium or undetected_chromedriver not installed` — pip install 60s timeout'da başarısız oluyordu | ✅ Düzeltildi — `WaitForExit` 60s → 120s artırıldı; wheel build paketler için yeterli süre sağlandı | v5.7.3 |
 | WebView2 re-init sonrası siyah ekran devam ediyor — `ProcessFailed` tetiklenince yeni WebView yanlış parent'a (`tpChart`/`tpTwitter`) ekleniyordu, `pnlChartContainer`/`pnlTwitterContainer` arkasında gizli kalıyordu | ✅ Düzeltildi — Container panel'lar class field yapıldı, re-init doğru parent'a ekliyor | v5.7.4 |
+| Uygulama açıkken sinyallerin anlık kilitlenme sebebiyle kaçırılması | ✅ Düzeltildi — LogFileWatcher retry süresi 5 saniyeye çıkarıldı ve 2 sn Fallback Timer eklendi | v5.7.5 |
 
 ---
 

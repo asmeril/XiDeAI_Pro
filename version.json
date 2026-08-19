@@ -1,8 +1,9 @@
 {
-  "version": "5.7.4",
-  "build_number": 5740,
-  "lastUpdate": "2026-08-19T07:49:33Z",
+  "version": "5.7.5",
+  "build_number": 5750,
+  "lastUpdate": "2026-08-19T08:55:09Z",
   "changelog": [
+    "v5.7.5: v5.7.5: LogFileWatcher iyilestirmesi (File lock and Fallback timer)",
     "v5.7.4: v5.7.4: WebView2 re-init siyah ekran kok neden duzeltmesi - ProcessFailed sonrasi yeni WebView2 yanlis parent (tpChart/tpTwitter) yerine dogru parent (pnlChartContainer/pnlTwitterContainer) icine ekleniyor",
     "v5.7.3: v5.7.3: pip install timeout 60s->120s (undetected-chromedriver wheel build ilk kurulumda yüklenemiyordu)",
     "v5.7.2: v5.7.2: WebView2 GPU crash fix - BrowserProcessExited siyah ekran sorunu --disable-gpu envOptions ile cozuldu (yeni PC GPU surucu uyumsuzlugu)",

@@ -24,6 +24,7 @@ namespace XiDeAI_Pro.Services
         public bool IsPaused { get; private set; } = false;
 
         private const string DbPath = @"C:\iDeal\Sinyal_Log_Database.txt";
+        private System.Threading.Timer? _fallbackTimer;
 
         public void Start()
         {
@@ -47,7 +48,20 @@ namespace XiDeAI_Pro.Services
             _dbWatcher.Changed += (s, e) => ProcessDbFileSafe(e.FullPath);
             _dbWatcher.EnableRaisingEvents = true;
             IsRunning = true;
+            
+            // Fallback timer to check for changes every 2 seconds in case FileSystemWatcher drops events
+            _fallbackTimer?.Dispose();
+            _fallbackTimer = new System.Threading.Timer(FallbackTimerCallback, null, 2000, 2000);
+            
             OnLog?.Invoke($"✅ Alpha/PreMove DB izleniyor: {DbPath}");
+        }
+
+        private void FallbackTimerCallback(object? state)
+        {
+            if (IsRunning && !IsPaused)
+            {
+                ProcessDbFileSafe(DbPath);
+            }
         }
 
         private void ProcessDbFileSafe(string path)
@@ -95,7 +109,7 @@ namespace XiDeAI_Pro.Services
 
         private static List<string> ReadStableLines(string path)
         {
-            for (int attempt = 0; attempt < 3; attempt++)
+            for (int attempt = 0; attempt < 10; attempt++)
             {
                 try
                 {
@@ -106,9 +120,9 @@ namespace XiDeAI_Pro.Services
                         .Where(x => !string.IsNullOrWhiteSpace(x))
                         .ToList();
                 }
-                catch when (attempt < 2)
+                catch when (attempt < 9)
                 {
-                    System.Threading.Thread.Sleep(250);
+                    System.Threading.Thread.Sleep(500);
                 }
                 catch
                 {
@@ -147,6 +161,8 @@ namespace XiDeAI_Pro.Services
 
         public void Stop()
         {
+            _fallbackTimer?.Dispose();
+            _fallbackTimer = null;
             _dbWatcher?.Dispose();
             _dbWatcher = null;
             IsRunning = false;
