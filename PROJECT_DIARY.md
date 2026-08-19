@@ -4,6 +4,16 @@ Bu günlük, proje üzerinde yapılan değişiklikleri, mimari kararları ve gü
 
 ## 📅 19 Ağustos 2026
 
+### 🔧 v5.7.3 Release (pip Install Timeout Düzeltmesi)
+
+**Sorun:** `DependencyManager.cs` içinde `EnsurePythonPackageAsync` metodu `WaitForExit(60000)` (60 saniye) ile pip kurulumunu bekliyordu. `undetected-chromedriver` gibi wheel build gerektiren paketler yavaş internet bağlantısında veya ilk kurulumda bu süreyi aşarak `⚠️ yüklenemedi` loglanıp atlanıyordu. Sonraki uygulama çalıştırmalarında `[Daemon Log] ERROR: selenium or undetected_chromedriver not installed` hatası alınıyordu.
+
+**Düzeltme (`DependencyManager.cs`):**
+- `WaitForExit(60000)` → `WaitForExit(120000)` — timeout **60s'den 120s'ye** artırıldı.
+- `undetected-chromedriver` bu PC'ye manuel olarak elle `pip install` ile yüklendi (yükleme 13 saniye sürdü — ilk seferinde ağ veya cache sorunu nedeniyle timeout'a düşmüştü).
+
+---
+
 ### 🔧 v5.7.2 Release (WebView2 GPU Crash — Siyah Ekran Düzeltmesi)
 
 **Kök Neden:** Yeni PC kurulumlarında GPU sürücüsü uyumsuzluğu, WebView2'nin altındaki Chromium render sürecini başlangıçta çökertiyor (`BrowserProcessExited`). Süreç yeniden başlatılıyor ancak GPU donanım hızlandırması yüzünden ekran siyah kalıyordu.

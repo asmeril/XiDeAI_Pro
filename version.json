@@ -1,8 +1,9 @@
 {
-  "version": "5.7.2",
-  "build_number": 5720,
-  "lastUpdate": "2026-08-18T22:06:26Z",
+  "version": "5.7.3",
+  "build_number": 5730,
+  "lastUpdate": "2026-08-19T07:38:40Z",
   "changelog": [
+    "v5.7.3: v5.7.3: pip install timeout 60s->120s (undetected-chromedriver wheel build ilk kurulumda yüklenemiyordu)",
     "v5.7.2: v5.7.2: WebView2 GPU crash fix - BrowserProcessExited siyah ekran sorunu --disable-gpu envOptions ile cozuldu (yeni PC GPU surucu uyumsuzlugu)",
     "v5.7.1: v5.7.1: TradingView cookie IOException duzeltmesi (File.Copy brakiliyor ReadAllTextAsync/WriteAllTextAsync ile degistirildi) + Yeni PC kurulumunda X sosyal sekmesi hesap goruntuleme sorunu cozuldu (Import sonrasi WebView2 re-inject + navigate)",
     "v5.7.0: v5.7.0: Fenomen KB cache sembol filtresi, ManualAnalysis+SignalEngine KB lookup, thread son tweet güvenilirlik artırımı (4s ara bekleme, 18s navigate timeout, Ctrl+Enter fallback)",

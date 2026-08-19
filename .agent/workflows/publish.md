@@ -146,6 +146,7 @@ git push origin master
 | TradingView cookie import `IOException: file is being used by another process` | ✅ Düzeltildi — `File.Copy` yerine `ReadAllTextAsync`+`WriteAllTextAsync` pattern kullanıldı | v5.7.1 |
 | Yeni PC kurulumunda X sosyal sekmesi hesabı göstermiyor — cookie import sonrası WebView2 yenilenmiyordu | ✅ Düzeltildi — Import başarılıysa `InjectTwitterCookiesAsync` + `x.com/home` navigate tetikleniyor | v5.7.1 |
 | WebView2 GRAFİK ve SOSYAL sekmeleri siyah — yeni PC'de GPU sürücüsü uyumsuzluğu `BrowserProcessExited` fırlatıyor | ✅ Düzeltildi — `CoreWebView2EnvironmentOptions` ile `--disable-gpu` eklendi, software rendering'e geçildi | v5.7.2 |
+| `[Daemon Log] ERROR: selenium or undetected_chromedriver not installed` — pip install 60s timeout'da başarısız oluyordu | ✅ Düzeltildi — `WaitForExit` 60s → 120s artırıldı; wheel build paketler için yeterli süre sağlandı | v5.7.3 |
 
 ---
 

@@ -537,7 +537,9 @@ namespace XiDeAI_Pro.Services
                         return;
                     }
                     
-                    bool installExited = installProc.WaitForExit(60000);
+                    // FIX v5.7.3: undetected-chromedriver gibi wheel build gerektiren paketler
+                    // yavaş bağlantıda veya ilk kurulumda 60s'yi aşabilir → timeout artırıldı.
+                    bool installExited = installProc.WaitForExit(120000); // 120s (was 60s)
                     
                     if (installExited && installProc.HasExited && installProc.ExitCode == 0)
                     {
